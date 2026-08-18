@@ -1,6 +1,6 @@
 'use client';
-import { useState } from 'react';
-import { CreditCard, FileText, Upload, Send, Building } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { CreditCard, FileText, Upload, Send, Building, CheckSquare, AlertCircle } from 'lucide-react';
 
 export default function DondePagarPage() {
   const [formData, setFormData] = useState({
@@ -13,6 +13,13 @@ export default function DondePagarPage() {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+
+  // Deudas simuladas para demostración
+  const [deudas, setDeudas] = useState([
+    { id: 1, concepto: 'Mes Vencido - Enero 2024', monto: 850.50, seleccionado: false, tipo: 'regular' },
+    { id: 2, concepto: 'Mes Vencido - Febrero 2024', monto: 850.50, seleccionado: false, tipo: 'regular' },
+    { id: 3, concepto: 'Cuota Convenio de Pago (1/3)', monto: 2500.00, seleccionado: false, tipo: 'convenio' },
+  ]);
 
   const bancos = [
     '0102 - BANCO DE VENEZUELA',
@@ -41,9 +48,19 @@ export default function DondePagarPage() {
     '0191 - BANCO NACIONAL DE CRÉDITO (BNC)'
   ];
 
+  // Calcular monto total automáticamente
+  const montoTotal = deudas.filter(d => d.seleccionado).reduce((acc, curr) => acc + curr.monto, 0);
+
+  useEffect(() => {
+    setFormData(prev => ({ ...prev, monto: montoTotal > 0 ? montoTotal.toFixed(2) : '' }));
+  }, [montoTotal]);
+
+  const toggleDeuda = (id: number) => {
+    setDeudas(deudas.map(d => d.id === id ? { ...d, seleccionado: !d.seleccionado } : d));
+  };
+
   const compressImage = (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {
-      // Si no es imagen (ej. PDF), devolver el archivo original
       if (!file.type.startsWith('image/')) {
         resolve(file);
         return;
@@ -78,7 +95,6 @@ export default function DondePagarPage() {
           const ctx = canvas.getContext('2d');
           ctx?.drawImage(img, 0, 0, width, height);
           
-          // Comprimir a JPEG con calidad reducida
           canvas.toBlob((blob) => {
             if (blob) {
               const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
@@ -89,7 +105,7 @@ export default function DondePagarPage() {
             } else {
               resolve(file);
             }
-          }, 'image/jpeg', 0.6); // 60% de calidad
+          }, 'image/jpeg', 0.6);
         };
         img.onerror = (error) => reject(error);
       };
@@ -99,6 +115,11 @@ export default function DondePagarPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (montoTotal === 0) {
+      alert("Debe seleccionar al menos una deuda o cuota de convenio a pagar.");
+      return;
+    }
+
     setIsSubmitting(true);
     
     // Simular envío a Supabase
@@ -112,17 +133,21 @@ export default function DondePagarPage() {
         fecha: '',
         comprobante: null
       });
+      // Limpiar selección
+      setDeudas(deudas.map(d => ({ ...d, seleccionado: false })));
       setTimeout(() => setShowSuccess(false), 4000);
     }, 1500);
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto mt-6">
+    <div className="space-y-6 max-w-5xl mx-auto mt-6 pb-12">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Lado izquierdo: Información del Banco */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden h-full">
+        {/* Columna Izquierda */}
+        <div className="lg:col-span-1 space-y-6">
+          
+          {/* Cuentas Recaudadoras */}
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
             <div className="bg-indigo-50 px-4 py-4 border-b border-indigo-100 flex items-center justify-center">
               <h2 className="font-semibold text-indigo-900 uppercase flex items-center gap-2 text-sm">
                 <Building className="w-4 h-4 text-indigo-600" />
@@ -155,6 +180,50 @@ export default function DondePagarPage() {
               </div>
             </div>
           </div>
+
+          {/* Selección de Deudas */}
+          <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+            <div className="bg-amber-50 px-4 py-3 border-b border-amber-100 flex items-center justify-between">
+              <h2 className="font-semibold text-amber-900 uppercase flex items-center gap-2 text-sm">
+                <CheckSquare className="w-4 h-4 text-amber-600" />
+                Seleccionar Pagos
+              </h2>
+            </div>
+            <div className="p-4 space-y-3">
+              {deudas.map((deuda) => (
+                <label key={deuda.id} className={`flex items-start gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${deuda.seleccionado ? 'border-amber-500 bg-amber-50/50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                  <div className="pt-0.5">
+                    <input 
+                      type="checkbox" 
+                      className="w-4 h-4 text-amber-600 rounded border-slate-300 focus:ring-amber-500"
+                      checked={deuda.seleccionado}
+                      onChange={() => toggleDeuda(deuda.id)}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <span className="font-medium text-sm text-slate-700 block">{deuda.concepto}</span>
+                      <span className="font-bold text-sm text-slate-800 block whitespace-nowrap ml-2">Bs. {deuda.monto.toFixed(2)}</span>
+                    </div>
+                    {deuda.tipo === 'convenio' && (
+                      <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-semibold uppercase mt-1 inline-block">Convenio</span>
+                    )}
+                  </div>
+                </label>
+              ))}
+
+              {deudas.length === 0 && (
+                <div className="text-center py-6 text-slate-500 text-sm">
+                  No tiene deudas pendientes.
+                </div>
+              )}
+            </div>
+            
+            <div className="bg-slate-50 p-4 border-t border-slate-200 flex justify-between items-center">
+              <span className="font-semibold text-slate-600 text-sm">Monto a pagar:</span>
+              <span className="font-bold text-lg text-amber-600">Bs. {montoTotal.toFixed(2)}</span>
+            </div>
+          </div>
         </div>
 
         {/* Lado derecho: Formulario de Reporte */}
@@ -165,7 +234,7 @@ export default function DondePagarPage() {
                 <CreditCard className="w-5 h-5 text-emerald-600" />
                 Reportar Pago / Transferencia
               </h2>
-              <p className="text-xs text-slate-500 mt-1">Llene los datos de su transferencia para que sea validada por el departamento de cobranzas.</p>
+              <p className="text-xs text-slate-500 mt-1">Llene los datos de su transferencia para validar los pagos seleccionados.</p>
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
@@ -175,7 +244,33 @@ export default function DondePagarPage() {
                 </div>
               )}
 
+              {montoTotal === 0 && !showSuccess && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded mb-4 text-sm flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold block">Seleccione los conceptos a pagar</span>
+                    Por favor, marque en la lista de la izquierda las deudas o convenios que desea cancelar. El monto se calculará automáticamente.
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Monto Transferido (Bs) <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold">Bs.</span>
+                    <input 
+                      type="text" 
+                      value={formData.monto}
+                      placeholder="0.00"
+                      className="w-full border border-slate-200 bg-slate-50 rounded pl-9 pr-3 py-2 text-sm text-slate-700 outline-none font-mono cursor-not-allowed font-bold"
+                      readOnly
+                      required
+                    />
+                  </div>
+                  <span className="text-[10px] text-slate-500 mt-1 block">El monto se calcula automáticamente según su selección.</span>
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1.5">Banco Origen <span className="text-red-500">*</span></label>
                   <select 
@@ -183,6 +278,7 @@ export default function DondePagarPage() {
                     onChange={(e) => setFormData({...formData, bancoOrigen: e.target.value})}
                     className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-emerald-500 bg-white"
                     required
+                    disabled={montoTotal === 0}
                   >
                     <option value="">-- Seleccione el banco --</option>
                     {bancos.map(b => <option key={b} value={b}>{b}</option>)}
@@ -199,23 +295,8 @@ export default function DondePagarPage() {
                     onChange={(e) => setFormData({...formData, referencia: e.target.value.replace(/\D/g, '')})}
                     className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-emerald-500 font-mono"
                     required
+                    disabled={montoTotal === 0}
                   />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Monto Transferido (Bs) <span className="text-red-500">*</span></label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold">Bs.</span>
-                    <input 
-                      type="number" 
-                      step="0.01"
-                      placeholder="Ej. 1500.50"
-                      value={formData.monto}
-                      onChange={(e) => setFormData({...formData, monto: e.target.value})}
-                      className="w-full border border-slate-300 rounded pl-9 pr-3 py-2 text-sm text-slate-700 outline-none focus:border-emerald-500 font-mono"
-                      required
-                    />
-                  </div>
                 </div>
 
                 <div>
@@ -227,17 +308,18 @@ export default function DondePagarPage() {
                     onChange={(e) => setFormData({...formData, fecha: e.target.value})}
                     className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-emerald-500"
                     required
+                    disabled={montoTotal === 0}
                   />
                 </div>
               </div>
 
               <div className="pt-2">
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">Comprobante de Pago (Imagen o PDF) <span className="text-red-500">*</span></label>
-                <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 flex flex-col items-center justify-center text-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative">
+                <div className={`border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-center transition-colors relative ${montoTotal === 0 ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed' : 'border-slate-300 bg-slate-50 hover:bg-slate-100 cursor-pointer'}`}>
                   <input 
                     type="file" 
                     accept="image/*,.pdf"
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
                     onChange={async (e) => {
                       if (e.target.files && e.target.files[0]) {
                         const file = e.target.files[0];
@@ -251,6 +333,7 @@ export default function DondePagarPage() {
                       }
                     }}
                     required={!formData.comprobante}
+                    disabled={montoTotal === 0}
                   />
                   <Upload className={`w-8 h-8 mb-2 ${formData.comprobante ? 'text-emerald-500' : 'text-slate-400'}`} />
                   {formData.comprobante ? (
@@ -270,8 +353,8 @@ export default function DondePagarPage() {
               <div className="pt-5 border-t border-slate-200 flex justify-end">
                 <button 
                   type="submit" 
-                  disabled={isSubmitting}
-                  className="bg-emerald-600 text-white px-8 py-2.5 rounded text-sm font-semibold hover:bg-emerald-700 transition-colors flex items-center gap-2 disabled:opacity-70 shadow-sm"
+                  disabled={isSubmitting || montoTotal === 0}
+                  className="bg-emerald-600 text-white px-8 py-2.5 rounded text-sm font-semibold hover:bg-emerald-700 transition-colors flex items-center gap-2 disabled:opacity-50 shadow-sm"
                 >
                   {isSubmitting ? (
                     'Enviando comprobante...'
