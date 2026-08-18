@@ -15,8 +15,30 @@ export default function DondePagarPage() {
   const [showSuccess, setShowSuccess] = useState(false);
 
   const bancos = [
-    'BANESCO', 'BANCO DE VENEZUELA', 'MERCANTIL', 'PROVINCIAL', 
-    'BANCAMIGA', 'BANCO NACIONAL DE CRÉDITO (BNC)', 'BANPLUS', 'BANCO DEL TESORO'
+    '0102 - BANCO DE VENEZUELA',
+    '0104 - VENEZOLANO DE CRÉDITO',
+    '0105 - MERCANTIL',
+    '0108 - PROVINCIAL',
+    '0114 - BANCO CARONÍ',
+    '0115 - BANCO EXTERIOR',
+    '0128 - BANCO DEL CARIBE (BANCARIBE)',
+    '0134 - BANESCO',
+    '0137 - BANCO SOFITASA',
+    '0138 - BANCO PLAZA',
+    '0146 - BANGENTE',
+    '0151 - BANCO FONDO COMÚN (BFC)',
+    '0156 - 100% BANCO',
+    '0157 - BANCO DEL SUR',
+    '0163 - BANCO DEL TESORO',
+    '0166 - BANCO AGRÍCOLA DE VENEZUELA',
+    '0168 - BANCRECER',
+    '0169 - MIBANCO',
+    '0171 - BANCO ACTIVO',
+    '0172 - BANCAMIGA',
+    '0174 - BANPLUS',
+    '0175 - BANCO BICENTENARIO',
+    '0177 - BANFANB',
+    '0191 - BANCO NACIONAL DE CRÉDITO (BNC)'
   ];
 
   const compressImage = (file: File): Promise<File> => {
