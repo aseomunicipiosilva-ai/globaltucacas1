@@ -316,7 +316,7 @@ function ContribuyentesPageContent() {
                     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.lat}&lon=${loc.lng}`);
                     const data = await res.json();
                     if (data && data.display_name) {
-                      setFormData(prev => ({...prev, coordenadas: loc, Direccion: data.display_name}));
+                      setFormData((prev: any) => ({...prev, coordenadas: loc, Direccion: data.display_name}));
                     }
                   } catch (err) {
                     console.error('Error in reverse geocoding:', err);
