@@ -21,9 +21,11 @@ export default function DondePagarPage() {
   const [deudas, setDeudas] = useState<any[]>([]);
 
   useEffect(() => {
+    const portalUser = localStorage.getItem('portal_user');
+
     // Buscar facturas pendientes
     const facturasPendientes = facturas
-      .filter((f: any) => f.estado === 'Pendiente')
+      .filter((f: any) => f.estado === 'Pendiente' && f.contribuyente === portalUser)
       .map((f: any) => ({
         id: `fac_${f.id}`,
         concepto: `Factura ${f.referencia} - ${f.emision}`,
@@ -34,7 +36,7 @@ export default function DondePagarPage() {
 
     // Buscar convenios activos
     const conveniosActivos = convenios
-      .filter((c: any) => c.estado === 'Activo')
+      .filter((c: any) => c.estado === 'Activo' && c.contribuyente === portalUser)
       .map((c: any) => ({
         id: `conv_${c.id}`,
         concepto: `Convenio de Pago ${c.numero} (${c.cuotas})`,
