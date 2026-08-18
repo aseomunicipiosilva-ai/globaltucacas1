@@ -32,12 +32,13 @@ export default function EstadoCuentaPage() {
 
     setSelectedRecibo({
       reciboNo: row.referencia ? row.referencia.split('-').pop()?.padStart(7, '0') : '0000001',
+      controlWeb: row.estado === 'Pagado' ? 'WEB-' + Math.floor(Math.random() * 9000000 + 1000000).toString() : '',
       fechaEmision: row.emision || new Date().toISOString().split('T')[0],
       codContribuyente: row.identidad || '---',
       razonSocial: row.contribuyente || '---',
       domicilioFiscal: "ZONA TUCACAS (SECTOR NO ESPECIFICADO)",
       rifCi: row.identidad || '---',
-      caja: "CAJA VIRTUAL",
+      caja: "CAJERO F-OMAR",
       conceptos: [
         { 
           descripcion: `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${mesTexto}`, 
@@ -66,12 +67,13 @@ export default function EstadoCuentaPage() {
 
     setSelectedRecibo({
       reciboNo: '0000888',
+      controlWeb: 'WEB-0000001',
       fechaEmision: new Date().toISOString().split('T')[0],
       codContribuyente: 'V-12345678',
       razonSocial: 'CONTRIBUYENTE DE PRUEBA (6 MESES)',
       domicilioFiscal: "ZONA TUCACAS (SECTOR NO ESPECIFICADO)",
       rifCi: 'V-12345678',
-      caja: "CAJA VIRTUAL",
+      caja: "CAJERO F-OMAR",
       conceptos: conceptos,
       subTotal: montoUnitario * 6,
       exento: montoUnitario * 6,

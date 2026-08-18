@@ -4,6 +4,7 @@ import Image from 'next/image';
 
 interface ReciboProps {
   reciboNo: string;
+  controlWeb?: string;
   fechaEmision: string;
   codContribuyente: string;
   razonSocial: string;
@@ -72,10 +73,17 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
             <div>
               <span className="font-bold block">RECIBO N°</span>
               <span>{data.reciboNo}</span>
+              
+              {data.controlWeb && (
+                <div className="mt-2 pt-1">
+                  <span className="font-bold block">N° CONTROL WEB</span>
+                  <span className="text-xs font-semibold">{data.controlWeb}</span>
+                </div>
+              )}
             </div>
-            <div>
+            <div className="mt-auto">
               <span className="font-bold block">CAJA:</span>
-              <span>{data.caja}</span>
+              <span className="text-xs">{data.caja}</span>
             </div>
           </div>
         </div>
