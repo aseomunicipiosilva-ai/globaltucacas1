@@ -32,7 +32,11 @@ export default function PortalLogin() {
         localStorage.setItem('portal_codigo', data.codigo);
         router.push('/portal/dashboard');
       } else {
-        setError('Error al consultar la base de datos.');
+        if (res.status === 404) {
+          setError('Usuario no encontrado. Verifique su número de documento.');
+        } else {
+          setError('Error al consultar la base de datos.');
+        }
         setIsLoading(false);
       }
     } catch (err) {

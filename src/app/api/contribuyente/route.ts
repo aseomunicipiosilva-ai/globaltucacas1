@@ -29,10 +29,7 @@ export async function GET(request: Request) {
       codigo: records[0].cod_cont 
     });
   } else {
-    // Si no se encuentra, retornamos un genérico para no bloquear la demo
-    return NextResponse.json({ 
-      nombre: 'Contribuyente No Registrado', 
-      codigo: 'C-000000' 
-    });
+    // Si no se encuentra, retornamos 404
+    return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
   }
 }
