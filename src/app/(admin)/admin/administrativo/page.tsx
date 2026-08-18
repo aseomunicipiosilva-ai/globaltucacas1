@@ -230,7 +230,7 @@ export default function DashboardAdministrativo() {
                 <Tooltip 
                   cursor={{fill: '#f1f5f9'}}
                   contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
-                  formatter={(value: number) => [formatCurrency(currency === 'MMV' ? value * tcmmv : value), 'Deuda']}
+                  formatter={(value: any) => [formatCurrency(currency === 'MMV' ? (value || 0) * tcmmv : (value || 0)), 'Deuda']}
                 />
                 <Bar dataKey="Deuda" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={50} />
               </BarChart>
