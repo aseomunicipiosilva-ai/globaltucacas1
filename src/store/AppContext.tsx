@@ -1,11 +1,19 @@
 'use client';
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import mockData from '@/data/mock_db.json';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '@/lib/supabase';
 
 type AppState = {
   inmuebles: any[];
   contribuyentes: any[];
   preRegistros: any[];
+  facturas: any[];
+  documentos: any[];
+  certificados: any[];
+  condominios: any[];
+  reclamos: any[];
+  convenios: any[];
+  preLiquidaciones: any[];
+  isLoading: boolean;
   updateContribuyente: (id: string, data: any) => void;
   addContribuyente: (data: any) => void;
   aprobarPreRegistro: (item: number) => void;
@@ -14,39 +22,91 @@ type AppState = {
 const AppContext = createContext<AppState | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [inmuebles, setInmuebles] = useState(mockData);
+  const [inmuebles, setInmuebles] = useState<any[]>([]);
+  const [contribuyentes, setContribuyentes] = useState<any[]>([]);
+  const [preRegistros, setPreRegistros] = useState<any[]>([]);
+  const [facturas, setFacturas] = useState<any[]>([]);
+  const [documentos, setDocumentos] = useState<any[]>([]);
+  const [certificados, setCertificados] = useState<any[]>([]);
+  const [condominios, setCondominios] = useState<any[]>([]);
+  const [reclamos, setReclamos] = useState<any[]>([]);
+  const [convenios, setConvenios] = useState<any[]>([]);
+  const [preLiquidaciones, setPreLiquidaciones] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Extract unique contribuyentes initially
-  const [contribuyentes, setContribuyentes] = useState(() => {
-    const map = new Map();
-    mockData.forEach((row: any) => {
-      if (row.Identidad && !map.has(row.Identidad)) {
-        map.set(row.Identidad, {
-          Identidad: row.Identidad,
-          Contribuyente: row.Contribuyente,
-          Telefono: row.Telefono || 'No registrado',
-          Correo: row['Correo Electronico'] || 'No registrado',
-          CodCont: row['Cod Cont'],
-          Direccion: row['Direccion']
-        });
+  useEffect(() => {
+    async function loadAllData() {
+      try {
+        const [
+          { data: dbInmuebles },
+          { data: dbPreRegistros },
+          { data: dbFacturas },
+          { data: dbDocumentos },
+          { data: dbCertificados },
+          { data: dbCondominios },
+          { data: dbReclamos },
+          { data: dbConvenios },
+          { data: dbPreLiquidaciones }
+        ] = await Promise.all([
+          supabase.from('inmuebles').select('*'),
+          supabase.from('pre_registros').select('*'),
+          supabase.from('facturas').select('*'),
+          supabase.from('documentos').select('*'),
+          supabase.from('certificados').select('*'),
+          supabase.from('condominios').select('*'),
+          supabase.from('reclamos').select('*'),
+          supabase.from('convenios').select('*'),
+          supabase.from('pre_liquidaciones').select('*')
+        ]);
+
+        if (dbInmuebles) {
+          // Add fallback mappings for existing UI
+          const mappedInmuebles = dbInmuebles.map(row => ({
+            ...row,
+            'Inmueble': row.inmueble || row.cod_cont,
+            'Clasificacion': row.clasificacion || 'Residencial',
+            'Tipo': 'Urbano',
+            'Saldo': 0,
+            'Cant Inmuebles': 1,
+            'Actividad Principal': row.actividad || 'No aplica',
+            'Direccion': row.direccion
+          }));
+          setInmuebles(mappedInmuebles);
+          
+          const map = new Map();
+          dbInmuebles.forEach((row: any) => {
+            if (row.identidad && !map.has(row.identidad)) {
+              map.set(row.identidad, {
+                Identidad: row.identidad,
+                Contribuyente: row.contribuyente,
+                Telefono: row.telefono || 'No registrado',
+                Correo: row.correo || 'No registrado',
+                CodCont: row.cod_cont,
+                Direccion: row.direccion
+              });
+            }
+          });
+          setContribuyentes(Array.from(map.values()));
+        }
+
+        if (dbPreRegistros) setPreRegistros(dbPreRegistros);
+        if (dbFacturas) setFacturas(dbFacturas);
+        if (dbDocumentos) setDocumentos(dbDocumentos);
+        if (dbCertificados) setCertificados(dbCertificados);
+        if (dbCondominios) setCondominios(dbCondominios);
+        if (dbReclamos) setReclamos(dbReclamos);
+        if (dbConvenios) setConvenios(dbConvenios);
+        if (dbPreLiquidaciones) setPreLiquidaciones(dbPreLiquidaciones);
+
+      } catch (error) {
+        console.error("Error loading data from Supabase:", error);
+      } finally {
+        setIsLoading(false);
       }
-    });
-    return Array.from(map.values());
-  });
+    }
 
-  const [preRegistros, setPreRegistros] = useState(() => {
-    return mockData.slice(0, 30).map((row: any, index: number) => ({
-      item: index + 1,
-      codigo: row['Cod Cont'],
-      identidad: row['Identidad'],
-      contribuyente: row['Contribuyente'],
-      registro: '18-03-2026',
-      tipo: 'Local / Oficina',
-      actividad: row['Actividad Principal'],
-      registrado: 'WEB',
-      fiscalizado: Math.random() > 0.5 ? 1 : 0
-    }));
-  });
+    loadAllData();
+  }, []);
 
   const updateContribuyente = (id: string, data: any) => {
     setContribuyentes(prev => prev.map(c => c.Identidad === id ? { ...c, ...data } : c));
@@ -57,7 +117,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const aprobarPreRegistro = (item: number) => {
-    setPreRegistros(prev => prev.filter(pr => pr.item !== item));
+    setPreRegistros(prev => prev.filter(pr => pr.id !== item));
   };
 
   return (
@@ -65,6 +125,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       inmuebles,
       contribuyentes,
       preRegistros,
+      facturas,
+      documentos,
+      certificados,
+      condominios,
+      reclamos,
+      convenios,
+      preLiquidaciones,
+      isLoading,
       updateContribuyente,
       addContribuyente,
       aprobarPreRegistro

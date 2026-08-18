@@ -1,18 +1,14 @@
 'use client';
-import React, { useState } from 'react';
+import React from 'react';
 import { DataTable } from '@/components/DataTable';
 import { FileSpreadsheet, Download, Filter } from 'lucide-react';
+import { useAppContext } from '@/store/AppContext';
 
 export default function EstadoCuentaPage() {
-  const [data] = useState([
-    { id: 'FAC-001', contribuyente: 'Juan Pérez', monto: 'Bs. 450.00', estado: 'Pendiente', emision: '15-08-2026', vencimiento: '30-08-2026' },
-    { id: 'FAC-002', contribuyente: 'Inversiones Global C.A.', monto: 'Bs. 1200.00', estado: 'Pagado', emision: '01-08-2026', vencimiento: '15-08-2026' },
-    { id: 'FAC-003', contribuyente: 'María Gómez', monto: 'Bs. 150.00', estado: 'Vencido', emision: '01-07-2026', vencimiento: '15-07-2026' },
-    { id: 'FAC-004', contribuyente: 'Condominio El Sol', monto: 'Bs. 3500.00', estado: 'Pendiente', emision: '10-08-2026', vencimiento: '25-08-2026' }
-  ]);
+  const { facturas } = useAppContext();
 
   const columns = [
-    { key: 'id', header: 'Nro. Factura' },
+    { key: 'referencia', header: 'Nro. Factura' },
     { key: 'contribuyente', header: 'Contribuyente' },
     { key: 'monto', header: 'Monto' },
     { key: 'estado', header: 'Estado', render: (row: any) => (
@@ -43,7 +39,7 @@ export default function EstadoCuentaPage() {
           <Filter className="w-4 h-4" /> Filtrar
         </button>
       </div>
-      <DataTable data={data} columns={columns} itemsPerPage={10} />
+      <DataTable data={facturas} columns={columns} itemsPerPage={10} />
     </div>
   );
 }

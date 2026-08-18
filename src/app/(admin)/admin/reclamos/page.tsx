@@ -2,16 +2,13 @@
 import React, { useState } from 'react';
 import { DataTable } from '@/components/DataTable';
 import { AlertTriangle, MessageSquare } from 'lucide-react';
+import { useAppContext } from '@/store/AppContext';
 
 export default function ReclamosPage() {
-  const [data] = useState([
-    { id: 'REC-001', fecha: '18-08-2026', contribuyente: 'Carlos Ruiz', tipo: 'Falla de Recolección', sector: 'Casco Central', estado: 'Abierto' },
-    { id: 'REC-002', fecha: '15-08-2026', contribuyente: 'María Gómez', tipo: 'Cobro Indebido', sector: 'N/A', estado: 'En Revisión' },
-    { id: 'REC-003', fecha: '10-08-2026', contribuyente: 'Tienda La Esquina', tipo: 'Solicitud de Contenedor', sector: 'Zona Comercial', estado: 'Resuelto' },
-  ]);
-
+  const { reclamos } = useAppContext();
+  
   const columns = [
-    { key: 'id', header: 'Ticket' },
+    { key: 'ticket', header: 'Ticket' },
     { key: 'fecha', header: 'Fecha de Registro' },
     { key: 'contribuyente', header: 'Contribuyente' },
     { key: 'tipo', header: 'Clasificación' },
@@ -40,7 +37,7 @@ export default function ReclamosPage() {
           </h1>
         </div>
       </div>
-      <DataTable data={data} columns={columns} itemsPerPage={10} />
+      <DataTable data={reclamos} columns={columns} itemsPerPage={10} />
     </div>
   );
 }
