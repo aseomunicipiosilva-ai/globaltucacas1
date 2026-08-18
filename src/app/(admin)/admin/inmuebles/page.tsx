@@ -86,7 +86,7 @@ export default function InmueblesPage() {
       {/* Tabs placeholder from image */}
       <div className="flex bg-slate-100 p-2 rounded text-sm text-slate-700 font-medium mb-4">
         <div className="px-4 py-1 bg-white shadow-sm rounded border border-slate-200">INMUEBLES</div>
-        <div className="px-4 py-1 text-slate-500">CONJUNTO RESIDENCIAL</div>
+        <div className="px-4 py-1 text-slate-500">CONDOMINIOS Y COMERCIOS</div>
       </div>
 
       {/* DataTable */}

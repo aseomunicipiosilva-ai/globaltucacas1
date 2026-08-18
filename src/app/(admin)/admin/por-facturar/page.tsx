@@ -1,21 +1,18 @@
 'use client';
-import React, { useState } from 'react';
+import React from 'react';
 import { DataTable } from '@/components/DataTable';
 import { Clock, CheckSquare } from 'lucide-react';
+import { useAppContext } from '@/store/AppContext';
 
 export default function PorFacturarPage() {
-  const [data] = useState([
-    { id: 'PF-001', contribuyente: 'Carlos Ruiz', concepto: 'Aseo Urbano (Agosto)', montoBase: 'Bs. 450.00', fechaCorte: '30-08-2026' },
-    { id: 'PF-002', contribuyente: 'Tienda La Esquina', concepto: 'Aseo Urbano (Agosto)', montoBase: 'Bs. 1200.00', fechaCorte: '30-08-2026' },
-    { id: 'PF-003', contribuyente: 'Condominio El Sol', concepto: 'Aseo Urbano (Agosto)', montoBase: 'Bs. 3500.00', fechaCorte: '30-08-2026' },
-  ]);
+  const { preLiquidaciones } = useAppContext();
 
   const columns = [
-    { key: 'id', header: 'Referencia' },
+    { key: 'referencia', header: 'Referencia' },
     { key: 'contribuyente', header: 'Contribuyente' },
     { key: 'concepto', header: 'Concepto' },
-    { key: 'montoBase', header: 'Monto Base Estimado' },
-    { key: 'fechaCorte', header: 'Fecha de Corte' },
+    { key: 'monto', header: 'Monto Base Estimado' },
+    { key: 'fecha_corte', header: 'Fecha de Corte' },
     { key: 'actions', header: 'Acciones', render: () => (
       <button className="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1 rounded text-xs font-medium border border-blue-200 flex items-center gap-1">
         <CheckSquare size={14} /> Generar Factura
@@ -36,7 +33,7 @@ export default function PorFacturarPage() {
           Generar Facturación Masiva
         </button>
       </div>
-      <DataTable data={data} columns={columns} itemsPerPage={10} />
+      <DataTable data={preLiquidaciones} columns={columns} itemsPerPage={10} />
     </div>
   );
 }
