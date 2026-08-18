@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { CreditCard, FileText, Upload, Send, Building, CheckSquare, AlertCircle } from 'lucide-react';
+import { useAppContext } from '@/store/AppContext';
 
 export default function DondePagarPage() {
   const [formData, setFormData] = useState({
@@ -14,12 +15,36 @@ export default function DondePagarPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // Deudas simuladas para demostración
-  const [deudas, setDeudas] = useState([
-    { id: 1, concepto: 'Mes Vencido - Enero 2024', monto: 850.50, seleccionado: false, tipo: 'regular' },
-    { id: 2, concepto: 'Mes Vencido - Febrero 2024', monto: 850.50, seleccionado: false, tipo: 'regular' },
-    { id: 3, concepto: 'Cuota Convenio de Pago (1/3)', monto: 2500.00, seleccionado: false, tipo: 'convenio' },
-  ]);
+  const { facturas, convenios } = useAppContext();
+
+  // Deudas reales de la base de datos
+  const [deudas, setDeudas] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Buscar facturas pendientes
+    const facturasPendientes = facturas
+      .filter((f: any) => f.estado === 'Pendiente')
+      .map((f: any) => ({
+        id: `fac_${f.id}`,
+        concepto: `Factura ${f.referencia} - ${f.emision}`,
+        monto: parseFloat((f.monto || '0').toString().replace(/[^\d.,]/g, '').replace(',', '.')) || 0,
+        seleccionado: false,
+        tipo: 'regular'
+      }));
+
+    // Buscar convenios activos
+    const conveniosActivos = convenios
+      .filter((c: any) => c.estado === 'Activo')
+      .map((c: any) => ({
+        id: `conv_${c.id}`,
+        concepto: `Convenio de Pago ${c.numero} (${c.cuotas})`,
+        monto: parseFloat((c.monto_total || '0').toString().replace(/[^\d.,]/g, '').replace(',', '.')) || 0,
+        seleccionado: false,
+        tipo: 'convenio'
+      }));
+
+    setDeudas([...facturasPendientes, ...conveniosActivos]);
+  }, [facturas, convenios]);
 
   const bancos = [
     '0102 - BANCO DE VENEZUELA',
@@ -55,7 +80,7 @@ export default function DondePagarPage() {
     setFormData(prev => ({ ...prev, monto: montoTotal > 0 ? montoTotal.toFixed(2) : '' }));
   }, [montoTotal]);
 
-  const toggleDeuda = (id: number) => {
+  const toggleDeuda = (id: string | number) => {
     setDeudas(deudas.map(d => d.id === id ? { ...d, seleccionado: !d.seleccionado } : d));
   };
 
