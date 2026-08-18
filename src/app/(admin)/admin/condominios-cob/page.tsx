@@ -9,6 +9,7 @@ export default function CondominiosCOBPage() {
 
   const columns = [
     { key: 'codigo', header: 'Código' },
+    { key: 'identidad', header: 'RIF / Cédula' },
     { key: 'nombre', header: 'Nombre del Condominio' },
     { key: 'direccion', header: 'Dirección' },
     { key: 'unidades', header: 'Unidades / Locales', render: (row: any) => (

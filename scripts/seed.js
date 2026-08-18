@@ -20,7 +20,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 const preRegistros = Array.from({ length: 15 }).map((_, i) => ({
   codigo: `PR-${Math.floor(Math.random() * 10000)}`,
-  identidad: `J-${30000000 + i}`,
+  identidad: `J-${312097920 + i}`,
   contribuyente: `EMPRESA DE PRUEBA ${i + 1} C.A.`,
   registro: `2024-0${(i % 9) + 1}-15`,
   tipo: 'Local Comercial',
@@ -31,6 +31,7 @@ const preRegistros = Array.from({ length: 15 }).map((_, i) => ({
 
 const facturas = Array.from({ length: 10 }).map((_, i) => ({
   referencia: `FAC-00${i + 1}`,
+  identidad: `J-${312097920 + i}`,
   contribuyente: `EMPRESA DE PRUEBA ${i + 1} C.A.`,
   monto: `${(Math.random() * 1000).toFixed(2)} USD`,
   emision: `2024-01-0${(i % 9) + 1}`,
@@ -40,6 +41,7 @@ const facturas = Array.from({ length: 10 }).map((_, i) => ({
 
 const documentos = Array.from({ length: 5 }).map((_, i) => ({
   documento: `Planilla_Liquidacion_00${i + 1}.pdf`,
+  identidad: `J-${312097920 + i}`,
   tipo: 'Liquidación',
   fecha: `2024-02-0${i + 1}`,
   contribuyente: `EMPRESA DE PRUEBA ${i + 1} C.A.`,
@@ -48,6 +50,7 @@ const documentos = Array.from({ length: 5 }).map((_, i) => ({
 
 const certificados = Array.from({ length: 5 }).map((_, i) => ({
   codigo: `CERT-2024-${i + 1}`,
+  identidad: `J-${312097920 + i}`,
   tipo: 'Solvencia Comercial',
   contribuyente: `EMPRESA DE PRUEBA ${i + 1} C.A.`,
   emision: `2024-01-10`,
@@ -57,6 +60,7 @@ const certificados = Array.from({ length: 5 }).map((_, i) => ({
 
 const reclamos = Array.from({ length: 3 }).map((_, i) => ({
   ticket: `TK-100${i}`,
+  identidad: `J-${312097920 + i}`,
   fecha: `2024-02-1${i}`,
   contribuyente: `EMPRESA DE PRUEBA ${i + 1} C.A.`,
   tipo: 'Falla en Recolección',
@@ -66,6 +70,7 @@ const reclamos = Array.from({ length: 3 }).map((_, i) => ({
 
 const convenios = Array.from({ length: 2 }).map((_, i) => ({
   numero: `CONV-00${i + 1}`,
+  identidad: `J-${312097920 + i}`,
   contribuyente: `EMPRESA DE PRUEBA ${i + 1} C.A.`,
   monto_total: '500.00 USD',
   cuotas: '5',
@@ -75,6 +80,7 @@ const convenios = Array.from({ length: 2 }).map((_, i) => ({
 
 const condominios = Array.from({ length: 4 }).map((_, i) => ({
   codigo: `COND-0${i + 1}`,
+  identidad: `J-${312097920 + i}`,
   nombre: `Edificio Residencial ${i + 1}`,
   direccion: `Av. Principal Sector ${i + 1}`,
   unidades: 20 + i * 10,
