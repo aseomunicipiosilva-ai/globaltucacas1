@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import inmueblesData from '@/data/inmuebles.json';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -9,20 +9,24 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Identidad requerida' }, { status: 400 });
   }
 
-  // Normalizar la identidad (quitar guiones) para la búsqueda
-  const identidadNormalizada = identidad.replace(/-/g, '').toUpperCase();
+  // Normalizar: Si el usuario escribe J123456, convertirlo a J-123456 para buscar en BD
+  const idLimpio = identidad.replace(/-/g, '').toUpperCase();
+  const idFormateado = `${idLimpio.charAt(0)}-${idLimpio.slice(1)}`;
 
-  // Buscar en la "base de datos" (el JSON)
-  const record = inmueblesData.find((item: any) => {
-    if (!item['Unnamed: 1']) return false;
-    const dbIdentidad = String(item['Unnamed: 1']).replace(/-/g, '').toUpperCase();
-    return dbIdentidad === identidadNormalizada;
-  });
+  const { data: records, error } = await supabase
+    .from('inmuebles')
+    .select('contribuyente, cod_cont')
+    .eq('identidad', idFormateado)
+    .limit(1);
 
-  if (record) {
+  if (error) {
+    console.error("Supabase Error:", error);
+  }
+
+  if (records && records.length > 0) {
     return NextResponse.json({ 
-      nombre: record['Unnamed: 2'], 
-      codigo: record['Unnamed: 0'] 
+      nombre: records[0].contribuyente, 
+      codigo: records[0].cod_cont 
     });
   } else {
     // Si no se encuentra, retornamos un genérico para no bloquear la demo
