@@ -55,7 +55,7 @@ export default function PortalSidebar() {
       title: 'PAGOS',
       items: [
         { name: 'Estado de Cuenta', icon: FileText, href: '/portal/estado-cuenta' },
-        { name: 'Dónde pagar', icon: CreditCard, href: '/portal/pagos' },
+        { name: 'Pagar', icon: CreditCard, href: '/portal/pagos' },
         { name: 'Historial Documentos', icon: History, href: '/portal/documentos' },
         { name: 'Historial Certificados', icon: Award, href: '/portal/solvencia' },
       ]

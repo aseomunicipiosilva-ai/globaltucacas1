@@ -26,7 +26,7 @@ export default function PortalHeader() {
       case '/portal/chat': return { title: 'CHAT EN LÍNEA', icon: MessageCircle };
       case '/portal/inmuebles': return { title: 'MIS INMUEBLES', icon: Building2 };
       case '/portal/estado-cuenta': return { title: 'ESTADO DE CUENTA', icon: FileText };
-      case '/portal/pagos': return { title: 'DÓNDE PAGAR', icon: CreditCard };
+      case '/portal/pagos': return { title: 'PAGAR', icon: CreditCard };
       case '/portal/documentos': return { title: 'HISTORIAL DOCUMENTOS', icon: History };
       case '/portal/solvencia': return { title: 'HISTORIAL CERTIFICADOS', icon: Award };
       case '/portal/rutas': return { title: 'HORARIOS DE RUTAS', icon: CalendarDays };
