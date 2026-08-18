@@ -3,6 +3,7 @@ import React from 'react';
 import { DataTable } from '@/components/DataTable';
 import { useAppContext } from '@/store/AppContext';
 import { Building, MoreVertical, BellOff, Mail } from 'lucide-react';
+import Link from 'next/link';
 
 export default function InmueblesPage() {
   const { inmuebles } = useAppContext();
@@ -84,9 +85,11 @@ export default function InmueblesPage() {
       </div>
 
       {/* Tabs placeholder from image */}
-      <div className="flex bg-slate-100 p-2 rounded text-sm text-slate-700 font-medium mb-4">
-        <div className="px-4 py-1 bg-white shadow-sm rounded border border-slate-200">INMUEBLES</div>
-        <div className="px-4 py-1 text-slate-500">CONDOMINIOS Y COMERCIOS</div>
+      <div className="flex bg-slate-100 p-2 rounded text-sm text-slate-700 font-medium mb-4 w-fit">
+        <div className="px-4 py-1 bg-white shadow-sm rounded border border-slate-200 cursor-default">INMUEBLES</div>
+        <Link href="/admin/condominios-cob" className="px-4 py-1 text-slate-500 hover:text-slate-800 transition-colors">
+          CONDOMINIOS Y COMERCIOS
+        </Link>
       </div>
 
       {/* DataTable */}

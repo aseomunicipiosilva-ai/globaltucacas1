@@ -4,6 +4,7 @@ import { DataTable } from '@/components/DataTable';
 import { Building2, Settings } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { UnidadesModal } from '@/components/UnidadesModal';
+import Link from 'next/link';
 
 export default function CondominiosCOBPage() {
   const { condominios } = useAppContext();
@@ -47,6 +48,15 @@ export default function CondominiosCOBPage() {
           <h1 className="text-lg font-semibold text-slate-800 uppercase tracking-wide">
             Gestión de Condominios COB
           </h1>
+        </div>
+      </div>
+
+      <div className="flex bg-slate-100 p-2 rounded text-sm text-slate-700 font-medium mb-4 w-fit">
+        <Link href="/admin/inmuebles" className="px-4 py-1 text-slate-500 hover:text-slate-800 transition-colors">
+          INMUEBLES
+        </Link>
+        <div className="px-4 py-1 bg-white shadow-sm rounded border border-slate-200 cursor-default">
+          CONDOMINIOS Y COMERCIOS
         </div>
       </div>
       <DataTable data={condominios} columns={columns} itemsPerPage={10} />
