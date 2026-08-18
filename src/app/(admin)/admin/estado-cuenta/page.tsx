@@ -55,6 +55,34 @@ export default function EstadoCuentaPage() {
     });
   };
 
+  const handleTest6Meses = () => {
+    const meses = ['MARZO 2026', 'ABRIL 2026', 'MAYO 2026', 'JUNIO 2026', 'JULIO 2026', 'AGOSTO 2026'];
+    const montoUnitario = 150.00;
+    const conceptos = meses.map(mes => ({
+      descripcion: `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${mes}`,
+      precioUnit: montoUnitario,
+      total: montoUnitario
+    }));
+
+    setSelectedRecibo({
+      reciboNo: '0000888',
+      fechaEmision: new Date().toISOString().split('T')[0],
+      codContribuyente: 'V-12345678',
+      razonSocial: 'CONTRIBUYENTE DE PRUEBA (6 MESES)',
+      domicilioFiscal: "ZONA TUCACAS (SECTOR NO ESPECIFICADO)",
+      rifCi: 'V-12345678',
+      caja: "CAJA VIRTUAL",
+      conceptos: conceptos,
+      subTotal: montoUnitario * 6,
+      exento: montoUnitario * 6,
+      iva: 0,
+      total: montoUnitario * 6,
+      formaPago: 'TRANSFERENCIA',
+      banco: 'BANESCO',
+      referencia: Math.floor(Math.random() * 90000000 + 10000000).toString()
+    });
+  };
+
   useEffect(() => {
     actualizarTasa();
   }, []);
@@ -185,6 +213,13 @@ export default function EstadoCuentaPage() {
             </button>
           </div>
 
+          <button 
+            onClick={handleTest6Meses}
+            className="bg-purple-600 text-white hover:bg-purple-700 px-4 py-2 rounded text-sm font-medium transition-colors shadow-sm"
+          >
+            Prueba 6 Meses
+          </button>
+          
           <button 
             onClick={generarFacturacionMensual}
             disabled={isGenerating || !tcmmv}
