@@ -1,10 +1,11 @@
 'use client';
 import Link from 'next/link';
-import { Home, Search, FileText, UserPlus, Users, Home as HomeIcon, FileSpreadsheet, History, Award, Clock, Building2, AlertTriangle, Handshake, LayoutDashboard, Mail, User } from 'lucide-react';
+import { Home, Search, FileText, UserPlus, Users, Home as HomeIcon, FileSpreadsheet, History, Award, Clock, Building2, AlertTriangle, Handshake, LayoutDashboard, Mail, User, PieChart } from 'lucide-react';
 
 export default function Sidebar() {
   const menuItems = [
     { name: 'Inicio', icon: Home, href: '/admin' },
+    { name: 'Administrativo', icon: PieChart, href: '/admin/administrativo' },
     { name: 'Búsqueda General', icon: Search, href: '/admin/inmuebles' },
     { name: 'Pre-Registro WEB', icon: FileText, href: '/admin/pre-registros' },
     { name: 'Nuevo Contribuyente', icon: UserPlus, href: '/admin/contribuyentes?action=new' },
