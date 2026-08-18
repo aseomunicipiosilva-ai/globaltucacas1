@@ -1,16 +1,45 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { DataTable } from '@/components/DataTable';
-import { FileSpreadsheet, Download, Filter, RefreshCw, Zap } from 'lucide-react';
+import { FileSpreadsheet, Download, Filter, RefreshCw, Zap, Printer, X } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
 import tarifasData from '@/data/tarifas.json';
+import { ReciboImprimible } from '@/components/ReciboImprimible';
 
 export default function EstadoCuentaPage() {
   const { facturas, inmuebles } = useAppContext();
   const [tcmmv, setTcmmv] = useState<number | null>(null);
   const [loadingTasa, setLoadingTasa] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedRecibo, setSelectedRecibo] = useState<any>(null);
+
+  const handleOpenRecibo = (row: any) => {
+    const montoNumerico = parseFloat((row.monto || "0").replace(/[^\d.]/g, '')) || 0;
+    setSelectedRecibo({
+      reciboNo: row.referencia ? row.referencia.split('-').pop()?.padStart(7, '0') : '0000001',
+      fechaEmision: row.emision || new Date().toISOString().split('T')[0],
+      codContribuyente: row.identidad || '---',
+      razonSocial: row.contribuyente || '---',
+      domicilioFiscal: "ZONA TUCACAS (SECTOR NO ESPECIFICADO)",
+      rifCi: row.identidad || '---',
+      caja: "CAJA VIRTUAL",
+      conceptos: [
+        { 
+          descripcion: `Servicio Aseo Residencial/Comercial. Vencimiento ${row.vencimiento || '---'}`, 
+          precioUnit: montoNumerico, 
+          total: montoNumerico 
+        }
+      ],
+      subTotal: montoNumerico,
+      exento: montoNumerico,
+      iva: 0,
+      total: montoNumerico,
+      formaPago: row.estado === 'Pagado' ? 'TRANSFERENCIA / PAGO MÓVIL' : 'POR PAGAR',
+      banco: row.estado === 'Pagado' ? 'BANCO CONFIRMADO' : '---',
+      referencia: row.estado === 'Pagado' ? 'REF-' + Math.floor(Math.random()*10000) : '---'
+    });
+  };
 
   useEffect(() => {
     actualizarTasa();
@@ -106,9 +135,12 @@ export default function EstadoCuentaPage() {
     ) },
     { key: 'emision', header: 'F. Emisión' },
     { key: 'vencimiento', header: 'F. Vencimiento' },
-    { key: 'actions', header: 'Acciones', render: () => (
-      <button className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1">
-        <Download size={14} /> Descargar
+    { key: 'actions', header: 'Acciones', render: (row: any) => (
+      <button 
+        onClick={() => handleOpenRecibo(row)}
+        className="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded text-xs flex items-center gap-2 transition-colors font-medium border border-blue-200"
+      >
+        <Printer size={14} /> Recibo
       </button>
     ) }
   ];
@@ -150,6 +182,42 @@ export default function EstadoCuentaPage() {
         </div>
       </div>
       <DataTable data={facturas} columns={columns} itemsPerPage={10} />
+
+      {selectedRecibo && (
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 rounded-t-lg print:hidden">
+              <h3 className="font-semibold text-slate-800">Vista Previa del Recibo</h3>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => window.print()}
+                  className="bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  <Printer size={16} /> Imprimir
+                </button>
+                <button 
+                  onClick={() => setSelectedRecibo(null)}
+                  className="text-slate-400 hover:text-slate-600 p-2"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+            
+            {/* Contenedor imprimible */}
+            <div className="flex-1 overflow-y-auto p-4 bg-slate-200 print:bg-white print:p-0 print:overflow-visible" id="printable-receipt">
+              <style dangerouslySetInnerHTML={{__html: `
+                @media print {
+                  body * { visibility: hidden; }
+                  #printable-receipt, #printable-receipt * { visibility: visible; }
+                  #printable-receipt { position: absolute; left: 0; top: 0; width: 100%; }
+                }
+              `}} />
+              <ReciboImprimible data={selectedRecibo} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
