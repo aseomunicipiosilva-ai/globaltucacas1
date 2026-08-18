@@ -34,7 +34,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [preLiquidaciones, setPreLiquidaciones] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
   const loadAllData = async () => {
     try {
       setIsLoading(true);
