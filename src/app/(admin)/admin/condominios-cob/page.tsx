@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import { DataTable } from '@/components/DataTable';
-import { Building2, Settings } from 'lucide-react';
+import { Building2, Settings, DollarSign, Handshake } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { UnidadesModal } from '@/components/UnidadesModal';
 import Link from 'next/link';
@@ -30,14 +30,35 @@ export default function CondominiosCOBPage() {
         row.estado === 'Activo' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'
       }`}>{row.estado}</span>
     ) },
-    { key: 'actions', header: 'Gestión', render: (row: any) => (
-      <button 
-        onClick={() => handleOpenModal(row)}
-        className="text-blue-600 hover:text-blue-900 text-xs flex items-center gap-1"
-      >
-        <Settings size={14} /> Administrar Unidades
-      </button>
-    ) }
+    { key: 'actions', header: 'Gestión / Estatus', render: (row: any) => {
+      const hasDebt = Math.random() > 0.5;
+      const debtAmount = hasDebt ? (Math.random() * 5000).toFixed(2) : '0.00';
+      const hasAgreement = Math.random() > 0.7;
+
+      return (
+        <div className="flex gap-2 items-center">
+          <button 
+            onClick={() => handleOpenModal(row)}
+            className="bg-slate-100 text-slate-600 hover:bg-slate-200 p-1.5 rounded transition-colors"
+            title="Administrar Unidades"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+          <button 
+            className={`${hasDebt ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'} p-1.5 rounded transition-colors`}
+            title={hasDebt ? `Deuda pendiente: Bs. ${debtAmount}` : 'Solvente'}
+          >
+            <DollarSign className="w-4 h-4" />
+          </button>
+          <button 
+            className={`${hasAgreement ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-slate-50 text-slate-400 cursor-default'} p-1.5 rounded transition-colors`}
+            title={hasAgreement ? 'Tiene convenio activo' : 'Sin convenios'}
+          >
+            <Handshake className="w-4 h-4" />
+          </button>
+        </div>
+      );
+    } }
   ];
 
   return (

@@ -3,7 +3,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
 import { useAppContext } from '@/store/AppContext';
-import { Users, Save, ArrowLeft, Plus, Building, Home as HomeIcon, MapPin } from 'lucide-react';
+import { Users, Save, ArrowLeft, Plus, Building, Home as HomeIcon, MapPin, Edit, DollarSign, Handshake } from 'lucide-react';
 import { ordenanzaData } from '@/data/ordenanza';
 import Select from 'react-select';
 import dynamic from 'next/dynamic';
@@ -247,26 +247,52 @@ function ContribuyentesPageContent() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-[10px] font-medium text-slate-500 mb-1">Teléfono Móvil</label>
-                <input type="text" value={formData.Telefono} onChange={e => setFormData({...formData, Telefono: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
+                <label className="block text-[10px] font-medium text-slate-500 mb-1">Teléfono Móvil <span className="text-red-500">*</span></label>
+                <input 
+                  type="tel" 
+                  pattern="[0-9]*"
+                  value={formData.Telefono} 
+                  onChange={e => setFormData({...formData, Telefono: e.target.value.replace(/\D/g, '')})} 
+                  onKeyPress={(e) => {
+                    if (!/[0-9]/.test(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" 
+                  required
+                />
               </div>
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Teléfono Fijo</label>
                 <input type="text" className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
               </div>
               <div>
-                <label className="block text-[10px] font-medium text-slate-500 mb-1">Email</label>
-                <input type="email" value={formData.Correo} onChange={e => setFormData({...formData, Correo: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
+                <label className="block text-[10px] font-medium text-slate-500 mb-1">Email <span className="text-red-500">*</span></label>
+                <input 
+                  type="email" 
+                  list="email-domains"
+                  value={formData.Correo} 
+                  onChange={e => setFormData({...formData, Correo: e.target.value})} 
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" 
+                  required
+                />
+                <datalist id="email-domains">
+                  <option value={formData.Correo && !formData.Correo.includes('@') ? formData.Correo + '@gmail.com' : ''} />
+                  <option value={formData.Correo && !formData.Correo.includes('@') ? formData.Correo + '@hotmail.com' : ''} />
+                  <option value={formData.Correo && !formData.Correo.includes('@') ? formData.Correo + '@yahoo.com' : ''} />
+                  <option value={formData.Correo && !formData.Correo.includes('@') ? formData.Correo + '@outlook.com' : ''} />
+                </datalist>
               </div>
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-[10px] font-medium text-slate-500 mb-1">Dirección Exacta</label>
+              <label className="block text-[10px] font-medium text-slate-500 mb-1">Dirección Exacta <span className="text-red-500">*</span></label>
               <textarea 
                 value={formData.Direccion} 
                 onChange={e => setFormData({...formData, Direccion: e.target.value})}
                 rows={2} 
                 className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" 
+                required
               />
             </div>
             
@@ -280,10 +306,22 @@ function ContribuyentesPageContent() {
                   </span>
                 )}
               </div>
-              <p className="text-[10px] text-slate-400 mb-2">Haz clic en el mapa para marcar la ubicación exacta del inmueble.</p>
+              <p className="text-[10px] text-slate-400 mb-2">Haz clic en el mapa para marcar la ubicación exacta del inmueble. (Auto-completará la dirección)</p>
               <MapPicker 
                 position={formData.coordenadas} 
-                onLocationSelect={(loc) => setFormData({...formData, coordenadas: loc})} 
+                onLocationSelect={async (loc) => {
+                  setFormData({...formData, coordenadas: loc});
+                  // Geocodificación inversa
+                  try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.lat}&lon=${loc.lng}`);
+                    const data = await res.json();
+                    if (data && data.display_name) {
+                      setFormData(prev => ({...prev, coordenadas: loc, Direccion: data.display_name}));
+                    }
+                  } catch (err) {
+                    console.error('Error in reverse geocoding:', err);
+                  }
+                }} 
               />
             </div>
 
@@ -706,15 +744,37 @@ function ContribuyentesPageContent() {
     { key: 'Correo', header: 'Correo Electrónico' },
     {
       key: 'actions',
-      header: 'Acciones',
-      render: (row: any) => (
-        <button 
-          onClick={() => handleEdit(row)}
-          className="bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1 rounded text-xs font-medium transition-colors border border-blue-200"
-        >
-          Ver / Editar
-        </button>
-      )
+      header: 'Acciones / Estatus',
+      render: (row: any) => {
+        // Mock data logic for indicators
+        const hasDebt = Math.random() > 0.5;
+        const debtAmount = hasDebt ? (Math.random() * 5000).toFixed(2) : '0.00';
+        const hasAgreement = Math.random() > 0.7;
+
+        return (
+          <div className="flex gap-2 items-center">
+            <button 
+              onClick={() => handleEdit(row)}
+              className="bg-slate-100 text-slate-600 hover:bg-slate-200 p-1.5 rounded transition-colors"
+              title="Ver / Editar"
+            >
+              <Edit className="w-4 h-4" />
+            </button>
+            <button 
+              className={`${hasDebt ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'} p-1.5 rounded transition-colors`}
+              title={hasDebt ? `Deuda pendiente: Bs. ${debtAmount}` : 'Solvente'}
+            >
+              <DollarSign className="w-4 h-4" />
+            </button>
+            <button 
+              className={`${hasAgreement ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-slate-50 text-slate-400 cursor-default'} p-1.5 rounded transition-colors`}
+              title={hasAgreement ? 'Tiene convenio activo' : 'Sin convenios'}
+            >
+              <Handshake className="w-4 h-4" />
+            </button>
+          </div>
+        );
+      }
     }
   ];
 

@@ -1,24 +1,34 @@
 'use client';
+import { Home, Search, FileText, UserPlus, Users, Home as HomeIcon, FileSpreadsheet, History, Award, Clock, Building2, AlertTriangle, Handshake, LayoutDashboard, Mail, User, PieChart, Truck } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Home, Search, FileText, UserPlus, Users, Home as HomeIcon, FileSpreadsheet, History, Award, Clock, Building2, AlertTriangle, Handshake, LayoutDashboard, Mail, User, PieChart } from 'lucide-react';
 
 export default function Sidebar() {
+  const pathname = usePathname();
+  const isAdminPath = pathname.startsWith('/admin');
+
+  // Si estamos en el portal de contribuyentes, no mostramos el sidebar admin (el layout del portal manejará su navegación)
+  if (!isAdminPath) {
+    return null;
+  }
+
   const menuItems = [
-    { name: 'Inicio', icon: Home, href: '/admin' },
-    { name: 'Administrativo', icon: PieChart, href: '/admin/administrativo' },
-    { name: 'Búsqueda General', icon: Search, href: '/admin/inmuebles' },
-    { name: 'Pre-Registro WEB', icon: FileText, href: '/admin/pre-registros' },
-    { name: 'Nuevo Contribuyente', icon: UserPlus, href: '/admin/contribuyentes?action=new' },
-    { name: 'Datos del Contribuyente', icon: Users, href: '/admin/contribuyentes' },
-    { name: 'Listar Inmuebles', icon: HomeIcon, href: '/admin/inmuebles' },
-    { name: 'Estado de Cuenta', icon: FileSpreadsheet, href: '/admin/estado-cuenta' },
-    { name: 'Plan Saneamiento', icon: FileSpreadsheet, href: '/saneamiento' },
-    { name: 'Historial Documentos', icon: History, href: '/admin/historial-documentos' },
-    { name: 'Certificados', icon: Award, href: '/admin/certificados' },
-    { name: 'Por Facturar', icon: Clock, href: '/admin/por-facturar' },
-    { name: 'Condominios COB', icon: Building2, href: '/admin/condominios-cob' },
-    { name: 'Reclamos', icon: AlertTriangle, href: '/admin/reclamos' },
-    { name: 'Convenios de Pago', icon: Handshake, href: '/admin/convenios-pago' },
+    { icon: Home, name: 'Inicio', href: '/admin' },
+    { icon: PieChart, name: 'Administrativo', href: '/admin/administrativo' },
+    { icon: User, name: 'Contribuyentes', href: '/admin/contribuyentes' },
+    { icon: Users, name: 'Condominios COB', href: '/admin/condominios-cob' },
+    { icon: FileText, name: 'Pre-registros WEB', href: '/admin/pre-registros' },
+    { icon: Building2, name: 'Inmuebles', href: '/admin/inmuebles' },
+    { icon: FileSpreadsheet, name: 'Facturación / Estado de Cuenta', href: '/admin/estado-cuenta' },
+    { icon: Clock, name: 'Cuentas Por Facturar', href: '/admin/por-facturar' },
+    { icon: Handshake, name: 'Convenios de Pago', href: '/admin/convenios-pago' },
+    { icon: Award, name: 'Certificados Emitidos', href: '/admin/certificados' },
+    { icon: History, name: 'Historial de Documentos', href: '/admin/historial-documentos' },
+    { icon: AlertTriangle, name: 'Reclamos / Atención', href: '/admin/reclamos' },
+    { icon: AlertTriangle, name: 'Denuncias Ciudadanas', href: '/admin/denuncias' },
+    { icon: Truck, name: 'Rutas Camiones', href: '/admin/rutas' },
+    { icon: Mail, name: 'Correos Informativos', href: '/admin/correos' },
+    { icon: UserPlus, name: 'Trabajadores Aseo', href: '/admin/trabajadores' }
   ];
 
   return (
