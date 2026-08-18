@@ -154,7 +154,7 @@ export default function DondePagarPage() {
               </div>
 
               <div className="pt-2">
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Comprobante de Pago (Imagen o PDF) <span className="text-red-500">*</span></label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Comprobante de Pago (Imagen o PDF) <span className="text-slate-400 font-normal">(Opcional)</span></label>
                 <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 flex flex-col items-center justify-center text-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative">
                   <input 
                     type="file" 
@@ -165,7 +165,6 @@ export default function DondePagarPage() {
                         setFormData({...formData, comprobante: e.target.files[0]});
                       }
                     }}
-                    required={!formData.comprobante}
                   />
                   <Upload className={`w-8 h-8 mb-2 ${formData.comprobante ? 'text-emerald-500' : 'text-slate-400'}`} />
                   {formData.comprobante ? (
