@@ -1,16 +1,14 @@
 'use client';
-import React, { useState } from 'react';
+import React from 'react';
 import { DataTable } from '@/components/DataTable';
 import { Building2, Settings } from 'lucide-react';
+import { useAppContext } from '@/store/AppContext';
 
 export default function CondominiosCOBPage() {
-  const [data] = useState([
-    { id: 'COND-001', nombre: 'Condominio El Sol', direccion: 'Av. Principal Tucacas', unidades: 45, representante: 'María Gómez', estado: 'Activo' },
-    { id: 'COND-002', nombre: 'Residencias Caribe', direccion: 'Calle 4 con Carrera 2', unidades: 120, representante: 'Carlos Ruiz', estado: 'Inactivo' },
-  ]);
+  const { condominios } = useAppContext();
 
   const columns = [
-    { key: 'id', header: 'Código' },
+    { key: 'codigo', header: 'Código' },
     { key: 'nombre', header: 'Nombre del Condominio' },
     { key: 'direccion', header: 'Dirección' },
     { key: 'unidades', header: 'Unidades / Locales', render: (row: any) => (
@@ -37,9 +35,8 @@ export default function CondominiosCOBPage() {
           <h1 className="text-lg font-semibold text-slate-800 uppercase tracking-wide">
             Gestión de Condominios COB
           </h1>
-        </div>
       </div>
-      <DataTable data={data} columns={columns} itemsPerPage={10} />
+      <DataTable data={condominios} columns={columns} itemsPerPage={10} />
     </div>
   );
 }

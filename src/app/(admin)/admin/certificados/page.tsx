@@ -1,17 +1,14 @@
 'use client';
-import React, { useState } from 'react';
+import React from 'react';
 import { DataTable } from '@/components/DataTable';
 import { Award, Printer, CheckCircle } from 'lucide-react';
+import { useAppContext } from '@/store/AppContext';
 
 export default function CertificadosPage() {
-  const [data] = useState([
-    { id: 'CERT-2026-001', contribuyente: 'Inversiones Global C.A.', tipo: 'Solvencia Municipal', emision: '10-08-2026', vencimiento: '10-09-2026', estado: 'Vigente' },
-    { id: 'CERT-2026-002', contribuyente: 'Juan Pérez', tipo: 'Visto Bueno Ambiental', emision: '01-08-2026', vencimiento: '01-02-2027', estado: 'Vigente' },
-    { id: 'CERT-2026-003', contribuyente: 'Panadería Central', tipo: 'Solvencia Municipal', emision: '05-07-2026', vencimiento: '05-08-2026', estado: 'Expirado' },
-  ]);
+  const { certificados } = useAppContext();
 
   const columns = [
-    { key: 'id', header: 'Código Certificado' },
+    { key: 'codigo', header: 'Código Certificado' },
     { key: 'contribuyente', header: 'Contribuyente' },
     { key: 'tipo', header: 'Tipo de Certificado' },
     { key: 'emision', header: 'Emisión' },
@@ -41,7 +38,7 @@ export default function CertificadosPage() {
           </h1>
         </div>
       </div>
-      <DataTable data={data} columns={columns} itemsPerPage={10} />
+      <DataTable data={certificados} columns={columns} itemsPerPage={10} />
     </div>
   );
 }

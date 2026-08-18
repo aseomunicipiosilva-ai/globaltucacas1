@@ -1,18 +1,16 @@
 'use client';
-import React, { useState } from 'react';
+import React from 'react';
 import { DataTable } from '@/components/DataTable';
 import { Handshake, FileEdit } from 'lucide-react';
+import { useAppContext } from '@/store/AppContext';
 
 export default function ConveniosPagoPage() {
-  const [data] = useState([
-    { id: 'CONV-001', contribuyente: 'Inversiones Global C.A.', montoTotal: 'Bs. 5000.00', cuotas: '5', inicio: '01-08-2026', estado: 'Al Día' },
-    { id: 'CONV-002', contribuyente: 'Carlos Ruiz', montoTotal: 'Bs. 1200.00', cuotas: '3', inicio: '15-07-2026', estado: 'Atrasado' },
-  ]);
+  const { convenios } = useAppContext();
 
   const columns = [
-    { key: 'id', header: 'Nro. Convenio' },
+    { key: 'numero', header: 'Nro. Convenio' },
     { key: 'contribuyente', header: 'Contribuyente' },
-    { key: 'montoTotal', header: 'Deuda Refinanciada' },
+    { key: 'monto_total', header: 'Deuda Refinanciada' },
     { key: 'cuotas', header: 'Cuotas Acordadas' },
     { key: 'inicio', header: 'Fecha de Inicio' },
     { key: 'estado', header: 'Estado del Acuerdo', render: (row: any) => (
@@ -37,7 +35,7 @@ export default function ConveniosPagoPage() {
           </h1>
         </div>
       </div>
-      <DataTable data={data} columns={columns} itemsPerPage={10} />
+      <DataTable data={convenios} columns={columns} itemsPerPage={10} />
     </div>
   );
 }
