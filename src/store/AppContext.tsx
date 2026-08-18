@@ -35,85 +35,148 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    async function loadAllData() {
-      try {
-        const [
-          { data: dbInmuebles },
-          { data: dbPreRegistros },
-          { data: dbFacturas },
-          { data: dbDocumentos },
-          { data: dbCertificados },
-          { data: dbCondominios },
-          { data: dbReclamos },
-          { data: dbConvenios },
-          { data: dbPreLiquidaciones }
-        ] = await Promise.all([
-          supabase.from('inmuebles').select('*'),
-          supabase.from('pre_registros').select('*'),
-          supabase.from('facturas').select('*'),
-          supabase.from('documentos').select('*'),
-          supabase.from('certificados').select('*'),
-          supabase.from('condominios').select('*'),
-          supabase.from('reclamos').select('*'),
-          supabase.from('convenios').select('*'),
-          supabase.from('pre_liquidaciones').select('*')
-        ]);
+  const loadAllData = async () => {
+    try {
+      setIsLoading(true);
+      const [
+        { data: dbInmuebles },
+        { data: dbPreRegistros },
+        { data: dbFacturas },
+        { data: dbDocumentos },
+        { data: dbCertificados },
+        { data: dbCondominios },
+        { data: dbReclamos },
+        { data: dbConvenios },
+        { data: dbPreLiquidaciones }
+      ] = await Promise.all([
+        supabase.from('inmuebles').select('*'),
+        supabase.from('pre_registros').select('*'),
+        supabase.from('facturas').select('*'),
+        supabase.from('documentos').select('*'),
+        supabase.from('certificados').select('*'),
+        supabase.from('condominios').select('*'),
+        supabase.from('reclamos').select('*'),
+        supabase.from('convenios').select('*'),
+        supabase.from('pre_liquidaciones').select('*')
+      ]);
 
-        if (dbInmuebles) {
-          // Add fallback mappings for existing UI
-          const mappedInmuebles = dbInmuebles.map(row => ({
-            ...row,
-            'Inmueble': row.inmueble || row.cod_cont,
-            'Clasificacion': row.clasificacion || 'Residencial',
-            'Tipo': 'Urbano',
-            'Saldo': 0,
-            'Cant Inmuebles': 1,
-            'Actividad Principal': row.actividad || 'No aplica',
-            'Direccion': row.direccion
-          }));
-          setInmuebles(mappedInmuebles);
-          
-          const map = new Map();
-          dbInmuebles.forEach((row: any) => {
-            if (row.identidad && !map.has(row.identidad)) {
-              map.set(row.identidad, {
-                Identidad: row.identidad,
-                Contribuyente: row.contribuyente,
-                Telefono: row.telefono || 'No registrado',
-                Correo: row.correo || 'No registrado',
-                CodCont: row.cod_cont,
-                Direccion: row.direccion
-              });
-            }
-          });
-          setContribuyentes(Array.from(map.values()));
-        }
-
-        if (dbPreRegistros) setPreRegistros(dbPreRegistros);
-        if (dbFacturas) setFacturas(dbFacturas);
-        if (dbDocumentos) setDocumentos(dbDocumentos);
-        if (dbCertificados) setCertificados(dbCertificados);
-        if (dbCondominios) setCondominios(dbCondominios);
-        if (dbReclamos) setReclamos(dbReclamos);
-        if (dbConvenios) setConvenios(dbConvenios);
-        if (dbPreLiquidaciones) setPreLiquidaciones(dbPreLiquidaciones);
-
-      } catch (error) {
-        console.error("Error loading data from Supabase:", error);
-      } finally {
-        setIsLoading(false);
+      if (dbInmuebles) {
+        const mappedInmuebles = dbInmuebles.map(row => ({
+          ...row,
+          'Inmueble': row.inmueble || row.cod_cont,
+          'Clasificacion': row.clasificacion || 'Residencial',
+          'Tipo': 'Urbano',
+          'Saldo': 0,
+          'Cant Inmuebles': 1,
+          'Actividad Principal': row.actividad || 'No aplica',
+          'Direccion': row.direccion
+        }));
+        setInmuebles(mappedInmuebles);
+        
+        const map = new Map();
+        dbInmuebles.forEach((row: any) => {
+          if (row.identidad && !map.has(row.identidad)) {
+            map.set(row.identidad, {
+              Identidad: row.identidad,
+              Contribuyente: row.contribuyente,
+              Telefono: row.telefono || 'No registrado',
+              Correo: row.correo || 'No registrado',
+              CodCont: row.cod_cont,
+              Direccion: row.direccion
+            });
+          }
+        });
+        setContribuyentes(Array.from(map.values()));
       }
-    }
 
+      if (dbPreRegistros) setPreRegistros(dbPreRegistros);
+      if (dbFacturas) setFacturas(dbFacturas);
+      if (dbDocumentos) setDocumentos(dbDocumentos);
+      if (dbCertificados) setCertificados(dbCertificados);
+      if (dbCondominios) setCondominios(dbCondominios);
+      if (dbReclamos) setReclamos(dbReclamos);
+      if (dbConvenios) setConvenios(dbConvenios);
+      if (dbPreLiquidaciones) setPreLiquidaciones(dbPreLiquidaciones);
+
+    } catch (error) {
+      console.error("Error loading data from Supabase:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadAllData();
   }, []);
 
-  const updateContribuyente = (id: string, data: any) => {
-    setContribuyentes(prev => prev.map(c => c.Identidad === id ? { ...c, ...data } : c));
+  const updateContribuyente = async (id: string, data: any) => {
+    try {
+      const { error } = await supabase
+        .from('inmuebles')
+        .update({
+          contribuyente: data.Contribuyente,
+          telefono: data.Telefono,
+          correo: data.Correo,
+          direccion: data.Direccion,
+        })
+        .eq('identidad', id);
+        
+      if (error) throw error;
+      
+      // Update local state immediately for better UX
+      setContribuyentes(prev => prev.map(c => c.Identidad === id ? { ...c, ...data } : c));
+    } catch (e) {
+      console.error("Error updating contribuyente in Supabase:", e);
+      throw e;
+    }
   };
 
-  const addContribuyente = (data: any) => {
-    setContribuyentes(prev => [{ ...data, CodCont: `N-${Math.floor(Math.random() * 10000)}` }, ...prev]);
+  const addContribuyente = async (data: any) => {
+    try {
+      // Create random ID for cod_cont if it doesn't exist
+      const codCont = data.CodCont || `N-${Math.floor(Math.random() * 100000)}`;
+      
+      // We must insert into 'inmuebles' because that's our master table
+      const rowsToInsert = [];
+      
+      if (data.isCondominio && data.locales && data.locales.length > 0) {
+        data.locales.forEach((local: any) => {
+          rowsToInsert.push({
+            identidad: data.Identidad,
+            contribuyente: data.Contribuyente,
+            telefono: data.Telefono,
+            correo: data.Correo,
+            direccion: data.Direccion,
+            cod_cont: codCont,
+            clasificacion: local.uso === 'Comercial' ? 'Comercial' : 'Residencial',
+            actividad: local.uso === 'Comercial' ? local.actividad : (local.tipoResidencia || 'No aplica'),
+            inmueble: local.numeracion
+          });
+        });
+      } else {
+        rowsToInsert.push({
+          identidad: data.Identidad,
+          contribuyente: data.Contribuyente,
+          telefono: data.Telefono,
+          correo: data.Correo,
+          direccion: data.Direccion,
+          cod_cont: codCont,
+          clasificacion: data.Clasificacion || 'Residencial',
+          actividad: data.Clasificacion === 'Residencial' ? data.TipoResidencia : data.ActividadComercial,
+          inmueble: 'Principal'
+        });
+      }
+      
+      const { error } = await supabase.from('inmuebles').insert(rowsToInsert);
+      
+      if (error) throw error;
+      
+      // Update local state
+      await loadAllData();
+    } catch (e) {
+      console.error("Error adding contribuyente to Supabase:", e);
+      throw e;
+    }
   };
 
   const aprobarPreRegistro = (item: number) => {

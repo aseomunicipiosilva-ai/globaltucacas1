@@ -16,6 +16,7 @@ function ContribuyentesPageContent() {
   const [isNew, setIsNew] = useState(false);
   const [formData, setFormData] = useState<any>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Calculadora state
   const [bcvRate, setBcvRate] = useState<string | null>(null);
@@ -177,18 +178,26 @@ function ContribuyentesPageContent() {
     setIsCalculating(false);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isNew) {
-      addContribuyente(formData);
-      setIsNew(false);
-      setEditingId(formData.Identidad); // Switch to edit mode
-    } else if (editingId) {
-      updateContribuyente(editingId, formData);
+    setIsSaving(true);
+    try {
+      if (isNew) {
+        await addContribuyente(formData);
+        setIsNew(false);
+        setEditingId(formData.Identidad); // Switch to edit mode
+      } else if (editingId) {
+        await updateContribuyente(editingId, formData);
+      }
+      
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } catch (err) {
+      console.error(err);
+      alert('Ocurrió un error guardando en Supabase. Verifique la conexión.');
+    } finally {
+      setIsSaving(false);
     }
-    
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 3000);
   };
 
   if (editingId && formData) {
@@ -644,8 +653,8 @@ function ContribuyentesPageContent() {
                 {isCalculating ? 'Calculando...' : 'Calcular Tarifa Mensual'}
               </button>
               
-              <button type="submit" className="border border-orange-500 text-orange-500 hover:bg-orange-50 px-6 py-2 rounded text-xs font-medium transition-colors flex items-center gap-2">
-                <Plus className="w-3 h-3" /> {isNew ? 'Agregar Contribuyente' : 'Actualizar Contribuyente'}
+              <button type="submit" disabled={isSaving} className="border border-orange-500 text-orange-500 hover:bg-orange-50 disabled:opacity-50 px-6 py-2 rounded text-xs font-medium transition-colors flex items-center gap-2">
+                <Plus className="w-3 h-3" /> {isSaving ? 'Guardando...' : (isNew ? 'Agregar Contribuyente' : 'Actualizar Contribuyente')}
               </button>
             </div>
             
