@@ -16,6 +16,20 @@ export default function EstadoCuentaPage() {
 
   const handleOpenRecibo = (row: any) => {
     const montoNumerico = parseFloat((row.monto || "0").replace(/[^\d.]/g, '')) || 0;
+    
+    // Obtener mes y año
+    let mesTexto = '---';
+    if (row.emision) {
+      const date = new Date(row.emision);
+      const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+      // Se ajusta usando la fecha local o UTC dependiendo del formato (YYYY-MM-DD usa UTC si se parsea directo o local si tiene T)
+      // Extraemos los trozos manualmente para evitar desfases horarios:
+      const parts = row.emision.split('-');
+      if(parts.length >= 2) {
+        mesTexto = `${meses[parseInt(parts[1]) - 1]} ${parts[0]}`;
+      }
+    }
+
     setSelectedRecibo({
       reciboNo: row.referencia ? row.referencia.split('-').pop()?.padStart(7, '0') : '0000001',
       fechaEmision: row.emision || new Date().toISOString().split('T')[0],
@@ -26,7 +40,7 @@ export default function EstadoCuentaPage() {
       caja: "CAJA VIRTUAL",
       conceptos: [
         { 
-          descripcion: `Servicio Aseo Residencial/Comercial. Vencimiento ${row.vencimiento || '---'}`, 
+          descripcion: `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${mesTexto}`, 
           precioUnit: montoNumerico, 
           total: montoNumerico 
         }
