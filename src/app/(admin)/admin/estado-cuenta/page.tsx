@@ -35,7 +35,7 @@ export default function EstadoCuentaPage() {
       exento: montoNumerico,
       iva: 0,
       total: montoNumerico,
-      formaPago: row.estado === 'Pagado' ? 'TRANSFERENCIA / PAGO MÓVIL' : 'POR PAGAR',
+      formaPago: row.estado === 'Pagado' ? 'TRANSFERENCIA' : 'POR PAGAR',
       banco: row.estado === 'Pagado' ? 'BANCO CONFIRMADO' : '---',
       referencia: row.estado === 'Pagado' ? 'REF-' + Math.floor(Math.random()*10000) : '---'
     });
