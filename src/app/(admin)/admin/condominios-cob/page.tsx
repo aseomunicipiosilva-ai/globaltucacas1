@@ -1,11 +1,19 @@
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 import { DataTable } from '@/components/DataTable';
 import { Building2, Settings } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
+import { UnidadesModal } from '@/components/UnidadesModal';
 
 export default function CondominiosCOBPage() {
   const { condominios } = useAppContext();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedCondominio, setSelectedCondominio] = useState<{ id: number, nombre: string } | null>(null);
+
+  const handleOpenModal = (row: any) => {
+    setSelectedCondominio({ id: row.id, nombre: row.nombre });
+    setModalOpen(true);
+  };
 
   const columns = [
     { key: 'codigo', header: 'Código' },
@@ -21,8 +29,11 @@ export default function CondominiosCOBPage() {
         row.estado === 'Activo' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'
       }`}>{row.estado}</span>
     ) },
-    { key: 'actions', header: 'Gestión', render: () => (
-      <button className="text-blue-600 hover:text-blue-900 text-xs flex items-center gap-1">
+    { key: 'actions', header: 'Gestión', render: (row: any) => (
+      <button 
+        onClick={() => handleOpenModal(row)}
+        className="text-blue-600 hover:text-blue-900 text-xs flex items-center gap-1"
+      >
         <Settings size={14} /> Administrar Unidades
       </button>
     ) }
@@ -39,6 +50,14 @@ export default function CondominiosCOBPage() {
         </div>
       </div>
       <DataTable data={condominios} columns={columns} itemsPerPage={10} />
+      
+      {modalOpen && selectedCondominio && (
+        <UnidadesModal 
+          condominioId={selectedCondominio.id} 
+          condominioNombre={selectedCondominio.nombre} 
+          onClose={() => setModalOpen(false)} 
+        />
+      )}
     </div>
   );
 }
