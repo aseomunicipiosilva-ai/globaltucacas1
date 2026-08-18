@@ -119,7 +119,6 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
           <div className="flex gap-4 items-center mb-2">
             <span>PUNTO DE VENTA <u className="font-bold">{data.formaPago === 'PUNTO DE VENTA' ? ' X ' : '___'}</u></span>
             <span>TRANSFERENCIA <u className="font-bold">{data.formaPago === 'TRANSFERENCIA' ? ' X ' : '___'}</u></span>
-            <span>EFECTIVO <u className="font-bold">{data.formaPago === 'EFECTIVO' ? ' X ' : '___'}</u></span>
           </div>
           <div>
             <strong>Banco:</strong> {data.banco} &nbsp;&nbsp; <strong>Referencia:</strong> {data.referencia} &nbsp;&nbsp; <strong>Monto:</strong> Bs. {data.total.toFixed(2)}
