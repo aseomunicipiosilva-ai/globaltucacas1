@@ -35,6 +35,7 @@ export default function CondominiosCOBPage() {
           <h1 className="text-lg font-semibold text-slate-800 uppercase tracking-wide">
             Gestión de Condominios COB
           </h1>
+        </div>
       </div>
       <DataTable data={condominios} columns={columns} itemsPerPage={10} />
     </div>
