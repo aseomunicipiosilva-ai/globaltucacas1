@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, Edit2, Save, XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface UnidadesModalProps {
@@ -13,6 +13,15 @@ export function UnidadesModal({ condominioId, condominioNombre, onClose }: Unida
   const [loading, setLoading] = useState(true);
   const [nuevaUnidad, setNuevaUnidad] = useState('');
   const [nuevoPropietario, setNuevoPropietario] = useState('');
+  
+  // Edit State
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState({
+    numero_unidad: '',
+    propietario: '',
+    estado: 'Solvente',
+    ocupacion: 'Ocupada'
+  });
 
   useEffect(() => {
     fetchUnidades();
@@ -42,7 +51,8 @@ export function UnidadesModal({ condominioId, condominioNombre, onClose }: Unida
         condominio_id: condominioId,
         numero_unidad: nuevaUnidad,
         propietario: nuevoPropietario || 'No asignado',
-        estado: 'Solvente'
+        estado: 'Solvente',
+        ocupacion: 'Ocupada'
       }])
       .select();
 
@@ -60,9 +70,37 @@ export function UnidadesModal({ condominioId, condominioNombre, onClose }: Unida
     }
   };
 
+  const iniciarEdicion = (u: any) => {
+    setEditingId(u.id);
+    setEditForm({
+      numero_unidad: u.numero_unidad || '',
+      propietario: u.propietario || '',
+      estado: u.estado || 'Solvente',
+      ocupacion: u.ocupacion || 'Ocupada'
+    });
+  };
+
+  const guardarEdicion = async (id: number) => {
+    const { error, data } = await supabase
+      .from('unidades_condominio')
+      .update({
+        numero_unidad: editForm.numero_unidad,
+        propietario: editForm.propietario,
+        estado: editForm.estado,
+        ocupacion: editForm.ocupacion
+      })
+      .eq('id', id)
+      .select();
+
+    if (!error && data) {
+      setUnidades(unidades.map(u => u.id === id ? data[0] : u));
+      setEditingId(null);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
           <div>
@@ -122,6 +160,7 @@ export function UnidadesModal({ condominioId, condominioNombre, onClose }: Unida
                     <tr>
                       <th className="px-4 py-3">Unidad</th>
                       <th className="px-4 py-3">Propietario</th>
+                      <th className="px-4 py-3">Ocupación</th>
                       <th className="px-4 py-3">Estado</th>
                       <th className="px-4 py-3 text-right">Acciones</th>
                     </tr>
@@ -129,20 +168,81 @@ export function UnidadesModal({ condominioId, condominioNombre, onClose }: Unida
                   <tbody className="divide-y divide-slate-100">
                     {unidades.map((u) => (
                       <tr key={u.id} className="hover:bg-slate-50/50">
-                        <td className="px-4 py-3 font-medium text-slate-800">{u.numero_unidad}</td>
-                        <td className="px-4 py-3 text-slate-600">{u.propietario}</td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                            u.estado === 'Solvente' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                          }`}>
-                            {u.estado}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <button onClick={() => eliminarUnidad(u.id)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
+                        {editingId === u.id ? (
+                          <>
+                            <td className="px-4 py-2">
+                              <input 
+                                type="text" 
+                                value={editForm.numero_unidad} 
+                                onChange={(e) => setEditForm({...editForm, numero_unidad: e.target.value})}
+                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                              />
+                            </td>
+                            <td className="px-4 py-2">
+                              <input 
+                                type="text" 
+                                value={editForm.propietario} 
+                                onChange={(e) => setEditForm({...editForm, propietario: e.target.value})}
+                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                              />
+                            </td>
+                            <td className="px-4 py-2">
+                              <select 
+                                value={editForm.ocupacion}
+                                onChange={(e) => setEditForm({...editForm, ocupacion: e.target.value})}
+                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                              >
+                                <option value="Ocupada">Ocupada</option>
+                                <option value="Desocupada">Desocupada</option>
+                              </select>
+                            </td>
+                            <td className="px-4 py-2">
+                              <select 
+                                value={editForm.estado}
+                                onChange={(e) => setEditForm({...editForm, estado: e.target.value})}
+                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                              >
+                                <option value="Solvente">Solvente</option>
+                                <option value="Con Deuda">Con Deuda</option>
+                              </select>
+                            </td>
+                            <td className="px-4 py-2 text-right">
+                              <button onClick={() => guardarEdicion(u.id)} className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors mr-1">
+                                <Save size={16} />
+                              </button>
+                              <button onClick={() => setEditingId(null)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                                <XCircle size={16} />
+                              </button>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-4 py-3 font-medium text-slate-800">{u.numero_unidad}</td>
+                            <td className="px-4 py-3 text-slate-600">{u.propietario}</td>
+                            <td className="px-4 py-3 text-slate-600">
+                              <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                u.ocupacion === 'Ocupada' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
+                              }`}>
+                                {u.ocupacion || 'Ocupada'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                u.estado === 'Solvente' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                              }`}>
+                                {u.estado}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <button onClick={() => iniciarEdicion(u)} className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors mr-1">
+                                <Edit2 size={16} />
+                              </button>
+                              <button onClick={() => eliminarUnidad(u.id)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </>
+                        )}
                       </tr>
                     ))}
                   </tbody>
