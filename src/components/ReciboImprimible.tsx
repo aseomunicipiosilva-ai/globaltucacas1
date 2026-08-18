@@ -82,7 +82,7 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
               )}
             </div>
             <div className="mt-auto">
-              <span className="font-bold block">CAJA:</span>
+              <span className="font-bold block">CAJERO:</span>
               <span className="text-xs">{data.caja}</span>
             </div>
           </div>
