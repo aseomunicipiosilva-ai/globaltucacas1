@@ -19,6 +19,62 @@ export default function DondePagarPage() {
     'BANCAMIGA', 'BANCO NACIONAL DE CRÉDITO (BNC)', 'BANPLUS', 'BANCO DEL TESORO'
   ];
 
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      // Si no es imagen (ej. PDF), devolver el archivo original
+      if (!file.type.startsWith('image/')) {
+        resolve(file);
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1000;
+          const MAX_HEIGHT = 1000;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          // Comprimir a JPEG con calidad reducida
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            } else {
+              resolve(file);
+            }
+          }, 'image/jpeg', 0.6); // 60% de calidad
+        };
+        img.onerror = (error) => reject(error);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -154,17 +210,25 @@ export default function DondePagarPage() {
               </div>
 
               <div className="pt-2">
-                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Comprobante de Pago (Imagen o PDF) <span className="text-slate-400 font-normal">(Opcional)</span></label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">Comprobante de Pago (Imagen o PDF) <span className="text-red-500">*</span></label>
                 <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 flex flex-col items-center justify-center text-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative">
                   <input 
                     type="file" 
                     accept="image/*,.pdf"
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       if (e.target.files && e.target.files[0]) {
-                        setFormData({...formData, comprobante: e.target.files[0]});
+                        const file = e.target.files[0];
+                        try {
+                          const compressedFile = await compressImage(file);
+                          setFormData({...formData, comprobante: compressedFile});
+                        } catch (err) {
+                          console.error("Error al comprimir la imagen", err);
+                          setFormData({...formData, comprobante: file});
+                        }
                       }
                     }}
+                    required={!formData.comprobante}
                   />
                   <Upload className={`w-8 h-8 mb-2 ${formData.comprobante ? 'text-emerald-500' : 'text-slate-400'}`} />
                   {formData.comprobante ? (
