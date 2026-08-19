@@ -3,7 +3,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
 import { useAppContext } from '@/store/AppContext';
-import { Users, Save, ArrowLeft, Plus, Building, Home as HomeIcon, MapPin, Edit, DollarSign, Handshake } from 'lucide-react';
+import { Users, Save, ArrowLeft, Plus, Building, Home as HomeIcon, MapPin, Edit, DollarSign, Handshake, Eye, X, CheckCircle } from 'lucide-react';
 import { ordenanzaData } from '@/data/ordenanza';
 import Select from 'react-select';
 import dynamic from 'next/dynamic';
@@ -11,12 +11,15 @@ import dynamic from 'next/dynamic';
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
 
 function ContribuyentesPageContent() {
-  const { contribuyentes, updateContribuyente, addContribuyente } = useAppContext();
+  const { contribuyentes, facturas, updateContribuyente, addContribuyente } = useAppContext();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [formData, setFormData] = useState<any>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewData, setViewData] = useState<any>(null);
   
   // Calculadora state
   const [bcvRate, setBcvRate] = useState<string | null>(null);
@@ -34,7 +37,42 @@ function ContribuyentesPageContent() {
   }, [searchParams]);
 
   const handleEdit = (row: any) => {
-    setFormData({ ...row });
+    let telefonoPrefijo = '0414';
+    let telefonoNumero = '';
+    if (row.Telefono) {
+      if (row.Telefono.length >= 11) {
+        telefonoPrefijo = row.Telefono.substring(0, 4);
+        telefonoNumero = row.Telefono.substring(4);
+      } else {
+        telefonoNumero = row.Telefono;
+      }
+    }
+
+    let correoNombre = '';
+    let correoDominio = '@gmail.com';
+    let correoDominioOtro = '';
+    if (row.Correo && row.Correo.includes('@')) {
+      const parts = row.Correo.split('@');
+      correoNombre = parts[0];
+      const dom = '@' + parts[1];
+      if (['@gmail.com', '@yahoo.com', '@hotmail.com', '@outlook.com'].includes(dom)) {
+        correoDominio = dom;
+      } else {
+        correoDominio = 'Otro';
+        correoDominioOtro = dom;
+      }
+    } else if (row.Correo) {
+      correoNombre = row.Correo;
+    }
+
+    setFormData({ 
+      ...row,
+      telefonoPrefijo,
+      telefonoNumero,
+      correoNombre,
+      correoDominio,
+      correoDominioOtro
+    });
     setEditingId(row.Identidad);
     setIsNew(false);
     setShowSuccess(false);
@@ -46,7 +84,12 @@ function ContribuyentesPageContent() {
       Identidad: '',
       Contribuyente: '',
       Telefono: '',
+      telefonoPrefijo: '0414',
+      telefonoNumero: '',
       Correo: '',
+      correoNombre: '',
+      correoDominio: '@gmail.com',
+      correoDominioOtro: '',
       Direccion: '',
       Clasificacion: 'Residencial',
       TipoResidencia: ordenanzaData.tiposResidenciales[0].label,
@@ -182,12 +225,21 @@ function ContribuyentesPageContent() {
     e.preventDefault();
     setIsSaving(true);
     try {
+      const finalTelefono = `${formData.telefonoPrefijo}${formData.telefonoNumero}`;
+      const finalCorreo = `${formData.correoNombre}${formData.correoDominio === 'Otro' ? formData.correoDominioOtro : formData.correoDominio}`;
+      
+      const dataToSave = {
+        ...formData,
+        Telefono: finalTelefono,
+        Correo: finalCorreo
+      };
+
       if (isNew) {
-        await addContribuyente(formData);
+        await addContribuyente(dataToSave);
         setIsNew(false);
-        setEditingId(formData.Identidad); // Switch to edit mode
+        setEditingId(dataToSave.Identidad); // Switch to edit mode
       } else if (editingId) {
-        await updateContribuyente(editingId, formData);
+        await updateContribuyente(editingId, dataToSave);
       }
       
       setShowSuccess(true);
@@ -257,19 +309,34 @@ function ContribuyentesPageContent() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Teléfono Móvil <span className="text-red-500">*</span></label>
-                <input 
-                  type="tel" 
-                  pattern="[0-9]*"
-                  value={formData.Telefono} 
-                  onChange={e => setFormData({...formData, Telefono: e.target.value.replace(/\D/g, '')})} 
-                  onKeyPress={(e) => {
-                    if (!/[0-9]/.test(e.key)) {
-                      e.preventDefault();
-                    }
-                  }}
-                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" 
-                  required
-                />
+                <div className="flex gap-2">
+                  <select 
+                    value={formData.telefonoPrefijo}
+                    onChange={e => setFormData({...formData, telefonoPrefijo: e.target.value})}
+                    className="w-1/3 border border-slate-300 rounded px-2 py-2 text-sm text-slate-700 outline-none focus:border-blue-500"
+                  >
+                    <option value="0412">0412</option>
+                    <option value="0414">0414</option>
+                    <option value="0424">0424</option>
+                    <option value="0416">0416</option>
+                    <option value="0426">0426</option>
+                    <option value="0422">0422</option>
+                  </select>
+                  <input 
+                    type="tel" 
+                    pattern="[0-9]*"
+                    value={formData.telefonoNumero} 
+                    onChange={e => setFormData({...formData, telefonoNumero: e.target.value.replace(/\D/g, '')})} 
+                    onKeyPress={(e) => {
+                      if (!/[0-9]/.test(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
+                    placeholder="1234567"
+                    className="w-2/3 border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" 
+                    required
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Teléfono Fijo</label>
@@ -277,20 +344,37 @@ function ContribuyentesPageContent() {
               </div>
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Email <span className="text-red-500">*</span></label>
-                <input 
-                  type="email" 
-                  list="email-domains"
-                  value={formData.Correo} 
-                  onChange={e => setFormData({...formData, Correo: e.target.value})} 
-                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" 
-                  required
-                />
-                <datalist id="email-domains">
-                  <option value={formData.Correo && !formData.Correo.includes('@') ? formData.Correo + '@gmail.com' : ''} />
-                  <option value={formData.Correo && !formData.Correo.includes('@') ? formData.Correo + '@hotmail.com' : ''} />
-                  <option value={formData.Correo && !formData.Correo.includes('@') ? formData.Correo + '@yahoo.com' : ''} />
-                  <option value={formData.Correo && !formData.Correo.includes('@') ? formData.Correo + '@outlook.com' : ''} />
-                </datalist>
+                <div className="flex gap-1 mb-1">
+                  <input 
+                    type="text" 
+                    value={formData.correoNombre} 
+                    onChange={e => setFormData({...formData, correoNombre: e.target.value.replace(/\s/g, '')})} 
+                    placeholder="usuario"
+                    className="w-1/2 border border-slate-300 rounded px-2 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" 
+                    required
+                  />
+                  <select 
+                    value={formData.correoDominio}
+                    onChange={e => setFormData({...formData, correoDominio: e.target.value})}
+                    className="w-1/2 border border-slate-300 rounded px-1 py-2 text-sm text-slate-700 outline-none focus:border-blue-500"
+                  >
+                    <option value="@gmail.com">@gmail.com</option>
+                    <option value="@yahoo.com">@yahoo.com</option>
+                    <option value="@hotmail.com">@hotmail.com</option>
+                    <option value="@outlook.com">@outlook.com</option>
+                    <option value="Otro">Otro...</option>
+                  </select>
+                </div>
+                {formData.correoDominio === 'Otro' && (
+                  <input 
+                    type="text" 
+                    value={formData.correoDominioOtro} 
+                    onChange={e => setFormData({...formData, correoDominioOtro: e.target.value.replace(/\s/g, '')})} 
+                    placeholder="@prueba.com"
+                    className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 mt-1" 
+                    required
+                  />
+                )}
               </div>
             </div>
 
@@ -763,9 +847,16 @@ function ContribuyentesPageContent() {
         return (
           <div className="flex gap-2 items-center">
             <button 
+              onClick={() => { setViewData(row); setIsViewModalOpen(true); }}
+              className="bg-blue-50 text-blue-600 hover:bg-blue-100 p-1.5 rounded transition-colors"
+              title="Ver Detalles"
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+            <button 
               onClick={() => handleEdit(row)}
               className="bg-slate-100 text-slate-600 hover:bg-slate-200 p-1.5 rounded transition-colors"
-              title="Ver / Editar"
+              title="Editar"
             >
               <Edit className="w-4 h-4" />
             </button>
@@ -802,7 +893,103 @@ function ContribuyentesPageContent() {
         </button>
       </div>
 
-      <DataTable data={contribuyentes} columns={columns} itemsPerPage={20} />
+      <div className="bg-white rounded border border-slate-200 shadow-sm mt-4 overflow-hidden">
+        <DataTable data={contribuyentes} columns={columns} itemsPerPage={15} />
+      </div>
+
+      {isViewModalOpen && viewData && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-600" />
+                Detalles del Contribuyente
+              </h3>
+              <button onClick={() => setIsViewModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">R.I.F. / Cédula</span>
+                  <p className="text-sm font-semibold text-slate-700">{viewData.Identidad}</p>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Razón Social</span>
+                  <p className="text-sm font-semibold text-slate-700">{viewData.Contribuyente}</p>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Teléfono</span>
+                  <p className="text-sm font-semibold text-slate-700">{viewData.Telefono || 'N/A'}</p>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Correo Electrónico</span>
+                  <p className="text-sm font-semibold text-slate-700">{viewData.Correo || 'N/A'}</p>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 col-span-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Dirección</span>
+                  <p className="text-sm font-medium text-slate-700">{viewData.Direccion || 'N/A'}</p>
+                </div>
+              </div>
+
+              <div className="mt-6 border border-slate-200 rounded-lg overflow-hidden">
+                <div className="bg-red-50 px-4 py-3 border-b border-red-100 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-red-600" />
+                  <h4 className="font-bold text-red-800">Estado de Cuenta (Deuda Actual)</h4>
+                </div>
+                <div className="p-0">
+                  {(() => {
+                    const deudas = (facturas || [])
+                      .filter((f: any) => f.contribuyente === viewData.Contribuyente || f.contribuyente === viewData.Identidad)
+                      .filter((f: any) => f.estado === 'Pendiente');
+                    const totalBs = deudas.reduce((acc: number, f: any) => acc + parseFloat(f.monto || '0'), 0);
+                    
+                    if (deudas.length === 0) {
+                      return (
+                        <div className="p-6 text-center">
+                          <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-2" />
+                          <p className="text-slate-600 font-medium">El contribuyente está solvente.</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div>
+                        <div className="p-4 bg-white border-b border-slate-100 flex justify-between items-center">
+                          <span className="font-semibold text-slate-600">Monto Total Adeudado:</span>
+                          <span className="text-xl font-black text-red-600">Bs. {totalBs.toFixed(2)}</span>
+                        </div>
+                        <div className="bg-slate-50">
+                          <table className="w-full text-sm text-left">
+                            <thead className="bg-slate-100 text-slate-500 font-medium text-[10px] uppercase">
+                              <tr>
+                                <th className="px-4 py-2">Referencia</th>
+                                <th className="px-4 py-2">Fecha</th>
+                                <th className="px-4 py-2 text-right">Monto (Bs)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {deudas.map((d: any, idx: number) => (
+                                <tr key={idx} className="border-b border-slate-100 last:border-0 bg-white">
+                                  <td className="px-4 py-2 font-medium text-slate-700">{d.referencia}</td>
+                                  <td className="px-4 py-2 text-slate-600">{d.emision || 'N/A'}</td>
+                                  <td className="px-4 py-2 text-right font-bold text-slate-800">{d.monto}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
