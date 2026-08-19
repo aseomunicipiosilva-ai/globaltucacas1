@@ -35,40 +35,29 @@ export async function GET(request: Request) {
       // Si no hay tasa en BD, forzamos un sync abajo
     }
 
-    // Lógica de Sync: Consultar al BCV
-    const response = await fetch('https://www.bcv.org.ve/', {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      },
-    });
+    // Lógica de Sync: Consultar a la API de DolarAPI (que extrae del BCV)
+    const [usdRes, eurRes] = await Promise.all([
+      fetch('https://ve.dolarapi.com/v1/dolares/oficial'),
+      fetch('https://ve.dolarapi.com/v1/euros/oficial')
+    ]);
 
-    if (!response.ok) {
-      throw new Error(`Error HTTP: ${response.status}`);
+    if (!usdRes.ok || !eurRes.ok) {
+      throw new Error('Error HTTP obteniendo tasas de la API');
     }
 
-    const html = await response.text();
-    const $ = cheerio.load(html);
+    const usdData = await usdRes.json();
+    const eurData = await eurRes.json();
 
-    // Extraer Euro y USD
-    const euroText = $('#euro strong').text().trim().replace(',', '.');
-    const usdText = $('#dolar strong').text().trim().replace(',', '.');
-
-    let euroVal = parseFloat(euroText);
-    let usdVal = parseFloat(usdText);
-
-    if (isNaN(euroVal) && isNaN(usdVal)) {
-      throw new Error('No se pudo parsear los valores del BCV');
-    }
-
-    const tcmmv = isNaN(euroVal) ? usdVal : euroVal;
+    const usdVal = usdData.promedio;
+    const euroVal = eurData.promedio;
+    const tcmmv = Math.max(usdVal, euroVal);
 
     const rateData = {
       euro: euroVal,
       usd: usdVal,
       tcmmv: tcmmv,
       timestamp: new Date().toISOString(),
-      source: 'bcv-live'
+      source: 'dolarapi-oficial'
     };
 
     // Guardar en base de datos si es sync
@@ -91,42 +80,9 @@ export async function GET(request: Request) {
 
   } catch (error: any) {
     console.error('Error fetching BCV:', error.message);
-    
-    // Fallback public APIs si falla la directa
-    try {
-      const fallbackRes = await fetch('https://ve.dolarapi.com/v1/dolares/euro');
-      if (fallbackRes.ok) {
-        const data = await fallbackRes.json();
-        const fallbackRate = {
-          euro: data.promedio,
-          usd: data.promedio, // approximation
-          tcmmv: data.promedio,
-          timestamp: new Date().toISOString(),
-          source: 'dolarapi'
-        };
-        
-        if (sync) {
-          await supabase.from('audit_logs').insert([
-            {
-              user_id: 'system',
-              action: 'SYNC_BCV',
-              ip_address: '127.0.0.1',
-              details: JSON.stringify(fallbackRate),
-              created_at: fallbackRate.timestamp
-            }
-          ]);
-        }
-        
-        return NextResponse.json({
-          success: true,
-          ...fallbackRate
-        });
-      }
-    } catch(e) {}
-
     return NextResponse.json({
       success: false,
-      error: 'No se pudo contactar al BCV ni guardar la tasa',
+      error: 'No se pudo contactar a la API de tasas',
       tcmmv: 0
     }, { status: 500 });
   }
