@@ -208,9 +208,9 @@ function ContribuyentesPageContent() {
       const res = await fetch('/api/bcv');
       const data = await res.json();
       
-      const tasaTruncada = (Math.trunc(data.tasa * 100) / 100).toFixed(2);
+      const tasaTruncada = (Math.trunc(data.tcmmv * 100) / 100).toFixed(2);
       setBcvRate(tasaTruncada);
-      setBcvDate(new Date(data.fecha).toLocaleString());
+      setBcvDate(new Date(data.timestamp).toLocaleString());
 
       // Find factor
       let factorTotal = 0;
@@ -254,7 +254,7 @@ function ContribuyentesPageContent() {
               numeracion: local.numeracion,
               leyenda: localLeyenda,
               factor: localFactor,
-              montoBs: (Math.trunc((localFactor * data.tasa) * 100) / 100).toFixed(2)
+              montoBs: (Math.trunc((localFactor * data.tcmmv) * 100) / 100).toFixed(2)
             });
           }
         });
@@ -276,14 +276,14 @@ function ContribuyentesPageContent() {
       }
 
       // Truncar a 2 decimales sin redondear
-      const rawTotal = factorTotal * data.tasa;
+      const rawTotal = factorTotal * data.tcmmv;
       const totalTruncado = (Math.trunc(rawTotal * 100) / 100).toFixed(2);
 
       setCalculoDetalle({
         factor: factorTotal,
         leyenda,
         totalBs: totalTruncado,
-        fuente: data.fuente,
+        fuente: data.source,
         desglose: desgloseLocales
       });
       setShowCalculation(true);
