@@ -9,6 +9,7 @@ export async function GET(request: Request) {
 
   if (sync) {
     // Limpiamos la caché de Vercel para forzar una nueva lectura
+    // @ts-expect-error - Next.js internal type mismatch
     revalidateTag('bcv-rate');
   }
 
