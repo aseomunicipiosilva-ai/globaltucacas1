@@ -1,3 +1,4 @@
+'use client';
 import React, { useState } from 'react';
 import { Inbox, CheckCircle, XCircle, Eye, Filter, MessageSquareWarning, Wrench, ShieldCheck, SearchCheck, X, FileText, Calendar, User } from 'lucide-react';
 import { DataTable } from '@/components/DataTable';

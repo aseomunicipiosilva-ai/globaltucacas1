@@ -1,3 +1,4 @@
+'use client';
 import React, { useState } from 'react';
 import { DataTable } from '@/components/DataTable';
 import { Truck, Map, Edit, Check, X } from 'lucide-react';
