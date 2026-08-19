@@ -73,7 +73,7 @@ export default function PortalSidebar() {
   ];
 
   return (
-    <div className="w-64 bg-[#1e293b] min-h-screen text-slate-300 flex flex-col fixed left-0 top-0 overflow-y-auto">
+    <div className="w-64 bg-[#1e293b] h-screen text-slate-300 flex flex-col fixed left-0 top-0 overflow-y-auto">
       {/* Profile Section */}
       <div className="flex flex-col items-center pt-8 pb-6 border-b border-slate-700/50">
         <div className="w-20 h-20 rounded-full bg-slate-700 mb-3 overflow-hidden border-2 border-slate-600 flex items-center justify-center">

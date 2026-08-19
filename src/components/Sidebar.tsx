@@ -33,7 +33,7 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="w-64 bg-[#1e293b] min-h-screen text-slate-300 flex flex-col fixed left-0 top-0">
+    <aside className="w-64 bg-[#1e293b] h-screen text-slate-300 flex flex-col fixed left-0 top-0">
       <div className="h-16 flex items-center justify-center border-b border-slate-700 bg-[#0f172a]">
         <h1 className="text-xl font-bold text-green-500 tracking-wider">
           <span className="text-white">GLOBAL</span> GREEN
