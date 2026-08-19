@@ -1,9 +1,73 @@
-'use client';
-import { useState } from 'react';
-import { MoreVertical, Printer, FileText, Send, Calendar, CheckSquare } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { MoreVertical, Printer, FileText, Send, Calendar, CheckSquare, Building } from 'lucide-react';
+import { useAppContext } from '@/store/AppContext';
 
 export default function EstadoCuentaPage() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { inmuebles } = useAppContext();
+  const [viewCalculo, setViewCalculo] = useState<any>(null);
+
+  useEffect(() => {
+    // Simulamos que el usuario en sesion es J-298551488 (Condominio Residencias Villarena) u otro.
+    // Como el portal esta harcodeado, tomaremos el primer contribuyente o los inmuebles del mismo.
+    const calcView = async () => {
+      try {
+        const res = await fetch('/api/bcv');
+        const data = await res.json();
+        
+        let factorTotal = 0;
+        let leyenda = '';
+        const desgloseLocales: any[] = [];
+
+        // Por ahora, como es un portal de prueba (mock), usamos un inmueble hardcodeado si no hay login real.
+        // O usamos los inmuebles reales si los hay.
+        // Vamos a simular que el usuario tiene el inmueble "I-000252" o sumar todos si es una demo
+        const misInmuebles = inmuebles.slice(0, 1); // Mock: tomar el primero para mostrar la funcionalidad
+
+        if (misInmuebles.length > 0) {
+          leyenda = misInmuebles.length === 1 ? misInmuebles[0].clasificacion : `Múltiples Inmuebles (${misInmuebles.length})`;
+          
+          misInmuebles.forEach(inm => {
+            const localFactor = parseFloat(inm.mmv_mes) || 3.0; // Mock 3.0 fallback
+            factorTotal += localFactor;
+            
+            if (localFactor > 0) {
+              desgloseLocales.push({
+                numeracion: inm.inmueble || inm.cod_cont || 'I-000252',
+                leyenda: inm.actividad_principal || inm.clasificacion || 'Residencial',
+                factor: localFactor,
+                montoBs: (Math.trunc((localFactor * data.tcmmv) * 100) / 100).toFixed(2)
+              });
+            }
+          });
+        } else {
+          // Fallback puramente hardcodeado si no hay supabase conectado
+          factorTotal = 3.0;
+          leyenda = 'Residencial';
+          desgloseLocales.push({
+            numeracion: 'I-000252',
+            leyenda: 'Residencial',
+            factor: 3.0,
+            montoBs: (Math.trunc((3.0 * data.tcmmv) * 100) / 100).toFixed(2)
+          });
+        }
+
+        const rawTotal = factorTotal * data.tcmmv;
+        const totalTruncado = (Math.trunc(rawTotal * 100) / 100).toFixed(2);
+
+        setViewCalculo({
+          factor: factorTotal,
+          leyenda,
+          totalBs: totalTruncado,
+          tasaBcv: data.tcmmv,
+          desglose: desgloseLocales
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    calcView();
+  }, [inmuebles]);
 
   return (
     <div className="space-y-6">
@@ -14,6 +78,57 @@ export default function EstadoCuentaPage() {
             ESTADO DE CUENTA
           </h2>
         </div>
+
+        {viewCalculo && (
+          <div className="bg-blue-50/50 p-4 border-b border-slate-200">
+            <h4 className="font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-2 text-xs">
+              <Building className="w-4 h-4 text-slate-500" /> Tu Cálculo Mensual de Aseo Urbano
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-600 bg-white p-3 border border-blue-100 rounded">
+              <div>
+                <p className="mb-1"><span className="font-semibold text-slate-700">Clasificación:</span> {viewCalculo.leyenda}</p>
+                <p className="mb-1"><span className="font-semibold text-slate-700">Factor Multiplicador:</span> {viewCalculo.factor} TCMMV</p>
+              </div>
+              <div>
+                <p className="mb-1"><span className="font-semibold text-slate-700">Tasa de Cambio Oficial (BCV):</span> {viewCalculo.tasaBcv} Bs</p>
+              </div>
+              <div className="md:col-span-2 pt-2 border-t border-slate-100 flex justify-between items-center">
+                <p className="text-xs font-medium">Fórmula: {viewCalculo.factor} × {viewCalculo.tasaBcv} Bs</p>
+                <p className="text-lg font-bold text-green-700">Total Mensual a Cancelar: Bs. {viewCalculo.totalBs}</p>
+              </div>
+            </div>
+            
+            {viewCalculo.desglose && viewCalculo.desglose.length > 0 && (
+              <div className="mt-4 border border-blue-100 rounded overflow-hidden shadow-sm">
+                <div className="bg-blue-100/50 px-3 py-2 border-b border-blue-100">
+                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">Desglose de Inmuebles</span>
+                </div>
+                <div className="max-h-[150px] overflow-y-auto bg-white">
+                  <table className="w-full text-left text-[10px] text-slate-600">
+                    <thead className="bg-slate-50 border-b border-slate-100 sticky top-0">
+                      <tr>
+                        <th className="px-3 py-2 font-semibold">Identificador</th>
+                        <th className="px-3 py-2 font-semibold">Concepto</th>
+                        <th className="px-3 py-2 font-semibold text-right">Factor (EUR)</th>
+                        <th className="px-3 py-2 font-semibold text-right text-green-700">Monto (Bs)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {viewCalculo.desglose.map((item: any, i: number) => (
+                        <tr key={i} className="border-b border-slate-50 last:border-0">
+                          <td className="px-3 py-2 font-medium">{item.numeracion}</td>
+                          <td className="px-3 py-2">{item.leyenda}</td>
+                          <td className="px-3 py-2 text-right">{item.factor.toFixed(2)}</td>
+                          <td className="px-3 py-2 text-right font-bold text-green-700">{item.montoBs}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         
         <div className="p-0 overflow-x-auto">
           <table className="w-full text-left border-collapse whitespace-nowrap">

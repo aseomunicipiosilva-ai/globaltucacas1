@@ -11,7 +11,7 @@ import dynamic from 'next/dynamic';
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
 
 function ContribuyentesPageContent() {
-  const { contribuyentes, facturas, updateContribuyente, addContribuyente } = useAppContext();
+  const { inmuebles, contribuyentes, facturas, updateContribuyente, addContribuyente } = useAppContext();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [formData, setFormData] = useState<any>(null);
@@ -48,62 +48,25 @@ function ContribuyentesPageContent() {
           let leyenda = '';
           const desgloseLocales: any[] = [];
 
-          if (viewData.isCondominio && viewData.locales?.length > 0) {
-            leyenda = `Condominio (${viewData.cantidadInmuebles} Inmuebles)`;
-            viewData.locales.forEach((local: any) => {
-              let localFactor = 0;
-              let localLeyenda = '';
+          // Encontrar todos los inmuebles asociados a este contribuyente
+          const misInmuebles = inmuebles.filter(i => i.identidad === viewData.Identidad);
 
-              if (local.uso === 'Residencial') {
-                const tipo = ordenanzaData.tiposResidenciales.find(t => t.label === (local.tipoResidencia || viewData.TipoResidencia));
-                if (tipo) {
-                  localFactor = tipo.factor;
-                  localLeyenda = `Tasa Residencial (${tipo.label.substring(0, 25)}...)`;
-                }
-              } else if (local.uso === 'Comercial') {
-                const nivelIndex = ordenanzaData.nivelesMetraje.indexOf(local.nivel || ordenanzaData.nivelesMetraje[0]);
-                
-                if (local.estatus === 'Desocupado') {
-                  const actVacio = ordenanzaData.actividadesComerciales.find(a => a.label === 'Inmueble desocupado (vacío)');
-                  if (actVacio && nivelIndex !== -1) {
-                    localFactor = actVacio.factores[nivelIndex];
-                    localLeyenda = `Comercial Desocupado (${local.nivel})`;
-                  }
-                } else {
-                  const act = ordenanzaData.actividadesComerciales.find(a => a.label === local.actividad);
-                  if (act && nivelIndex !== -1) {
-                    localFactor = act.factores[nivelIndex];
-                    localLeyenda = `Comercial Ocupado - ${local.actividad}`;
-                  }
-                }
-              }
-              
+          if (misInmuebles.length > 0) {
+            leyenda = misInmuebles.length === 1 ? misInmuebles[0].clasificacion : `Múltiples Inmuebles (${misInmuebles.length})`;
+            
+            misInmuebles.forEach(inm => {
+              const localFactor = parseFloat(inm.mmv_mes) || 0;
               factorTotal += localFactor;
               
               if (localFactor > 0) {
                 desgloseLocales.push({
-                  numeracion: local.numeracion,
-                  leyenda: localLeyenda,
+                  numeracion: inm.inmueble || inm.cod_cont,
+                  leyenda: inm.actividad_principal || inm.clasificacion || 'Inmueble',
                   factor: localFactor,
                   montoBs: (Math.trunc((localFactor * data.tcmmv) * 100) / 100).toFixed(2)
                 });
               }
             });
-          } else {
-            if (viewData.Clasificacion === 'Residencial') {
-              const tipo = ordenanzaData.tiposResidenciales.find(t => t.label === viewData.TipoResidencia);
-              if (tipo) {
-                factorTotal = tipo.factor;
-                leyenda = `Clasificador de Tasa Residencial: ${tipo.label}`;
-              }
-            } else {
-              const act = ordenanzaData.actividadesComerciales.find(a => a.label === viewData.ActividadComercial);
-              const nivelIndex = ordenanzaData.nivelesMetraje.indexOf(viewData.NivelMetraje);
-              if (act && nivelIndex !== -1) {
-                factorTotal = act.factores[nivelIndex];
-                leyenda = `Tasa Comercial: ${act.label} (Nivel: ${viewData.NivelMetraje})`;
-              }
-            }
           }
 
           const rawTotal = factorTotal * data.tcmmv;
