@@ -1,6 +1,7 @@
 'use client';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
+import { ordenanzaData } from '@/data/ordenanza';
 
 type AppState = {
   inmuebles: any[];
@@ -77,6 +78,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const map = new Map();
         dbInmuebles.forEach((row: any) => {
           if (row.identidad && !map.has(row.identidad)) {
+            let clase = 'Residencial';
+            const act = row.actividad_principal || '';
+            if (ordenanzaData.actividadesIndustriales.some(a => a.label === act)) {
+              clase = 'Industrial';
+            } else if (ordenanzaData.actividadesComerciales.some(a => a.label === act)) {
+              clase = 'Comercial';
+            } else if (act && act !== 'No aplica') {
+              if (!act.toLowerCase().includes('condominio') && !act.toLowerCase().includes('residencial')) {
+                 clase = 'Comercial';
+              }
+            }
+
             map.set(row.identidad, {
               Identidad: row.identidad,
               Contribuyente: row.contribuyente,
@@ -84,7 +97,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
               Correo: row.correo_electronico || row.correo || 'No registrado',
               CodCont: row.cod_cont,
               Direccion: row.direccion,
-              Actividad: row.actividad_principal || 'No aplica'
+              Actividad: act || 'No aplica',
+              Clasificacion: clase
             });
           }
         });
