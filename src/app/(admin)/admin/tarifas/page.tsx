@@ -9,7 +9,7 @@ export default function TarifasPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('Todas');
-  const tabs = ['Todas', 'Residencial', 'Comercial/Institucional', 'Calculadora de Trámites'];
+  const tabs = ['Todas', 'Residencial', 'Comercial/Institucional', 'Industrial', 'Calculadora de Trámites'];
 
   // Estados de la calculadora
   const [calcTipo, setCalcTipo] = useState('Servicios Extraordinarios');
@@ -45,6 +45,10 @@ export default function TarifasPage() {
   );
 
   const filteredComerciales = ordenanzaData.actividadesComerciales.filter(
+    (act) => act.label.toLowerCase().includes(searchTerm)
+  );
+
+  const filteredIndustriales = ordenanzaData.actividadesIndustriales.filter(
     (act) => act.label.toLowerCase().includes(searchTerm)
   );
 
@@ -192,6 +196,60 @@ export default function TarifasPage() {
                   <tr>
                     <td colSpan={ordenanzaData.nivelesMetraje.length + 1} className="px-4 py-8 text-center text-slate-500">
                       No se encontraron actividades comerciales
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        )}
+
+        {/* Tarifas Industriales */}
+        {(activeTab === 'Todas' || activeTab === 'Industrial') && (
+        <div className="bg-white rounded border border-slate-200 shadow-sm overflow-hidden animate-in fade-in zoom-in duration-200 mt-6">
+          <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center gap-2">
+            <Building className="w-4 h-4 text-slate-600" />
+            <h2 className="font-bold text-slate-700 uppercase text-sm tracking-wide">Tarifas Industriales</h2>
+          </div>
+          <div className="p-4 bg-slate-50 border-b border-slate-200 text-xs text-slate-500">
+            Los cálculos muestran el monto final en Bolívares (Factor TCMMV × Tasa BCV) para cada nivel de metraje.
+          </div>
+          <div className="overflow-x-auto h-[600px] relative">
+            <table className="w-full text-left text-xs text-slate-600 border-collapse">
+              <thead className="bg-slate-100 text-slate-700 sticky top-0 z-10 shadow-sm">
+                <tr>
+                  <th className="px-4 py-3 font-bold uppercase border-r border-slate-200 bg-slate-100">Actividad Económica</th>
+                  {ordenanzaData.nivelesMetraje.map((nivel, idx) => (
+                    <th key={idx} className="px-4 py-3 font-bold text-center border-r border-slate-200 bg-slate-100 w-32">
+                      <div className="text-[10px] text-slate-500 font-normal uppercase mb-1">Nivel {idx + 1}</div>
+                      {nivel}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredIndustriales.length > 0 ? (
+                  filteredIndustriales.map((actividad, idx) => (
+                    <tr key={idx} className="border-b border-slate-100 hover:bg-blue-50/30 transition-colors">
+                      <td className="px-4 py-3 font-medium text-slate-700 border-r border-slate-100 bg-white sticky left-0 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                        {actividad.label}
+                      </td>
+                      {actividad.factores.map((factor, fIdx) => {
+                        const monto = (factor * rate).toFixed(2);
+                        return (
+                          <td key={fIdx} className="px-4 py-2 text-center border-r border-slate-100 group relative cursor-default">
+                            <div className="text-[10px] text-slate-400 mb-0.5">{factor.toFixed(2)} TCMMV</div>
+                            <div className="font-bold text-green-700">Bs. {monto}</div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={ordenanzaData.nivelesMetraje.length + 1} className="px-4 py-8 text-center text-slate-500">
+                      No se encontraron actividades industriales
                     </td>
                   </tr>
                 )}
