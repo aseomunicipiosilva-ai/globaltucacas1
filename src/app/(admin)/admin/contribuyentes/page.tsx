@@ -8,6 +8,8 @@ import { ordenanzaData } from '@/data/ordenanza';
 import Select from 'react-select';
 import dynamic from 'next/dynamic';
 
+const todasLasActividades = [...ordenanzaData.actividadesComerciales, ...ordenanzaData.actividadesIndustriales];
+
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
 
 function ContribuyentesPageContent() {
@@ -233,16 +235,16 @@ function ContribuyentesPageContent() {
             const nivelIndex = ordenanzaData.nivelesMetraje.indexOf(local.nivel || ordenanzaData.nivelesMetraje[0]);
             
             if (local.estatus === 'Desocupado') {
-              const actVacio = ordenanzaData.actividadesComerciales.find(a => a.label === 'Inmueble desocupado (vacío)');
+              const actVacio = todasLasActividades.find(a => a.label === 'Inmueble desocupado (vacío)');
               if (actVacio && nivelIndex !== -1) {
                 localFactor = actVacio.factores[nivelIndex];
                 localLeyenda = `Comercial Desocupado (${local.nivel})`;
               }
             } else {
-              const act = ordenanzaData.actividadesComerciales.find(a => a.label === local.actividad);
+              const act = todasLasActividades.find(a => a.label === local.actividad);
               if (act && nivelIndex !== -1) {
                 localFactor = act.factores[nivelIndex];
-                localLeyenda = `Comercial Ocupado - ${local.actividad}`;
+                localLeyenda = `Comercial/Ind. Ocupado - ${local.actividad}`;
               }
             }
           }
@@ -266,11 +268,11 @@ function ContribuyentesPageContent() {
             leyenda = `Clasificador de Tasa Residencial: ${tipo.label}`;
           }
         } else {
-          const act = ordenanzaData.actividadesComerciales.find(a => a.label === formData.ActividadComercial);
+          const act = todasLasActividades.find(a => a.label === formData.ActividadComercial);
           const nivelIndex = ordenanzaData.nivelesMetraje.indexOf(formData.NivelMetraje);
           if (act && nivelIndex !== -1) {
             factorTotal = act.factores[nivelIndex];
-            leyenda = `Tasa Comercial: ${act.label} (Nivel: ${formData.NivelMetraje})`;
+            leyenda = `Tasa Com/Ind: ${act.label} (Nivel: ${formData.NivelMetraje})`;
           }
         }
       }
@@ -523,8 +525,8 @@ function ContribuyentesPageContent() {
                         ...formData, 
                         Clasificacion: val,
                         TipoResidencia: (val === 'Residencial' || val === 'Mixto') ? (formData.TipoResidencia || ordenanzaData.tiposResidenciales[0].label) : '',
-                        ActividadComercial: (val.includes('Comercial') || val === 'Mixto') ? (formData.ActividadComercial || ordenanzaData.actividadesComerciales[0].label) : '',
-                        NivelMetraje: (val.includes('Comercial') || val === 'Mixto') ? (formData.NivelMetraje || ordenanzaData.nivelesMetraje[0]) : '',
+                        ActividadComercial: (val.includes('Comercial') || val === 'Industrial' || val === 'Mixto') ? (formData.ActividadComercial || todasLasActividades[0].label) : '',
+                        NivelMetraje: (val.includes('Comercial') || val === 'Industrial' || val === 'Mixto') ? (formData.NivelMetraje || ordenanzaData.nivelesMetraje[0]) : '',
                         locales: updatedLocales
                       });
                     }}
@@ -552,7 +554,7 @@ function ContribuyentesPageContent() {
                     <div>
                       <label className="block text-[10px] font-medium text-slate-500 mb-1">Actividad Económica (Buscador y Lista)</label>
                       <Select
-                        options={ordenanzaData.actividadesComerciales.map(a => ({ value: a.label, label: a.label }))}
+                        options={todasLasActividades.map(a => ({ value: a.label, label: a.label }))}
                         value={{ value: formData.ActividadComercial, label: formData.ActividadComercial }}
                         onChange={(selected: any) => setFormData({...formData, ActividadComercial: selected?.value || ''})}
                         placeholder="Buscar o seleccionar..."
@@ -721,7 +723,7 @@ function ContribuyentesPageContent() {
                                <div className="mb-2">
                                  <label className="block text-[10px] font-medium text-slate-500 mb-1">Actividad Comercial</label>
                                  <Select
-                                   options={ordenanzaData.actividadesComerciales.map(a => ({ value: a.label, label: a.label }))}
+                                   options={todasLasActividades.map(a => ({ value: a.label, label: a.label }))}
                                    value={local.actividad ? { value: local.actividad, label: local.actividad } : null}
                                    onChange={(selected: any) => {
                                      const newLocales = [...formData.locales];
