@@ -1,5 +1,5 @@
 'use client';
-import { Home, Search, FileText, UserPlus, Users, Home as HomeIcon, FileSpreadsheet, History, Award, Clock, Building2, AlertTriangle, Handshake, LayoutDashboard, Mail, User, PieChart, Truck } from 'lucide-react';
+import { Home, Search, FileText, UserPlus, Users, Home as HomeIcon, FileSpreadsheet, History, Award, Clock, Building2, AlertTriangle, Handshake, LayoutDashboard, Mail, User, PieChart, Truck, Inbox } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
@@ -24,6 +24,7 @@ export default function Sidebar() {
     { icon: Handshake, name: 'Convenios de Pago', href: '/admin/convenios-pago' },
     { icon: Award, name: 'Certificados Emitidos', href: '/admin/certificados' },
     { icon: History, name: 'Historial de Documentos', href: '/admin/historial-documentos' },
+    { icon: Inbox, name: 'Buzón de Solicitudes', href: '/admin/buzon' },
     { icon: AlertTriangle, name: 'Reclamos / Atención', href: '/admin/reclamos' },
     { icon: AlertTriangle, name: 'Denuncias Ciudadanas', href: '/admin/denuncias' },
     { icon: Truck, name: 'Rutas Camiones', href: '/admin/rutas' },
