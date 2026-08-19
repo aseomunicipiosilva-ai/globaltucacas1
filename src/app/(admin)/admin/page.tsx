@@ -1,30 +1,39 @@
 import { MapPin, Phone, Mail, FileText, Download } from 'lucide-react';
 import MapWrapper from '@/components/MapWrapper';
+import { supabase } from '@/lib/supabase';
+import SyncBCVButton from '@/components/SyncBCVButton';
 
 async function getExchangeRates() {
   try {
-    const [usdRes, eurRes] = await Promise.all([
-      fetch('https://ve.dolarapi.com/v1/dolares/oficial', { next: { revalidate: 3600 } }),
-      fetch('https://ve.dolarapi.com/v1/euros/oficial', { next: { revalidate: 3600 } })
-    ]);
-    
-    const usd = await usdRes.json();
-    const eur = await eurRes.json();
-    
-    return {
-      usd: usd.promedio,
-      eur: eur.promedio,
-      tcmmv: Math.max(usd.promedio, eur.promedio),
-      fecha: new Date(eur.fechaActualizacion || usd.fechaActualizacion).toLocaleDateString('es-VE', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })
-    };
+    const { data, error } = await supabase
+      .from('audit_logs')
+      .select('*')
+      .eq('action', 'SYNC_BCV')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+      
+    if (!error && data && data.details) {
+      const rateInfo = JSON.parse(data.details);
+      return {
+        usd: rateInfo.usd || 0,
+        eur: rateInfo.euro || 0,
+        tcmmv: rateInfo.tcmmv || 0,
+        fecha: new Date(rateInfo.timestamp).toLocaleDateString('es-VE', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      };
+    }
+
+    return { usd: 0, eur: 0, tcmmv: 0, fecha: 'No sincronizado (Requiere primera sincronización)' };
   } catch (error) {
-    console.error("Error fetching exchange rates:", error);
-    return { usd: 757.54, eur: 875.22, tcmmv: 875.22, fecha: 'N/A' };
+    console.error("Error fetching exchange rates from db:", error);
+    return { usd: 0, eur: 0, tcmmv: 0, fecha: 'Error leyendo de base de datos' };
   }
 }
 
@@ -41,8 +50,9 @@ export default async function AdminHome() {
       <div className="grid grid-cols-1 gap-6">
         {/* Tasa de Cambio */}
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-          <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center gap-2">
-            <span className="font-semibold text-slate-700">Tasa de Cambio BCV</span>
+          <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+            <span className="font-semibold text-slate-700">Tasa de Cambio Semanal BCV</span>
+            <SyncBCVButton />
           </div>
           <div className="p-6">
             <div className="flex flex-wrap gap-4 text-sm text-slate-700 items-center justify-center">

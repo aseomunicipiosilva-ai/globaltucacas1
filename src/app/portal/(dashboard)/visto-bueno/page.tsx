@@ -1,6 +1,6 @@
 'use client';
 import { ShieldCheck, Upload, Send, FileText, CheckCircle2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppContext } from '@/store/AppContext';
 
 export default function VistoBuenoPage() {
@@ -10,13 +10,23 @@ export default function VistoBuenoPage() {
 
   const appContext = useAppContext();
 
-  // Mock de tasa BCV para el simulador
-  const TASA_BCV = 40.50;
+  const [tasaBcv, setTasaBcv] = useState<number>(0);
+
+  useEffect(() => {
+    fetch('/api/bcv')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.tcmmv) {
+          setTasaBcv(data.tcmmv);
+        }
+      })
+      .catch(err => console.error("Error fetching BCV:", err));
+  }, []);
 
   // Calculo temporal para Visto Bueno basado en metros cuadrados
   // Supongamos 0.5 TCMV por metro cuadrado
   const tarifaTCMV = (parseFloat(area) || 0) * 0.5;
-  const costoTotalBs = (tarifaTCMV * TASA_BCV).toFixed(2);
+  const costoTotalBs = (tarifaTCMV * tasaBcv).toFixed(2);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
