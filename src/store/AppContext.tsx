@@ -14,7 +14,9 @@ type AppState = {
   reclamos: any[];
   convenios: any[];
   preLiquidaciones: any[];
+  tcmmv: number;
   isLoading: boolean;
+  setInmuebles: (inmuebles: any[]) => void;
   updateContribuyente: (id: string, data: any) => void;
   addContribuyente: (data: any) => void;
   aprobarPreRegistro: (item: number) => void;
@@ -35,6 +37,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [reclamos, setReclamos] = useState<any[]>([]);
   const [convenios, setConvenios] = useState<any[]>([]);
   const [preLiquidaciones, setPreLiquidaciones] = useState<any[]>([]);
+  const [tcmmv, setTcmmv] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadAllData = async () => {
@@ -49,7 +52,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         { data: dbCondominios },
         { data: dbReclamos },
         { data: dbConvenios },
-        { data: dbPreLiquidaciones }
+        { data: dbPreLiquidaciones },
+        apiBcv
       ] = await Promise.all([
         supabase.from('inmuebles').select('*'),
         supabase.from('pre_registros').select('*'),
@@ -59,8 +63,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         supabase.from('condominios').select('*'),
         supabase.from('reclamos').select('*'),
         supabase.from('convenios').select('*'),
-        supabase.from('pre_liquidaciones').select('*')
+        supabase.from('pre_liquidaciones').select('*'),
+        fetch('/api/bcv').then(res => res.json()).catch(() => ({ tcmmv: 0 }))
       ]);
+
+      const bcvData = apiBcv as any;
+      const currentTcmmv = bcvData?.tcmmv || 0;
+      setTcmmv(currentTcmmv);
 
       if (dbInmuebles) {
         const mappedInmuebles = dbInmuebles.map(row => ({
@@ -68,7 +77,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           'Inmueble': row.inmueble || row.cod_cont,
           'Clasificacion': row.clasificacion || 'Residencial',
           'Tipo': 'Urbano',
-          'Saldo': 0,
+          'Saldo': (parseFloat(row.deuda_congelada_bs || 0) + (parseFloat(row.deuda_mmv || 0) * currentTcmmv)).toFixed(2),
+          'DeudaMMV': parseFloat(row.deuda_mmv || 0),
+          'DeudaCongelada': parseFloat(row.deuda_congelada_bs || 0),
           'Cant Inmuebles': 1,
           'Actividad Principal': row.actividad || 'No aplica',
           'Direccion': row.direccion
@@ -266,7 +277,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       reclamos,
       convenios,
       preLiquidaciones,
+      tcmmv,
       isLoading,
+      setInmuebles,
       updateContribuyente,
       addContribuyente,
       aprobarPreRegistro,

@@ -31,7 +31,7 @@ export async function GET(request: Request) {
     // 3. Obtener todos los inmuebles
     const { data: inmuebles, error: inmueblesError } = await supabase
       .from('inmuebles')
-      .select('id, identidad, contribuyente, cod_cont, mmv_mes, cant_inmuebles, saldo');
+      .select('id, identidad, contribuyente, cod_cont, mmv_mes, cant_inmuebles, deuda_mmv');
 
     if (inmueblesError) throw inmueblesError;
 
@@ -51,13 +51,13 @@ export async function GET(request: Request) {
       if (mmv > 0) {
         // Calcular deuda
         const deudaAgregadaBs = parseFloat((cant * mmv * tcmmv).toFixed(2));
-        const saldoAnterior = parseFloat(inm.saldo) || 0;
-        const nuevoSaldo = saldoAnterior + deudaAgregadaBs;
+        const deudaMmvAnterior = parseFloat(inm.deuda_mmv) || 0;
+        const nuevaDeudaMmv = deudaMmvAnterior + (cant * mmv);
 
-        // Actualizar el saldo del inmueble
+        // Actualizar el saldo en MMV del inmueble
         await supabase
           .from('inmuebles')
-          .update({ saldo: nuevoSaldo })
+          .update({ deuda_mmv: nuevaDeudaMmv })
           .eq('id', inm.id);
 
         // Crear una factura
