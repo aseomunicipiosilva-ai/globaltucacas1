@@ -100,7 +100,7 @@ export const ordenanzaData = {
     { label: 'Vivero', factores: [10, 15, 20, 25]},
     { label: 'Zapatería', factores: [10, 15, 20, 25]},
     { label: 'Óptica', factores: [10, 15, 20, 25]},
-    { label: 'Perfumería', factores: [10, 15, 20, 25] }}
+    { label: 'Perfumería', factores: [10, 15, 20, 25] }
   ],
   actividadesIndustriales: [
     { label: 'Fábrica de botones', factores: [30, 50, 70, 90]},
