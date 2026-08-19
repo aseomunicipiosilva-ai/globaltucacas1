@@ -1,13 +1,15 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { ordenanzaData } from '@/data/ordenanza';
-import { Calculator, Building, Home, Coins, Search } from 'lucide-react';
+import { Calculator, Building, Home, Coins, Search, Filter } from 'lucide-react';
 
 export default function TarifasPage() {
   const [bcvRate, setBcvRate] = useState<number | null>(null);
   const [bcvDate, setBcvDate] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('Todas');
+  const tabs = ['Todas', 'Residencial', 'Comercial/Institucional'];
 
   useEffect(() => {
     const fetchBcv = async () => {
@@ -66,9 +68,23 @@ export default function TarifasPage() {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 pb-2">
+        <Filter className="w-4 h-4 text-slate-400 mr-2" />
+        {tabs.map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${activeTab === tab ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 gap-6">
         {/* Tarifas Residenciales */}
-        <div className="bg-white rounded border border-slate-200 shadow-sm overflow-hidden">
+        {(activeTab === 'Todas' || activeTab === 'Residencial') && (
+        <div className="bg-white rounded border border-slate-200 shadow-sm overflow-hidden animate-in fade-in zoom-in duration-200">
           <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center gap-2">
             <Home className="w-4 h-4 text-slate-600" />
             <h2 className="font-bold text-slate-700 uppercase text-sm tracking-wide">Tarifas Residenciales</h2>
@@ -103,9 +119,11 @@ export default function TarifasPage() {
             </table>
           </div>
         </div>
+        )}
 
         {/* Tarifas Comerciales */}
-        <div className="bg-white rounded border border-slate-200 shadow-sm overflow-hidden">
+        {(activeTab === 'Todas' || activeTab === 'Comercial/Institucional') && (
+        <div className="bg-white rounded border border-slate-200 shadow-sm overflow-hidden animate-in fade-in zoom-in duration-200">
           <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center gap-2">
             <Building className="w-4 h-4 text-slate-600" />
             <h2 className="font-bold text-slate-700 uppercase text-sm tracking-wide">Tarifas Comerciales / Institucionales</h2>
@@ -155,6 +173,7 @@ export default function TarifasPage() {
             </table>
           </div>
         </div>
+        )}
       </div>
     </div>
   );
