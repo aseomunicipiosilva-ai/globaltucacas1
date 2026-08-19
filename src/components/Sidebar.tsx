@@ -5,7 +5,7 @@ import Link from 'next/link';
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const isAdminPath = pathname.startsWith('/admin');
+  const isAdminPath = pathname.startsWith('/admin') || pathname.startsWith('/audit');
 
   // Si estamos en el portal de contribuyentes, no mostramos el sidebar admin (el layout del portal manejará su navegación)
   if (!isAdminPath) {
