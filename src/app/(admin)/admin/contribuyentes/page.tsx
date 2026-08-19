@@ -20,6 +20,7 @@ function ContribuyentesPageContent() {
   
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewData, setViewData] = useState<any>(null);
+  const [viewCalculo, setViewCalculo] = useState<any>(null);
   
   // Calculadora state
   const [bcvRate, setBcvRate] = useState<string | null>(null);
@@ -35,6 +36,95 @@ function ContribuyentesPageContent() {
       handleAdd();
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (isViewModalOpen && viewData) {
+      const calcView = async () => {
+        try {
+          const res = await fetch('/api/bcv');
+          const data = await res.json();
+          
+          let factorTotal = 0;
+          let leyenda = '';
+          const desgloseLocales: any[] = [];
+
+          if (viewData.isCondominio && viewData.locales?.length > 0) {
+            leyenda = `Condominio (${viewData.cantidadInmuebles} Inmuebles)`;
+            viewData.locales.forEach((local: any) => {
+              let localFactor = 0;
+              let localLeyenda = '';
+
+              if (local.uso === 'Residencial') {
+                const tipo = ordenanzaData.tiposResidenciales.find(t => t.label === (local.tipoResidencia || viewData.TipoResidencia));
+                if (tipo) {
+                  localFactor = tipo.factor;
+                  localLeyenda = `Tasa Residencial (${tipo.label.substring(0, 25)}...)`;
+                }
+              } else if (local.uso === 'Comercial') {
+                const nivelIndex = ordenanzaData.nivelesMetraje.indexOf(local.nivel || ordenanzaData.nivelesMetraje[0]);
+                
+                if (local.estatus === 'Desocupado') {
+                  const actVacio = ordenanzaData.actividadesComerciales.find(a => a.label === 'Inmueble desocupado (vacío)');
+                  if (actVacio && nivelIndex !== -1) {
+                    localFactor = actVacio.factores[nivelIndex];
+                    localLeyenda = `Comercial Desocupado (${local.nivel})`;
+                  }
+                } else {
+                  const act = ordenanzaData.actividadesComerciales.find(a => a.label === local.actividad);
+                  if (act && nivelIndex !== -1) {
+                    localFactor = act.factores[nivelIndex];
+                    localLeyenda = `Comercial Ocupado - ${local.actividad}`;
+                  }
+                }
+              }
+              
+              factorTotal += localFactor;
+              
+              if (localFactor > 0) {
+                desgloseLocales.push({
+                  numeracion: local.numeracion,
+                  leyenda: localLeyenda,
+                  factor: localFactor,
+                  montoBs: (Math.trunc((localFactor * data.tcmmv) * 100) / 100).toFixed(2)
+                });
+              }
+            });
+          } else {
+            if (viewData.Clasificacion === 'Residencial') {
+              const tipo = ordenanzaData.tiposResidenciales.find(t => t.label === viewData.TipoResidencia);
+              if (tipo) {
+                factorTotal = tipo.factor;
+                leyenda = `Clasificador de Tasa Residencial: ${tipo.label}`;
+              }
+            } else {
+              const act = ordenanzaData.actividadesComerciales.find(a => a.label === viewData.ActividadComercial);
+              const nivelIndex = ordenanzaData.nivelesMetraje.indexOf(viewData.NivelMetraje);
+              if (act && nivelIndex !== -1) {
+                factorTotal = act.factores[nivelIndex];
+                leyenda = `Tasa Comercial: ${act.label} (Nivel: ${viewData.NivelMetraje})`;
+              }
+            }
+          }
+
+          const rawTotal = factorTotal * data.tcmmv;
+          const totalTruncado = (Math.trunc(rawTotal * 100) / 100).toFixed(2);
+
+          setViewCalculo({
+            factor: factorTotal,
+            leyenda,
+            totalBs: totalTruncado,
+            tasaBcv: data.tcmmv,
+            desglose: desgloseLocales
+          });
+        } catch (e) {
+          console.error(e);
+        }
+      };
+      calcView();
+    } else {
+      setViewCalculo(null);
+    }
+  }, [isViewModalOpen, viewData]);
 
   const handleEdit = (row: any) => {
     let telefonoPrefijo = '0414';
@@ -933,6 +1023,57 @@ function ContribuyentesPageContent() {
                   <p className="text-sm font-medium text-slate-700">{viewData.Direccion || 'N/A'}</p>
                 </div>
               </div>
+              
+              {viewCalculo && (
+                <div className="mt-6 bg-slate-50 border border-slate-200 rounded p-4">
+                  <h4 className="font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-2 text-xs">
+                    <Building className="w-4 h-4 text-slate-500" /> Cálculo Mensual de Aseo Urbano
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-600 bg-white p-3 border border-slate-100 rounded">
+                    <div>
+                      <p className="mb-1"><span className="font-semibold text-slate-700">Clasificación:</span> {viewCalculo.leyenda}</p>
+                      <p className="mb-1"><span className="font-semibold text-slate-700">Factor Multiplicador:</span> {viewCalculo.factor} TCMMV</p>
+                    </div>
+                    <div>
+                      <p className="mb-1"><span className="font-semibold text-slate-700">Tasa de Cambio Oficial:</span> {viewCalculo.tasaBcv} Bs</p>
+                    </div>
+                    <div className="md:col-span-2 pt-2 border-t border-slate-100 flex justify-between items-center">
+                      <p className="text-xs font-medium">Fórmula: {viewCalculo.factor} × {viewCalculo.tasaBcv} Bs</p>
+                      <p className="text-lg font-bold text-green-700">Total Mensual: Bs. {viewCalculo.totalBs}</p>
+                    </div>
+                  </div>
+                  
+                  {viewCalculo.desglose && viewCalculo.desglose.length > 0 && (
+                    <div className="mt-4 border border-slate-200 rounded overflow-hidden shadow-sm">
+                      <div className="bg-slate-100 px-3 py-2 border-b border-slate-200">
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">Desglose por Inmueble</span>
+                      </div>
+                      <div className="max-h-[150px] overflow-y-auto bg-white">
+                        <table className="w-full text-left text-[10px] text-slate-600">
+                          <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
+                            <tr>
+                              <th className="px-3 py-2 font-semibold">Identificador</th>
+                              <th className="px-3 py-2 font-semibold">Concepto</th>
+                              <th className="px-3 py-2 font-semibold text-right">Factor (EUR)</th>
+                              <th className="px-3 py-2 font-semibold text-right text-green-700">Monto (Bs)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {viewCalculo.desglose.map((item: any, i: number) => (
+                              <tr key={i} className="border-b border-slate-100 last:border-0">
+                                <td className="px-3 py-2 font-medium">{item.numeracion}</td>
+                                <td className="px-3 py-2">{item.leyenda}</td>
+                                <td className="px-3 py-2 text-right">{item.factor.toFixed(2)}</td>
+                                <td className="px-3 py-2 text-right font-bold text-green-700">{item.montoBs}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="mt-6 border border-slate-200 rounded-lg overflow-hidden">
                 <div className="bg-red-50 px-4 py-3 border-b border-red-100 flex items-center gap-2">
