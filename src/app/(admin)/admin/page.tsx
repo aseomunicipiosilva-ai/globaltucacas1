@@ -3,6 +3,8 @@ import MapWrapper from '@/components/MapWrapper';
 import { supabase } from '@/lib/supabase';
 import SyncBCVButton from '@/components/SyncBCVButton';
 
+export const dynamic = 'force-dynamic';
+
 async function getExchangeRates() {
   try {
     const { data, error } = await supabase
