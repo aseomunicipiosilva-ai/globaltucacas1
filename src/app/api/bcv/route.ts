@@ -1,8 +1,5 @@
 import { NextResponse } from 'next/server';
-import * as cheerio from 'cheerio';
-import { supabase } from '@/lib/supabase';
-
-export const dynamic = 'force-dynamic';
+import { revalidateTag } from 'next/cache';
 
 export async function GET(request: Request) {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
@@ -10,35 +7,17 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const sync = searchParams.get('sync') === 'true';
 
-  try {
-    if (!sync) {
-      // Intentar obtener la última tasa sincronizada de la base de datos
-      const { data, error } = await supabase
-        .from('audit_logs')
-        .select('*')
-        .eq('action', 'SYNC_BCV')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-        
-      if (!error && data && data.details) {
-        const rateInfo = JSON.parse(data.details);
-        return NextResponse.json({
-          success: true,
-          euro: rateInfo.euro,
-          usd: rateInfo.usd,
-          tcmmv: rateInfo.tcmmv,
-          timestamp: data.created_at,
-          source: 'db'
-        });
-      }
-      // Si no hay tasa en BD, forzamos un sync abajo
-    }
+  if (sync) {
+    // Limpiamos la caché de Vercel para forzar una nueva lectura
+    revalidateTag('bcv-rate');
+  }
 
-    // Lógica de Sync: Consultar a la API de DolarAPI (que extrae del BCV)
+  try {
+    // Consultamos la API oficial usando Next.js Data Cache
+    // Se mantendrá almacenado de forma permanente hasta que se pulse Sincronizar
     const [usdRes, eurRes] = await Promise.all([
-      fetch('https://ve.dolarapi.com/v1/dolares/oficial'),
-      fetch('https://ve.dolarapi.com/v1/euros/oficial')
+      fetch('https://ve.dolarapi.com/v1/dolares/oficial', { next: { tags: ['bcv-rate'] } }),
+      fetch('https://ve.dolarapi.com/v1/euros/oficial', { next: { tags: ['bcv-rate'] } })
     ]);
 
     if (!usdRes.ok || !eurRes.ok) {
@@ -56,22 +35,9 @@ export async function GET(request: Request) {
       euro: euroVal,
       usd: usdVal,
       tcmmv: tcmmv,
-      timestamp: new Date().toISOString(),
-      source: 'dolarapi-oficial'
+      timestamp: eurData.fechaActualizacion || new Date().toISOString(),
+      source: 'dolarapi-cached'
     };
-
-    // Guardar en base de datos si es sync
-    if (sync) {
-      await supabase.from('audit_logs').insert([
-        {
-          user_id: 'system',
-          action: 'SYNC_BCV',
-          ip_address: '127.0.0.1',
-          details: JSON.stringify(rateData),
-          created_at: rateData.timestamp
-        }
-      ]);
-    }
 
     return NextResponse.json({
       success: true,

@@ -7,35 +7,32 @@ export const dynamic = 'force-dynamic';
 
 async function getExchangeRates() {
   try {
-    const { data, error } = await supabase
-      .from('audit_logs')
-      .select('*')
-      .eq('action', 'SYNC_BCV')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-      
-    if (!error && data && data.details) {
-      const rateInfo = JSON.parse(data.details);
-      return {
-        usd: rateInfo.usd || 0,
-        eur: rateInfo.euro || 0,
-        tcmmv: rateInfo.tcmmv || 0,
-        fecha: new Date(rateInfo.timestamp).toLocaleDateString('es-VE', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
-      };
-    }
+    const [usdRes, eurRes] = await Promise.all([
+      fetch('https://ve.dolarapi.com/v1/dolares/oficial', { next: { tags: ['bcv-rate'] } }),
+      fetch('https://ve.dolarapi.com/v1/euros/oficial', { next: { tags: ['bcv-rate'] } })
+    ]);
+    
+    if (!usdRes.ok || !eurRes.ok) throw new Error('API request failed');
 
-    return { usd: 0, eur: 0, tcmmv: 0, fecha: 'No sincronizado (Requiere primera sincronización)' };
+    const usd = await usdRes.json();
+    const eur = await eurRes.json();
+    
+    return {
+      usd: usd.promedio,
+      eur: eur.promedio,
+      tcmmv: Math.max(usd.promedio, eur.promedio),
+      fecha: new Date(eur.fechaActualizacion || usd.fechaActualizacion).toLocaleDateString('es-VE', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    };
   } catch (error) {
-    console.error("Error fetching exchange rates from db:", error);
-    return { usd: 0, eur: 0, tcmmv: 0, fecha: 'Error leyendo de base de datos' };
+    console.error("Error fetching cached exchange rates:", error);
+    return { usd: 0, eur: 0, tcmmv: 0, fecha: 'Error obteniendo tasas' };
   }
 }
 
