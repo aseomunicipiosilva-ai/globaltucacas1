@@ -15,6 +15,7 @@ export default function Sidebar() {
   const menuItems = [
     { icon: Home, name: 'Inicio', href: '/admin' },
     { icon: PieChart, name: 'Administrativo', href: '/admin/administrativo' },
+    { icon: FileText, name: 'Tarifas / Ordenanza', href: '/admin/tarifas' },
     { icon: User, name: 'Contribuyentes', href: '/admin/contribuyentes' },
     { icon: Users, name: 'Condominios COB', href: '/admin/condominios-cob' },
     { icon: FileText, name: 'Pre-registros WEB', href: '/admin/pre-registros' },
