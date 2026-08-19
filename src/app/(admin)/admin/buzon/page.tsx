@@ -1,10 +1,11 @@
-'use client';
 import React, { useState } from 'react';
-import { Inbox, CheckCircle, XCircle, Eye, Filter, MessageSquareWarning, Wrench, ShieldCheck, SearchCheck } from 'lucide-react';
+import { Inbox, CheckCircle, XCircle, Eye, Filter, MessageSquareWarning, Wrench, ShieldCheck, SearchCheck, X, FileText, Calendar, User } from 'lucide-react';
 import { DataTable } from '@/components/DataTable';
 
 export default function BuzonSolicitudesPage() {
   const [activeTab, setActiveTab] = useState('Todas');
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [solicitudSeleccionada, setSolicitudSeleccionada] = useState<any>(null);
 
   const [solicitudes, setSolicitudes] = useState([
     { id: 'REC-001', tipo: 'Reclamos / Sugerencias', fecha: '2024-03-15', contribuyente: 'Juan Perez', asunto: 'Bote de basura en calle principal', estado: 'Pendiente', icon: MessageSquareWarning, color: 'text-orange-500', bg: 'bg-orange-50' },
@@ -24,6 +25,11 @@ export default function BuzonSolicitudesPage() {
 
   const handleReject = (id: string) => {
     setSolicitudes(solicitudes.map(s => s.id === id ? { ...s, estado: 'Rechazado' } : s));
+  };
+
+  const handleViewDetails = (row: any) => {
+    setSolicitudSeleccionada(row);
+    setIsViewModalOpen(true);
   };
 
   const columns = [
@@ -52,7 +58,7 @@ export default function BuzonSolicitudesPage() {
     } },
     { key: 'acciones', header: 'Acciones', render: (row: any) => (
       <div className="flex gap-2">
-        <button className="bg-slate-100 text-slate-600 hover:bg-slate-200 p-1.5 rounded transition-colors" title="Ver Detalles">
+        <button onClick={() => handleViewDetails(row)} className="bg-slate-100 text-slate-600 hover:bg-slate-200 p-1.5 rounded transition-colors" title="Ver Detalles">
           <Eye className="w-4 h-4" />
         </button>
         {row.estado === 'Pendiente' && (
@@ -111,6 +117,68 @@ export default function BuzonSolicitudesPage() {
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <DataTable data={filteredSolicitudes} columns={columns} itemsPerPage={10} />
       </div>
+
+      {isViewModalOpen && solicitudSeleccionada && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <solicitudSeleccionada.icon className={`w-5 h-5 ${solicitudSeleccionada.color}`} />
+                Detalles del Ticket {solicitudSeleccionada.id}
+              </h3>
+              <button onClick={() => setIsViewModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mb-1"><User className="w-3 h-3"/> Solicitante</span>
+                  <p className="text-sm font-semibold text-slate-700">{solicitudSeleccionada.contribuyente}</p>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mb-1"><Calendar className="w-3 h-3"/> Fecha</span>
+                  <p className="text-sm font-semibold text-slate-700">{solicitudSeleccionada.fecha}</p>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 col-span-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mb-1"><FileText className="w-3 h-3"/> Asunto / Descripción</span>
+                  <p className="text-sm font-medium text-slate-700">{solicitudSeleccionada.asunto}</p>
+                </div>
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 col-span-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Estado Actual</span>
+                  <div>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold inline-block ${
+                      solicitudSeleccionada.estado === 'Pendiente' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
+                      solicitudSeleccionada.estado === 'Aprobado' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                      'bg-red-100 text-red-700 border border-red-200'
+                    }`}>
+                      {solicitudSeleccionada.estado}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {solicitudSeleccionada.estado === 'Pendiente' && (
+                <div className="pt-4 border-t border-slate-100 flex gap-3">
+                  <button 
+                    onClick={() => { handleApprove(solicitudSeleccionada.id); setIsViewModalOpen(false); }}
+                    className="flex-1 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle className="w-4 h-4" /> Aprobar
+                  </button>
+                  <button 
+                    onClick={() => { handleReject(solicitudSeleccionada.id); setIsViewModalOpen(false); }}
+                    className="flex-1 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+                  >
+                    <XCircle className="w-4 h-4" /> Rechazar
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

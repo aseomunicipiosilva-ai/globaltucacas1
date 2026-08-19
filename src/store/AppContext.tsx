@@ -17,6 +17,7 @@ type AppState = {
   updateContribuyente: (id: string, data: any) => void;
   addContribuyente: (data: any) => void;
   aprobarPreRegistro: (item: number) => void;
+  addFactura: (factura: any) => Promise<void>;
 };
 
 const AppContext = createContext<AppState | undefined>(undefined);
@@ -178,8 +179,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const aprobarPreRegistro = (item: number) => {
-    setPreRegistros(prev => prev.filter(pr => pr.id !== item));
+  const aprobarPreRegistro = async (item: number) => {
+    try {
+      const { error } = await supabase
+        .from('pre_registros')
+        .delete()
+        .eq('id', item);
+        
+      if (error) throw error;
+      setPreRegistros(prev => prev.filter(r => r.id !== item));
+    } catch (e) {
+      console.error("Error approving pre-registro:", e);
+      throw e;
+    }
+  };
+
+  const addFactura = async (data: any) => {
+    try {
+      const { data: result, error } = await supabase
+        .from('facturas')
+        .insert([{
+          referencia: data.referencia || `FACT-${Math.floor(Math.random() * 1000000)}`,
+          contribuyente: data.contribuyente,
+          monto: data.monto.toString(),
+          emision: data.emision || new Date().toISOString().split('T')[0],
+          vencimiento: data.vencimiento || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          estado: 'Pendiente'
+        }])
+        .select()
+        .single();
+        
+      if (error) throw error;
+      if (result) {
+        setFacturas(prev => [result, ...prev]);
+      }
+    } catch (e) {
+      console.error("Error adding factura:", e);
+      throw e;
+    }
   };
 
   return (
@@ -197,7 +234,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       isLoading,
       updateContribuyente,
       addContribuyente,
-      aprobarPreRegistro
+      aprobarPreRegistro,
+      addFactura
     }}>
       {children}
     </AppContext.Provider>

@@ -1,7 +1,61 @@
 'use client';
-import { SearchCheck, Send, Calendar } from 'lucide-react';
+import { SearchCheck, Send, Calendar, CheckCircle2 } from 'lucide-react';
+import { useState } from 'react';
+import { useAppContext } from '@/store/AppContext';
 
 export default function InspeccionPage() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+
+  const appContext = useAppContext();
+
+  // Tarifa plana para inspección técnica: 3 TCMV
+  const TASA_BCV = 40.50;
+  const tarifaTCMV = 3;
+  const costoTotalBs = (tarifaTCMV * TASA_BCV).toFixed(2);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!appContext) return;
+    
+    setIsSubmitting(true);
+    
+    const nuevaFactura = {
+      contribuyente: 'Contribuyente Demo',
+      monto: costoTotalBs,
+      referencia: `INSP-TEC-${Math.floor(Math.random() * 10000)}`,
+      estado: 'Pendiente'
+    };
+
+    try {
+      await appContext.addFactura(nuevaFactura);
+      setIsSuccess(true);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isSuccess) {
+    return (
+      <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-sm border border-blue-200 p-10 text-center">
+        <CheckCircle2 className="w-20 h-20 text-blue-500 mx-auto mb-6" />
+        <h2 className="text-2xl font-bold text-slate-800 mb-2">¡Inspección Solicitada!</h2>
+        <p className="text-slate-600 mb-6">
+          Su solicitud de inspección técnica fue registrada. El cargo administrativo de <strong>{costoTotalBs} Bs</strong> ha sido generado.
+        </p>
+        <p className="text-sm text-slate-500 bg-slate-50 p-4 rounded-lg inline-block border border-slate-100">
+          Por favor, proceda a la sección <strong>PAGAR</strong> para cancelar el tributo. Una vez confirmado, los fiscales ambientales serán asignados a su caso.
+        </p>
+        <div className="mt-8">
+          <button onClick={() => setIsSuccess(false)} className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded font-medium transition-colors">
+            Nueva Solicitud
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
@@ -18,7 +72,7 @@ export default function InspeccionPage() {
           </p>
         </div>
 
-        <form className="p-6 space-y-6" onSubmit={(e) => e.preventDefault()}>
+        <form className="p-6 space-y-6" onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-slate-700 mb-1">Motivo de la Inspección *</label>
@@ -65,10 +119,21 @@ export default function InspeccionPage() {
             </div>
           </div>
 
+          <div className="bg-slate-50 border border-slate-200 p-4 rounded-lg flex flex-col items-end">
+            <span className="text-sm font-medium text-slate-500">Tasa Administrativa por Inspección</span>
+            <div className="text-2xl font-black text-slate-800 mt-1">
+              {costoTotalBs} Bs
+            </div>
+            <span className="text-xs text-slate-400 mt-1">Equivalente a {tarifaTCMV} TCMV</span>
+          </div>
+
           <div className="pt-4 border-t border-slate-200 flex justify-end">
-            <button type="submit" className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium flex items-center gap-2 transition-colors">
+            <button 
+              type="submit" 
+              disabled={isSubmitting}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 rounded font-medium flex items-center gap-2 transition-colors">
               <Send className="w-4 h-4" />
-              Solicitar Inspección
+              {isSubmitting ? 'Procesando...' : 'Generar Pago y Solicitar'}
             </button>
           </div>
         </form>
