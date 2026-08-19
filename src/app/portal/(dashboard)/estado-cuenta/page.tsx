@@ -1,3 +1,4 @@
+'use client';
 import { useState, useEffect } from 'react';
 import { MoreVertical, Printer, FileText, Send, Calendar, CheckSquare, Building } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
