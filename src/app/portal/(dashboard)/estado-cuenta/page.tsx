@@ -26,19 +26,38 @@ export default function EstadoCuentaPage() {
         const misInmuebles = inmuebles.slice(0, 1); // Mock: tomar el primero para mostrar la funcionalidad
 
         if (misInmuebles.length > 0) {
-          leyenda = misInmuebles.length === 1 ? misInmuebles[0].clasificacion : `Múltiples Inmuebles (${misInmuebles.length})`;
+          const isCondominio = misInmuebles.some(i => (parseInt(i.cant_inmuebles) || 1) > 1);
+          leyenda = isCondominio ? `Condominio / Complejo Residencial` : misInmuebles.map(i => i.actividad_principal || 'Residencial').join(', ');
           
           misInmuebles.forEach(inm => {
             const localFactor = parseFloat(inm.mmv_mes) || 3.0; // Mock 3.0 fallback
-            factorTotal += localFactor;
+            const cant = parseInt(inm.cant_inmuebles) || 1;
+            const metraje = inm.area || inm.area_operativa || 'N/A';
+            const actividad = inm.actividad_principal || 'No especificada';
+            const tipoVivienda = inm.tipo || 'Inmueble';
+            
+            const conceptoTexto = `${actividad} | Nivel: ${metraje} m² | ${tipoVivienda}`;
+            
+            factorTotal += (localFactor * cant);
             
             if (localFactor > 0) {
-              desgloseLocales.push({
-                numeracion: inm.inmueble || inm.cod_cont || 'I-000252',
-                leyenda: inm.actividad_principal || inm.clasificacion || 'Residencial',
-                factor: localFactor,
-                montoBs: (Math.trunc((localFactor * data.tcmmv) * 100) / 100).toFixed(2)
-              });
+              if (cant > 1) {
+                for(let i=1; i<=cant; i++) {
+                  desgloseLocales.push({
+                    numeracion: `${inm.inmueble || inm.cod_cont || 'I-000252'} - Unidad ${i}`,
+                    leyenda: conceptoTexto,
+                    factor: localFactor,
+                    montoBs: (Math.trunc((localFactor * data.tcmmv) * 100) / 100).toFixed(2)
+                  });
+                }
+              } else {
+                desgloseLocales.push({
+                  numeracion: inm.inmueble || inm.cod_cont || 'I-000252',
+                  leyenda: conceptoTexto,
+                  factor: localFactor,
+                  montoBs: (Math.trunc((localFactor * data.tcmmv) * 100) / 100).toFixed(2)
+                });
+              }
             }
           });
         } else {
