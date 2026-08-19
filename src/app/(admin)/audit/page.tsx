@@ -8,15 +8,7 @@ export default function AuditPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Para propositos de demostración (hasta que se conecte Supabase real)
-    // fetchLogs();
-    
-    // Mock data temporal para visualizar
-    setLogs([
-      { id: 1, user_id: '20131386', action: 'INICIO_SESION', ip_address: '192.168.1.100', created_at: new Date().toISOString(), details: 'Ingreso exitoso' },
-      { id: 2, user_id: '20131386', action: 'CONSULTA_INMUEBLE', ip_address: '192.168.1.100', created_at: new Date(Date.now() - 3600000).toISOString(), details: 'Consultó inmueble ID 45' },
-    ]);
-    setLoading(false);
+    fetchLogs();
   }, []);
 
   const fetchLogs = async () => {

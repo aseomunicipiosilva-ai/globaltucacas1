@@ -18,6 +18,7 @@ type AppState = {
   addContribuyente: (data: any) => void;
   aprobarPreRegistro: (item: number) => void;
   addFactura: (factura: any) => Promise<void>;
+  addAuditLog: (action: string, details: string) => Promise<void>;
 };
 
 const AppContext = createContext<AppState | undefined>(undefined);
@@ -109,6 +110,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     loadAllData();
   }, []);
 
+  const addAuditLog = async (action: string, details: string) => {
+    try {
+      const { error } = await supabase.from('audit_logs').insert([{
+        user_id: 'Administrador', // Placeholder hasta tener Auth
+        action,
+        ip_address: 'Registrado por Sistema',
+        details
+      }]);
+      if (error) console.error("Error logging audit:", error);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const updateContribuyente = async (id: string, data: any) => {
     try {
       const { error } = await supabase
@@ -125,6 +140,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       
       // Update local state immediately for better UX
       setContribuyentes(prev => prev.map(c => c.Identidad === id ? { ...c, ...data } : c));
+      
+      await addAuditLog('ACTUALIZAR_CONTRIBUYENTE', `Se actualizaron los datos del contribuyente: ${data.Contribuyente} (Identidad: ${id})`);
     } catch (e) {
       console.error("Error updating contribuyente in Supabase:", e);
       throw e;
@@ -173,6 +190,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       
       // Update local state
       await loadAllData();
+      await addAuditLog('NUEVO_CONTRIBUYENTE', `Se registró un nuevo contribuyente: ${data.Contribuyente} (Identidad: ${data.Identidad})`);
     } catch (e) {
       console.error("Error adding contribuyente to Supabase:", e);
       throw e;
@@ -188,6 +206,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         
       if (error) throw error;
       setPreRegistros(prev => prev.filter(r => r.id !== item));
+      await addAuditLog('APROBAR_PREREGISTRO', `Se procesó el pre-registro ID: ${item}`);
     } catch (e) {
       console.error("Error approving pre-registro:", e);
       throw e;
@@ -212,6 +231,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       if (result) {
         setFacturas(prev => [result, ...prev]);
+        await addAuditLog('GENERAR_FACTURA', `Se generó la factura ${result.referencia} para ${result.contribuyente} por Bs. ${result.monto}`);
       }
     } catch (e) {
       console.error("Error adding factura:", e);
@@ -235,7 +255,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateContribuyente,
       addContribuyente,
       aprobarPreRegistro,
-      addFactura
+      addFactura,
+      addAuditLog
     }}>
       {children}
     </AppContext.Provider>
