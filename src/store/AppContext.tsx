@@ -80,7 +80,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               Identidad: row.identidad,
               Contribuyente: row.contribuyente,
               Telefono: row.telefono || 'No registrado',
-              Correo: row.correo || 'No registrado',
+              Correo: row.correo_electronico || row.correo || 'No registrado',
               CodCont: row.cod_cont,
               Direccion: row.direccion
             });
@@ -116,7 +116,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .update({
           contribuyente: data.Contribuyente,
           telefono: data.Telefono,
-          correo: data.Correo,
+          correo_electronico: data.Correo,
           direccion: data.Direccion,
         })
         .eq('identidad', id);
@@ -145,7 +145,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             identidad: data.Identidad,
             contribuyente: data.Contribuyente,
             telefono: data.Telefono,
-            correo: data.Correo,
+            correo_electronico: data.Correo,
             direccion: data.Direccion,
             cod_cont: codCont,
             clasificacion: local.uso === 'Comercial' ? 'Comercial' : 'Residencial',
@@ -158,7 +158,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           identidad: data.Identidad,
           contribuyente: data.Contribuyente,
           telefono: data.Telefono,
-          correo: data.Correo,
+          correo_electronico: data.Correo,
           direccion: data.Direccion,
           cod_cont: codCont,
           clasificacion: data.Clasificacion || 'Residencial',
