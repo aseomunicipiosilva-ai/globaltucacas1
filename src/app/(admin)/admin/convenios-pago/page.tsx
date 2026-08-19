@@ -1,7 +1,7 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DataTable } from '@/components/DataTable';
-import { Handshake, FileEdit, Plus, X, Search } from 'lucide-react';
+import { Handshake, FileEdit, Plus, X, Search, Upload } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
 
@@ -10,10 +10,48 @@ export default function ConveniosPagoPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchDoc, setSearchDoc] = useState('');
   const [foundUser, setFoundUser] = useState<any>(null);
+  
   const [cuotas, setCuotas] = useState(1);
   const [frecuencia, setFrecuencia] = useState('Mensual');
   const [fechaInicio, setFechaInicio] = useState(new Date().toISOString().split('T')[0]);
+  const [documento, setDocumento] = useState<File | null>(null);
+  const [listaCuotas, setListaCuotas] = useState<any[]>([]);
+  
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Generar cuotas por defecto cuando cambian los parámetros
+  useEffect(() => {
+    if (!foundUser) {
+      setListaCuotas([]);
+      return;
+    }
+    
+    const totalBs = parseFloat(foundUser.montoACongelar);
+    if (isNaN(totalBs) || totalBs <= 0) return;
+    
+    const montoPorCuota = (totalBs / cuotas).toFixed(2);
+    const nuevasCuotas = [];
+    let currentDate = new Date(fechaInicio);
+    // Ajustar zona horaria local para evitar saltos de día
+    currentDate.setMinutes(currentDate.getMinutes() + currentDate.getTimezoneOffset());
+    
+    for (let i = 0; i < cuotas; i++) {
+      nuevasCuotas.push({
+        id: i,
+        fecha: currentDate.toISOString().split('T')[0],
+        monto: montoPorCuota
+      });
+      
+      if (frecuencia === 'Quincenal') {
+        currentDate.setDate(currentDate.getDate() + 15);
+      } else if (frecuencia === 'Mensual') {
+        currentDate.setMonth(currentDate.getMonth() + 1);
+      } else if (frecuencia === 'Bimestral') {
+        currentDate.setMonth(currentDate.getMonth() + 2);
+      }
+    }
+    setListaCuotas(nuevasCuotas);
+  }, [cuotas, frecuencia, fechaInicio, foundUser]);
 
   const columns = [
     { key: 'numero', header: 'Nro. Convenio' },
@@ -26,10 +64,17 @@ export default function ConveniosPagoPage() {
         row.estado === 'Al Día' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
       }`}>{row.estado}</span>
     ) },
-    { key: 'actions', header: 'Gestión', render: () => (
-      <button className="text-slate-600 hover:text-slate-900 text-xs flex items-center gap-1">
-        <FileEdit size={14} /> Detalle de Cuotas
-      </button>
+    { key: 'actions', header: 'Gestión', render: (row: any) => (
+      <div className="flex gap-2">
+        <button className="text-slate-600 hover:text-slate-900 text-xs flex items-center gap-1">
+          <FileEdit size={14} /> Cuotas
+        </button>
+        {row.documento_url && (
+          <a href={row.documento_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1">
+            <Handshake size={14} /> PDF
+          </a>
+        )}
+      </div>
     ) }
   ];
 
@@ -52,16 +97,49 @@ export default function ConveniosPagoPage() {
     }
   };
 
+  const handleCuotaChange = (index: number, field: string, value: string) => {
+    const newCuotas = [...listaCuotas];
+    newCuotas[index][field] = value;
+    setListaCuotas(newCuotas);
+  };
+
   const handleCrearConvenio = async () => {
     if (!foundUser) return;
+    
+    // Validate that sum of quotas matches total debt
+    const sumaCuotas = listaCuotas.reduce((acc, curr) => acc + (parseFloat(curr.monto) || 0), 0);
+    const totalFijado = parseFloat(foundUser.montoACongelar);
+    
+    if (Math.abs(sumaCuotas - totalFijado) > 1.0) {
+      if (!confirm(`La suma de las cuotas (${sumaCuotas.toFixed(2)}) no coincide exactamente con la deuda a congelar (${totalFijado.toFixed(2)}). ¿Deseas continuar de todos modos?`)) {
+        return;
+      }
+    }
+
     setIsProcessing(true);
     
     try {
-      const montoTotalFijado = parseFloat(foundUser.montoACongelar);
-      if (montoTotalFijado <= 0) {
+      if (totalFijado <= 0) {
         alert('El contribuyente no tiene deuda fluctuante que congelar.');
         setIsProcessing(false);
         return;
+      }
+
+      let docUrl = null;
+      if (documento) {
+        const fileExt = documento.name.split('.').pop();
+        const fileName = `convenio_${foundUser.identidad}_${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('convenios')
+          .upload(fileName, documento);
+          
+        if (uploadError) {
+          console.error('Error subiendo documento:', uploadError);
+          alert('Hubo un error subiendo el documento adjunto. Asegúrate que el bucket "convenios" exista y sea público.');
+        } else {
+          const { data } = supabase.storage.from('convenios').getPublicUrl(fileName);
+          docUrl = data.publicUrl;
+        }
       }
 
       // Actualizar inmuebles
@@ -86,17 +164,19 @@ export default function ConveniosPagoPage() {
         numero: nroConvenio,
         contribuyente: foundUser.contribuyente,
         identidad: foundUser.identidad,
-        monto_total: `${montoTotalFijado} Bs`,
+        monto_total: `${totalFijado.toFixed(2)} Bs`,
         cuotas: cuotas,
         frecuencia: frecuencia,
         inicio: fechaInicio,
-        estado: 'Al Día'
+        estado: 'Al Día',
+        documento_url: docUrl,
+        detalle_cuotas: JSON.stringify(listaCuotas)
       });
 
       // Crear registro de auditoría
       await supabase.from('audit').insert({
         action: 'Creación de Convenio (Congelamiento)',
-        details: `Convenio ${nroConvenio} para ${foundUser.identidad}. Monto Congelado: ${montoTotalFijado} Bs a Tasa: ${tcmmv}`,
+        details: `Convenio ${nroConvenio} para ${foundUser.identidad}. Monto Congelado: ${totalFijado.toFixed(2)} Bs a Tasa: ${tcmmv}`,
         user_email: 'Admin',
         module: 'Convenios'
       });
@@ -132,9 +212,9 @@ export default function ConveniosPagoPage() {
       <DataTable data={convenios} columns={columns} itemsPerPage={10} />
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl my-8">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 sticky top-0 z-10">
               <h3 className="font-semibold text-slate-800 uppercase text-sm flex items-center gap-2">
                 <Handshake size={16} /> Nuevo Convenio de Pago
               </h3>
@@ -143,7 +223,8 @@ export default function ConveniosPagoPage() {
               </button>
             </div>
             
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-6">
+              {/* Buscador */}
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">
                   Buscar Contribuyente (Cédula/RIF o Código)
@@ -169,11 +250,11 @@ export default function ConveniosPagoPage() {
                   <div className="pt-2 mt-2 border-t border-blue-200/50">
                     <p className="text-xs text-slate-500 mb-1">Tasa BCV (TCMMV) Actual: <span className="font-semibold text-slate-700">{tcmmv} Bs</span></p>
                     <p className="flex justify-between items-center text-red-600 font-medium">
-                      <span>Deuda Fluctuante (MMV):</span>
+                      <span>Deuda Fluctuante a Congelar (MMV):</span>
                       <span>{foundUser.totalMMV} MMV</span>
                     </p>
                     <p className="flex justify-between items-center text-emerald-700 font-bold text-lg mt-1 pt-1 border-t border-blue-200/50">
-                      <span>Monto Final a Congelar (Bs):</span>
+                      <span>Monto Final de la Deuda (Bs):</span>
                       <span>{foundUser.montoACongelar} Bs</span>
                     </p>
                   </div>
@@ -184,26 +265,14 @@ export default function ConveniosPagoPage() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-medium text-slate-700 mb-1">
-                        Número de Cuotas
-                      </label>
-                      <select 
-                        value={cuotas}
-                        onChange={(e) => setCuotas(parseInt(e.target.value))}
-                        className="w-full border border-slate-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                      >
+                      <label className="block text-xs font-medium text-slate-700 mb-1">Número de Cuotas</label>
+                      <select value={cuotas} onChange={(e) => setCuotas(parseInt(e.target.value))} className="w-full border border-slate-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
                         {[1,2,3,4,5,6,12].map(n => <option key={n} value={n}>{n} {n===1?'cuota':'cuotas'}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-700 mb-1">
-                        Frecuencia (Tiempo)
-                      </label>
-                      <select 
-                        value={frecuencia}
-                        onChange={(e) => setFrecuencia(e.target.value)}
-                        className="w-full border border-slate-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                      >
+                      <label className="block text-xs font-medium text-slate-700 mb-1">Frecuencia (Tiempo)</label>
+                      <select value={frecuencia} onChange={(e) => setFrecuencia(e.target.value)} className="w-full border border-slate-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
                         <option value="Quincenal">Quincenal</option>
                         <option value="Mensual">Mensual</option>
                         <option value="Bimestral">Bimestral</option>
@@ -211,21 +280,86 @@ export default function ConveniosPagoPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">
-                      Fecha de Inicio de Pago
-                    </label>
-                    <input 
-                      type="date" 
-                      value={fechaInicio}
-                      onChange={(e) => setFechaInicio(e.target.value)}
-                      className="w-full border border-slate-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                    />
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Fecha de Inicio de Pago</label>
+                    <input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} className="w-full border border-slate-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"/>
                   </div>
+                  
+                  {/* Carga de documento */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Documento de Respaldo Firmado (Opcional)</label>
+                    <div className="flex items-center gap-3">
+                      <label className="cursor-pointer bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 px-4 py-2 rounded text-sm font-medium flex items-center gap-2">
+                        <Upload size={16} /> Subir Archivo
+                        <input type="file" className="hidden" accept=".pdf,image/*" onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            setDocumento(e.target.files[0]);
+                          }
+                        }} />
+                      </label>
+                      <span className="text-sm text-slate-500 truncate max-w-[200px]">
+                        {documento ? documento.name : 'Ningún archivo seleccionado'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Tabla de cuotas editable */}
+                  <div className="mt-6 pt-6 border-t border-slate-200">
+                    <h4 className="text-sm font-semibold text-slate-800 mb-3">Programación de Cuotas a Pagar</h4>
+                    <div className="bg-slate-50 border border-slate-200 rounded overflow-hidden">
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-slate-100 text-slate-600 text-xs">
+                          <tr>
+                            <th className="px-4 py-2 w-16 text-center">Nro</th>
+                            <th className="px-4 py-2">Fecha de Pago</th>
+                            <th className="px-4 py-2 text-right">Monto (Bs)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          {listaCuotas.map((c, i) => (
+                            <tr key={i}>
+                              <td className="px-4 py-2 text-center font-medium text-slate-500">{i + 1}</td>
+                              <td className="px-4 py-2">
+                                <input 
+                                  type="date" 
+                                  value={c.fecha}
+                                  onChange={(e) => handleCuotaChange(i, 'fecha', e.target.value)}
+                                  className="w-full border-none bg-transparent focus:ring-1 focus:ring-blue-500 px-1 py-1 rounded"
+                                />
+                              </td>
+                              <td className="px-4 py-2">
+                                <div className="flex items-center gap-1 justify-end">
+                                  <input 
+                                    type="number" 
+                                    step="0.01"
+                                    value={c.monto}
+                                    onChange={(e) => handleCuotaChange(i, 'monto', e.target.value)}
+                                    className="w-32 border border-slate-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 px-2 py-1 rounded text-right font-medium text-slate-800"
+                                  />
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-slate-100 border-t border-slate-300 font-medium">
+                          <tr>
+                            <td colSpan={2} className="px-4 py-2 text-right text-slate-700">Suma Total de Cuotas:</td>
+                            <td className={`px-4 py-2 text-right font-bold ${
+                              Math.abs(listaCuotas.reduce((a, b) => a + (parseFloat(b.monto) || 0), 0) - parseFloat(foundUser.montoACongelar)) > 1
+                              ? 'text-red-600' : 'text-emerald-700'
+                            }`}>
+                              {listaCuotas.reduce((a, b) => a + (parseFloat(b.monto) || 0), 0).toFixed(2)} Bs
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+
                 </div>
               )}
             </div>
 
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 sticky bottom-0 z-10">
               <button 
                 onClick={() => setIsModalOpen(false)}
                 className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800"
@@ -237,7 +371,7 @@ export default function ConveniosPagoPage() {
                 disabled={!foundUser || isProcessing}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded text-sm font-medium disabled:opacity-50 transition-colors"
               >
-                {isProcessing ? 'Procesando...' : 'Congelar y Crear Convenio'}
+                {isProcessing ? 'Procesando...' : 'Guardar y Congelar'}
               </button>
             </div>
           </div>
