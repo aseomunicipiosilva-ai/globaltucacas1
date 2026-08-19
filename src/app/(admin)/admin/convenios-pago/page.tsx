@@ -11,6 +11,8 @@ export default function ConveniosPagoPage() {
   const [searchDoc, setSearchDoc] = useState('');
   const [foundUser, setFoundUser] = useState<any>(null);
   const [cuotas, setCuotas] = useState(1);
+  const [frecuencia, setFrecuencia] = useState('Mensual');
+  const [fechaInicio, setFechaInicio] = useState(new Date().toISOString().split('T')[0]);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const columns = [
@@ -86,7 +88,8 @@ export default function ConveniosPagoPage() {
         identidad: foundUser.identidad,
         monto_total: `${montoTotalFijado} Bs`,
         cuotas: cuotas,
-        inicio: new Date().toISOString().split('T')[0],
+        frecuencia: frecuencia,
+        inicio: fechaInicio,
         estado: 'Al Día'
       });
 
@@ -178,17 +181,46 @@ export default function ConveniosPagoPage() {
               )}
 
               {foundUser && (
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Número de Cuotas a Acordar
-                  </label>
-                  <select 
-                    value={cuotas}
-                    onChange={(e) => setCuotas(parseInt(e.target.value))}
-                    className="w-full border border-slate-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                  >
-                    {[1,2,3,4,5,6,12].map(n => <option key={n} value={n}>{n} {n===1?'cuota':'cuotas'}</option>)}
-                  </select>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">
+                        Número de Cuotas
+                      </label>
+                      <select 
+                        value={cuotas}
+                        onChange={(e) => setCuotas(parseInt(e.target.value))}
+                        className="w-full border border-slate-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                      >
+                        {[1,2,3,4,5,6,12].map(n => <option key={n} value={n}>{n} {n===1?'cuota':'cuotas'}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-700 mb-1">
+                        Frecuencia (Tiempo)
+                      </label>
+                      <select 
+                        value={frecuencia}
+                        onChange={(e) => setFrecuencia(e.target.value)}
+                        className="w-full border border-slate-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                      >
+                        <option value="Quincenal">Quincenal</option>
+                        <option value="Mensual">Mensual</option>
+                        <option value="Bimestral">Bimestral</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">
+                      Fecha de Inicio de Pago
+                    </label>
+                    <input 
+                      type="date" 
+                      value={fechaInicio}
+                      onChange={(e) => setFechaInicio(e.target.value)}
+                      className="w-full border border-slate-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
                 </div>
               )}
             </div>
