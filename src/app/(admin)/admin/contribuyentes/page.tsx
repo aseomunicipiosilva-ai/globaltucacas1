@@ -481,7 +481,7 @@ function ContribuyentesPageContent() {
                     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.lat}&lon=${loc.lng}`);
                     const data = await res.json();
                     if (data && data.display_name) {
-                      setFormData((prev: any) => ({...prev, coordenadas: loc, Direccion: data.display_name}));
+                      setFormData((prev: any) => ({...prev, coordenadas: loc, DireccionExacta: data.display_name}));
                     }
                   } catch (err) {
                     console.error('Error in reverse geocoding:', err);
@@ -492,8 +492,12 @@ function ContribuyentesPageContent() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-[10px] font-medium text-slate-500 mb-1">Dirección fiscal (como aparece en el RIF)</label>
+                <label className="block text-[10px] font-medium text-slate-500 mb-1">Domicilio fiscal (como aparece en el RIF)</label>
                 <input type="text" value={formData.Direccion || ''} onChange={e => setFormData({...formData, Direccion: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-medium text-slate-500 mb-1">Dirección Exacta (Punto en el Mapa)</label>
+                <input type="text" value={formData.DireccionExacta || ''} onChange={e => setFormData({...formData, DireccionExacta: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
               </div>
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Nombre Comercial</label>

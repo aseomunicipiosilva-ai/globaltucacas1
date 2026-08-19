@@ -132,7 +132,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           contribuyente: data.Contribuyente,
           telefono: data.Telefono,
           correo_electronico: data.Correo,
-          direccion: data.Direccion,
+          direccion: data.DireccionExacta ? `${data.Direccion} | Exacta: ${data.DireccionExacta}` : data.Direccion,
         })
         .eq('identidad', id);
         
@@ -163,7 +163,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             contribuyente: data.Contribuyente,
             telefono: data.Telefono,
             correo_electronico: data.Correo,
-            direccion: data.Direccion,
+            direccion: data.DireccionExacta ? `${data.Direccion} | Exacta: ${data.DireccionExacta}` : data.Direccion,
             cod_cont: codCont,
             clasificacion: local.uso === 'Comercial' ? 'Comercial' : 'Residencial',
             actividad: local.uso === 'Comercial' ? local.actividad : (local.tipoResidencia || 'No aplica'),
@@ -176,7 +176,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           contribuyente: data.Contribuyente,
           telefono: data.Telefono,
           correo_electronico: data.Correo,
-          direccion: data.Direccion,
+          direccion: data.DireccionExacta ? `${data.Direccion} | Exacta: ${data.DireccionExacta}` : data.Direccion,
           cod_cont: codCont,
           clasificacion: data.Clasificacion || 'Residencial',
           actividad: data.Clasificacion === 'Residencial' ? data.TipoResidencia : data.ActividadComercial,
