@@ -9,7 +9,13 @@ export default function TarifasPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('Todas');
-  const tabs = ['Todas', 'Residencial', 'Comercial/Institucional'];
+  const tabs = ['Todas', 'Residencial', 'Comercial/Institucional', 'Calculadora de Trámites'];
+
+  // Estados de la calculadora
+  const [calcTipo, setCalcTipo] = useState('Servicios Extraordinarios');
+  const [calcCamion, setCalcCamion] = useState('350');
+  const [calcDistancia, setCalcDistancia] = useState('Menor a 20 kms');
+  const [calcTcmmv, setCalcTcmmv] = useState<number | ''>('');
 
   useEffect(() => {
     const fetchBcv = async () => {
@@ -41,6 +47,26 @@ export default function TarifasPage() {
   const filteredComerciales = ordenanzaData.actividadesComerciales.filter(
     (act) => act.label.toLowerCase().includes(searchTerm)
   );
+
+  // Lógica de Calculadora
+  const calcularMontoExtraordinario = () => {
+    if (calcDistancia === 'Menor a 20 kms') {
+      if (calcCamion === '350') return 30;
+      if (calcCamion === '600') return 50;
+      if (calcCamion === '750') return 70;
+    } else {
+      if (calcCamion === '350') return 40;
+      if (calcCamion === '600') return 60;
+      if (calcCamion === '750') return 80;
+    }
+    return 0;
+  };
+
+  const factorCalculadora = calcTipo === 'Servicios Extraordinarios' 
+    ? calcularMontoExtraordinario() 
+    : (calcTipo === 'Reclamos / Sugerencias' ? 0 : Number(calcTcmmv) || 0);
+
+  const montoCalculadoBs = (factorCalculadora * rate).toFixed(2);
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto p-6">
@@ -171,6 +197,92 @@ export default function TarifasPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+        )}
+
+        {/* Calculadora de Trámites */}
+        {(activeTab === 'Calculadora de Trámites') && (
+        <div className="bg-white rounded border border-slate-200 shadow-sm overflow-hidden animate-in fade-in zoom-in duration-200 p-6">
+          <div className="flex items-center gap-2 mb-6 pb-4 border-b border-slate-100">
+            <Calculator className="w-5 h-5 text-indigo-600" />
+            <h2 className="font-bold text-slate-800 text-lg">Calculadora de Trámites y Servicios</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de Trámite / Solicitud</label>
+                <select 
+                  className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  value={calcTipo}
+                  onChange={(e) => setCalcTipo(e.target.value)}
+                >
+                  <option value="Servicios Extraordinarios">Servicios Extraordinarios (Camión)</option>
+                  <option value="Visto Bueno Ambiental">Visto Bueno Ambiental</option>
+                  <option value="Inspección">Inspección</option>
+                  <option value="Reclamos / Sugerencias">Reclamos / Sugerencias</option>
+                </select>
+              </div>
+
+              {calcTipo === 'Servicios Extraordinarios' ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de Camión</label>
+                    <select 
+                      className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      value={calcCamion}
+                      onChange={(e) => setCalcCamion(e.target.value)}
+                    >
+                      <option value="350">Camión 350</option>
+                      <option value="600">Camión 600</option>
+                      <option value="750">Camión 750</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Distancia del Viaje</label>
+                    <select 
+                      className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                      value={calcDistancia}
+                      onChange={(e) => setCalcDistancia(e.target.value)}
+                    >
+                      <option value="Menor a 20 kms">Menor a 20 kms</option>
+                      <option value="Mayor a 20 kms">Mayor a 20 kms</option>
+                    </select>
+                  </div>
+                </>
+              ) : calcTipo !== 'Reclamos / Sugerencias' ? (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Monto de la Tasa (En TCMMV)</label>
+                  <input 
+                    type="number" 
+                    min="0"
+                    placeholder="Ej. 10"
+                    className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                    value={calcTcmmv}
+                    onChange={(e) => setCalcTcmmv(e.target.value === '' ? '' : Number(e.target.value))}
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Ingrese el valor en unidades tributarias municipales (TCMMV) según indique la ordenanza correspondiente.</p>
+                </div>
+              ) : (
+                <div className="bg-emerald-50 text-emerald-700 p-3 rounded-md text-sm border border-emerald-100">
+                  Los reclamos y sugerencias son trámites gratuitos.
+                </div>
+              )}
+            </div>
+
+            <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 flex flex-col justify-center items-center text-center">
+              <span className="text-slate-500 font-medium mb-2 uppercase tracking-wide text-xs">Total Calculado</span>
+              <div className="text-4xl font-bold text-slate-800 mb-2">Bs. {montoCalculadoBs}</div>
+              <div className="text-sm text-slate-500">
+                Basado en {factorCalculadora} TCMMV x {rate.toFixed(2)} Bs (Tasa BCV)
+              </div>
+              {calcTipo === 'Servicios Extraordinarios' && (
+                <div className="mt-4 text-xs text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-full border border-indigo-100">
+                  Según Tabla 3 (Anexo Ordenanza de Aseo)
+                </div>
+              )}
+            </div>
           </div>
         </div>
         )}
