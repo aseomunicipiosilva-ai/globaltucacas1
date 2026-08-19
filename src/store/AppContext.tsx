@@ -83,7 +83,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
               Telefono: row.telefono || 'No registrado',
               Correo: row.correo_electronico || row.correo || 'No registrado',
               CodCont: row.cod_cont,
-              Direccion: row.direccion
+              Direccion: row.direccion,
+              Actividad: row.actividad || 'No aplica'
             });
           }
         });
