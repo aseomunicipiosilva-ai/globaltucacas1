@@ -233,6 +233,8 @@ export default function EstadoCuentaPage() {
       }
     }
 
+    const cajeroActivo = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'ADMINISTRADOR';
+
     setSelectedRecibo({
       reciboNo: row.referencia ? row.referencia.split('-').pop()?.padStart(7, '0') : '0000001',
       controlWeb: row.estado === 'Pagado' ? 'WEB-0000001' : '',
@@ -241,7 +243,7 @@ export default function EstadoCuentaPage() {
       razonSocial: row.contribuyente || '---',
       domicilioFiscal: "ZONA TUCACAS (SECTOR NO ESPECIFICADO)",
       rifCi: row.identidad || '---',
-      caja: "ADMINISTRADOR CAJA",
+      caja: cajeroActivo,
       conceptos: [
         { 
           descripcion: `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${mesTexto}`, 
@@ -663,17 +665,6 @@ export default function EstadoCuentaPage() {
             {/* Contenedor imprimible */}
             <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 140px)' }}>
               
-              <div className="mb-4 bg-slate-50 p-4 border border-slate-200 rounded-lg flex items-center gap-4">
-                <label className="text-sm font-semibold text-slate-700 whitespace-nowrap">Cajero Emisor:</label>
-                <input 
-                  type="text" 
-                  value={selectedRecibo.caja}
-                  onChange={(e) => setSelectedRecibo({...selectedRecibo, caja: e.target.value})}
-                  className="flex-1 border border-slate-300 rounded px-3 py-1.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none uppercase"
-                  placeholder="Nombre del Cajero..."
-                />
-              </div>
-
               <div id="recibo-print-area">
                 <style dangerouslySetInnerHTML={{__html: `
                   @media print {
