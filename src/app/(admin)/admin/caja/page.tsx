@@ -24,10 +24,18 @@ export default function CajaPage() {
 
   // Payment State
   const [paymentMethod, setPaymentMethod] = useState<'Debito' | 'Transferencia'>('Debito');
-  const [banco, setBanco] = useState('');
+  const [banco, setBanco] = useState('Banesco');
   const [referencia, setReferencia] = useState('');
+  const [montoTransferido, setMontoTransferido] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+
+  const bancosVenezuela = [
+    'Banesco', 'Banco Mercantil', 'Banco Provincial', 'Banco de Venezuela', 
+    'Bicentenario', 'Banco Nacional de Crédito (BNC)', 'Bancaribe', 
+    'Banco Exterior', 'Banco del Tesoro', 'Banplus', 'Banco Plaza', 
+    'Banco Activo', '100% Banco', 'Bancamiga', 'Mi Banco', 'Bancamiga', 'Banco Caroní', 'Banco Sofitasa'
+  ].sort();
 
   const handleSearch = () => {
     setIsSearching(true);
@@ -112,12 +120,28 @@ export default function CajaPage() {
 
   const handlePayment = async () => {
     if (totalBs <= 0) return alert("Debe seleccionar al menos una deuda a pagar.");
+    
+    let saldoAFavor = 0;
+    let montoReal = totalBs;
+
     if (paymentMethod === 'Transferencia') {
-      if (!banco) return alert("Debe ingresar el banco emisor.");
+      if (!banco) return alert("Debe seleccionar el banco emisor.");
       if (referencia.length < 8) return alert("Debe ingresar los últimos 8 dígitos de la referencia.");
+      
+      const transferido = parseFloat(montoTransferido);
+      if (isNaN(transferido) || transferido <= 0) return alert("Debe ingresar un monto transferido válido.");
+      
+      if (transferido < totalBs) {
+        return alert("El monto transferido no puede ser menor al total seleccionado.");
+      }
+      
+      if (transferido > totalBs) {
+        saldoAFavor = transferido - totalBs;
+        montoReal = transferido;
+      }
     }
     
-    if (!confirm(`¿Confirmar pago por Bs. ${totalBs.toFixed(2)} mediante ${paymentMethod}?`)) return;
+    if (!confirm(`¿Confirmar pago por Bs. ${montoReal.toFixed(2)}${saldoAFavor > 0 ? ` (Generará un Saldo a Favor de Bs. ${saldoAFavor.toFixed(2)})` : ''} mediante ${paymentMethod}?`)) return;
 
     setIsProcessing(true);
     
@@ -159,15 +183,18 @@ export default function CajaPage() {
         
       } else {
         // Transferencia -> Enviar a Verificación
-        // Usaremos una tabla 'pagos_reportados'. Si no existe, fallará, por lo que requerimos su creación.
         const { error: pErr } = await supabase.from('pagos_reportados').insert({
           identidad: foundUser.Identidad,
-          monto: totalBs,
+          monto: montoReal,
           banco: banco,
           referencia: referencia,
           tipo: 'Transferencia',
           estado: 'Por Verificar',
-          detalles: JSON.stringify({ recibos: selectedRecibos, cuotas: selectedCuotas })
+          detalles: JSON.stringify({ 
+            recibos: selectedRecibos, 
+            cuotas: selectedCuotas,
+            saldo_favor: saldoAFavor 
+          })
         });
         
         if (pErr) throw pErr;
@@ -361,13 +388,16 @@ export default function CajaPage() {
                 <div className="space-y-3 bg-white p-3 rounded border border-slate-200">
                   <label className="block">
                     <span className="text-xs font-semibold text-slate-600 mb-1 block">Banco Emisor</span>
-                    <input 
-                      type="text" 
-                      placeholder="Ej: Banesco"
+                    <select
                       value={banco}
-                      onChange={(e) => setBanco(e.target.value.toUpperCase())}
-                      className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none uppercase"
-                    />
+                      onChange={(e) => setBanco(e.target.value)}
+                      className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                    >
+                      <option value="" disabled>Seleccione un Banco...</option>
+                      {bancosVenezuela.map(b => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
                   </label>
                   <label className="block">
                     <span className="text-xs font-semibold text-slate-600 mb-1 block">Últimos 8 dígitos de la Referencia</span>
@@ -379,6 +409,22 @@ export default function CajaPage() {
                       onChange={(e) => setReferencia(e.target.value.replace(/\D/g, ''))}
                       className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                     />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-semibold text-slate-600 mb-1 block">Monto Total Transferido (Bs)</span>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      placeholder="Ej: 500.00"
+                      value={montoTransferido}
+                      onChange={(e) => setMontoTransferido(e.target.value)}
+                      className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                    />
+                    {parseFloat(montoTransferido) > totalBs && (
+                      <p className="text-[10px] text-emerald-600 mt-1 font-bold">
+                        * Se generará un saldo a favor de Bs. {(parseFloat(montoTransferido) - totalBs).toFixed(2)}
+                      </p>
+                    )}
                   </label>
                 </div>
               )}

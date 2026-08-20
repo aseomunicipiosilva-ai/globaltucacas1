@@ -84,6 +84,21 @@ export default function EstadoCuentaPage() {
         }
       }
 
+      // 4. Handle Saldo a Favor
+      if (accion === 'Aprobar' && (detalles as any).saldo_favor > 0) {
+        const saldoFavor = parseFloat((detalles as any).saldo_favor);
+        
+        // Fetch current inmuebles for this taxpayer
+        const { data: userInmuebles } = await supabase.from('inmuebles').select('id, saldo_favor_bs').eq('identidad', pago.identidad);
+        
+        if (userInmuebles && userInmuebles.length > 0) {
+          // Add the total saldo_favor to the first property (or distribute it, but usually adding to the first is fine)
+          const firstInmueble = userInmuebles[0];
+          const newSaldo = parseFloat(firstInmueble.saldo_favor_bs || '0') + saldoFavor;
+          await supabase.from('inmuebles').update({ saldo_favor_bs: newSaldo }).eq('id', firstInmueble.id);
+        }
+      }
+
       alert(`Pago ${accion.toLowerCase()}o exitosamente.`);
       fetchPagos();
     } catch (e: any) {
@@ -357,12 +372,23 @@ export default function EstadoCuentaPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {pagosVerificar.map((pago: any) => (
+                  {pagosVerificar.map((pago: any) => {
+                    let detalles: any = {};
+                    try { detalles = JSON.parse(pago.detalles); } catch(e){}
+                    
+                    return (
                     <tr key={pago.id} className="hover:bg-slate-50">
                       <td className="px-4 py-3 font-medium text-slate-700">{pago.identidad}</td>
                       <td className="px-4 py-3">{pago.banco}</td>
                       <td className="px-4 py-3 font-mono">{pago.referencia}</td>
-                      <td className="px-4 py-3 font-bold text-emerald-600">{pago.monto} Bs</td>
+                      <td className="px-4 py-3">
+                        <span className="font-bold text-emerald-600">{pago.monto} Bs</span>
+                        {detalles.saldo_favor > 0 && (
+                          <span className="block text-[10px] text-orange-600 font-semibold">
+                            + Saldo a favor: {detalles.saldo_favor} Bs
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex justify-center gap-2">
                           <button 
@@ -380,7 +406,8 @@ export default function EstadoCuentaPage() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             )}
