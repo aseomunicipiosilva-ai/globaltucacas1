@@ -11,7 +11,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function PreRegistrosPage() {
-  const { preRegistros, setPreRegistros, setInmuebles, setFacturas, addAuditLog, currentTcmmv } = useAppContext();
+  const { inmuebles, facturas, preRegistros, setPreRegistros, setInmuebles, setFacturas, addAuditLog, tcmmv } = useAppContext();
   const [showSuccess, setShowSuccess] = useState<string | null>(null);
   
   // Modal State
@@ -79,14 +79,14 @@ export default function PreRegistrosPage() {
         const facturaData = {
           referencia: `FACT-${Math.floor(Math.random() * 1000000)}`,
           contribuyente: rowToApprove.contribuyente,
-          monto: (deudaMMV * (currentTcmmv || 1)).toFixed(2), // We store in Bs for the factura
+          monto: (deudaMMV * (tcmmv || 1)).toFixed(2), // We store in Bs for the factura
           emision: new Date().toISOString().split('T')[0],
           vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           estado: 'Pendiente'
         };
         const { data: newFactura, error: err2 } = await supabase.from('facturas').insert([facturaData]).select().single();
         if (err2) throw err2;
-        if (newFactura) setFacturas((prev: any) => [newFactura, ...prev]);
+        if (newFactura) setFacturas([newFactura, ...facturas]);
       }
 
       // 3. Delete from pre_registros
@@ -94,8 +94,8 @@ export default function PreRegistrosPage() {
       if (err3) throw err3;
 
       // Update state
-      setInmuebles((prev: any) => [newInmueble, ...prev]);
-      setPreRegistros((prev: any) => prev.filter((r: any) => r.id !== rowToApprove.id));
+      setInmuebles([newInmueble, ...inmuebles]);
+      setPreRegistros(preRegistros.filter((r: any) => r.id !== rowToApprove.id));
       await addAuditLog('APROBAR_PREREGISTRO', `Aprobado con deuda inicial de ${deudaMMV} MMV para ${rowToApprove.identidad}`);
 
       setShowSuccess(`Contribuyente ${rowToApprove.contribuyente} aprobado y deuda inicial asignada.`);
@@ -112,7 +112,7 @@ export default function PreRegistrosPage() {
   const handleReject = async (row: any) => {
     if (confirm('¿Está seguro de rechazar y eliminar esta solicitud?')) {
       await supabase.from('pre_registros').delete().eq('id', row.id);
-      setPreRegistros((prev: any) => prev.filter((r: any) => r.id !== row.id));
+      setPreRegistros(preRegistros.filter((r: any) => r.id !== row.id));
       setShowSuccess(`El pre-registro ha sido rechazado.`);
       setTimeout(() => setShowSuccess(null), 3000);
     }
@@ -210,7 +210,7 @@ export default function PreRegistrosPage() {
                   <span className="font-bold text-emerald-800">Deuda Total Inicial:</span>
                   <div className="text-right">
                     <span className="block font-black text-emerald-600 text-2xl">{(calculatedFactor * meses).toFixed(2)} MMV</span>
-                    <span className="block text-xs font-semibold text-emerald-700 mt-1">≈ Bs. {(calculatedFactor * meses * (currentTcmmv || 1)).toFixed(2)}</span>
+                    <span className="block text-xs font-semibold text-emerald-700 mt-1">≈ Bs. {(calculatedFactor * meses * (tcmmv || 1)).toFixed(2)}</span>
                   </div>
                 </div>
               </div>

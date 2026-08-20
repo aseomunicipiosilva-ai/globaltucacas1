@@ -22,6 +22,8 @@ type AppState = {
   aprobarPreRegistro: (item: number) => void;
   addFactura: (factura: any) => Promise<void>;
   addAuditLog: (action: string, details: string) => Promise<void>;
+  setPreRegistros: React.Dispatch<React.SetStateAction<any[]>>;
+  setFacturas: React.Dispatch<React.SetStateAction<any[]>>;
 };
 
 const AppContext = createContext<AppState | undefined>(undefined);
@@ -284,7 +286,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addContribuyente,
       aprobarPreRegistro,
       addFactura,
-      addAuditLog
+      addAuditLog,
+      setPreRegistros,
+      setFacturas
     }}>
       {children}
     </AppContext.Provider>
