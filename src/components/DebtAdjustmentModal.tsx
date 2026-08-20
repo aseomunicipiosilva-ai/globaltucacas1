@@ -30,7 +30,9 @@ export function DebtAdjustmentModal({ row, inmuebles, tcmmv, facturas, setFactur
             const cant = parseInt(inm.cant_inmuebles) || 1;
             factorTotal += (localFactor * cant);
           });
-        } else {
+        }
+        
+        if (factorTotal === 0) {
           const rowClasificacion = row.Clasificacion || row.tipo || 'Residencial';
           const rowTipoResidencia = row.TipoResidencia || row.actividad || '';
           const rowActividadComercial = row.ActividadComercial || row.actividad || '';

@@ -135,7 +135,9 @@ function ContribuyentesPageContent() {
             }
           }
         });
-      } else {
+      }
+      
+      if (factorTotal === 0) {
         if (row.Clasificacion === 'Residencial') {
           const tipo = ordenanzaData.tiposResidenciales.find(t => t.label === row.TipoResidencia);
           if (tipo) {
