@@ -13,7 +13,7 @@ const todasLasActividades = [...ordenanzaData.actividadesComerciales, ...ordenan
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
 
 function ContribuyentesPageContent() {
-  const { inmuebles, contribuyentes, facturas, updateContribuyente, addContribuyente } = useAppContext();
+  const { inmuebles, contribuyentes, facturas, convenios, updateContribuyente, addContribuyente } = useAppContext();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [formData, setFormData] = useState<any>(null);
@@ -1109,6 +1109,96 @@ function ContribuyentesPageContent() {
                                   <td className="px-4 py-2 font-medium text-slate-700">{d.referencia}</td>
                                   <td className="px-4 py-2 text-slate-600">{d.emision || 'N/A'}</td>
                                   <td className="px-4 py-2 text-right font-bold text-slate-800">{d.monto}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              <div className="mt-6 border border-orange-200 rounded-lg overflow-hidden">
+                <div className="bg-orange-50 px-4 py-3 border-b border-orange-100 flex items-center gap-2">
+                  <Handshake className="w-5 h-5 text-orange-600" />
+                  <h4 className="font-bold text-orange-800">Convenios de Pago Activos</h4>
+                </div>
+                <div className="p-0">
+                  {(() => {
+                    const userConvenios = (convenios || []).filter((c: any) => c.identidad === viewData.Identidad && c.estado === 'Al Día');
+                    if (userConvenios.length === 0) {
+                      return (
+                        <div className="p-6 text-center">
+                          <p className="text-slate-600 font-medium">No tiene convenios de pago activos.</p>
+                        </div>
+                      );
+                    }
+
+                    const hoy = new Date().toISOString().split('T')[0];
+                    let totalVencido = 0;
+                    const cuotasMostradas: any[] = [];
+
+                    userConvenios.forEach((conv: any) => {
+                      let cuotasParsed = [];
+                      try { cuotasParsed = JSON.parse(conv.detalle_cuotas || '[]'); } catch(e){}
+                      
+                      cuotasParsed.forEach((c: any) => {
+                        if (c.estado === 'Pendiente') {
+                          const isVencida = c.fecha <= hoy;
+                          if (isVencida) totalVencido += parseFloat(c.monto || '0');
+                          
+                          cuotasMostradas.push({
+                            numeroConv: conv.numero,
+                            cuotaId: c.id + 1,
+                            fecha: c.fecha,
+                            monto: c.monto,
+                            isVencida
+                          });
+                        }
+                      });
+                    });
+
+                    if (cuotasMostradas.length === 0) {
+                      return (
+                        <div className="p-6 text-center">
+                          <p className="text-slate-600 font-medium">No tiene cuotas pendientes en sus convenios activos.</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div>
+                        {totalVencido > 0 && (
+                          <div className="p-4 bg-orange-100/50 border-b border-orange-100 flex justify-between items-center">
+                            <span className="font-semibold text-orange-800">Total Cuotas Vencidas:</span>
+                            <span className="text-xl font-black text-red-600">Bs. {totalVencido.toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="bg-slate-50">
+                          <table className="w-full text-sm text-left">
+                            <thead className="bg-orange-50 text-orange-800 font-medium text-[10px] uppercase">
+                              <tr>
+                                <th className="px-4 py-2">Convenio</th>
+                                <th className="px-4 py-2">Fecha Pago</th>
+                                <th className="px-4 py-2 text-center">Estado</th>
+                                <th className="px-4 py-2 text-right">Monto (Bs)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {cuotasMostradas.map((c: any, idx: number) => (
+                                <tr key={idx} className={`border-b border-slate-100 last:border-0 ${c.isVencida ? 'bg-red-50/30' : 'bg-white'}`}>
+                                  <td className="px-4 py-2 font-medium text-slate-700">{c.numeroConv} - Cuota {c.cuotaId}</td>
+                                  <td className="px-4 py-2 text-slate-600">{c.fecha}</td>
+                                  <td className="px-4 py-2 text-center">
+                                    {c.isVencida ? (
+                                      <span className="text-red-600 font-bold text-xs">VENCIDA</span>
+                                    ) : (
+                                      <span className="text-blue-600 font-medium text-xs">Próxima</span>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-2 text-right font-bold text-orange-700">{c.monto}</td>
                                 </tr>
                               ))}
                             </tbody>

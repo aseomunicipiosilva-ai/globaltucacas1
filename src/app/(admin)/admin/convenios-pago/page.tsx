@@ -70,7 +70,8 @@ export default function ConveniosPagoPage() {
       nuevasCuotas.push({
         id: i,
         fecha: `${y}-${m}-${d}`,
-        monto: montoPorCuota
+        monto: montoPorCuota,
+        estado: 'Pendiente'
       });
     }
     setListaCuotas(nuevasCuotas);

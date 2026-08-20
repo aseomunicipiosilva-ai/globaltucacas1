@@ -1,7 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { MoreVertical, Printer, FileText, Send, Calendar, CheckSquare, Building } from 'lucide-react';
+import { MoreVertical, Printer, FileText, Send, Calendar, CheckSquare, Building, Handshake } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
+import { supabase } from '@/lib/supabase';
 
 export default function EstadoCuentaPage() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -19,6 +20,45 @@ export default function EstadoCuentaPage() {
         let factorTotal = 0;
         let leyenda = '';
         const desgloseLocales: any[] = [];
+        const desgloseCuotas: any[] = [];
+        let totalCuotasVencidas = 0;
+
+        // Buscar convenios del usuario logueado
+        const fullDoc = localStorage.getItem('portal_doc') || '';
+        const idLimpio = fullDoc.replace(/-/g, '').toUpperCase();
+        const idFormateado = idLimpio ? `${idLimpio.charAt(0)}-${idLimpio.slice(1)}` : '';
+
+        if (idFormateado) {
+          const { data: convenios } = await supabase
+            .from('convenios')
+            .select('*')
+            .eq('identidad', idFormateado)
+            .eq('estado', 'Al Día');
+            
+          if (convenios) {
+            const hoy = new Date().toISOString().split('T')[0];
+            for (const conv of convenios) {
+              let cuotasParsed = [];
+              try { cuotasParsed = JSON.parse(conv.detalle_cuotas || '[]'); } catch(e){}
+              
+              cuotasParsed.forEach((c: any) => {
+                 if (c.estado === 'Pendiente') {
+                    const isVencida = c.fecha <= hoy;
+                    const montoFloat = parseFloat(c.monto) || 0;
+                    desgloseCuotas.push({
+                      numeracion: `${conv.numero} - Cuota ${c.id + 1}`,
+                      fecha: c.fecha,
+                      isVencida,
+                      montoBs: montoFloat.toFixed(2)
+                    });
+                    if (isVencida) {
+                       totalCuotasVencidas += montoFloat;
+                    }
+                 }
+              });
+            }
+          }
+        }
 
         // Por ahora, como es un portal de prueba (mock), usamos un inmueble hardcodeado si no hay login real.
         // O usamos los inmuebles reales si los hay.
@@ -72,7 +112,7 @@ export default function EstadoCuentaPage() {
           });
         }
 
-        const rawTotal = factorTotal * data.tcmmv;
+        const rawTotal = (factorTotal * data.tcmmv) + totalCuotasVencidas;
         const totalTruncado = (Math.trunc(rawTotal * 100) / 100).toFixed(2);
 
         setViewCalculo({
@@ -80,7 +120,9 @@ export default function EstadoCuentaPage() {
           leyenda,
           totalBs: totalTruncado,
           tasaBcv: data.tcmmv,
-          desglose: desgloseLocales
+          desglose: desgloseLocales,
+          cuotas: desgloseCuotas,
+          totalCuotasVencidas
         });
       } catch (e) {
         console.error(e);
@@ -113,8 +155,8 @@ export default function EstadoCuentaPage() {
                 <p className="mb-1"><span className="font-semibold text-slate-700">Tasa de Cambio Oficial (BCV):</span> {viewCalculo.tasaBcv} Bs</p>
               </div>
               <div className="md:col-span-2 pt-2 border-t border-slate-100 flex justify-between items-center">
-                <p className="text-xs font-medium">Fórmula: {viewCalculo.factor} × {viewCalculo.tasaBcv} Bs</p>
-                <p className="text-lg font-bold text-green-700">Total Mensual a Cancelar: Bs. {viewCalculo.totalBs}</p>
+                <p className="text-xs font-medium">Fórmula: ({viewCalculo.factor} × {viewCalculo.tasaBcv} Bs) {viewCalculo.totalCuotasVencidas > 0 ? `+ Cuotas Vencidas (${viewCalculo.totalCuotasVencidas.toFixed(2)} Bs)` : ''}</p>
+                <p className="text-lg font-bold text-green-700">Total a Cancelar: Bs. {viewCalculo.totalBs}</p>
               </div>
             </div>
             
@@ -140,6 +182,43 @@ export default function EstadoCuentaPage() {
                           <td className="px-3 py-2">{item.leyenda}</td>
                           <td className="px-3 py-2 text-right">{item.factor.toFixed(2)}</td>
                           <td className="px-3 py-2 text-right font-bold text-green-700">{item.montoBs}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {viewCalculo.cuotas && viewCalculo.cuotas.length > 0 && (
+              <div className="mt-4 border border-orange-200 rounded overflow-hidden shadow-sm">
+                <div className="bg-orange-50 px-3 py-2 border-b border-orange-200 flex items-center gap-2">
+                  <Handshake className="w-3 h-3 text-orange-600" />
+                  <span className="text-[10px] font-bold text-orange-700 uppercase tracking-wide">Cuotas de Convenio de Pago</span>
+                </div>
+                <div className="max-h-[200px] overflow-y-auto bg-white">
+                  <table className="w-full text-left text-[10px] text-slate-600">
+                    <thead className="bg-slate-50 border-b border-slate-100 sticky top-0">
+                      <tr>
+                        <th className="px-3 py-2 font-semibold">Convenio</th>
+                        <th className="px-3 py-2 font-semibold">Fecha de Pago</th>
+                        <th className="px-3 py-2 font-semibold text-center">Estado</th>
+                        <th className="px-3 py-2 font-semibold text-right text-orange-700">Monto (Bs)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {viewCalculo.cuotas.map((item: any, i: number) => (
+                        <tr key={i} className={`border-b border-slate-50 last:border-0 ${item.isVencida ? 'bg-red-50/30' : ''}`}>
+                          <td className="px-3 py-2 font-medium text-slate-700">{item.numeracion}</td>
+                          <td className="px-3 py-2">{item.fecha}</td>
+                          <td className="px-3 py-2 text-center">
+                            {item.isVencida ? (
+                              <span className="text-red-600 font-bold">VENCIDA</span>
+                            ) : (
+                              <span className="text-blue-600 font-medium">Próxima / Adelantar</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-right font-bold text-orange-700">{item.montoBs}</td>
                         </tr>
                       ))}
                     </tbody>
