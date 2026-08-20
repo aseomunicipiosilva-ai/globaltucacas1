@@ -1,7 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, LogIn, ShieldCheck } from 'lucide-react';
+import Link from 'next/link';
+import { Building2, LogIn, ShieldCheck, UserPlus } from 'lucide-react';
 
 export default function PortalLogin() {
   const router = useRouter();
@@ -118,6 +119,15 @@ export default function PortalLogin() {
                 </>
               )}
             </button>
+            
+            <div className="mt-4 text-center">
+              <p className="text-sm text-slate-600">
+                ¿No tienes cuenta?{' '}
+                <Link href="/portal/registro" className="text-green-600 font-bold hover:underline inline-flex items-center gap-1">
+                  <UserPlus className="w-4 h-4" /> Regístrate aquí
+                </Link>
+              </p>
+            </div>
           </form>
 
           <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-center gap-2 text-xs text-slate-500">

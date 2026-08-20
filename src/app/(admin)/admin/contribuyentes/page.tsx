@@ -3,7 +3,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
 import { useAppContext } from '@/store/AppContext';
-import { Users, Save, ArrowLeft, Plus, Building, Home as HomeIcon, MapPin, Edit, DollarSign, Handshake, Eye, X, CheckCircle } from 'lucide-react';
+import { Users, Save, ArrowLeft, Plus, Building, Home as HomeIcon, MapPin, Edit, DollarSign, Handshake, Eye, X, CheckCircle, Calculator, AlertCircle } from 'lucide-react';
 import { ordenanzaData } from '@/data/ordenanza';
 import Select from 'react-select';
 import dynamic from 'next/dynamic';
@@ -11,6 +11,12 @@ import dynamic from 'next/dynamic';
 const todasLasActividades = [...ordenanzaData.actividadesComerciales, ...ordenanzaData.actividadesIndustriales];
 
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
+
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 function ContribuyentesPageContent() {
   const { inmuebles, contribuyentes, facturas, convenios, updateContribuyente, addContribuyente } = useAppContext();
@@ -30,6 +36,11 @@ function ContribuyentesPageContent() {
   const [showCalculation, setShowCalculation] = useState(false);
   const [calculoDetalle, setCalculoDetalle] = useState<any>(null);
   const [isCalculating, setIsCalculating] = useState(false);
+
+  // Modal Ajuste Deuda
+  const [isDebtModalOpen, setIsDebtModalOpen] = useState(false);
+  const [debtMonths, setDebtMonths] = useState(1);
+  const [isProcessingDebt, setIsProcessingDebt] = useState(false);
 
   const searchParams = useSearchParams();
 
@@ -293,6 +304,55 @@ function ContribuyentesPageContent() {
       console.error(e);
     }
     setIsCalculating(false);
+  };
+
+  const handleAjustarDeuda = async () => {
+    if (!formData || !calculoDetalle) return;
+    setIsProcessingDebt(true);
+    try {
+      const deudaMMV = calculoDetalle.factor * debtMonths;
+      
+      // Update deuda_mmv in inmuebles where identidad matches formData.Identidad
+      const { error: err1 } = await supabase
+        .from('inmuebles')
+        .update({ deuda_mmv: deudaMMV })
+        .eq('identidad', formData.Identidad);
+        
+      if (err1) throw err1;
+
+      // Delete all pending facturas for this taxpayer
+      const { error: errDelete } = await supabase
+        .from('facturas')
+        .delete()
+        .eq('contribuyente', formData.Contribuyente)
+        .eq('estado', 'Pendiente');
+        
+      if (errDelete) throw errDelete;
+
+      // Insert new factura for the new balance if > 0
+      if (deudaMMV > 0) {
+        const facturaData = {
+          referencia: `FACT-${Math.floor(Math.random() * 1000000)}`,
+          contribuyente: formData.Contribuyente,
+          monto: (deudaMMV * (bcvRate ? parseFloat(bcvRate.replace(',', '.')) : 1)).toFixed(2),
+          emision: new Date().toISOString().split('T')[0],
+          vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          estado: 'Pendiente'
+        };
+        const { error: errInsert } = await supabase.from('facturas').insert([facturaData]);
+        if (errInsert) throw errInsert;
+      }
+
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 4000);
+      setIsDebtModalOpen(false);
+      window.location.reload(); // Refresh to reflect context changes
+    } catch (e: any) {
+      console.error(e);
+      alert('Error ajustando la deuda: ' + e.message);
+    } finally {
+      setIsProcessingDebt(false);
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -836,7 +896,18 @@ function ContribuyentesPageContent() {
                   </div>
                   <div className="md:col-span-2 pt-2 border-t border-slate-100 flex justify-between items-center">
                     <p className="text-xs font-medium">Fórmula: {calculoDetalle.factor} × {bcvRate} Bs</p>
-                    <p className="text-lg font-bold text-green-700">Total Mensual: Bs. {calculoDetalle.totalBs}</p>
+                    <div className="flex items-center gap-4">
+                      <p className="text-lg font-bold text-green-700">Total Mensual: Bs. {calculoDetalle.totalBs}</p>
+                      {!isNew && (
+                        <button 
+                          type="button" 
+                          onClick={() => setIsDebtModalOpen(true)}
+                          className="bg-orange-100 text-orange-700 hover:bg-orange-200 px-3 py-1.5 rounded text-xs font-bold transition-colors flex items-center gap-1 shadow-sm"
+                        >
+                          <Edit className="w-3.5 h-3.5" /> Ajustar Deuda (Ordenanza)
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
@@ -874,6 +945,79 @@ function ContribuyentesPageContent() {
             )}
           </div>
         </form>
+
+        {/* MODAL DE AJUSTE DE DEUDA */}
+        {isDebtModalOpen && calculoDetalle && formData && (
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200">
+              <div className="bg-slate-800 p-4 flex items-center justify-between">
+                <h2 className="text-white font-bold flex items-center gap-2">
+                  <Calculator className="w-5 h-5 text-orange-400" />
+                  Ajustar Deuda del Contribuyente
+                </h2>
+                <button onClick={() => setIsDebtModalOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 space-y-2">
+                  <p className="text-sm"><span className="font-semibold text-slate-700">Contribuyente:</span> {formData.Contribuyente} ({formData.Identidad})</p>
+                  <p className="text-sm"><span className="font-semibold text-slate-700">Clasificación:</span> {calculoDetalle.leyenda}</p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center bg-blue-50 p-3 rounded border border-blue-100">
+                    <span className="text-sm font-semibold text-blue-800">Tarifa Mensual (MMV):</span>
+                    <span className="font-bold text-blue-900 text-lg">{calculoDetalle.factor.toFixed(2)}</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Meses a adeudar (Morosidad Ajustada)</label>
+                    <input 
+                      type="number" 
+                      min="0"
+                      value={debtMonths} 
+                      onChange={(e) => setDebtMonths(Number(e.target.value))}
+                      className="w-full border-2 border-slate-200 rounded-lg px-4 py-2 font-semibold text-slate-700 focus:border-orange-500 outline-none"
+                    />
+                  </div>
+
+                  <div className="flex justify-between items-center bg-orange-50 p-4 rounded-lg border border-orange-200 shadow-inner">
+                    <span className="font-bold text-orange-800">Nueva Deuda Total:</span>
+                    <div className="text-right">
+                      <span className="block font-black text-orange-600 text-2xl">{(calculoDetalle.factor * debtMonths).toFixed(2)} MMV</span>
+                      <span className="block text-xs font-semibold text-orange-700 mt-1">≈ Bs. {(calculoDetalle.factor * debtMonths * (bcvRate ? parseFloat(bcvRate.replace(',', '.')) : 1)).toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2 bg-amber-50 p-3 rounded border border-amber-200">
+                  <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-700 leading-relaxed font-medium">
+                    Al confirmar, se **borrarán todos los recibos (facturas) pendientes** actuales de este usuario y se generará un **único recibo nuevo** con el monto total ajustado.
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-4 border-t border-slate-100">
+                  <button 
+                    onClick={() => setIsDebtModalOpen(false)}
+                    className="flex-1 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold py-2.5 rounded-lg transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={handleAjustarDeuda}
+                    disabled={isProcessingDebt}
+                    className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-lg transition-colors shadow-sm disabled:opacity-70 flex justify-center"
+                  >
+                    {isProcessingDebt ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : 'Confirmar Ajuste'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
