@@ -1,5 +1,5 @@
 'use client';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { 
   Home, 
   MessageCircle, 
@@ -19,6 +19,7 @@ import {
 
 export default function PortalHeader() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const getPageInfo = () => {
     switch (pathname) {
@@ -52,7 +53,11 @@ export default function PortalHeader() {
           <span className="text-orange-500 font-semibold text-xs">Usuario Oficial</span>
           <span className="text-xs">Última Conexión: Hoy</span>
         </div>
-        <button className="text-slate-400 hover:text-slate-600">
+        <button 
+          onClick={() => router.push('/')}
+          className="text-slate-400 hover:text-slate-600"
+          title="Cerrar sesión"
+        >
           <Power className="w-4 h-4" />
         </button>
       </div>

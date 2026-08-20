@@ -1,7 +1,10 @@
 'use client';
 import { Power, Menu } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function Header() {
+  const router = useRouter();
+  
   return (
     <header className="h-16 bg-[#1e293b] fixed top-0 right-0 left-64 flex items-center justify-between px-6 z-10 border-b border-slate-700 shadow-sm">
       <div className="flex items-center">
@@ -14,7 +17,11 @@ export default function Header() {
           <div className="font-medium text-yellow-500">Usuario Oficial</div>
           <div className="text-xs text-slate-300">Última Conexión: Hoy</div>
         </div>
-        <button className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-full transition-colors">
+        <button 
+          onClick={() => router.push('/')}
+          className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-full transition-colors"
+          title="Cerrar sesión"
+        >
           <Power className="w-5 h-5" />
         </button>
       </div>
