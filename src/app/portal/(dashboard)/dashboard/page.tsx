@@ -43,17 +43,17 @@ export default function DatosContribuyentePage() {
           .from('inmuebles')
           .select('correo_electronico, correo, telefono, direccion, actividad_principal')
           .or(`identidad.eq.${idFormateado},identidad.eq.${idLimpio},identidad.eq.${fullDoc.toUpperCase()},identidad.eq.${soloNumeros}`)
-          .limit(1)
-          .single();
+          .limit(1);
           
-        if (data && !error) {
+        if (data && data.length > 0 && !error) {
+          const firstRow = data[0];
           setUserData(prev => ({
             ...prev,
-            email: data.correo_electronico || data.correo || '',
-            telefonoMovil: data.telefono || '',
-            direccion: data.direccion || '',
-            nombreComercial: data.actividad_principal || '',
-            esCondominio: !!(data.actividad_principal?.toLowerCase().includes('condominio'))
+            email: firstRow.correo_electronico || firstRow.correo || '',
+            telefonoMovil: firstRow.telefono || '',
+            direccion: firstRow.direccion || '',
+            nombreComercial: firstRow.actividad_principal || '',
+            esCondominio: !!(firstRow.actividad_principal?.toLowerCase().includes('condominio'))
           }));
         }
       }
