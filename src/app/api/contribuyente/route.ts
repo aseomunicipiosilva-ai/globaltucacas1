@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   const { data: records, error } = await supabase
     .from('inmuebles')
     .select('contribuyente, cod_cont')
-    .eq('identidad', idFormateado)
+    .or(`identidad.eq.${idFormateado},identidad.eq.${idLimpio},identidad.eq.${identidad.toUpperCase()}`)
     .limit(1);
 
   if (error) {

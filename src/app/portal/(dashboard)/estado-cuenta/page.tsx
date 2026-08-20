@@ -32,7 +32,7 @@ export default function EstadoCuentaPage() {
           const { data: convenios } = await supabase
             .from('convenios')
             .select('*')
-            .eq('identidad', idFormateado)
+            .or(`identidad.eq.${idFormateado},identidad.eq.${idLimpio},identidad.eq.${fullDoc.toUpperCase()}`)
             .eq('estado', 'Al Día');
             
           if (convenios) {

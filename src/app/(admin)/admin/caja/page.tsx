@@ -47,21 +47,29 @@ export default function CajaPage() {
     setSelectedCuotas([]);
     setTotalBs(0);
 
-    const fullDoc = `${docType}-${docNumber}`;
-    const user = contribuyentes.find((c: any) => c.Identidad === fullDoc);
+    const idLimpioSearch = docNumber.replace(/-/g, '').toUpperCase();
+    const cleanFullDoc = `${docType}${idLimpioSearch}`;
+
+    const user = contribuyentes.find((c: any) => {
+      if (!c.Identidad) return false;
+      const idClean = c.Identidad.replace(/-/g, '').toUpperCase();
+      return idClean === cleanFullDoc;
+    });
     
     if (user) {
       setFoundUser(user);
       
-      // Load Facturas (Recibos)
-      const userFacturas = facturas.filter((f: any) => 
-        (f.identidad === fullDoc || f.contribuyente === user.Contribuyente) && 
-        f.estado === 'Pendiente'
-      );
+      const userFacturas = facturas.filter((f: any) => {
+        const idCleanFactura = (f.identidad || '').replace(/-/g, '').toUpperCase();
+        return (idCleanFactura === cleanFullDoc || f.contribuyente === user.Contribuyente) && f.estado === 'Pendiente';
+      });
       setRecibos(userFacturas);
       
       // Load Convenios Cuotas
-      const userConvenios = convenios.filter((c: any) => c.identidad === fullDoc && c.estado === 'Al Día');
+      const userConvenios = convenios.filter((c: any) => {
+        const idCleanConv = (c.identidad || '').replace(/-/g, '').toUpperCase();
+        return idCleanConv === cleanFullDoc && c.estado === 'Al Día';
+      });
       const pendingCuotas: any[] = [];
       userConvenios.forEach((conv: any) => {
         let parsed = [];

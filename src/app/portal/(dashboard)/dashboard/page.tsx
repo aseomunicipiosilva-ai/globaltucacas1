@@ -40,8 +40,8 @@ export default function DatosContribuyentePage() {
 
         const { data, error } = await supabase
           .from('inmuebles')
-          .select('*')
-          .eq('identidad', idFormateado)
+          .select('correo_electronico, correo, telefono, direccion, actividad_principal')
+          .or(`identidad.eq.${idFormateado},identidad.eq.${idLimpio},identidad.eq.${fullDoc.toUpperCase()}`)
           .limit(1)
           .single();
           
@@ -79,7 +79,7 @@ export default function DatosContribuyentePage() {
           telefono: userData.telefonoMovil,
           direccion: userData.direccion
         })
-        .eq('identidad', idFormateado);
+        .or(`identidad.eq.${idFormateado},identidad.eq.${idLimpio},identidad.eq.${fullDoc.toUpperCase()}`);
         
       if (error) throw error;
       setMessage('Datos actualizados correctamente');
