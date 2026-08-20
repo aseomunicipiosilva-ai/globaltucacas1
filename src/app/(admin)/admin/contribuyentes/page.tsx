@@ -3,7 +3,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
 import { useAppContext } from '@/store/AppContext';
-import { Users, Save, ArrowLeft, Plus, Building, Home as HomeIcon, MapPin, Edit, DollarSign, Handshake, Eye, X, CheckCircle, Calculator, AlertCircle, Download } from 'lucide-react';
+import { Users, Save, ArrowLeft, Plus, Building, Home as HomeIcon, MapPin, Edit, DollarSign, Handshake, Eye, X, CheckCircle, Calculator, AlertCircle, Download, FileText } from 'lucide-react';
 import { ordenanzaData } from '@/data/ordenanza';
 import Select from 'react-select';
 import dynamic from 'next/dynamic';
