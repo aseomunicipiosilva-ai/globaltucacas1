@@ -4,7 +4,7 @@ import { FileText, FileSpreadsheet, Download, Settings2, ShieldAlert, RefreshCw 
 import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
 export default function ReportesPage() {
@@ -37,7 +37,7 @@ export default function ReportesPage() {
   const generarFacturasAnuladas = async () => {
     setIsGeneratingPdf(true);
     try {
-      const anuladas = facturas.filter((f: any) => f.estado === 'Anulado' || f.estado === 'Reversado');
+      const anuladas = (facturas || []).filter((f: any) => f.estado === 'Anulado' || f.estado === 'Reversado');
       
       const doc = new jsPDF('landscape');
       
@@ -45,8 +45,8 @@ export default function ReportesPage() {
       let logoAlcaldia = '';
       let logoIsma = '';
       try {
-        logoAlcaldia = await loadImage('/images/logo_alcaldia.png');
-        logoIsma = await loadImage('/images/logo_isma.png');
+        logoAlcaldia = await loadImage('/logo_alcaldia.png');
+        logoIsma = await loadImage('/logo_isma.png');
       } catch(e) {
         console.warn('Could not load logos', e);
       }
@@ -67,7 +67,7 @@ export default function ReportesPage() {
         f.nota || 'Sin comentarios'
       ]);
 
-      (doc as any).autoTable({
+      autoTable(doc, {
         startY: 45,
         headStyles: { fillColor: [30, 41, 59] },
         head: [['Código/RIF', 'Nombre / Razón Social', 'Nro. Factura', 'Fecha Emisión', 'Estatus', 'Comentarios']],
@@ -76,8 +76,8 @@ export default function ReportesPage() {
       });
 
       doc.save(`Facturas_Anuladas_${new Date().getTime()}.pdf`);
-    } catch (error) {
-      alert("Error al generar el PDF");
+    } catch (error: any) {
+      alert("Error al generar el PDF: " + error.message);
       console.error(error);
     }
     setIsGeneratingPdf(false);

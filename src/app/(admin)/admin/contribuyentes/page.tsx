@@ -3,10 +3,13 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
 import { useAppContext } from '@/store/AppContext';
-import { Users, Save, ArrowLeft, Plus, Building, Home as HomeIcon, MapPin, Edit, DollarSign, Handshake, Eye, X, CheckCircle, Calculator, AlertCircle } from 'lucide-react';
+import { Users, Save, ArrowLeft, Plus, Building, Home as HomeIcon, MapPin, Edit, DollarSign, Handshake, Eye, X, CheckCircle, Calculator, AlertCircle, Download } from 'lucide-react';
 import { ordenanzaData } from '@/data/ordenanza';
 import Select from 'react-select';
 import dynamic from 'next/dynamic';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 const todasLasActividades = [...ordenanzaData.actividadesComerciales, ...ordenanzaData.actividadesIndustriales];
 
@@ -24,6 +27,7 @@ function ContribuyentesPageContent() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [formData, setFormData] = useState<any>(null);
+  const [originalData, setOriginalData] = useState<any>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -143,6 +147,113 @@ function ContribuyentesPageContent() {
     }
   }, [isViewModalOpen, viewData, inmuebles]);
 
+  const handleDeleteFactura = async (factura: any) => {
+    const isConfirmed = window.confirm(`¿Estás seguro de eliminar la deuda ${factura.referencia}?`);
+    if (!isConfirmed) return;
+
+    // Validation: cannot delete if subsequent months are paid
+    const facturasContribuyente = facturas.filter((f: any) => f.contribuyente === factura.contribuyente);
+    const facturasPagadasPosteriores = facturasContribuyente.filter((f: any) => {
+      return f.estado === 'Pagado' && new Date(f.emision) > new Date(factura.emision);
+    });
+
+    if (facturasPagadasPosteriores.length > 0) {
+      alert("No se puede eliminar esta deuda porque existen meses posteriores que ya fueron pagados.");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('facturas').delete().eq('id', factura.id);
+      if (error) throw error;
+      
+      setFacturas(facturas.filter((f: any) => f.id !== factura.id));
+      alert("Deuda eliminada exitosamente.");
+    } catch (e: any) {
+      alert("Error eliminando deuda: " + e.message);
+    }
+  };
+
+  const imprimirEstadoDeCuenta = () => {
+    if (!viewData) return;
+    const deudas = (facturas || [])
+      .filter((f: any) => f.contribuyente === viewData.Contribuyente || f.contribuyente === viewData.Identidad)
+      .filter((f: any) => f.estado === 'Pendiente');
+    
+    const doc = new jsPDF();
+    
+    // Add Logos
+    const logoIsma = new Image();
+    logoIsma.src = '/logo_isma.png';
+    try { doc.addImage(logoIsma, 'PNG', 14, 10, 20, 20); } catch(e){}
+    
+    const logoAlcaldia = new Image();
+    logoAlcaldia.src = '/logo_alcaldia.png';
+    try { doc.addImage(logoAlcaldia, 'PNG', 176, 10, 20, 20); } catch(e){}
+
+    // Title & Taxpayer Info
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("ESTADO DE CUENTA", 105, 20, { align: "center" });
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Razón Social: ${viewData.Contribuyente}`, 14, 40);
+    doc.text(`R.I.F / C.I: ${viewData.Identidad}`, 14, 46);
+    doc.text(`Teléfono: ${viewData.Telefono || 'N/A'}`, 14, 52);
+    doc.text(`Dirección: ${viewData.Direccion || 'N/A'}`, 14, 58);
+    
+    const tableData = deudas.map((d: any) => [
+      d.referencia,
+      d.emision || 'N/A',
+      d.vencimiento || 'N/A',
+      `${d.monto} Bs.`
+    ]);
+
+    const totalBs = deudas.reduce((acc: number, f: any) => acc + parseFloat(f.monto || '0'), 0);
+
+    tableData.push(["", "", "TOTAL DEUDA:", `${totalBs.toFixed(2)} Bs.`]);
+
+    (doc as any).autoTable({
+      startY: 65,
+      head: [['Referencia', 'Emisión', 'Vencimiento', 'Monto']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: { fillColor: [220, 38, 38] }, // Red for debt
+      styles: { fontSize: 9 },
+      columnStyles: { 3: { halign: 'right', fontStyle: 'bold' } }
+    });
+
+    doc.save(`Estado_Cuenta_${viewData.Identidad}_${new Date().getTime()}.pdf`);
+  };
+
+  const exportarExcelContribuyentes = () => {
+    const dataToExport = contribuyentes.map((c: any) => {
+      const deudas = (facturas || [])
+        .filter((f: any) => f.contribuyente === c.Contribuyente || f.contribuyente === c.Identidad)
+        .filter((f: any) => f.estado === 'Pendiente');
+      const totalBs = deudas.reduce((acc: number, f: any) => acc + parseFloat(f.monto || '0'), 0);
+      
+      return {
+        "CÓDIGO": c.CodCont || 'N/A',
+        "R.I.F / C.I": c.Identidad,
+        "RAZÓN SOCIAL": c.Contribuyente,
+        "CLASIFICACIÓN": c.Clasificacion || 'Residencial',
+        "DETALLE ACTIVIDAD/TIPO": c.ActividadComercial || c.TipoResidencia || 'N/A',
+        "TELÉFONO": c.Telefono || 'N/A',
+        "CORREO": c.Correo || 'N/A',
+        "DIRECCIÓN": c.Direccion || 'N/A',
+        "DEUDA TOTAL (Bs)": totalBs.toFixed(2),
+        "MESES PENDIENTES": deudas.length
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Contribuyentes_y_Deudas");
+    
+    XLSX.writeFile(workbook, `Contribuyentes_${new Date().getTime()}.xlsx`);
+  };
+
   const handleEdit = (row: any) => {
     let telefonoPrefijo = '0414';
     let telefonoNumero = '';
@@ -180,6 +291,7 @@ function ContribuyentesPageContent() {
       correoDominio,
       correoDominioOtro
     });
+    setOriginalData({ ...row });
     setEditingId(row.Identidad);
     setIsNew(false);
     setShowSuccess(false);
@@ -187,7 +299,7 @@ function ContribuyentesPageContent() {
   };
 
   const handleAdd = () => {
-    setFormData({
+    const defaultData = {
       Identidad: '',
       Contribuyente: '',
       Telefono: '',
@@ -205,8 +317,11 @@ function ContribuyentesPageContent() {
       isCondominio: false,
       cantidadInmuebles: 0,
       locales: [],
-      coordenadas: null
-    });
+      coordenadas: null,
+      Nota: ''
+    };
+    setFormData(defaultData);
+    setOriginalData(defaultData);
     setEditingId('new');
     setIsNew(true);
     setShowSuccess(false);
@@ -379,6 +494,19 @@ function ContribuyentesPageContent() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validar Notas si cambió tarifa/actividad
+    if (!isNew && originalData) {
+      const changedActividad = formData.ActividadComercial !== originalData.ActividadComercial;
+      const changedResidencia = formData.TipoResidencia !== originalData.TipoResidencia;
+      const changedClasificacion = formData.Clasificacion !== originalData.Clasificacion;
+      
+      if ((changedActividad || changedResidencia || changedClasificacion) && !formData.Nota?.trim()) {
+        alert("Es OBLIGATORIO ingresar una Nota Adicional explicando el cambio de Actividad Comercial, Tipo de Residencia o Clasificación.");
+        return;
+      }
+    }
+
     setIsSaving(true);
     try {
       const finalTelefono = `${formData.telefonoPrefijo}${formData.telefonoNumero}`;
@@ -867,6 +995,25 @@ function ContribuyentesPageContent() {
               </div>
             )}
           </div>
+
+          {/* Section: Notas */}
+          <div className="bg-yellow-50 border-y border-yellow-200 px-4 py-2 mt-4">
+            <h2 className="text-[10px] font-bold text-yellow-800 uppercase tracking-wide">
+              Notas Adicionales
+            </h2>
+          </div>
+          <div className="p-6">
+            <p className="text-[10px] text-slate-500 mb-2">
+              (Requerido obligatoriamente si se cambia la Actividad Comercial o Tipo de Residencia)
+            </p>
+            <textarea
+              value={formData.Nota || ''}
+              onChange={e => setFormData({ ...formData, Nota: e.target.value })}
+              rows={3}
+              placeholder="Ingrese cualquier observación o motivo de modificación..."
+              className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-yellow-500"
+            />
+          </div>
           
           {/* Section: Datos de Seguridad */}
           <div className="bg-purple-100 border-y border-purple-200 px-4 py-2 mt-4">
@@ -886,8 +1033,35 @@ function ContribuyentesPageContent() {
                 <input type="password" placeholder="Confirmar Clave" className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
               </div>
             </div>
+
+            {!isNew && (
+              <div className="flex gap-4 mb-8 pt-4 border-t border-slate-100">
+                <button 
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('¿Está seguro que desea DESACTIVAR este usuario? No podrá ingresar al portal.')) {
+                      alert('Usuario desactivado exitosamente (Simulación).');
+                    }
+                  }}
+                  className="bg-amber-100 text-amber-700 hover:bg-amber-200 px-4 py-2 rounded text-xs font-bold transition-colors"
+                >
+                  Desactivar Acceso
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm('ALERTA CRÍTICA: ¿Está absolutamente seguro de ELIMINAR este usuario y todo su historial de forma permanente?')) {
+                      alert('Función de eliminación bloqueada por seguridad. Requiere permisos de Super Administrador.');
+                    }
+                  }}
+                  className="bg-red-100 text-red-700 hover:bg-red-200 px-4 py-2 rounded text-xs font-bold transition-colors"
+                >
+                  Eliminar Usuario Definitivamente
+                </button>
+              </div>
+            )}
             
-            <div className="flex justify-between items-center pt-4">
+            <div className="flex justify-between items-center pt-4 border-t border-slate-100">
               <button 
                 type="button" 
                 onClick={calcularTarifa}
@@ -1138,10 +1312,14 @@ function ContribuyentesPageContent() {
             Listado de Contribuyentes
           </h1>
         </div>
-        
-        <button onClick={handleAdd} className="bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 shadow-sm">
-          <Plus className="w-4 h-4" /> Nuevo Registro
-        </button>
+        <div className="flex items-center gap-3">
+          <button onClick={exportarExcelContribuyentes} className="bg-emerald-600 text-white hover:bg-emerald-700 px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 shadow-sm">
+            <Download className="w-4 h-4" /> Exportar a Excel
+          </button>
+          <button onClick={handleAdd} className="bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 shadow-sm">
+            <Plus className="w-4 h-4" /> Nuevo Registro
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded border border-slate-200 shadow-sm mt-4 overflow-hidden">
@@ -1241,9 +1419,17 @@ function ContribuyentesPageContent() {
               )}
 
               <div className="mt-6 border border-slate-200 rounded-lg overflow-hidden">
-                <div className="bg-red-50 px-4 py-3 border-b border-red-100 flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-red-600" />
-                  <h4 className="font-bold text-red-800">Estado de Cuenta (Deuda Actual)</h4>
+                <div className="bg-red-50 px-4 py-3 border-b border-red-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-red-600" />
+                    <h4 className="font-bold text-red-800">Estado de Cuenta (Deuda Actual)</h4>
+                  </div>
+                  <button 
+                    onClick={imprimirEstadoDeCuenta}
+                    className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
+                  >
+                    <FileText className="w-4 h-4" /> Exportar PDF
+                  </button>
                 </div>
                 <div className="p-0">
                   {(() => {
@@ -1274,14 +1460,24 @@ function ContribuyentesPageContent() {
                                 <th className="px-4 py-2">Referencia</th>
                                 <th className="px-4 py-2">Fecha</th>
                                 <th className="px-4 py-2 text-right">Monto (Bs)</th>
+                                <th className="px-4 py-2 text-center w-10">Acción</th>
                               </tr>
                             </thead>
                             <tbody>
                               {deudas.map((d: any, idx: number) => (
-                                <tr key={idx} className="border-b border-slate-100 last:border-0 bg-white">
+                                <tr key={idx} className="border-b border-slate-100 last:border-0 bg-white group">
                                   <td className="px-4 py-2 font-medium text-slate-700">{d.referencia}</td>
                                   <td className="px-4 py-2 text-slate-600">{d.emision || 'N/A'}</td>
                                   <td className="px-4 py-2 text-right font-bold text-slate-800">{d.monto}</td>
+                                  <td className="px-4 py-2 text-center">
+                                    <button 
+                                      onClick={() => handleDeleteFactura(d)}
+                                      className="text-red-400 hover:text-red-600 p-1 rounded-full hover:bg-red-50 transition-colors"
+                                      title="Eliminar Deuda"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>
