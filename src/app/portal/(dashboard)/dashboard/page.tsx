@@ -72,6 +72,7 @@ export default function DatosContribuyentePage() {
     try {
       const idLimpio = fullDoc.replace(/-/g, '').toUpperCase();
       const idFormateado = `${idLimpio.charAt(0)}-${idLimpio.slice(1)}`;
+      const soloNumeros = fullDoc.replace(/\D/g, '');
 
       const { error } = await supabase
         .from('inmuebles')
