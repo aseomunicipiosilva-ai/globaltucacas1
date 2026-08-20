@@ -199,6 +199,8 @@ function ContribuyentesPageContent() {
     const deudas = (facturas || [])
       .filter((f: any) => f.contribuyente === viewData.Contribuyente || f.contribuyente === viewData.Identidad)
       .filter((f: any) => f.estado === 'Pendiente');
+      
+    const inmueblesContribuyente = (inmuebles || []).filter((i: any) => i.identidad === viewData.Identidad);
     
     const doc = new jsPDF();
     
@@ -227,6 +229,36 @@ function ContribuyentesPageContent() {
     doc.text(`Teléfono: ${viewData.Telefono || 'N/A'}`, 14, 52);
     doc.text(`Dirección: ${viewData.Direccion || 'N/A'}`, 14, 58);
     
+    let currentY = 65;
+
+    // Desglose de Inmuebles
+    if (inmueblesContribuyente.length > 0) {
+      doc.setFont("helvetica", "bold");
+      doc.text("DESGLOSE DE INMUEBLES / ACTIVIDADES", 14, currentY);
+      
+      const inmueblesData = inmueblesContribuyente.map((i: any) => [
+        i.Inmueble,
+        i.Clasificacion || 'N/A',
+        i['Actividad Principal'] || 'N/A',
+        i.Direccion || 'N/A'
+      ]);
+
+      try {
+        autoTable(doc, {
+          startY: currentY + 3,
+          head: [['Inmueble', 'Clasif.', 'Actividad', 'Dirección']],
+          body: inmueblesData,
+          theme: 'grid',
+          headStyles: { fillColor: [51, 65, 85] }, // Slate-700
+          styles: { fontSize: 8 }
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 10;
+      } catch (e) {}
+    }
+
+    doc.setFont("helvetica", "bold");
+    doc.text("RECIBOS PENDIENTES (DEUDA)", 14, currentY);
+
     const tableData = deudas.map((d: any) => [
       d.referencia,
       d.emision || 'N/A',
@@ -240,7 +272,7 @@ function ContribuyentesPageContent() {
 
     try {
       autoTable(doc, {
-        startY: 65,
+        startY: currentY + 3,
         head: [['Referencia', 'Emisión', 'Vencimiento', 'Monto']],
         body: tableData,
         theme: 'striped',
@@ -268,7 +300,7 @@ function ContribuyentesPageContent() {
         "R.I.F / C.I": c.Identidad,
         "RAZÓN SOCIAL": c.Contribuyente,
         "CLASIFICACIÓN": c.Clasificacion || 'Residencial',
-        "DETALLE ACTIVIDAD/TIPO": c.ActividadComercial || c.TipoResidencia || 'N/A',
+        "DETALLE ACTIVIDAD/TIPO": c.ActividadComercial || c.TipoResidencia || c.Actividad || 'N/A',
         "TELÉFONO": c.Telefono || 'N/A',
         "CORREO": c.Correo || 'N/A',
         "DIRECCIÓN": c.Direccion || 'N/A',
