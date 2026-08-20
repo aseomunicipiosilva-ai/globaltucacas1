@@ -192,7 +192,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             direccion: data.DireccionExacta ? `${data.Direccion} | Exacta: ${data.DireccionExacta}` : data.Direccion,
             cod_cont: codCont,
             clasificacion: local.uso === 'Comercial' ? 'Comercial' : 'Residencial',
-            actividad: local.uso === 'Comercial' ? local.actividad : (local.tipoResidencia || 'No aplica'),
+            actividad_principal: local.uso === 'Comercial' ? local.actividad : (local.tipoResidencia || 'No aplica'),
             inmueble: local.numeracion
           });
         });
@@ -205,7 +205,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           direccion: data.DireccionExacta ? `${data.Direccion} | Exacta: ${data.DireccionExacta}` : data.Direccion,
           cod_cont: codCont,
           clasificacion: data.Clasificacion || 'Residencial',
-          actividad: data.Clasificacion === 'Residencial' ? data.TipoResidencia : data.ActividadComercial,
+          actividad_principal: data.Clasificacion === 'Residencial' ? data.TipoResidencia : data.ActividadComercial,
           inmueble: 'Principal'
         });
       }
