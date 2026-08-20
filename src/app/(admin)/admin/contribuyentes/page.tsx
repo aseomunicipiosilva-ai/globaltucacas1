@@ -45,6 +45,11 @@ function ContribuyentesPageContent() {
   const [calculoDetalle, setCalculoDetalle] = useState<any>(null);
   const [isCalculating, setIsCalculating] = useState(false);
 
+  // Action Modal State
+  const [actionModal, setActionModal] = useState<{type: 'Anular'|'Reversar', factura: any} | null>(null);
+  const [actionNota, setActionNota] = useState('');
+  const [isProcessingAction, setIsProcessingAction] = useState(false);
+
   // Modal Ajuste Deuda
   const [isDebtModalOpen, setIsDebtModalOpen] = useState(false);
   const [debtMonths, setDebtMonths] = useState(1);
@@ -57,6 +62,32 @@ function ContribuyentesPageContent() {
       handleAdd();
     }
   }, [searchParams]);
+
+  const handleActionSubmit = async () => {
+    if (!actionModal) return;
+    if (!actionNota.trim()) return alert("Debe ingresar el motivo obligatoriamente.");
+    
+    setIsProcessingAction(true);
+    try {
+      const nuevoEstado = actionModal.type === 'Anular' ? 'Anulado' : 'Reversado';
+      const { error } = await supabase
+        .from('facturas')
+        .update({ estado: nuevoEstado, nota: actionNota.trim() })
+        .eq('referencia', actionModal.factura.referencia);
+        
+      if (error) throw error;
+      
+      // Update local state
+      setFacturas(prev => prev.map(f => f.referencia === actionModal.factura.referencia ? { ...f, estado: nuevoEstado, nota: actionNota.trim() } : f));
+      
+      setActionModal(null);
+      setActionNota('');
+      alert(`Factura ${actionModal.factura.referencia} ha sido ${nuevoEstado.toLowerCase()} exitosamente.`);
+    } catch (e: any) {
+      alert("Error procesando acción: " + e.message);
+    }
+    setIsProcessingAction(false);
+  };
 
   const calculateFactorForRow = async (row: any) => {
     try {
@@ -1551,7 +1582,75 @@ function ContribuyentesPageContent() {
                 </div>
               </div>
 
-              <div className="mt-6 border border-orange-200 rounded-lg overflow-hidden">
+              {/* Historial de Recibos Procesados */}
+              <div className="mt-6 border border-slate-200 rounded-lg overflow-hidden mb-6">
+                <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-slate-600" />
+                  <h4 className="font-bold text-slate-800">Historial de Recibos Procesados</h4>
+                </div>
+                <div className="p-0 bg-white">
+                  {(() => {
+                    const procesadas = (facturas || [])
+                      .filter((f: any) => f.contribuyente === viewData.Contribuyente || f.contribuyente === viewData.Identidad)
+                      .filter((f: any) => f.estado !== 'Pendiente');
+                      
+                    if (procesadas.length === 0) {
+                      return <p className="p-4 text-sm text-slate-500 text-center">No hay recibos procesados (pagados, anulados o reversados).</p>;
+                    }
+
+                    return (
+                      <table className="w-full text-sm text-left">
+                        <thead className="bg-slate-100 text-slate-500 font-medium text-[10px] uppercase">
+                          <tr>
+                            <th className="px-4 py-2">Referencia</th>
+                            <th className="px-4 py-2">Estado</th>
+                            <th className="px-4 py-2">Monto (Bs)</th>
+                            <th className="px-4 py-2 text-center">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {procesadas.map((d: any, idx: number) => (
+                            <tr key={idx} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                              <td className="px-4 py-2 font-medium text-slate-700">{d.referencia}</td>
+                              <td className="px-4 py-2">
+                                <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                  d.estado === 'Pagado' ? 'bg-emerald-100 text-emerald-800' :
+                                  d.estado === 'Por Verificar' ? 'bg-orange-100 text-orange-800' :
+                                  'bg-red-100 text-red-800'
+                                }`}>
+                                  {d.estado}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 font-bold text-slate-800">{d.monto}</td>
+                              <td className="px-4 py-2 flex justify-center gap-2">
+                                {(d.estado === 'Pagado' || d.estado === 'Por Verificar') && (
+                                  <>
+                                    <button 
+                                      onClick={() => setActionModal({ type: 'Reversar', factura: d })}
+                                      className="text-orange-600 bg-orange-50 hover:bg-orange-100 px-2 py-1 rounded text-xs font-medium transition-colors"
+                                    >
+                                      Reversar
+                                    </button>
+                                    <button 
+                                      onClick={() => setActionModal({ type: 'Anular', factura: d })}
+                                      className="text-red-600 bg-red-50 hover:bg-red-100 px-2 py-1 rounded text-xs font-medium transition-colors"
+                                    >
+                                      Anular
+                                    </button>
+                                  </>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Convenios de Pago */}
+              <div className="border border-orange-200 rounded-lg overflow-hidden bg-orange-50/30">
                 <div className="bg-orange-50 px-4 py-3 border-b border-orange-100 flex items-center gap-2">
                   <Handshake className="w-5 h-5 text-orange-600" />
                   <h4 className="font-bold text-orange-800">Convenios de Pago Activos</h4>
@@ -1649,12 +1748,56 @@ function ContribuyentesPageContent() {
         <DebtAdjustmentModal
           row={selectedDebtRow}
           inmuebles={inmuebles}
-          tcmmv={viewCalculo?.tasaBcv || 1} // Or fetch it
+          tcmmv={viewCalculo?.tasaBcv || 1}
           facturas={facturas}
-          setFacturas={setFacturas} // Actually setFacturas is not exported in AppContext in contribuyentes/page.tsx, wait...
+          setFacturas={setFacturas}
           onClose={() => setDebtModalOpen(false)}
         />
       )}
+
+      {/* Action Modal (Anular/Reversar) */}
+      {actionModal && (
+        <div className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className={`px-6 py-4 border-b flex items-center justify-between ${actionModal.type === 'Anular' ? 'bg-red-50 border-red-100' : 'bg-orange-50 border-orange-100'}`}>
+              <h2 className={`text-lg font-bold ${actionModal.type === 'Anular' ? 'text-red-800' : 'text-orange-800'}`}>
+                {actionModal.type} Recibo
+              </h2>
+              <button onClick={() => setActionModal(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-slate-600 mb-4">
+                Está a punto de <strong>{actionModal.type.toLowerCase()}</strong> la factura <span className="font-bold">{actionModal.factura.referencia}</span>. 
+                Por favor, indique el motivo. <span className="text-red-600 font-bold">* Obligatorio</span>
+              </p>
+              
+              <textarea
+                value={actionNota}
+                onChange={e => setActionNota(e.target.value)}
+                placeholder="Ej. Error en la emisión, pago duplicado..."
+                className="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-slate-500 min-h-[100px] outline-none"
+              ></textarea>
+              
+              <div className="mt-6 flex justify-end gap-3">
+                <button 
+                  onClick={() => setActionModal(null)}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium text-sm transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleActionSubmit}
+                  disabled={isProcessingAction || !actionNota.trim()}
+                  className={`px-6 py-2 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50 ${actionModal.type === 'Anular' ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-600 hover:bg-orange-700'}`}
+                >
+                  {isProcessingAction ? 'Procesando...' : `Confirmar ${actionModal.type}`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -5,8 +5,11 @@ import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
 
 export default function CajaPage() {
-  const { facturas, convenios, contribuyentes } = useAppContext();
+  const { facturas, convenios, contribuyentes, documentos, tcmmv } = useAppContext();
   
+  // Navigation Tabs
+  const [activeTab, setActiveTab] = useState<'Pagos' | 'NotasCredito'>('Pagos');
+
   // Search State
   const [docType, setDocType] = useState('V');
   const [docNumber, setDocNumber] = useState('');
@@ -148,6 +151,20 @@ export default function CajaPage() {
     setIsProcessing(true);
     
     try {
+      // Si hay saldo a favor, generar Nota de Crédito
+      if (saldoAFavor > 0) {
+        await supabase.from('documentos').insert([{
+          identidad: foundUser.Identidad,
+          contribuyente: foundUser.Contribuyente,
+          tipo: 'Nota de Credito',
+          estado: 'Vigente',
+          detalles: JSON.stringify({
+            monto: saldoAFavor.toFixed(2),
+            origen_referencia: paymentMethod === 'Transferencia' ? referencia : 'Debito',
+            fecha_emision: new Date().toISOString()
+          })
+        }]);
+      }
       if (paymentMethod === 'Debito') {
         // Direct Payment (Pagado)
         if (selectedRecibos.length > 0) {
@@ -248,14 +265,118 @@ export default function CajaPage() {
     setIsProcessing(false);
   };
 
+  const generarExcelNotasCredito = async () => {
+    try {
+      const notas = (documentos || []).filter(d => d.tipo === 'Nota de Credito');
+      const XLSX = await import('xlsx');
+      
+      const excelData = notas.map(n => {
+        let details: any = {};
+        try { details = JSON.parse(n.detalles); } catch(e){}
+        return {
+          "Fecha": n.created_at ? new Date(n.created_at).toLocaleDateString() : '',
+          "Cédula/RIF": n.identidad,
+          "Contribuyente": n.contribuyente,
+          "Monto (Bs)": details.monto || 0,
+          "Origen Ref": details.origen_referencia || '',
+          "Estado": n.estado
+        };
+      });
+      
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Notas de Crédito");
+      XLSX.writeFile(workbook, `Notas_Credito_${new Date().getTime()}.xlsx`);
+    } catch (e) {
+      alert("Error exportando Excel");
+    }
+  };
+
   return (
-    <div className="space-y-6 max-w-[1200px] mx-auto p-6">
-      <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
-        <Landmark className="w-8 h-8 text-emerald-600" />
-        <h1 className="text-2xl font-bold text-slate-800 uppercase tracking-wide">Módulo de Caja</h1>
+    <div className="space-y-6 max-w-[1600px] mx-auto p-6">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div className="flex items-center gap-3">
+          <Landmark className="w-8 h-8 text-emerald-600" />
+          <h1 className="text-2xl font-bold text-slate-800 uppercase tracking-wide">Módulo de Caja</h1>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-lg text-sm font-semibold border border-emerald-200 flex items-center gap-2">
+            <span>Tasa BCV Aplicada:</span>
+            <span className="font-bold text-lg">Bs. {tcmmv.toFixed(2)}</span>
+          </div>
+          <div className="flex bg-slate-100 rounded-lg p-1">
+            <button
+              onClick={() => setActiveTab('Pagos')}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                activeTab === 'Pagos' ? 'bg-white text-emerald-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Procesar Pagos
+            </button>
+            <button
+              onClick={() => setActiveTab('NotasCredito')}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                activeTab === 'NotasCredito' ? 'bg-white text-emerald-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Notas de Crédito
+            </button>
+          </div>
+        </div>
       </div>
 
-      {successMsg && (
+      {activeTab === 'NotasCredito' ? (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-semibold text-slate-800">Control de Saldos a Favor (Notas de Crédito)</h2>
+            <button onClick={generarExcelNotasCredito} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+              <FileText className="w-4 h-4" /> Exportar a Excel
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs text-slate-600 uppercase bg-slate-50 border-b">
+                <tr>
+                  <th className="px-4 py-3">Fecha</th>
+                  <th className="px-4 py-3">Cédula / RIF</th>
+                  <th className="px-4 py-3">Contribuyente</th>
+                  <th className="px-4 py-3 text-right">Monto (Bs)</th>
+                  <th className="px-4 py-3 text-center">Ref. Origen</th>
+                  <th className="px-4 py-3 text-center">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(documentos || []).filter(d => d.tipo === 'Nota de Credito').map(n => {
+                  let details: any = {};
+                  try { details = JSON.parse(n.detalles); } catch(e){}
+                  return (
+                    <tr key={n.id} className="border-b hover:bg-slate-50">
+                      <td className="px-4 py-3">{new Date(n.created_at).toLocaleDateString()}</td>
+                      <td className="px-4 py-3 font-medium">{n.identidad}</td>
+                      <td className="px-4 py-3">{n.contribuyente}</td>
+                      <td className="px-4 py-3 text-right font-bold text-emerald-600">Bs. {details.monto}</td>
+                      <td className="px-4 py-3 text-center">{details.origen_referencia}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-1 rounded text-xs font-semibold">{n.estado}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {(documentos || []).filter(d => d.tipo === 'Nota de Credito').length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                      No hay notas de crédito registradas en el sistema.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+      <div className="space-y-6">
+        {successMsg && (
         <div className="bg-emerald-50 text-emerald-800 p-4 rounded-lg border border-emerald-200 flex items-center gap-2 font-medium">
           <CheckCircle className="w-5 h-5 text-emerald-600" />
           {successMsg}
@@ -448,8 +569,9 @@ export default function CajaPage() {
               {isProcessing ? 'Procesando...' : 'Procesar Pago'}
             </button>
           </div>
-
         </div>
+      )}
+      </div>
       )}
     </div>
   );

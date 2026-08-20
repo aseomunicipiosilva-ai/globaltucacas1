@@ -241,7 +241,7 @@ export default function EstadoCuentaPage() {
       razonSocial: row.contribuyente || '---',
       domicilioFiscal: "ZONA TUCACAS (SECTOR NO ESPECIFICADO)",
       rifCi: row.identidad || '---',
-      caja: "F-OMAR",
+      caja: "ADMINISTRADOR CAJA",
       conceptos: [
         { 
           descripcion: `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${mesTexto}`, 
@@ -661,15 +661,29 @@ export default function EstadoCuentaPage() {
             </div>
             
             {/* Contenedor imprimible */}
-            <div className="flex-1 overflow-y-auto p-4 bg-slate-200 print:bg-white print:p-0 print:overflow-visible" id="printable-receipt">
-              <style dangerouslySetInnerHTML={{__html: `
-                @media print {
-                  body * { visibility: hidden; }
-                  #printable-receipt, #printable-receipt * { visibility: visible; }
-                  #printable-receipt { position: absolute; left: 0; top: 0; width: 100%; }
-                }
-              `}} />
-              <ReciboImprimible data={selectedRecibo} />
+            <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 140px)' }}>
+              
+              <div className="mb-4 bg-slate-50 p-4 border border-slate-200 rounded-lg flex items-center gap-4">
+                <label className="text-sm font-semibold text-slate-700 whitespace-nowrap">Cajero Emisor:</label>
+                <input 
+                  type="text" 
+                  value={selectedRecibo.caja}
+                  onChange={(e) => setSelectedRecibo({...selectedRecibo, caja: e.target.value})}
+                  className="flex-1 border border-slate-300 rounded px-3 py-1.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none uppercase"
+                  placeholder="Nombre del Cajero..."
+                />
+              </div>
+
+              <div id="recibo-print-area">
+                <style dangerouslySetInnerHTML={{__html: `
+                  @media print {
+                    body * { visibility: hidden; }
+                    #recibo-print-area, #recibo-print-area * { visibility: visible; }
+                    #recibo-print-area { position: absolute; left: 0; top: 0; width: 100%; }
+                  }
+                `}} />
+                <ReciboImprimible data={selectedRecibo} />
+              </div>
             </div>
           </div>
         </div>
