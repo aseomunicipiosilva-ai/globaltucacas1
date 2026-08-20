@@ -37,11 +37,12 @@ export default function DatosContribuyentePage() {
       if (fullDoc) {
         const idLimpio = fullDoc.replace(/-/g, '').toUpperCase();
         const idFormateado = `${idLimpio.charAt(0)}-${idLimpio.slice(1)}`;
+        const soloNumeros = fullDoc.replace(/\D/g, '');
 
         const { data, error } = await supabase
           .from('inmuebles')
           .select('correo_electronico, correo, telefono, direccion, actividad_principal')
-          .or(`identidad.eq.${idFormateado},identidad.eq.${idLimpio},identidad.eq.${fullDoc.toUpperCase()}`)
+          .or(`identidad.eq.${idFormateado},identidad.eq.${idLimpio},identidad.eq.${fullDoc.toUpperCase()},identidad.eq.${soloNumeros}`)
           .limit(1)
           .single();
           
@@ -79,7 +80,7 @@ export default function DatosContribuyentePage() {
           telefono: userData.telefonoMovil,
           direccion: userData.direccion
         })
-        .or(`identidad.eq.${idFormateado},identidad.eq.${idLimpio},identidad.eq.${fullDoc.toUpperCase()}`);
+        .or(`identidad.eq.${idFormateado},identidad.eq.${idLimpio},identidad.eq.${fullDoc.toUpperCase()},identidad.eq.${soloNumeros}`);
         
       if (error) throw error;
       setMessage('Datos actualizados correctamente');

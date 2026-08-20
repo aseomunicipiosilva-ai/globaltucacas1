@@ -27,12 +27,13 @@ export default function EstadoCuentaPage() {
         const fullDoc = localStorage.getItem('portal_doc') || '';
         const idLimpio = fullDoc.replace(/-/g, '').toUpperCase();
         const idFormateado = idLimpio ? `${idLimpio.charAt(0)}-${idLimpio.slice(1)}` : '';
+        const soloNumeros = fullDoc.replace(/\D/g, '');
 
         if (idFormateado) {
           const { data: convenios } = await supabase
             .from('convenios')
             .select('*')
-            .or(`identidad.eq.${idFormateado},identidad.eq.${idLimpio},identidad.eq.${fullDoc.toUpperCase()}`)
+            .or(`identidad.eq.${idFormateado},identidad.eq.${idLimpio},identidad.eq.${fullDoc.toUpperCase()},identidad.eq.${soloNumeros}`)
             .eq('estado', 'Al Día');
             
           if (convenios) {

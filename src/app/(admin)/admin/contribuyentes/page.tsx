@@ -138,18 +138,23 @@ function ContribuyentesPageContent() {
       }
       
       if (factorTotal === 0) {
-        if (row.Clasificacion === 'Residencial') {
-          const tipo = ordenanzaData.tiposResidenciales.find(t => t.label === row.TipoResidencia);
+        const rowClasificacion = row.Clasificacion || row.tipo || 'Residencial';
+        const rowTipoResidencia = row.TipoResidencia || row.Actividad || row.actividad || '';
+        const rowActividadComercial = row.ActividadComercial || row.Actividad || row.actividad || '';
+        const rowNivelMetraje = row.NivelMetraje || row.codigo || '';
+
+        if (rowClasificacion === 'Residencial') {
+          const tipo = ordenanzaData.tiposResidenciales.find(t => t.label === rowTipoResidencia);
           if (tipo) {
             factorTotal = tipo.factor;
             leyenda = `Clasificador de Tasa Residencial: ${tipo.label}`;
           }
         } else {
-          const act = todasLasActividades.find(a => a.label === row.ActividadComercial);
-          const nivelIndex = ordenanzaData.nivelesMetraje.indexOf(row.NivelMetraje);
-          if (act && nivelIndex !== -1) {
+          const act = todasLasActividades.find(a => a.label === rowActividadComercial);
+          const nivelIndex = Math.max(0, ordenanzaData.nivelesMetraje.indexOf(rowNivelMetraje));
+          if (act) {
             factorTotal = act.factores[nivelIndex];
-            leyenda = `Tasa Com/Ind: ${act.label} (Nivel: ${row.NivelMetraje})`;
+            leyenda = `Tasa Com/Ind: ${act.label} (Nivel: ${rowNivelMetraje || '1 (0-50m2)'})`;
           }
         }
       }
@@ -162,6 +167,7 @@ function ContribuyentesPageContent() {
         leyenda,
         totalBs: totalTruncado,
         fuente: data.source,
+        tasaBcv: data.tcmmv,
         desglose: desgloseLocales
       };
     } catch (e) {

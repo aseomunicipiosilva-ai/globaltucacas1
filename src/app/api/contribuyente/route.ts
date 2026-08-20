@@ -12,11 +12,12 @@ export async function GET(request: Request) {
   // Normalizar: Si el usuario escribe J123456, convertirlo a J-123456 para buscar en BD
   const idLimpio = identidad.replace(/-/g, '').toUpperCase();
   const idFormateado = `${idLimpio.charAt(0)}-${idLimpio.slice(1)}`;
+  const soloNumeros = identidad.replace(/\D/g, '');
 
   const { data: records, error } = await supabase
     .from('inmuebles')
     .select('contribuyente, cod_cont')
-    .or(`identidad.eq.${idFormateado},identidad.eq.${idLimpio},identidad.eq.${identidad.toUpperCase()}`)
+    .or(`identidad.eq.${idFormateado},identidad.eq.${idLimpio},identidad.eq.${identidad.toUpperCase()},identidad.eq.${soloNumeros}`)
     .limit(1);
 
   if (error) {

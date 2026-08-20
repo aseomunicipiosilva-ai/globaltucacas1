@@ -34,8 +34,8 @@ export function DebtAdjustmentModal({ row, inmuebles, tcmmv, facturas, setFactur
         
         if (factorTotal === 0) {
           const rowClasificacion = row.Clasificacion || row.tipo || 'Residencial';
-          const rowTipoResidencia = row.TipoResidencia || row.actividad || '';
-          const rowActividadComercial = row.ActividadComercial || row.actividad || '';
+          const rowTipoResidencia = row.TipoResidencia || row.Actividad || row.actividad || '';
+          const rowActividadComercial = row.ActividadComercial || row.Actividad || row.actividad || '';
           const rowNivelMetraje = row.NivelMetraje || row.codigo || '';
 
           if (rowClasificacion === 'Residencial') {
