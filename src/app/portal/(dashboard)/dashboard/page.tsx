@@ -35,10 +35,13 @@ export default function DatosContribuyentePage() {
       }));
 
       if (fullDoc) {
+        const idLimpio = fullDoc.replace(/-/g, '').toUpperCase();
+        const idFormateado = `${idLimpio.charAt(0)}-${idLimpio.slice(1)}`;
+
         const { data, error } = await supabase
           .from('inmuebles')
           .select('*')
-          .eq('identidad', fullDoc)
+          .eq('identidad', idFormateado)
           .limit(1)
           .single();
           
@@ -66,6 +69,9 @@ export default function DatosContribuyentePage() {
     setMessage('');
     
     try {
+      const idLimpio = fullDoc.replace(/-/g, '').toUpperCase();
+      const idFormateado = `${idLimpio.charAt(0)}-${idLimpio.slice(1)}`;
+
       const { error } = await supabase
         .from('inmuebles')
         .update({
@@ -73,7 +79,7 @@ export default function DatosContribuyentePage() {
           telefono: userData.telefonoMovil,
           direccion: userData.direccion
         })
-        .eq('identidad', fullDoc);
+        .eq('identidad', idFormateado);
         
       if (error) throw error;
       setMessage('Datos actualizados correctamente');
