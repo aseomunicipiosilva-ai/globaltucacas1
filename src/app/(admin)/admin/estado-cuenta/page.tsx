@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { DataTable } from '@/components/DataTable';
-import { FileSpreadsheet, Download, Filter, RefreshCw, Zap, Printer, X } from 'lucide-react';
+import { FileSpreadsheet, Download, Filter, RefreshCw, Zap, Printer, X, CheckCircle, XCircle } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
 import tarifasData from '@/data/tarifas.json';
@@ -13,6 +13,83 @@ export default function EstadoCuentaPage() {
   const [loadingTasa, setLoadingTasa] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedRecibo, setSelectedRecibo] = useState<any>(null);
+  
+  const [activeTab, setActiveTab] = useState<'General' | 'PorVerificar'>('General');
+  const [pagosVerificar, setPagosVerificar] = useState<any[]>([]);
+  const [loadingPagos, setLoadingPagos] = useState(false);
+
+  const fetchPagos = async () => {
+    setLoadingPagos(true);
+    try {
+      const { data, error } = await supabase
+        .from('pagos_reportados')
+        .select('*')
+        .eq('estado', 'Por Verificar')
+        .order('created_at', { ascending: false });
+      
+      if (data) setPagosVerificar(data);
+    } catch (e) {
+      console.log('Tabla pagos_reportados no existe aún o hubo un error');
+    }
+    setLoadingPagos(false);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'PorVerificar') {
+      fetchPagos();
+    }
+  }, [activeTab]);
+
+  const procesarPago = async (pago: any, accion: 'Aprobar' | 'Rechazar') => {
+    if (!confirm(`¿Estás seguro de ${accion.toUpperCase()} este pago por Bs. ${pago.monto}?`)) return;
+
+    try {
+      // 1. Update the pago record
+      await supabase.from('pagos_reportados').update({ estado: accion === 'Aprobar' ? 'Aprobado' : 'Rechazado' }).eq('id', pago.id);
+
+      // 2. Parse details
+      let detalles = { recibos: [], cuotas: [] };
+      try { detalles = JSON.parse(pago.detalles); } catch(e){}
+
+      // 3. Update related items
+      const nuevoEstado = accion === 'Aprobar' ? 'Pagado' : 'Pendiente';
+      
+      if (detalles.recibos && detalles.recibos.length > 0) {
+        await supabase.from('facturas').update({ estado: nuevoEstado }).in('referencia', detalles.recibos);
+      }
+
+      if (detalles.cuotas && detalles.cuotas.length > 0) {
+        // This is complex as it requires fetching and parsing convenios
+        const { data: convs } = await supabase.from('convenios').select('*');
+        if (convs) {
+          const convMap = new Map();
+          detalles.cuotas.forEach((sc: any) => {
+            if (!convMap.has(sc.convId)) convMap.set(sc.convId, { toUpdate: [] });
+            convMap.get(sc.convId).toUpdate.push(sc.cuotaId);
+          });
+          
+          for (const [cId, data] of convMap.entries()) {
+            const rawConv = convs.find(c => c.id === cId);
+            if (rawConv) {
+              let parsed = [];
+              try { parsed = JSON.parse(rawConv.detalle_cuotas); } catch(e){}
+              parsed.forEach((c: any) => {
+                if (data.toUpdate.includes(c.id)) {
+                  c.estado = nuevoEstado;
+                }
+              });
+              await supabase.from('convenios').update({ detalle_cuotas: JSON.stringify(parsed) }).eq('id', cId);
+            }
+          }
+        }
+      }
+
+      alert(`Pago ${accion.toLowerCase()}o exitosamente.`);
+      fetchPagos();
+    } catch (e: any) {
+      alert("Error: " + e.message);
+    }
+  };
 
   const handleOpenRecibo = (row: any) => {
     const montoNumerico = parseFloat((row.monto || "0").replace(/[^\d.]/g, '')) || 0;
@@ -191,7 +268,29 @@ export default function EstadoCuentaPage() {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+      
+      {/* Tabs */}
+      <div className="flex border-b border-slate-200">
+        <button 
+          onClick={() => setActiveTab('General')}
+          className={`px-6 py-3 font-semibold text-sm transition-colors ${activeTab === 'General' ? 'border-b-2 border-blue-600 text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}
+        >
+          Estado de Cuenta General
+        </button>
+        <button 
+          onClick={() => setActiveTab('PorVerificar')}
+          className={`px-6 py-3 font-semibold text-sm transition-colors ${activeTab === 'PorVerificar' ? 'border-b-2 border-orange-600 text-orange-700' : 'text-slate-500 hover:text-slate-700'} flex items-center gap-2`}
+        >
+          Pagos por Verificar
+          {pagosVerificar.length > 0 && activeTab !== 'PorVerificar' && (
+            <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full">{pagosVerificar.length}</span>
+          )}
+        </button>
+      </div>
+
+      {activeTab === 'General' && (
+        <>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div className="flex items-center gap-2">
           <FileSpreadsheet className="w-5 h-5 text-slate-700" />
           <h1 className="text-lg font-semibold text-slate-800 uppercase tracking-wide">
@@ -230,9 +329,64 @@ export default function EstadoCuentaPage() {
             <Zap className="w-4 h-4" /> 
             {isGenerating ? 'Generando...' : 'Generar Facturación'}
           </button>
+          </div>
         </div>
-      </div>
-      <DataTable data={facturas} columns={columns} itemsPerPage={10} />
+        <DataTable data={facturas} columns={columns} itemsPerPage={10} />
+      </>
+      )}
+
+      {activeTab === 'PorVerificar' && (
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200">
+          <div className="bg-orange-50 px-4 py-3 border-b border-orange-200">
+            <h3 className="font-bold text-orange-800">Transferencias Pendientes de Verificación</h3>
+          </div>
+          <div className="p-0">
+            {loadingPagos ? (
+              <div className="p-8 text-center text-slate-500">Cargando pagos...</div>
+            ) : pagosVerificar.length === 0 ? (
+              <div className="p-8 text-center text-slate-500">No hay pagos por verificar.</div>
+            ) : (
+              <table className="w-full text-sm text-left">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Identidad</th>
+                    <th className="px-4 py-3 font-semibold">Banco</th>
+                    <th className="px-4 py-3 font-semibold">Referencia</th>
+                    <th className="px-4 py-3 font-semibold">Monto</th>
+                    <th className="px-4 py-3 font-semibold text-center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {pagosVerificar.map((pago: any) => (
+                    <tr key={pago.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 font-medium text-slate-700">{pago.identidad}</td>
+                      <td className="px-4 py-3">{pago.banco}</td>
+                      <td className="px-4 py-3 font-mono">{pago.referencia}</td>
+                      <td className="px-4 py-3 font-bold text-emerald-600">{pago.monto} Bs</td>
+                      <td className="px-4 py-3">
+                        <div className="flex justify-center gap-2">
+                          <button 
+                            onClick={() => procesarPago(pago, 'Aprobar')}
+                            className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 p-1.5 rounded flex items-center gap-1 text-xs font-semibold transition-colors"
+                          >
+                            <CheckCircle size={14} /> Aprobar
+                          </button>
+                          <button 
+                            onClick={() => procesarPago(pago, 'Rechazar')}
+                            className="bg-red-100 text-red-700 hover:bg-red-200 p-1.5 rounded flex items-center gap-1 text-xs font-semibold transition-colors"
+                          >
+                            <XCircle size={14} /> Rechazar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
 
       {selectedRecibo && (
         <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">

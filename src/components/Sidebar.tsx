@@ -1,5 +1,5 @@
 'use client';
-import { Home, Search, FileText, UserPlus, Users, Home as HomeIcon, FileSpreadsheet, History, Award, Clock, Building2, AlertTriangle, Handshake, LayoutDashboard, Mail, User, PieChart, Truck, Inbox } from 'lucide-react';
+import { Home, Search, FileText, UserPlus, Users, Home as HomeIcon, FileSpreadsheet, History, Award, Clock, Building2, AlertTriangle, Handshake, LayoutDashboard, Mail, User, PieChart, Truck, Inbox, Calculator, Briefcase } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
@@ -19,7 +19,8 @@ export default function Sidebar() {
     { icon: User, name: 'Contribuyentes', href: '/admin/contribuyentes' },
     { icon: Users, name: 'Condominios COB', href: '/admin/condominios-cob' },
     { icon: FileText, name: 'Pre-registros WEB', href: '/admin/pre-registros' },
-    { icon: Building2, name: 'Inmuebles', href: '/admin/inmuebles' },
+    { icon: Calculator, name: 'Cálculo y Proyección', href: '/admin/calculo' },
+    { icon: Briefcase, name: 'Caja / Pagos', href: '/admin/caja' },
     { icon: FileSpreadsheet, name: 'Facturación / Estado de Cuenta', href: '/admin/estado-cuenta' },
     { icon: Clock, name: 'Cuentas Por Facturar', href: '/admin/por-facturar' },
     { icon: Handshake, name: 'Convenios de Pago', href: '/admin/convenios-pago' },
