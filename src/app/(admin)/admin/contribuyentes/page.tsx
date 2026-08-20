@@ -11,6 +11,7 @@ import dynamic from 'next/dynamic';
 const todasLasActividades = [...ordenanzaData.actividadesComerciales, ...ordenanzaData.actividadesIndustriales];
 
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
+import { DebtAdjustmentModal } from '@/components/DebtAdjustmentModal';
 
 import { createClient } from '@supabase/supabase-js';
 
@@ -19,7 +20,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 function ContribuyentesPageContent() {
-  const { inmuebles, contribuyentes, facturas, convenios, updateContribuyente, addContribuyente } = useAppContext();
+  const { inmuebles, contribuyentes, facturas, setFacturas, convenios, updateContribuyente, addContribuyente, addAuditLog } = useAppContext();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [formData, setFormData] = useState<any>(null);
@@ -29,6 +30,9 @@ function ContribuyentesPageContent() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewData, setViewData] = useState<any>(null);
   const [viewCalculo, setViewCalculo] = useState<any>(null);
+
+  const [debtModalOpen, setDebtModalOpen] = useState(false);
+  const [selectedDebtRow, setSelectedDebtRow] = useState<any>(null);
   
   // Calculadora state
   const [bcvRate, setBcvRate] = useState<string | null>(null);
@@ -50,76 +54,94 @@ function ContribuyentesPageContent() {
     }
   }, [searchParams]);
 
+  const calculateFactorForRow = async (row: any) => {
+    try {
+      const res = await fetch('/api/bcv');
+      const data = await res.json();
+      
+      let factorTotal = 0;
+      let leyenda = '';
+      const desgloseLocales: any[] = [];
+
+      const misInmuebles = inmuebles.filter(i => i.identidad === row.Identidad);
+
+      if (misInmuebles.length > 0) {
+        const isCondominio = misInmuebles.some(i => (parseInt(i.cant_inmuebles) || 1) > 1);
+        leyenda = isCondominio ? `Condominio / Complejo Residencial` : misInmuebles.map(i => i.actividad_principal || 'Residencial').join(', ');
+        
+        misInmuebles.forEach(inm => {
+          const localFactor = parseFloat(inm.mmv_mes) || 0;
+          const cant = parseInt(inm.cant_inmuebles) || 1;
+          const metraje = inm.area || inm.area_operativa || 'N/A';
+          const actividad = inm.actividad_principal || 'No especificada';
+          const tipoVivienda = inm.tipo || 'Inmueble';
+          
+          const conceptoTexto = `${actividad} | Nivel: ${metraje} m² | ${tipoVivienda}`;
+          
+          factorTotal += (localFactor * cant);
+          
+          if (localFactor > 0) {
+            if (cant > 1) {
+              for(let i=1; i<=cant; i++) {
+                desgloseLocales.push({
+                  numeracion: `${inm.inmueble || inm.cod_cont} - Unidad ${i}`,
+                  leyenda: conceptoTexto,
+                  factor: localFactor,
+                  montoBs: (Math.trunc((localFactor * data.tcmmv) * 100) / 100).toFixed(2)
+                });
+              }
+            } else {
+              desgloseLocales.push({
+                numeracion: inm.inmueble || inm.cod_cont,
+                leyenda: conceptoTexto,
+                factor: localFactor,
+                montoBs: (Math.trunc((localFactor * data.tcmmv) * 100) / 100).toFixed(2)
+              });
+            }
+          }
+        });
+      } else {
+        if (row.Clasificacion === 'Residencial') {
+          const tipo = ordenanzaData.tiposResidenciales.find(t => t.label === row.TipoResidencia);
+          if (tipo) {
+            factorTotal = tipo.factor;
+            leyenda = `Clasificador de Tasa Residencial: ${tipo.label}`;
+          }
+        } else {
+          const act = todasLasActividades.find(a => a.label === row.ActividadComercial);
+          const nivelIndex = ordenanzaData.nivelesMetraje.indexOf(row.NivelMetraje);
+          if (act && nivelIndex !== -1) {
+            factorTotal = act.factores[nivelIndex];
+            leyenda = `Tasa Com/Ind: ${act.label} (Nivel: ${row.NivelMetraje})`;
+          }
+        }
+      }
+
+      const rawTotal = factorTotal * data.tcmmv;
+      const totalTruncado = (Math.trunc(rawTotal * 100) / 100).toFixed(2);
+
+      return {
+        factor: factorTotal,
+        leyenda,
+        totalBs: totalTruncado,
+        fuente: data.source,
+        desglose: desgloseLocales
+      };
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  };
+
   useEffect(() => {
     if (isViewModalOpen && viewData) {
-      const calcView = async () => {
-        try {
-          const res = await fetch('/api/bcv');
-          const data = await res.json();
-          
-          let factorTotal = 0;
-          let leyenda = '';
-          const desgloseLocales: any[] = [];
-
-          // Encontrar todos los inmuebles asociados a este contribuyente
-          const misInmuebles = inmuebles.filter(i => i.identidad === viewData.Identidad);
-
-          if (misInmuebles.length > 0) {
-            const isCondominio = misInmuebles.some(i => (parseInt(i.cant_inmuebles) || 1) > 1);
-            leyenda = isCondominio ? `Condominio / Complejo Residencial` : misInmuebles.map(i => i.actividad_principal || 'Residencial').join(', ');
-            
-            misInmuebles.forEach(inm => {
-              const localFactor = parseFloat(inm.mmv_mes) || 0;
-              const cant = parseInt(inm.cant_inmuebles) || 1;
-              const metraje = inm.area || inm.area_operativa || 'N/A';
-              const actividad = inm.actividad_principal || 'No especificada';
-              const tipoVivienda = inm.tipo || 'Inmueble';
-              
-              const conceptoTexto = `${actividad} | Nivel: ${metraje} m² | ${tipoVivienda}`;
-              
-              factorTotal += (localFactor * cant);
-              
-              if (localFactor > 0) {
-                if (cant > 1) {
-                  for(let i=1; i<=cant; i++) {
-                    desgloseLocales.push({
-                      numeracion: `${inm.inmueble || inm.cod_cont} - Unidad ${i}`,
-                      leyenda: conceptoTexto,
-                      factor: localFactor,
-                      montoBs: (Math.trunc((localFactor * data.tcmmv) * 100) / 100).toFixed(2)
-                    });
-                  }
-                } else {
-                  desgloseLocales.push({
-                    numeracion: inm.inmueble || inm.cod_cont,
-                    leyenda: conceptoTexto,
-                    factor: localFactor,
-                    montoBs: (Math.trunc((localFactor * data.tcmmv) * 100) / 100).toFixed(2)
-                  });
-                }
-              }
-            });
-          }
-
-          const rawTotal = factorTotal * data.tcmmv;
-          const totalTruncado = (Math.trunc(rawTotal * 100) / 100).toFixed(2);
-
-          setViewCalculo({
-            factor: factorTotal,
-            leyenda,
-            totalBs: totalTruncado,
-            tasaBcv: data.tcmmv,
-            desglose: desgloseLocales
-          });
-        } catch (e) {
-          console.error(e);
-        }
-      };
-      calcView();
+      calculateFactorForRow(viewData).then(detalle => {
+        if (detalle) setViewCalculo(detalle);
+      });
     } else {
       setViewCalculo(null);
     }
-  }, [isViewModalOpen, viewData]);
+  }, [isViewModalOpen, viewData, inmuebles]);
 
   const handleEdit = (row: any) => {
     let telefonoPrefijo = '0414';
@@ -1083,6 +1105,13 @@ function ContribuyentesPageContent() {
               <Edit className="w-4 h-4" />
             </button>
             <button 
+              onClick={() => { setSelectedDebtRow(row); setDebtModalOpen(true); }}
+              className="bg-orange-50 text-orange-600 hover:bg-orange-100 p-1.5 rounded transition-colors"
+              title="Ajustar Deuda"
+            >
+              <Calculator className="w-4 h-4" />
+            </button>
+            <button 
               className={`${hasDebt ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'} p-1.5 rounded transition-colors`}
               title={hasDebt ? `Deuda pendiente: Bs. ${debtAmount}` : 'Solvente'}
             >
@@ -1356,6 +1385,17 @@ function ContribuyentesPageContent() {
             </div>
           </div>
         </div>
+      )}
+      {/* Modal Ajuste Deuda */}
+      {debtModalOpen && selectedDebtRow && (
+        <DebtAdjustmentModal
+          row={selectedDebtRow}
+          inmuebles={inmuebles}
+          tcmmv={viewCalculo?.tasaBcv || 1} // Or fetch it
+          facturas={facturas}
+          setFacturas={setFacturas} // Actually setFacturas is not exported in AppContext in contribuyentes/page.tsx, wait...
+          onClose={() => setDebtModalOpen(false)}
+        />
       )}
     </div>
   );

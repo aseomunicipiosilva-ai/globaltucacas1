@@ -1,15 +1,19 @@
 'use client';
 import React, { useState } from 'react';
 import { DataTable } from '@/components/DataTable';
-import { Building2, Settings, DollarSign, Handshake } from 'lucide-react';
+import { Building2, Settings, DollarSign, Handshake, Calculator } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { UnidadesModal } from '@/components/UnidadesModal';
+import { DebtAdjustmentModal } from '@/components/DebtAdjustmentModal';
 import Link from 'next/link';
 
 export default function CondominiosCOBPage() {
-  const { condominios } = useAppContext();
+  const { condominios, inmuebles, tcmmv, facturas, setFacturas, addAuditLog } = useAppContext();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCondominio, setSelectedCondominio] = useState<{ id: number, nombre: string } | null>(null);
+
+  const [debtModalOpen, setDebtModalOpen] = useState(false);
+  const [selectedDebtRow, setSelectedDebtRow] = useState<any>(null);
 
   const handleOpenModal = (row: any) => {
     setSelectedCondominio({ id: row.id, nombre: row.nombre });
@@ -45,10 +49,11 @@ export default function CondominiosCOBPage() {
             <Settings className="w-4 h-4" />
           </button>
           <button 
-            className={`${hasDebt ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'} p-1.5 rounded transition-colors`}
-            title={hasDebt ? `Deuda pendiente: Bs. ${debtAmount}` : 'Solvente'}
+            onClick={() => { setSelectedDebtRow(row); setDebtModalOpen(true); }}
+            className={`${hasDebt ? 'bg-orange-50 text-orange-600 hover:bg-orange-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'} p-1.5 rounded transition-colors`}
+            title="Ajustar Deuda"
           >
-            <DollarSign className="w-4 h-4" />
+            <Calculator className="w-4 h-4" />
           </button>
           <button 
             className={`${hasAgreement ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-slate-50 text-slate-400 cursor-default'} p-1.5 rounded transition-colors`}
@@ -87,6 +92,18 @@ export default function CondominiosCOBPage() {
           condominioId={selectedCondominio.id} 
           condominioNombre={selectedCondominio.nombre} 
           onClose={() => setModalOpen(false)} 
+        />
+      )}
+
+      {debtModalOpen && selectedDebtRow && (
+        <DebtAdjustmentModal
+          row={selectedDebtRow}
+          inmuebles={inmuebles}
+          tcmmv={tcmmv}
+          facturas={facturas}
+          setFacturas={setFacturas}
+          addAuditLog={addAuditLog}
+          onClose={() => setDebtModalOpen(false)}
         />
       )}
     </div>
