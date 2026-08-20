@@ -14,6 +14,7 @@ export default function ConveniosPagoPage() {
   const [cuotas, setCuotas] = useState(1);
   const [frecuencia, setFrecuencia] = useState('Mensual');
   const [fechaInicio, setFechaInicio] = useState(new Date().toISOString().split('T')[0]);
+  const [mantenerDia, setMantenerDia] = useState(true);
   const [documento, setDocumento] = useState<File | null>(null);
   const [listaCuotas, setListaCuotas] = useState<any[]>([]);
   
@@ -30,28 +31,50 @@ export default function ConveniosPagoPage() {
     if (isNaN(totalBs) || totalBs <= 0) return;
     
     const montoPorCuota = (totalBs / cuotas).toFixed(2);
-    const nuevasCuotas = [];
-    let currentDate = new Date(fechaInicio);
-    // Ajustar zona horaria local para evitar saltos de día
-    currentDate.setMinutes(currentDate.getMinutes() + currentDate.getTimezoneOffset());
+    const nuevasCuotas: any[] = [];
+    const [yearStr, monthStr, dayStr] = fechaInicio.split('-');
+    const baseYear = parseInt(yearStr);
+    const baseMonth = parseInt(monthStr) - 1; // 0-indexed
+    const baseDay = parseInt(dayStr);
     
     for (let i = 0; i < cuotas; i++) {
+      let currentDate = new Date(baseYear, baseMonth, baseDay);
+      let calcMonth = baseMonth;
+
+      if (frecuencia === 'Quincenal') {
+        currentDate = new Date(baseYear, baseMonth, baseDay + (i * 15));
+      } else {
+        if (frecuencia === 'Mensual') {
+          calcMonth = baseMonth + i;
+        } else if (frecuencia === 'Bimestral') {
+          calcMonth = baseMonth + (i * 2);
+        }
+
+        if (mantenerDia) {
+          currentDate = new Date(baseYear, calcMonth, baseDay);
+          // Prevenir salto de mes (ej. 31 feb -> 2 o 3 mar). Ajustar al último día del mes objetivo.
+          if (currentDate.getMonth() !== calcMonth % 12) {
+            currentDate = new Date(baseYear, calcMonth + 1, 0); 
+          }
+        } else {
+          currentDate = new Date(baseYear, baseMonth, baseDay);
+          if (frecuencia === 'Mensual') currentDate.setMonth(currentDate.getMonth() + i);
+          else if (frecuencia === 'Bimestral') currentDate.setMonth(currentDate.getMonth() + (i * 2));
+        }
+      }
+
+      const y = currentDate.getFullYear();
+      const m = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const d = String(currentDate.getDate()).padStart(2, '0');
+      
       nuevasCuotas.push({
         id: i,
-        fecha: currentDate.toISOString().split('T')[0],
+        fecha: `${y}-${m}-${d}`,
         monto: montoPorCuota
       });
-      
-      if (frecuencia === 'Quincenal') {
-        currentDate.setDate(currentDate.getDate() + 15);
-      } else if (frecuencia === 'Mensual') {
-        currentDate.setMonth(currentDate.getMonth() + 1);
-      } else if (frecuencia === 'Bimestral') {
-        currentDate.setMonth(currentDate.getMonth() + 2);
-      }
     }
     setListaCuotas(nuevasCuotas);
-  }, [cuotas, frecuencia, fechaInicio, foundUser]);
+  }, [cuotas, frecuencia, fechaInicio, foundUser, mantenerDia]);
 
   const columns = [
     { key: 'numero', header: 'Nro. Convenio' },
@@ -282,6 +305,10 @@ export default function ConveniosPagoPage() {
                   <div>
                     <label className="block text-xs font-medium text-slate-700 mb-1">Fecha de Inicio de Pago</label>
                     <input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} className="w-full border border-slate-200 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"/>
+                    <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                      <input type="checkbox" checked={mantenerDia} onChange={(e) => setMantenerDia(e.target.checked)} className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                      <span className="text-xs text-slate-600">Mantener el mismo día para las cuotas siguientes</span>
+                    </label>
                   </div>
                   
                   {/* Carga de documento */}
