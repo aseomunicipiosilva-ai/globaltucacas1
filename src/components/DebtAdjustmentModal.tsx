@@ -44,10 +44,10 @@ export function DebtAdjustmentModal({ row, inmuebles, tcmmv, facturas, setFactur
             }
           } else {
             const act = todasLasActividades.find(a => a.label === rowActividadComercial);
-            const nivelIndex = ordenanzaData.nivelesMetraje.indexOf(rowNivelMetraje);
-            if (act && nivelIndex !== -1) {
+            const nivelIndex = Math.max(0, ordenanzaData.nivelesMetraje.indexOf(rowNivelMetraje));
+            if (act) {
               factorTotal = act.factores[nivelIndex];
-              leyenda = `Tasa Com/Ind: ${act.label} (Nivel: ${rowNivelMetraje})`;
+              leyenda = `Tasa Com/Ind: ${act.label} (Nivel: ${rowNivelMetraje || '1 (0-50m2)'})`;
             }
           }
         }

@@ -23,7 +23,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 function ContribuyentesPageContent() {
-  const { inmuebles, contribuyentes, facturas, setFacturas, convenios, updateContribuyente, addContribuyente, addAuditLog } = useAppContext();
+  const { inmuebles, contribuyentes, facturas, setFacturas, convenios, updateContribuyente, addContribuyente, addAuditLog, tcmmv } = useAppContext();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [formData, setFormData] = useState<any>(null);
@@ -1748,7 +1748,7 @@ function ContribuyentesPageContent() {
         <DebtAdjustmentModal
           row={selectedDebtRow}
           inmuebles={inmuebles}
-          tcmmv={viewCalculo?.tasaBcv || 1}
+          tcmmv={tcmmv || viewCalculo?.tasaBcv || 1}
           facturas={facturas}
           setFacturas={setFacturas}
           onClose={() => setDebtModalOpen(false)}
