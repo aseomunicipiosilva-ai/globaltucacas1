@@ -1,27 +1,90 @@
 'use client';
 import { Save, Plus, Edit2, Trash2, Lock, MessageSquare } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 
 export default function DatosContribuyentePage() {
   const [userData, setUserData] = useState({
     nombre: 'Cargando...',
     codigo: 'Cargando...',
     docType: 'V',
-    docNum: 'Cargando...'
+    docNum: 'Cargando...',
+    email: '',
+    telefonoFijo: '',
+    telefonoMovil: '',
+    direccion: '',
+    nombreComercial: '',
+    esCondominio: false
   });
+  
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
-    const nombre = localStorage.getItem('portal_user') || '';
-    const codigo = localStorage.getItem('portal_codigo') || '';
-    const fullDoc = localStorage.getItem('portal_doc') || '';
+    const fetchUserData = async () => {
+      const nombre = localStorage.getItem('portal_user') || '';
+      const codigo = localStorage.getItem('portal_codigo') || '';
+      const fullDoc = localStorage.getItem('portal_doc') || '';
+      
+      setUserData(prev => ({
+        ...prev,
+        nombre,
+        codigo,
+        docType: fullDoc ? fullDoc.charAt(0) : 'V',
+        docNum: fullDoc ? fullDoc.substring(1) : ''
+      }));
+
+      if (fullDoc) {
+        const { data, error } = await supabase
+          .from('inmuebles')
+          .select('*')
+          .eq('identidad', fullDoc)
+          .limit(1)
+          .single();
+          
+        if (data && !error) {
+          setUserData(prev => ({
+            ...prev,
+            email: data.correo_electronico || data.correo || '',
+            telefonoMovil: data.telefono || '',
+            direccion: data.direccion || '',
+            nombreComercial: data.actividad_principal || '',
+            esCondominio: !!(data.actividad_principal?.toLowerCase().includes('condominio'))
+          }));
+        }
+      }
+    };
     
-    setUserData({
-      nombre,
-      codigo,
-      docType: fullDoc ? fullDoc.charAt(0) : 'V',
-      docNum: fullDoc ? fullDoc.substring(1) : ''
-    });
+    fetchUserData();
   }, []);
+
+  const handleSave = async () => {
+    const fullDoc = localStorage.getItem('portal_doc');
+    if (!fullDoc) return;
+    
+    setIsSaving(true);
+    setMessage('');
+    
+    try {
+      const { error } = await supabase
+        .from('inmuebles')
+        .update({
+          correo_electronico: userData.email,
+          telefono: userData.telefonoMovil,
+          direccion: userData.direccion
+        })
+        .eq('identidad', fullDoc);
+        
+      if (error) throw error;
+      setMessage('Datos actualizados correctamente');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      console.error('Error updating data:', error);
+      setMessage('Error al actualizar datos');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-6 relative pb-12">
@@ -35,8 +98,9 @@ export default function DatosContribuyentePage() {
 
       {/* Datos Principales */}
       <div className="bg-white rounded-lg shadow-sm border border-slate-200">
-        <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
+        <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
           <h2 className="font-semibold text-slate-700 uppercase text-sm">DATOS DEL CONTRIBUYENTE</h2>
+          {message && <span className={`text-xs font-medium ${message.includes('Error') ? 'text-red-500' : 'text-green-500'}`}>{message}</span>}
         </div>
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -65,36 +129,36 @@ export default function DatosContribuyentePage() {
 
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1">Teléfono Móvil</label>
-              <input type="text" defaultValue="04126475475" className="w-full text-sm border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+              <input type="text" value={userData.telefonoMovil} onChange={e => setUserData({...userData, telefonoMovil: e.target.value})} className="w-full text-sm border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1">Teléfono Fijo</label>
-              <input type="text" placeholder="Teléfono Fijo" className="w-full text-sm border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+              <input type="text" value={userData.telefonoFijo} onChange={e => setUserData({...userData, telefonoFijo: e.target.value})} placeholder="Teléfono Fijo" className="w-full text-sm border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
             </div>
             <div className="md:col-span-2">
               <label className="block text-xs font-medium text-slate-500 mb-1">Email</label>
-              <input type="email" defaultValue="c.n.ricardo72@gmail.com" className="w-full text-sm border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+              <input type="email" value={userData.email} onChange={e => setUserData({...userData, email: e.target.value})} className="w-full text-sm border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
               <p className="text-[10px] text-red-500 mt-1">Este será el correo de contacto para el sistema.</p>
             </div>
 
             <div className="md:col-span-2">
               <label className="block text-xs font-medium text-slate-500 mb-1">Dirección Fiscal (como aparece en el RIF)</label>
-              <input type="text" defaultValue="Av Hugo Chavez, Sector el Calvario, Casa Numero 05" className="w-full text-sm border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+              <input type="text" value={userData.direccion} onChange={e => setUserData({...userData, direccion: e.target.value})} className="w-full text-sm border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
             </div>
             <div className="md:col-span-2">
               <label className="block text-xs font-medium text-slate-500 mb-1">Nombre Comercial</label>
-              <input type="text" placeholder="Nombre Comercial" className="w-full text-sm border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
+              <input type="text" value={userData.nombreComercial} onChange={e => setUserData({...userData, nombreComercial: e.target.value})} placeholder="Nombre Comercial" className="w-full text-sm border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
             </div>
             
             <div className="md:col-span-4 flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                <input type="checkbox" checked={userData.esCondominio} onChange={e => setUserData({...userData, esCondominio: e.target.checked})} className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
                 <span className="text-sm text-slate-700">Es un Condominio</span>
               </label>
 
-              <button className="px-4 py-2 bg-white border border-[#ff5722] text-[#ff5722] rounded hover:bg-orange-50 text-sm font-medium flex items-center gap-2 transition-colors">
+              <button onClick={handleSave} disabled={isSaving} className="px-4 py-2 bg-white border border-[#ff5722] text-[#ff5722] rounded hover:bg-orange-50 text-sm font-medium flex items-center gap-2 transition-colors disabled:opacity-50">
                 <Save className="w-4 h-4" />
-                Actualizar datos
+                {isSaving ? 'Guardando...' : 'Actualizar datos'}
               </button>
             </div>
           </div>
@@ -147,15 +211,9 @@ export default function DatosContribuyentePage() {
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="px-4 py-3 text-slate-700">Ricardo Nolasco</td>
-                  <td className="px-4 py-3 text-slate-600">Propietario</td>
-                  <td className="px-4 py-3 text-slate-600">04126475475</td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button className="text-slate-400 hover:text-blue-600"><Edit2 className="w-4 h-4" /></button>
-                      <button className="text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
-                    </div>
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-sm text-blue-500">
+                    Ningún dato disponible en esta tabla
                   </td>
                 </tr>
               </tbody>
