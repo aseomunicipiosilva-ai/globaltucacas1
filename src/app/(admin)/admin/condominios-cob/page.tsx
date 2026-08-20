@@ -10,13 +10,13 @@ import Link from 'next/link';
 export default function CondominiosCOBPage() {
   const { condominios, inmuebles, tcmmv, facturas, setFacturas, addAuditLog } = useAppContext();
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedCondominio, setSelectedCondominio] = useState<{ id: number, nombre: string } | null>(null);
+  const [selectedCondominio, setSelectedCondominio] = useState<{ id: number, nombre: string, identidad: string } | null>(null);
 
   const [debtModalOpen, setDebtModalOpen] = useState(false);
   const [selectedDebtRow, setSelectedDebtRow] = useState<any>(null);
 
   const handleOpenModal = (row: any) => {
-    setSelectedCondominio({ id: row.id, nombre: row.nombre });
+    setSelectedCondominio({ id: row.id, nombre: row.nombre, identidad: row.identidad });
     setModalOpen(true);
   };
 
@@ -91,6 +91,7 @@ export default function CondominiosCOBPage() {
         <UnidadesModal 
           condominioId={selectedCondominio.id} 
           condominioNombre={selectedCondominio.nombre} 
+          condominioIdentidad={selectedCondominio.identidad}
           onClose={() => setModalOpen(false)} 
         />
       )}

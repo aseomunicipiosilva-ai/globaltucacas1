@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Edit2, Save, XCircle } from 'lucide-react';
+import { X, Plus, Trash2, Edit2, Save, XCircle, FileText } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import jsPDF from 'jspdf';
+import QRCode from 'qrcode';
+import { useAppContext } from '@/store/AppContext';
 
 interface UnidadesModalProps {
   condominioId: number;
   condominioNombre: string;
+  condominioIdentidad?: string;
   onClose: () => void;
 }
 
@@ -98,6 +102,103 @@ export function UnidadesModal({ condominioId, condominioNombre, onClose }: Unida
     }
   };
 
+  const { facturas } = useAppContext();
+  
+  // Logic to check if the entire Condominio is solvent (no pending invoices)
+  const hasCondominioDebt = React.useMemo(() => {
+    if (!condominioIdentidad) return true; // Default to having debt if we can't verify
+    const pendingFacturas = (facturas || []).filter(
+      (f: any) => f.contribuyente === condominioIdentidad && f.estado === 'Pendiente'
+    );
+    return pendingFacturas.length > 0;
+  }, [facturas, condominioIdentidad]);
+
+  // Helper to load image as base64
+  const loadImage = async (src: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'Anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        } else {
+          reject('No 2d context');
+        }
+      };
+      img.onerror = reject;
+      img.src = src;
+    });
+  };
+
+  const emitirSolvencia = async (unidad: any) => {
+    const isUnitSolvent = !hasCondominioDebt || unidad.estado === 'Solvente';
+    if (!isUnitSolvent) {
+      alert("No se puede emitir solvencia porque la unidad o el condominio presenta deudas pendientes.");
+      return;
+    }
+
+    try {
+      const doc = new jsPDF();
+      
+      // Load Logos
+      let logoAlcaldia = '';
+      let logoIsma = '';
+      try {
+        logoAlcaldia = await loadImage('/logo_alcaldia.png');
+        logoIsma = await loadImage('/logo_isma.png');
+      } catch(e) {
+        console.warn('Could not load logos', e);
+      }
+      
+      if (logoIsma) doc.addImage(logoIsma, 'PNG', 14, 10, 20, 20);
+      if (logoAlcaldia) doc.addImage(logoAlcaldia, 'PNG', 176, 10, 20, 20);
+
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("CERTIFICADO DE SOLVENCIA DE CONDOMINIO", 105, 45, { align: "center" });
+      
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "normal");
+      
+      const fechaActual = new Date().toLocaleDateString('es-VE', { year: 'numeric', month: 'long', day: 'numeric' });
+      
+      const texto = `Se hace constar por medio de la presente que la unidad identificada como "${unidad.numero_unidad}", ` +
+        `perteneciente al condominio "${condominioNombre}" (RIF/CI: ${condominioIdentidad || 'N/A'}) ` +
+        `y registrada bajo la responsabilidad de "${unidad.propietario || 'Propietario No Asignado'}", ` +
+        `se encuentra SOLVENTE con sus obligaciones referentes a la prestación del servicio de Aseo Urbano ` +
+        `hasta la fecha de emisión de este documento.\n\n` +
+        `Este certificado se expide a petición de la parte interesada, a los ${fechaActual}.`;
+        
+      const splitText = doc.splitTextToSize(texto, 170);
+      doc.text(splitText, 20, 70);
+
+      // Generate QR Code
+      const qrData = `Solvencia - Unidad: ${unidad.numero_unidad} - Condominio: ${condominioNombre} - Fecha: ${fechaActual}`;
+      const qrDataUrl = await QRCode.toDataURL(qrData, { margin: 1, width: 100 });
+      doc.addImage(qrDataUrl, 'PNG', 80, 130, 50, 50);
+      
+      doc.setFontSize(8);
+      doc.text("Escanear para verificar validez", 105, 185, { align: 'center' });
+      
+      // Signature lines
+      doc.line(40, 230, 90, 230);
+      doc.text("Firma Autorizada", 65, 235, { align: 'center' });
+      
+      doc.line(120, 230, 170, 230);
+      doc.text("Sello de la Institución", 145, 235, { align: 'center' });
+
+      doc.save(`Solvencia_${unidad.numero_unidad}_${new Date().getTime()}.pdf`);
+    } catch (e: any) {
+      alert("Error al generar PDF de Solvencia: " + e.message);
+      console.error(e);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
@@ -166,7 +267,9 @@ export function UnidadesModal({ condominioId, condominioNombre, onClose }: Unida
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {unidades.map((u) => (
+                    {unidades.map((u) => {
+                      const isUnitSolvent = !hasCondominioDebt || u.estado === 'Solvente';
+                      return (
                       <tr key={u.id} className="hover:bg-slate-50/50">
                         {editingId === u.id ? (
                           <>
@@ -201,6 +304,8 @@ export function UnidadesModal({ condominioId, condominioNombre, onClose }: Unida
                                 value={editForm.estado}
                                 onChange={(e) => setEditForm({...editForm, estado: e.target.value})}
                                 className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                                disabled={!hasCondominioDebt}
+                                title={!hasCondominioDebt ? "El condominio está solvente" : ""}
                               >
                                 <option value="Solvente">Solvente</option>
                                 <option value="Con Deuda">Con Deuda</option>
@@ -228,12 +333,19 @@ export function UnidadesModal({ condominioId, condominioNombre, onClose }: Unida
                             </td>
                             <td className="px-4 py-3">
                               <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                                u.estado === 'Solvente' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                              }`}>
-                                {u.estado}
+                                isUnitSolvent ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                              }`} title={!hasCondominioDebt ? "Automático: Condominio Solvente" : "Manual"}>
+                                {isUnitSolvent ? 'Solvente' : 'Con Deuda'}
                               </span>
                             </td>
                             <td className="px-4 py-3 text-right">
+                              <button 
+                                onClick={() => emitirSolvencia(u)} 
+                                className={`p-1.5 rounded-lg transition-colors mr-1 ${isUnitSolvent ? 'text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50' : 'text-slate-300 cursor-not-allowed'}`}
+                                title={isUnitSolvent ? "Emitir Solvencia PDF" : "La unidad presenta deuda"}
+                              >
+                                <FileText size={16} />
+                              </button>
                               <button onClick={() => iniciarEdicion(u)} className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors mr-1">
                                 <Edit2 size={16} />
                               </button>
@@ -244,7 +356,7 @@ export function UnidadesModal({ condominioId, condominioNombre, onClose }: Unida
                           </>
                         )}
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </div>
