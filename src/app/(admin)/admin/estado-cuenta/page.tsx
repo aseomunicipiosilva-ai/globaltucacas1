@@ -52,33 +52,139 @@ export default function EstadoCuentaPage() {
       try { detalles = JSON.parse(pago.detalles); } catch(e){}
 
       // 3. Update related items
-      const nuevoEstado = accion === 'Aprobar' ? 'Pagado' : 'Pendiente';
-      
-      if (detalles.recibos && detalles.recibos.length > 0) {
-        await supabase.from('facturas').update({ estado: nuevoEstado }).in('referencia', detalles.recibos);
-      }
+      if (accion === 'Rechazar') {
+        // Simple revert to Pendiente
+        if (detalles.recibos && detalles.recibos.length > 0) {
+          await supabase.from('facturas').update({ estado: 'Pendiente' }).in('referencia', detalles.recibos);
+        }
+        if (detalles.cuotas && detalles.cuotas.length > 0) {
+          const { data: convs } = await supabase.from('convenios').select('*');
+          if (convs) {
+            const convMap = new Map();
+            detalles.cuotas.forEach((sc: any) => {
+              if (!convMap.has(sc.convId)) convMap.set(sc.convId, { toUpdate: [] });
+              convMap.get(sc.convId).toUpdate.push(sc.cuotaId);
+            });
+            for (const [cId, data] of convMap.entries()) {
+              const rawConv = convs.find(c => c.id === cId);
+              if (rawConv) {
+                let parsed = [];
+                try { parsed = JSON.parse(rawConv.detalle_cuotas); } catch(e){}
+                parsed.forEach((c: any) => {
+                  if (data.toUpdate.includes(c.id)) c.estado = 'Pendiente';
+                });
+                await supabase.from('convenios').update({ detalle_cuotas: JSON.stringify(parsed) }).eq('id', cId);
+              }
+            }
+          }
+        }
+      } else if (accion === 'Aprobar') {
+        const esAbono = (detalles as any).es_abono === true;
 
-      if (detalles.cuotas && detalles.cuotas.length > 0) {
-        // This is complex as it requires fetching and parsing convenios
-        const { data: convs } = await supabase.from('convenios').select('*');
-        if (convs) {
-          const convMap = new Map();
-          detalles.cuotas.forEach((sc: any) => {
-            if (!convMap.has(sc.convId)) convMap.set(sc.convId, { toUpdate: [] });
-            convMap.get(sc.convId).toUpdate.push(sc.cuotaId);
-          });
-          
-          for (const [cId, data] of convMap.entries()) {
-            const rawConv = convs.find(c => c.id === cId);
-            if (rawConv) {
-              let parsed = [];
-              try { parsed = JSON.parse(rawConv.detalle_cuotas); } catch(e){}
-              parsed.forEach((c: any) => {
-                if (data.toUpdate.includes(c.id)) {
-                  c.estado = nuevoEstado;
+        if (!esAbono) {
+          // Pago completo normal
+          if (detalles.recibos && detalles.recibos.length > 0) {
+            await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', detalles.recibos);
+          }
+          if (detalles.cuotas && detalles.cuotas.length > 0) {
+            const { data: convs } = await supabase.from('convenios').select('*');
+            if (convs) {
+              const convMap = new Map();
+              detalles.cuotas.forEach((sc: any) => {
+                if (!convMap.has(sc.convId)) convMap.set(sc.convId, { toUpdate: [] });
+                convMap.get(sc.convId).toUpdate.push(sc.cuotaId);
+              });
+              for (const [cId, data] of convMap.entries()) {
+                const rawConv = convs.find(c => c.id === cId);
+                if (rawConv) {
+                  let parsed = [];
+                  try { parsed = JSON.parse(rawConv.detalle_cuotas); } catch(e){}
+                  parsed.forEach((c: any) => {
+                    if (data.toUpdate.includes(c.id)) c.estado = 'Pagado';
+                  });
+                  await supabase.from('convenios').update({ detalle_cuotas: JSON.stringify(parsed) }).eq('id', cId);
+                }
+              }
+            }
+          }
+        } else {
+          // LÓGICA DE ABONO (Pago Parcial)
+          let dineroDisponible = parseFloat(pago.monto);
+
+          // 1. Process Facturas first
+          if (detalles.recibos && detalles.recibos.length > 0) {
+            const { data: facturasData } = await supabase.from('facturas').select('*').in('referencia', detalles.recibos).order('emision', { ascending: true });
+            if (facturasData) {
+              for (const f of facturasData) {
+                const montoFac = parseFloat((f.monto || '0').replace(/[^\d.]/g, ''));
+                if (dineroDisponible >= montoFac) {
+                  dineroDisponible -= montoFac;
+                  await supabase.from('facturas').update({ estado: 'Pagado' }).eq('id', f.id);
+                } else if (dineroDisponible > 0) {
+                  const montoRestante = (montoFac - dineroDisponible).toFixed(2);
+                  await supabase.from('facturas').update({ estado: 'Pendiente', monto: `${montoRestante} Bs` }).eq('id', f.id);
+                  dineroDisponible = 0;
+                } else {
+                  await supabase.from('facturas').update({ estado: 'Pendiente' }).eq('id', f.id);
+                }
+              }
+            }
+          }
+
+          // 2. Process Cuotas
+          if (detalles.cuotas && detalles.cuotas.length > 0) {
+            const { data: convs } = await supabase.from('convenios').select('*');
+            if (convs) {
+              // Extract all selected cuotas to sort them by date across all convenios
+              let flatCuotas: any[] = [];
+              detalles.cuotas.forEach((sc: any) => {
+                const rawConv = convs.find(c => c.id === sc.convId);
+                if (rawConv) {
+                  let parsed = [];
+                  try { parsed = JSON.parse(rawConv.detalle_cuotas); } catch(e){}
+                  const cuotaObj = parsed.find((c: any) => c.id === sc.cuotaId);
+                  if (cuotaObj) {
+                    flatCuotas.push({ ...cuotaObj, convId: sc.convId, rawConv });
+                  }
                 }
               });
-              await supabase.from('convenios').update({ detalle_cuotas: JSON.stringify(parsed) }).eq('id', cId);
+
+              // Sort by date oldest first
+              flatCuotas.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
+
+              // Apply dinero
+              const convUpdates = new Map();
+              for (const c of flatCuotas) {
+                const montoC = parseFloat(c.monto || '0');
+                let newEstado = 'Pendiente';
+                let newMonto = c.monto;
+
+                if (dineroDisponible >= montoC) {
+                  dineroDisponible -= montoC;
+                  newEstado = 'Pagado';
+                } else if (dineroDisponible > 0) {
+                  const montoRestante = (montoC - dineroDisponible).toFixed(2);
+                  newEstado = 'Pendiente';
+                  newMonto = `${montoRestante}`;
+                  dineroDisponible = 0;
+                }
+
+                if (!convUpdates.has(c.convId)) {
+                  let parsed = [];
+                  try { parsed = JSON.parse(c.rawConv.detalle_cuotas); } catch(e){}
+                  convUpdates.set(c.convId, parsed);
+                }
+                const parsedList = convUpdates.get(c.convId);
+                const targetCuota = parsedList.find((tc: any) => tc.id === c.id);
+                if (targetCuota) {
+                  targetCuota.estado = newEstado;
+                  targetCuota.monto = newMonto;
+                }
+              }
+
+              for (const [cId, parsed] of convUpdates.entries()) {
+                await supabase.from('convenios').update({ detalle_cuotas: JSON.stringify(parsed) }).eq('id', cId);
+              }
             }
           }
         }

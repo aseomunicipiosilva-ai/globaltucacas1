@@ -122,6 +122,7 @@ export default function CajaPage() {
     if (totalBs <= 0) return alert("Debe seleccionar al menos una deuda a pagar.");
     
     let saldoAFavor = 0;
+    let esAbono = false;
     let montoReal = totalBs;
 
     if (paymentMethod === 'Transferencia') {
@@ -132,16 +133,17 @@ export default function CajaPage() {
       if (isNaN(transferido) || transferido <= 0) return alert("Debe ingresar un monto transferido válido.");
       
       if (transferido < totalBs) {
-        return alert("El monto transferido no puede ser menor al total seleccionado.");
-      }
-      
-      if (transferido > totalBs) {
+        esAbono = true;
+        montoReal = transferido;
+      } else if (transferido > totalBs) {
         saldoAFavor = transferido - totalBs;
+        montoReal = transferido;
+      } else {
         montoReal = transferido;
       }
     }
     
-    if (!confirm(`¿Confirmar pago por Bs. ${montoReal.toFixed(2)}${saldoAFavor > 0 ? ` (Generará un Saldo a Favor de Bs. ${saldoAFavor.toFixed(2)})` : ''} mediante ${paymentMethod}?`)) return;
+    if (!confirm(`¿Confirmar pago por Bs. ${montoReal.toFixed(2)}${saldoAFavor > 0 ? ` (Generará un Saldo a Favor de Bs. ${saldoAFavor.toFixed(2)})` : ''}${esAbono ? ` (Es un ABONO. Quedará un saldo pendiente de Bs. ${(totalBs - montoReal).toFixed(2)})` : ''} mediante ${paymentMethod}?`)) return;
 
     setIsProcessing(true);
     
@@ -193,7 +195,9 @@ export default function CajaPage() {
           detalles: JSON.stringify({ 
             recibos: selectedRecibos, 
             cuotas: selectedCuotas,
-            saldo_favor: saldoAFavor 
+            saldo_favor: saldoAFavor,
+            es_abono: esAbono,
+            total_seleccionado: totalBs
           })
         });
         
@@ -423,6 +427,11 @@ export default function CajaPage() {
                     {parseFloat(montoTransferido) > totalBs && (
                       <p className="text-[10px] text-emerald-600 mt-1 font-bold">
                         * Se generará un saldo a favor de Bs. {(parseFloat(montoTransferido) - totalBs).toFixed(2)}
+                      </p>
+                    )}
+                    {(parseFloat(montoTransferido) > 0 && parseFloat(montoTransferido) < totalBs) && (
+                      <p className="text-[10px] text-orange-600 mt-1 font-bold">
+                        * Es un ABONO. Quedará un saldo pendiente de Bs. {(totalBs - parseFloat(montoTransferido)).toFixed(2)}
                       </p>
                     )}
                   </label>
