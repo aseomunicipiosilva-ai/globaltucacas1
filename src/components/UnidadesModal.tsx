@@ -12,7 +12,7 @@ interface UnidadesModalProps {
   onClose: () => void;
 }
 
-export function UnidadesModal({ condominioId, condominioNombre, onClose }: UnidadesModalProps) {
+export function UnidadesModal({ condominioId, condominioNombre, condominioIdentidad, onClose }: UnidadesModalProps) {
   const [unidades, setUnidades] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [nuevaUnidad, setNuevaUnidad] = useState('');
