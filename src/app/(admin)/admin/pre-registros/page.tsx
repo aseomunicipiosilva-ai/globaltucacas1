@@ -23,19 +23,19 @@ export default function PreRegistrosPage() {
 
   const calculateFactor = (row: any) => {
     let factor = 0;
-    if (row.clasificacion === 'Residencial') {
+    if (row.tipo === 'Residencial') {
        const t = ordenanzaData.tiposResidenciales.find(x => x.label === row.actividad);
        if (t) factor = t.factor;
-    } else if (row.clasificacion === 'Industrial') {
+    } else if (row.tipo === 'Industrial') {
        const t = ordenanzaData.actividadesIndustriales.find(x => x.label === row.actividad);
        if (t) {
-          const nivelIdx = ordenanzaData.nivelesMetraje.indexOf(row.nivel);
+          const nivelIdx = ordenanzaData.nivelesMetraje.indexOf(row.codigo);
           if(nivelIdx >= 0 && t.factores.length > nivelIdx) factor = t.factores[nivelIdx];
        }
     } else {
        const t = ordenanzaData.actividadesComerciales.find(x => x.label === row.actividad);
        if (t) {
-          const nivelIdx = ordenanzaData.nivelesMetraje.indexOf(row.nivel);
+          const nivelIdx = ordenanzaData.nivelesMetraje.indexOf(row.codigo);
           if(nivelIdx >= 0 && t.factores.length > nivelIdx) factor = t.factores[nivelIdx];
        }
     }
@@ -60,13 +60,13 @@ export default function PreRegistrosPage() {
       const inmuebleData = {
         identidad: rowToApprove.identidad,
         contribuyente: rowToApprove.contribuyente,
-        telefono: rowToApprove.telefono,
-        correo_electronico: rowToApprove.correo_electronico,
-        direccion: rowToApprove.direccion,
+        telefono: rowToApprove.registro || '', // Read telefono from registro
+        correo_electronico: '', // We don't have this mapped anymore
+        direccion: '', // We don't have this mapped anymore
         cod_cont: codCont,
-        clasificacion: rowToApprove.clasificacion,
+        clasificacion: rowToApprove.tipo, // Read clasificacion from tipo
         actividad_principal: rowToApprove.actividad,
-        inmueble: rowToApprove.tipo || 'Principal',
+        inmueble: 'Principal', // default since we re-used tipo
         deuda_mmv: deudaMMV,
         deuda_congelada_bs: 0
       };
@@ -122,9 +122,9 @@ export default function PreRegistrosPage() {
     { key: 'id', header: 'Ítem' },
     { key: 'identidad', header: 'Identidad' },
     { key: 'contribuyente', header: 'Contribuyente' },
-    { key: 'clasificacion', header: 'Clasificación' },
+    { key: 'tipo', header: 'Clasificación' },
     { key: 'actividad', header: 'Actividad P.' },
-    { key: 'nivel', header: 'Metraje' },
+    { key: 'codigo', header: 'Metraje' },
     {
       key: 'acciones',
       header: 'Acciones',
@@ -184,9 +184,9 @@ export default function PreRegistrosPage() {
             <div className="p-6 space-y-6">
               <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 space-y-2">
                 <p className="text-sm"><span className="font-semibold text-slate-700">Contribuyente:</span> {rowToApprove.contribuyente} ({rowToApprove.identidad})</p>
-                <p className="text-sm"><span className="font-semibold text-slate-700">Clasificación:</span> {rowToApprove.clasificacion}</p>
+                <p className="text-sm"><span className="font-semibold text-slate-700">Clasificación:</span> {rowToApprove.tipo}</p>
                 <p className="text-sm"><span className="font-semibold text-slate-700">Actividad:</span> {rowToApprove.actividad}</p>
-                <p className="text-sm"><span className="font-semibold text-slate-700">Nivel/Metraje:</span> {rowToApprove.nivel}</p>
+                <p className="text-sm"><span className="font-semibold text-slate-700">Nivel/Metraje:</span> {rowToApprove.codigo}</p>
               </div>
 
               <div className="space-y-4">

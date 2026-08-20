@@ -53,13 +53,10 @@ export default function RegistroPublico() {
       const dataToSave = {
         identidad: finalIdentidad,
         contribuyente: formData.Contribuyente,
-        telefono: finalTelefono,
-        correo_electronico: finalCorreo,
-        direccion: finalDireccion,
-        clasificacion: formData.Clasificacion,
+        registro: finalTelefono, // Map telefono to registro
+        tipo: formData.Clasificacion, // Map clasificacion to tipo
         actividad: finalActividad,
-        nivel: formData.NivelMetraje,
-        tipo: 'Principal',
+        codigo: formData.NivelMetraje, // Map nivel to codigo
         registrado: new Date().toISOString()
       };
 
