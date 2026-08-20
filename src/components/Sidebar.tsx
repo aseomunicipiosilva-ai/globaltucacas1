@@ -22,6 +22,7 @@ export default function Sidebar() {
     { icon: Calculator, name: 'Cálculo y Proyección', href: '/admin/calculo' },
     { icon: Briefcase, name: 'Caja / Pagos', href: '/admin/caja' },
     { icon: FileSpreadsheet, name: 'Facturación / Estado de Cuenta', href: '/admin/estado-cuenta' },
+    { icon: PieChart, name: 'Reportes Generales', href: '/admin/reportes' },
     { icon: Clock, name: 'Cuentas Por Facturar', href: '/admin/por-facturar' },
     { icon: Handshake, name: 'Convenios de Pago', href: '/admin/convenios-pago' },
     { icon: Award, name: 'Certificados Emitidos', href: '/admin/certificados' },

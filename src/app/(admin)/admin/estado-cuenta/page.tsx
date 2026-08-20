@@ -18,6 +18,11 @@ export default function EstadoCuentaPage() {
   const [pagosVerificar, setPagosVerificar] = useState<any[]>([]);
   const [loadingPagos, setLoadingPagos] = useState(false);
 
+  const [filterStatus, setFilterStatus] = useState('Todos');
+  const [actionModal, setActionModal] = useState<{ isOpen: boolean, action: 'Anular' | 'Reversar', factura: any, nota: string }>({ isOpen: false, action: 'Anular', factura: null, nota: '' });
+  
+  const filteredFacturas = facturas.filter((f: any) => filterStatus === 'Todos' || f.estado === filterStatus);
+
   const fetchPagos = async () => {
     setLoadingPagos(true);
     try {
@@ -365,6 +370,27 @@ export default function EstadoCuentaPage() {
     window.location.reload();
   };
 
+  const handleActionSubmit = async () => {
+    if (!actionModal.factura || !actionModal.nota.trim()) {
+      alert("Debes ingresar un comentario obligatorio.");
+      return;
+    }
+    try {
+      const { error } = await supabase.from('facturas').update({
+        estado: actionModal.action === 'Anular' ? 'Anulado' : 'Reversado',
+        nota: actionModal.nota
+      }).eq('id', actionModal.factura.id);
+      
+      if (error) throw error;
+      
+      alert(`Factura ${actionModal.action.toLowerCase()}a correctamente.`);
+      setActionModal({ isOpen: false, action: 'Anular', factura: null, nota: '' });
+      window.location.reload(); // Quick refresh to reflect changes, or context refresh
+    } catch (e: any) {
+      alert("Error: " + e.message);
+    }
+  };
+
   const columns = [
     { key: 'referencia', header: 'Nro. Factura' },
     { key: 'contribuyente', header: 'Contribuyente' },
@@ -372,18 +398,42 @@ export default function EstadoCuentaPage() {
     { key: 'estado', header: 'Estado', render: (row: any) => (
       <span className={`px-2 py-1 rounded text-xs font-semibold ${
         row.estado === 'Pagado' ? 'bg-green-100 text-green-700' :
-        row.estado === 'Pendiente' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+        row.estado === 'Pendiente' ? 'bg-yellow-100 text-yellow-700' :
+        row.estado === 'Anulado' ? 'bg-red-100 text-red-700' :
+        row.estado === 'Reversado' ? 'bg-orange-100 text-orange-700' :
+        'bg-slate-100 text-slate-700'
       }`}>{row.estado}</span>
     ) },
     { key: 'emision', header: 'F. Emisión' },
     { key: 'vencimiento', header: 'F. Vencimiento' },
     { key: 'actions', header: 'Acciones', render: (row: any) => (
-      <button 
-        onClick={() => handleOpenRecibo(row)}
-        className="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded text-xs flex items-center gap-2 transition-colors font-medium border border-blue-200"
-      >
-        <Printer size={14} /> Recibo
-      </button>
+      <div className="flex gap-2">
+        <button 
+          onClick={() => handleOpenRecibo(row)}
+          className="bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded text-xs flex items-center gap-2 transition-colors font-medium border border-blue-200"
+          title="Ver Recibo"
+        >
+          <Printer size={14} />
+        </button>
+        {(row.estado === 'Pendiente' || row.estado === 'Pagado') && (
+          <>
+            <button 
+              onClick={() => setActionModal({ isOpen: true, action: 'Reversar', factura: row, nota: '' })}
+              className="bg-orange-50 text-orange-600 hover:bg-orange-100 px-3 py-1.5 rounded text-xs transition-colors font-medium border border-orange-200"
+              title="Reversar Factura"
+            >
+              Reversar
+            </button>
+            <button 
+              onClick={() => setActionModal({ isOpen: true, action: 'Anular', factura: row, nota: '' })}
+              className="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded text-xs transition-colors font-medium border border-red-200"
+              title="Anular Factura"
+            >
+              Anular
+            </button>
+          </>
+        )}
+      </div>
     ) }
   ];
 
@@ -412,11 +462,24 @@ export default function EstadoCuentaPage() {
       {activeTab === 'General' && (
         <>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-        <div className="flex items-center gap-2">
-          <FileSpreadsheet className="w-5 h-5 text-slate-700" />
-          <h1 className="text-lg font-semibold text-slate-800 uppercase tracking-wide">
-            Estado de Cuenta General
-          </h1>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <FileSpreadsheet className="w-5 h-5 text-slate-700" />
+            <h1 className="text-lg font-semibold text-slate-800 uppercase tracking-wide">
+              Estado de Cuenta General
+            </h1>
+          </div>
+          <select 
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="border border-slate-200 rounded-md px-3 py-1.5 text-sm bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="Todos">Todos los Estados</option>
+            <option value="Pendiente">Pendiente</option>
+            <option value="Pagado">Pagado (Conciliado)</option>
+            <option value="Anulado">Anulado</option>
+            <option value="Reversado">Reversado</option>
+          </select>
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
@@ -452,7 +515,62 @@ export default function EstadoCuentaPage() {
           </button>
           </div>
         </div>
-        <DataTable data={facturas} columns={columns} itemsPerPage={10} />
+        
+        {/* ACTION MODAL */}
+        {actionModal.isOpen && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-in zoom-in-95 duration-200">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className={`text-xl font-bold ${actionModal.action === 'Anular' ? 'text-red-700' : 'text-orange-700'}`}>
+                  {actionModal.action} Factura
+                </h2>
+                <button 
+                  onClick={() => setActionModal({ isOpen: false, action: 'Anular', factura: null, nota: '' })} 
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="bg-slate-50 p-4 rounded-lg mb-4 text-sm text-slate-700">
+                <p><strong>Nro. Factura:</strong> {actionModal.factura.referencia}</p>
+                <p><strong>Contribuyente:</strong> {actionModal.factura.contribuyente}</p>
+                <p><strong>Monto:</strong> {actionModal.factura.monto}</p>
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-slate-700">
+                  Comentario / Motivo (Obligatorio) *
+                </label>
+                <textarea 
+                  value={actionModal.nota}
+                  onChange={(e) => setActionModal(prev => ({ ...prev, nota: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] resize-none"
+                  placeholder={`Por favor describe por qué se está ${actionModal.action.toLowerCase()}ndo esta factura...`}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button 
+                  onClick={() => setActionModal({ isOpen: false, action: 'Anular', factura: null, nota: '' })} 
+                  className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleActionSubmit}
+                  className={`px-4 py-2 text-sm font-bold text-white rounded-lg transition-colors shadow-sm ${
+                    actionModal.action === 'Anular' ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-600 hover:bg-orange-700'
+                  }`}
+                >
+                  Confirmar {actionModal.action}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <DataTable data={filteredFacturas} columns={columns} itemsPerPage={10} />
       </>
       )}
 
