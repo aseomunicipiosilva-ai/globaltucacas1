@@ -173,7 +173,28 @@ function ContribuyentesPageContent() {
     }
   };
 
-  const imprimirEstadoDeCuenta = () => {
+  const loadImage = async (src: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'Anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        } else {
+          reject('No 2d context');
+        }
+      };
+      img.onerror = reject;
+      img.src = src;
+    });
+  };
+
+  const imprimirEstadoDeCuenta = async () => {
     if (!viewData) return;
     const deudas = (facturas || [])
       .filter((f: any) => f.contribuyente === viewData.Contribuyente || f.contribuyente === viewData.Identidad)
@@ -182,13 +203,17 @@ function ContribuyentesPageContent() {
     const doc = new jsPDF();
     
     // Add Logos
-    const logoIsma = new Image();
-    logoIsma.src = '/logo_isma.png';
-    try { doc.addImage(logoIsma, 'PNG', 14, 10, 20, 20); } catch(e){}
+    let logoAlcaldia = '';
+    let logoIsma = '';
+    try {
+      logoAlcaldia = await loadImage('/logo_alcaldia.png');
+      logoIsma = await loadImage('/logo_isma.png');
+    } catch(e) {
+      console.warn('Could not load logos', e);
+    }
     
-    const logoAlcaldia = new Image();
-    logoAlcaldia.src = '/logo_alcaldia.png';
-    try { doc.addImage(logoAlcaldia, 'PNG', 176, 10, 20, 20); } catch(e){}
+    if (logoIsma) doc.addImage(logoIsma, 'PNG', 14, 10, 20, 20);
+    if (logoAlcaldia) doc.addImage(logoAlcaldia, 'PNG', 176, 10, 20, 20);
 
     // Title & Taxpayer Info
     doc.setFontSize(16);
@@ -213,17 +238,22 @@ function ContribuyentesPageContent() {
 
     tableData.push(["", "", "TOTAL DEUDA:", `${totalBs.toFixed(2)} Bs.`]);
 
-    (doc as any).autoTable({
-      startY: 65,
-      head: [['Referencia', 'Emisión', 'Vencimiento', 'Monto']],
-      body: tableData,
-      theme: 'striped',
-      headStyles: { fillColor: [220, 38, 38] }, // Red for debt
-      styles: { fontSize: 9 },
-      columnStyles: { 3: { halign: 'right', fontStyle: 'bold' } }
-    });
+    try {
+      autoTable(doc, {
+        startY: 65,
+        head: [['Referencia', 'Emisión', 'Vencimiento', 'Monto']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [220, 38, 38] }, // Red for debt
+        styles: { fontSize: 9 },
+        columnStyles: { 3: { halign: 'right', fontStyle: 'bold' } }
+      });
 
-    doc.save(`Estado_Cuenta_${viewData.Identidad}_${new Date().getTime()}.pdf`);
+      doc.save(`Estado_Cuenta_${viewData.Identidad}_${new Date().getTime()}.pdf`);
+    } catch (e: any) {
+      alert("Error al exportar PDF: " + e.message);
+      console.error(e);
+    }
   };
 
   const exportarExcelContribuyentes = () => {
