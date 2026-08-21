@@ -1,7 +1,12 @@
 'use client';
 import { useState } from 'react';
-import { Users, Save, ArrowLeft, Plus, Shield, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Users, Save, ArrowLeft, Plus, Shield, ShieldAlert, ShieldCheck, AlertCircle } from 'lucide-react';
 import { DataTable } from '@/components/DataTable';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const defaultPermissions = {
   crear_contribuyente: false,
@@ -14,26 +19,32 @@ const defaultPermissions = {
 };
 
 export default function TrabajadoresPage() {
-  const [trabajadores, setTrabajadores] = useState([
-    {
-      id: '1',
-      nombre: 'Admin Principal',
-      cedula: 'V-12345678',
-      correo: 'admin@globalgreen.com',
-      usuario: 'admin',
-      rol: 'Administrador',
-      estado: 'Activo',
-      permisos: {
-        crear_contribuyente: true,
-        editar_contribuyente: true,
-        borrar_contribuyente: true,
-        gestionar_pagos: true,
-        anular_pagos: true,
-        ver_reportes: true,
-        gestionar_usuarios: true,
+  const [trabajadores, setTrabajadores] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    fetchTrabajadores();
+  }, []);
+
+  const fetchTrabajadores = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.from('trabajadores').select('*').order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      if (data) {
+        setTrabajadores(data);
       }
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg('Error al cargar trabajadores: ' + err.message);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  };
   
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<any>(null);
@@ -45,7 +56,7 @@ export default function TrabajadoresPage() {
 
   const handleAdd = () => {
     setFormData({
-      id: Date.now().toString(),
+      id: null,
       nombre: '',
       cedula: '',
       correo: '',
@@ -56,16 +67,44 @@ export default function TrabajadoresPage() {
       permisos: { ...defaultPermissions }
     });
     setIsEditing(true);
+    setErrorMsg('');
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if(trabajadores.find(t => t.id === formData.id)) {
-      setTrabajadores(trabajadores.map(t => t.id === formData.id ? formData : t));
-    } else {
-      setTrabajadores([formData, ...trabajadores]);
+    setIsSaving(true);
+    setErrorMsg('');
+
+    try {
+      const payload = {
+        nombre: formData.nombre,
+        cedula: formData.cedula,
+        correo: formData.correo,
+        usuario: formData.usuario,
+        clave: formData.clave,
+        rol: formData.rol,
+        estado: formData.estado,
+        permisos: formData.permisos
+      };
+
+      if(formData.id) {
+        // Update
+        const { error } = await supabase.from('trabajadores').update(payload).eq('id', formData.id);
+        if (error) throw error;
+      } else {
+        // Insert
+        const { error } = await supabase.from('trabajadores').insert([payload]);
+        if (error) throw error;
+      }
+
+      await fetchTrabajadores();
+      setIsEditing(false);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg('Error al guardar: ' + err.message);
+    } finally {
+      setIsSaving(false);
     }
-    setIsEditing(false);
   };
 
   const handleRoleChange = (role: string) => {
@@ -234,9 +273,16 @@ export default function TrabajadoresPage() {
               </div>
             </div>
 
+            {errorMsg && (
+              <div className="bg-red-50 text-red-600 p-3 rounded text-sm mb-4 border border-red-200">
+                {errorMsg}
+              </div>
+            )}
+
             <div className="flex justify-end pt-4">
-              <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow flex items-center gap-2 font-medium transition-colors">
-                <Save className="w-4 h-4" /> Guardar Trabajador
+              <button type="submit" disabled={isSaving} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow flex items-center gap-2 font-medium transition-colors disabled:opacity-50">
+                {isSaving ? <AlertCircle className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} 
+                {isSaving ? 'Guardando...' : 'Guardar Trabajador'}
               </button>
             </div>
           </div>
@@ -255,12 +301,22 @@ export default function TrabajadoresPage() {
           </h1>
         </div>
         
-        <button onClick={handleAdd} className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 shadow-sm">
+        <button onClick={handleAdd} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow text-sm font-medium flex items-center gap-2 transition-colors">
           <Plus className="w-4 h-4" /> Nuevo Trabajador
         </button>
       </div>
+      
+      {errorMsg && (
+        <div className="bg-red-50 text-red-600 p-3 rounded text-sm mb-4 border border-red-200">
+          {errorMsg}
+        </div>
+      )}
 
-      <DataTable data={trabajadores} columns={columns} itemsPerPage={10} />
+      {loading ? (
+        <div className="text-center py-10 text-slate-500">Cargando trabajadores...</div>
+      ) : (
+        <DataTable data={trabajadores} columns={columns} itemsPerPage={10} />
+      )}
     </div>
   );
 }
