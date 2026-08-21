@@ -633,7 +633,8 @@ function ContribuyentesPageContent() {
 
       // Insert new factura for the new balance if > 0
       if (deudaMMV > 0) {
-        const tasaToUse = customDebtBcvRate ? parseFloat(customDebtBcvRate.replace(',', '.')) : (calculoDetalle.tasaBcv || 1);
+        const tasaOficial = bcvRate ? parseFloat(bcvRate.replace(',', '.')) : 1;
+        const tasaToUse = customDebtBcvRate ? parseFloat(customDebtBcvRate.replace(',', '.')) : tasaOficial;
         const montoBs = (deudaMMV * tasaToUse).toFixed(2);
         
         const facturaData = {
@@ -1269,11 +1270,11 @@ function ContribuyentesPageContent() {
                     <p className="mb-1"><span className="font-semibold text-slate-700">Factor Multiplicador (Ordenanza):</span> {calculoDetalle.factor} TCMMV-BCV</p>
                   </div>
                   <div>
-                    <p className="mb-1"><span className="font-semibold text-slate-700">Tasa de Cambio Oficial:</span> {calculoDetalle.tasaBcv} Bs/EUR</p>
+                    <p className="mb-1"><span className="font-semibold text-slate-700">Tasa de Cambio Oficial:</span> {bcvRate} Bs/EUR</p>
                     <p className="text-[10px] text-slate-400 italic mb-1">Fuente: {calculoDetalle.fuente} al {new Date().toLocaleDateString()}</p>
                   </div>
                   <div className="md:col-span-2 pt-2 border-t border-slate-100 flex justify-between items-center">
-                    <p className="text-xs font-medium">Fórmula: {calculoDetalle.factor} × {calculoDetalle.tasaBcv} Bs</p>
+                    <p className="text-xs font-medium">Fórmula: {calculoDetalle.factor} × {bcvRate} Bs</p>
                     <div className="flex items-center gap-4">
                       <p className="text-lg font-bold text-green-700">Total Mensual: Bs. {calculoDetalle.totalBs}</p>
                       {!isNew && (
@@ -1367,19 +1368,19 @@ function ContribuyentesPageContent() {
                       type="number" 
                       step="0.01"
                       min="0"
-                      placeholder={`Tasa Oficial: ${calculoDetalle.tasaBcv}`}
+                      placeholder={`Tasa Oficial: ${bcvRate || 1}`}
                       value={customDebtBcvRate} 
                       onChange={(e) => setCustomDebtBcvRate(e.target.value)}
                       className="w-full border-2 border-slate-200 rounded-lg px-4 py-2 font-semibold text-slate-700 focus:border-orange-500 outline-none"
                     />
-                    <p className="text-[10px] text-slate-500 mt-1">Si dejas esto en blanco, se usará la tasa oficial ({calculoDetalle.tasaBcv} Bs).</p>
+                    <p className="text-[10px] text-slate-500 mt-1">Si dejas esto en blanco, se usará la tasa oficial ({bcvRate || 1} Bs).</p>
                   </div>
 
                   <div className="flex justify-between items-center bg-orange-50 p-4 rounded-lg border border-orange-200 shadow-inner">
                     <span className="font-bold text-orange-800">Nueva Deuda Total:</span>
                     <div className="text-right">
                       <span className="block font-black text-orange-600 text-2xl">{(calculoDetalle.factor * debtMonths).toFixed(2)} MMV</span>
-                      <span className="block text-xs font-semibold text-orange-700 mt-1">≈ Bs. {(calculoDetalle.factor * debtMonths * (customDebtBcvRate ? parseFloat(customDebtBcvRate.replace(',', '.')) : (calculoDetalle.tasaBcv || 1))).toFixed(2)}</span>
+                      <span className="block text-xs font-semibold text-orange-700 mt-1">≈ Bs. {(calculoDetalle.factor * debtMonths * (customDebtBcvRate ? parseFloat(customDebtBcvRate.replace(',', '.')) : (bcvRate ? parseFloat(bcvRate.replace(',', '.')) : 1))).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
