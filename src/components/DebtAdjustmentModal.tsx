@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Calculator, X, AlertCircle } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
-import { ordenanzaData } from '@/data/ordenanza';
+import { useAppContext } from '@/store/AppContext';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export function DebtAdjustmentModal({ row, inmuebles, tcmmv, facturas, setFacturas, onClose, addAuditLog }: any) {
+  const { ordenanzasConfig: ordenanzaData } = useAppContext();
   const [debtMonths, setDebtMonths] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [calculoDetalle, setCalculoDetalle] = useState<any>(null);

@@ -14,6 +14,7 @@ type AppState = {
   reclamos: any[];
   convenios: any[];
   preLiquidaciones: any[];
+  ordenanzasConfig: typeof ordenanzaData;
   tcmmv: number;
   isLoading: boolean;
   setInmuebles: (inmuebles: any[]) => void;
@@ -39,6 +40,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [reclamos, setReclamos] = useState<any[]>([]);
   const [convenios, setConvenios] = useState<any[]>([]);
   const [preLiquidaciones, setPreLiquidaciones] = useState<any[]>([]);
+  const [ordenanzasConfig, setOrdenanzasConfig] = useState<any>(ordenanzaData);
   const [tcmmv, setTcmmv] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -55,6 +57,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         { data: dbReclamos },
         { data: dbConvenios },
         { data: dbPreLiquidaciones },
+        { data: dbConfig },
         apiBcv
       ] = await Promise.all([
         supabase.from('inmuebles').select('*'),
@@ -66,8 +69,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         supabase.from('reclamos').select('*'),
         supabase.from('convenios').select('*'),
         supabase.from('pre_liquidaciones').select('*'),
+        supabase.from('sistema_config').select('valor').eq('id', 'tarifas_ordenanza').single(),
         fetch('/api/bcv').then(res => res.json()).catch(() => ({ tcmmv: 0 }))
       ]);
+
+      if (dbConfig && dbConfig.valor) {
+        setOrdenanzasConfig(dbConfig.valor);
+      } else {
+        setOrdenanzasConfig(ordenanzaData); // fallback
+      }
 
       const bcvData = apiBcv as any;
       const currentTcmmv = bcvData?.tcmmv || 0;
@@ -167,6 +177,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           telefono: data.Telefono,
           correo_electronico: data.Correo,
           direccion: data.DireccionExacta ? `${data.Direccion} | Exacta: ${data.DireccionExacta}` : data.Direccion,
+          clasificacion: data.Clasificacion || 'Residencial',
+          actividad_principal: data.Clasificacion === 'Residencial' ? data.TipoResidencia : data.ActividadComercial,
+          mmv_mes: calcularMmvMes(data, ordenanzasConfig)
         })
         .eq('identidad', id);
         
@@ -186,12 +199,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const calcularMmvMes = (localOrData: any, config: any) => {
+    let mmv = 0;
+    const clasificacion = localOrData.uso || localOrData.Clasificacion || 'Residencial';
+    
+    if (clasificacion === 'Residencial') {
+      const tipo = localOrData.tipoResidencia || localOrData.TipoResidencia;
+      const tarifa = config.tiposResidenciales?.find((t: any) => t.label === tipo);
+      if (tarifa) mmv = tarifa.factor;
+    } else {
+      const act = localOrData.actividad || localOrData.ActividadComercial;
+      const tarifa = config.actividadesComerciales?.find((t: any) => t.label === act) || 
+                     config.actividadesIndustriales?.find((t: any) => t.label === act);
+      
+      if (tarifa && tarifa.factores) {
+        const nivel = localOrData.nivel || localOrData.NivelMetraje;
+        const index = config.nivelesMetraje?.indexOf(nivel) ?? 0;
+        if (index >= 0 && index < tarifa.factores.length) {
+          mmv = tarifa.factores[index];
+        } else {
+          mmv = tarifa.factores[0];
+        }
+      }
+    }
+    return mmv;
+  };
+
   const addContribuyente = async (data: any) => {
     try {
-      // Create random ID for cod_cont if it doesn't exist
       const codCont = data.CodCont || `N-${Math.floor(Math.random() * 100000)}`;
-      
-      // We must insert into 'inmuebles' because that's our master table
       const rowsToInsert = [];
       
       if (data.isCondominio && data.locales && data.locales.length > 0) {
@@ -205,7 +241,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             cod_cont: codCont,
             clasificacion: local.uso === 'Comercial' ? 'Comercial' : 'Residencial',
             actividad_principal: local.uso === 'Comercial' ? local.actividad : (local.tipoResidencia || 'No aplica'),
-            inmueble: local.numeracion
+            inmueble: local.numeracion,
+            mmv_mes: calcularMmvMes(local, ordenanzasConfig)
           });
         });
       } else {
@@ -218,7 +255,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           cod_cont: codCont,
           clasificacion: data.Clasificacion || 'Residencial',
           actividad_principal: data.Clasificacion === 'Residencial' ? data.TipoResidencia : data.ActividadComercial,
-          inmueble: 'Principal'
+          inmueble: 'Principal',
+          mmv_mes: calcularMmvMes(data, ordenanzasConfig)
         });
       }
       
@@ -289,6 +327,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       reclamos,
       convenios,
       preLiquidaciones,
+      ordenanzasConfig,
       tcmmv,
       isLoading,
       setInmuebles,

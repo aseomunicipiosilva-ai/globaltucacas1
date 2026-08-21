@@ -1,19 +1,21 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { Save, AlertCircle, CheckCircle, Calendar, MapPin, Calculator } from 'lucide-react';
-import { ordenanzaData } from '@/data/ordenanza';
+import { useAppContext } from '@/store/AppContext';
 import Select from 'react-select';
 import { createClient } from '@supabase/supabase-js';
 import dynamic from 'next/dynamic';
 
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
 
-const todasLasActividades = [...ordenanzaData.actividadesComerciales, ...ordenanzaData.actividadesIndustriales];
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function CensoMobilePage() {
+  const { ordenanzasConfig: ordenanzaData } = useAppContext();
+  const todasLasActividades = [...ordenanzaData.actividadesComerciales, ...ordenanzaData.actividadesIndustriales];
+
   const [operador, setOperador] = useState<string>('Operador');
   
   useEffect(() => {

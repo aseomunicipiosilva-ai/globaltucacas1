@@ -1,9 +1,10 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
-import { ordenanzaData } from '@/data/ordenanza';
+import { useAppContext } from '@/store/AppContext';
 import { Calculator, Building, Home, Coins, Search, Filter } from 'lucide-react';
 
 export default function TarifasPage() {
+  const { ordenanzasConfig: ordenanzaData } = useAppContext();
   const [bcvRate, setBcvRate] = useState<number | null>(null);
   const [bcvDate, setBcvDate] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);

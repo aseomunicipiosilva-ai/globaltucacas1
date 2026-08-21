@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Building2, UserPlus, CheckCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { ordenanzaData } from '@/data/ordenanza';
+import { useAppContext } from '@/store/AppContext';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -12,6 +12,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function RegistroPublico() {
   const router = useRouter();
+  const { ordenanzasConfig: ordenanzaData } = useAppContext();
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');

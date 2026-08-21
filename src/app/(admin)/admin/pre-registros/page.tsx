@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { DataTable } from '@/components/DataTable';
 import { useAppContext } from '@/store/AppContext';
 import { List, Check, X, CheckCircle, Calculator, AlertCircle } from 'lucide-react';
-import { ordenanzaData } from '@/data/ordenanza';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -11,7 +10,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function PreRegistrosPage() {
-  const { inmuebles, facturas, preRegistros, setPreRegistros, setInmuebles, setFacturas, addAuditLog, tcmmv } = useAppContext();
+  const { inmuebles, facturas, preRegistros, aprobarPreRegistro, addContribuyente, ordenanzasConfig: ordenanzaData, setPreRegistros, setInmuebles, setFacturas, addAuditLog, tcmmv } = useAppContext();
   const [showSuccess, setShowSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'Web' | 'Censo'>('Web');
   
