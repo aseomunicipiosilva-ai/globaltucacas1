@@ -211,7 +211,7 @@ export default function EstadoCuentaPage() {
       }
 
       alert(`Pago ${accion.toLowerCase()}o exitosamente.`);
-      fetchPagos();
+      window.location.reload();
     } catch (e: any) {
       alert("Error: " + e.message);
     }

@@ -290,9 +290,7 @@ export default function CajaPage() {
       // Reset
       setTimeout(() => {
         setSuccessMsg('');
-        handleSearch(); // Refresh list
-        setBanco('');
-        setReferencia('');
+        window.location.reload(); // Refresh entire context
       }, 3000);
       
     } catch (err: any) {

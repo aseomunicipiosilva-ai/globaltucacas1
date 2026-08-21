@@ -1624,9 +1624,13 @@ function ContribuyentesPageContent() {
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Dirección</span>
                   <p className="text-sm font-medium text-slate-700">{viewData.Direccion || 'N/A'}</p>
                 </div>
-                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 col-span-2">
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 col-span-1">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Actividad Económica / Clasificación</span>
                   <p className="text-sm font-semibold text-slate-700">{viewData.Actividad || 'N/A'}</p>
+                </div>
+                <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100 col-span-1">
+                  <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1 block">Saldo a Favor</span>
+                  <p className="text-lg font-black text-emerald-700">Bs. {viewData.SaldoFavor ? Number(viewData.SaldoFavor).toFixed(2) : '0.00'}</p>
                 </div>
               </div>
               
