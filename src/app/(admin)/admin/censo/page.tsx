@@ -2,20 +2,20 @@
 import React, { useState } from 'react';
 import { useAppContext } from '@/store/AppContext';
 import { Save, AlertCircle, CheckCircle, Calendar, MapPin, Calculator } from 'lucide-react';
-import { ordenanzaData } from '@/data/ordenanza';
 import Select from 'react-select';
 import { createClient } from '@supabase/supabase-js';
 import dynamic from 'next/dynamic';
 
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
 
-const todasLasActividades = [...ordenanzaData.actividadesComerciales, ...ordenanzaData.actividadesIndustriales];
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function CensoPage() {
-  const { addAuditLog } = useAppContext();
+  const { addAuditLog, ordenanzasConfig: ordenanzaData } = useAppContext();
+  const todasLasActividades = [...(ordenanzaData?.actividadesComerciales || []), ...(ordenanzaData?.actividadesIndustriales || [])];
+  
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   
