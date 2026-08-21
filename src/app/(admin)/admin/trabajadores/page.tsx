@@ -83,6 +83,9 @@ export default function TrabajadoresPage() {
       Object.keys(newPerms).forEach(k => newPerms[k as keyof typeof newPerms] = true);
       newPerms.borrar_contribuyente = false;
       newPerms.gestionar_usuarios = false;
+    } else if (role === 'Operador de Censo') {
+      Object.keys(newPerms).forEach(k => newPerms[k as keyof typeof newPerms] = false);
+      newPerms.crear_contribuyente = true;
     }
     setFormData({ ...formData, rol: role, permisos: newPerms });
   };
@@ -191,6 +194,7 @@ export default function TrabajadoresPage() {
                     <option value="Administrador">Administrador</option>
                     <option value="Supervisor">Supervisor</option>
                     <option value="Taquilla / Operador">Taquilla / Operador</option>
+                    <option value="Operador de Censo">Operador de Censo</option>
                     <option value="Auditor">Auditor</option>
                     <option value="Personalizado">Personalizado</option>
                   </select>

@@ -169,7 +169,15 @@ export default function PreRegistrosPage() {
     { key: 'tipo', header: 'Clasificación' },
     { key: 'actividad', header: 'Actividad P.' },
     { key: 'codigo', header: 'Metraje' },
-    ...(activeTab === 'Censo' ? [{ key: 'fecha_inicio', header: 'Fecha Inicio Actividad' }] : []),
+    ...(activeTab === 'Censo' ? [
+      { key: 'fecha_inicio', header: 'Fecha Inicio Actividad' },
+      { key: 'operador', header: 'Operador', render: (row: any) => {
+          if (row.origen?.startsWith('Censo - ')) {
+            return <span className="px-2 py-1 bg-orange-100 text-orange-800 font-bold text-xs rounded">{row.origen.replace('Censo - ', '')}</span>;
+          }
+          return <span className="px-2 py-1 bg-slate-100 text-slate-600 font-bold text-xs rounded">Admin</span>;
+      }}
+    ] : []),
     {
       key: 'acciones',
       header: 'Acciones',
@@ -209,19 +217,19 @@ export default function PreRegistrosPage() {
           className={`px-4 py-2 flex-1 rounded flex items-center justify-center gap-2 transition-colors ${activeTab === 'Web' ? 'bg-white shadow-sm border border-slate-200 text-slate-800' : 'hover:bg-slate-200'}`}
         >
           <Check className={`w-4 h-4 ${activeTab === 'Web' ? 'text-green-500' : ''}`} />
-          Pre-registros WEB ({preRegistros.filter((r: any) => r.origen !== 'Censo').length})
+          Pre-registros WEB ({preRegistros.filter((r: any) => !r.origen?.startsWith('Censo')).length})
         </button>
         <button
           onClick={() => setActiveTab('Censo')}
           className={`px-4 py-2 flex-1 rounded flex items-center justify-center gap-2 transition-colors ${activeTab === 'Censo' ? 'bg-white shadow-sm border border-slate-200 text-slate-800' : 'hover:bg-slate-200'}`}
         >
           <Check className={`w-4 h-4 ${activeTab === 'Censo' ? 'text-green-500' : ''}`} />
-          Censo Trabajadores ({preRegistros.filter((r: any) => r.origen === 'Censo').length})
+          Censo Trabajadores ({preRegistros.filter((r: any) => r.origen?.startsWith('Censo')).length})
         </button>
       </div>
 
       <DataTable 
-        data={preRegistros.filter((r: any) => activeTab === 'Censo' ? r.origen === 'Censo' : r.origen !== 'Censo')} 
+        data={preRegistros.filter((r: any) => activeTab === 'Censo' ? r.origen?.startsWith('Censo') : !r.origen?.startsWith('Censo'))} 
         columns={columns} 
         itemsPerPage={10} 
       />
@@ -246,7 +254,7 @@ export default function PreRegistrosPage() {
                 <p className="text-sm"><span className="font-semibold text-slate-700">Clasificación:</span> {rowToApprove.tipo}</p>
                 <p className="text-sm"><span className="font-semibold text-slate-700">Actividad:</span> {rowToApprove.actividad}</p>
                 <p className="text-sm"><span className="font-semibold text-slate-700">Nivel/Metraje:</span> {rowToApprove.codigo}</p>
-                {rowToApprove.origen === 'Censo' && rowToApprove.fecha_inicio && (
+                {rowToApprove.origen?.startsWith('Censo') && rowToApprove.fecha_inicio && (
                   <p className="text-sm text-orange-700 bg-orange-100 p-1.5 rounded inline-block"><span className="font-semibold">Inicio Actividad:</span> {rowToApprove.fecha_inicio}</p>
                 )}
               </div>

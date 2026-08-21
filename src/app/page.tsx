@@ -18,7 +18,7 @@ export default function Home() {
             Sistema Integrado de Gestión de Aseo Urbano. Seleccione su perfil para acceder a la plataforma.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {/* Tarjeta Contribuyente */}
             <Link href="/portal" className="group bg-white/10 hover:bg-white/20 border border-white/20 p-8 rounded-xl backdrop-blur-sm transition-all duration-300 flex flex-col items-center hover:scale-105">
               <div className="bg-green-500/20 p-4 rounded-full mb-4 group-hover:bg-green-500/40 transition-colors">
@@ -44,6 +44,20 @@ export default function Home() {
               </p>
               <div className="mt-auto flex items-center gap-2 text-blue-400 font-semibold group-hover:gap-3 transition-all">
                 Acceder al Sistema <ArrowRight className="w-5 h-5" />
+              </div>
+            </Link>
+
+            {/* Tarjeta Operador Móvil */}
+            <Link href="/operador/login" className="group bg-white/10 hover:bg-white/20 border border-white/20 p-8 rounded-xl backdrop-blur-sm transition-all duration-300 flex flex-col items-center hover:scale-105">
+              <div className="bg-orange-500/20 p-4 rounded-full mb-4 group-hover:bg-orange-500/40 transition-colors">
+                <Users className="w-10 h-10 text-orange-400" />
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2 text-center">Operador de Censo</h2>
+              <p className="text-sm text-slate-300 mb-6 text-center">
+                Módulo móvil exclusivo para trabajadores en jornada de empadronamiento de calle.
+              </p>
+              <div className="mt-auto flex items-center gap-2 text-orange-400 font-semibold group-hover:gap-3 transition-all">
+                Ingresar Móvil <ArrowRight className="w-5 h-5" />
               </div>
             </Link>
           </div>
