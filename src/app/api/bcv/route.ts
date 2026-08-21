@@ -1,73 +1,91 @@
 import { NextResponse } from 'next/server';
 import { revalidateTag } from 'next/cache';
+import * as cheerio from 'cheerio';
+import https from 'https';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const sync = searchParams.get('sync') === 'true';
 
   if (sync) {
-    // Limpiamos la caché de Vercel para forzar una nueva lectura
     // @ts-expect-error - Next.js internal type mismatch
     revalidateTag('bcv-rate');
   }
 
   try {
-    const [usdRes, eurRes] = await Promise.all([
-      fetch('https://ve.dolarapi.com/v1/dolares/oficial', { cache: 'no-store' }),
-      fetch('https://ve.dolarapi.com/v1/euros/oficial', { cache: 'no-store' })
-    ]);
+    // 1. Scraping directo de bcv.org.ve (Más seguro dado que las APIs están caídas o devolviendo pesos argentinos)
+    const agent = new https.Agent({ rejectUnauthorized: false });
+    const response = await fetch('https://www.bcv.org.ve/', { 
+      // @ts-ignore
+      agent,
+      cache: 'no-store',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+      }
+    });
+    
+    if (!response.ok) throw new Error('BCV Website unreachable');
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    
+    let euroText = $('#euro strong').text().trim().replace(',', '.');
+    let usdText = $('#dolar strong').text().trim().replace(',', '.');
+    
+    let euroVal = parseFloat(euroText);
+    let usdVal = parseFloat(usdText);
 
-    if (!usdRes.ok || !eurRes.ok) {
-      throw new Error('DolarAPI falló');
+    if (isNaN(euroVal) || isNaN(usdVal)) {
+      throw new Error('Could not parse BCV HTML correctly');
     }
 
-    const usdData = await usdRes.json();
-    const eurData = await eurRes.json();
-
-    const usdVal = usdData.promedio;
-    const euroVal = eurData.promedio;
     const tcmmv = Math.max(usdVal, euroVal);
-
-    const rateData = {
-      euro: euroVal,
-      usd: usdVal,
-      tcmmv: tcmmv,
-      timestamp: eurData.fechaActualizacion || new Date().toISOString(),
-      source: 'dolarapi-cached'
-    };
 
     return NextResponse.json({
       success: true,
-      ...rateData
+      euro: euroVal,
+      usd: usdVal,
+      tcmmv: tcmmv,
+      timestamp: new Date().toISOString(),
+      source: 'bcv-scraped'
     });
 
   } catch (error: any) {
-    console.error('Error fetching from DolarAPI, trying fallback:', error.message);
+    console.error('Error scraping BCV, falling back:', error.message);
+    
+    // Fallback 1: DolarAPI (Solo si dejó de devolver 911 que es el peso argentino)
     try {
-      // Fallback a pydolarvenezuela
-      const res = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar/page?page=bcv', { cache: 'no-store' });
-      if (!res.ok) throw new Error('Fallback API falló');
+      const [usdRes, eurRes] = await Promise.all([
+        fetch('https://ve.dolarapi.com/v1/dolares/oficial', { cache: 'no-store' }),
+        fetch('https://ve.dolarapi.com/v1/euros/oficial', { cache: 'no-store' })
+      ]);
+      const usdData = await usdRes.json();
+      const eurData = await eurRes.json();
       
-      const data = await res.json();
-      const usdVal = data.monitors.usd.price;
-      const euroVal = data.monitors.eur.price;
+      const usdVal = usdData.promedio;
+      const euroVal = eurData.promedio;
+      
+      // Safety check: if Euro is > 200, it's definitely the Argentine Peso bug.
+      if (euroVal > 200) {
+         throw new Error('DolarAPI is returning Argentine Pesos instead of Bolivares (Bug)');
+      }
+
       const tcmmv = Math.max(usdVal, euroVal);
-      
       return NextResponse.json({
         success: true,
         euro: euroVal,
         usd: usdVal,
         tcmmv: tcmmv,
-        timestamp: data.datetime?.date || new Date().toISOString(),
-        source: 'pydolar-fallback'
+        timestamp: eurData.fechaActualizacion || new Date().toISOString(),
+        source: 'dolarapi-cached'
       });
-    } catch (fallbackError: any) {
-      console.error('All APIs failed:', fallbackError.message);
-      return NextResponse.json({
-        success: false,
-        error: 'No se pudo contactar a las APIs de tasas',
-        tcmmv: 0
-      }, { status: 500 });
+    } catch (e2: any) {
+       console.error('DolarAPI failed:', e2.message);
+       // Return generic failure if all fails
+       return NextResponse.json({
+          success: false,
+          tcmmv: 0,
+          error: "No se pudo contactar a la API de tasas de manera confiable"
+       }, { status: 500 });
     }
   }
 }
