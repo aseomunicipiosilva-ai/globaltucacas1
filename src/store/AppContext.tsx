@@ -15,6 +15,7 @@ type AppState = {
   convenios: any[];
   preLiquidaciones: any[];
   ordenanzasConfig: typeof ordenanzaData;
+  addCertificado: (cert: any) => void;
   tcmmv: number;
   isLoading: boolean;
   setInmuebles: (inmuebles: any[]) => void;
@@ -273,6 +274,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const addCertificado = (cert: any) => {
+    setCertificados(prev => [cert, ...prev]);
+  };
+
   const aprobarPreRegistro = async (item: number) => {
     try {
       const { error } = await supabase
@@ -328,6 +333,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       convenios,
       preLiquidaciones,
       ordenanzasConfig,
+      addCertificado,
       tcmmv,
       isLoading,
       setInmuebles,

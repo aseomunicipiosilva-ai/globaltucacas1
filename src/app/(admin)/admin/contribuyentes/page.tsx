@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
 import { useAppContext } from '@/store/AppContext';
 import { Users, Save, ArrowLeft, Plus, Building, Home as HomeIcon, MapPin, Edit, DollarSign, Handshake, Eye, X, CheckCircle, Calculator, AlertCircle, Download, FileText, Trash2, Power } from 'lucide-react';
+import { generarSolvenciaPDF } from '@/lib/pdfGenerator';
 import { ordenanzaData } from '@/data/ordenanza';
 import Select from 'react-select';
 import dynamic from 'next/dynamic';
@@ -24,7 +25,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 function ContribuyentesPageContent() {
-  const { inmuebles, contribuyentes, facturas, setFacturas, convenios, updateContribuyente, addContribuyente, addAuditLog, tcmmv } = useAppContext();
+  const { inmuebles, contribuyentes, facturas, setFacturas, convenios, updateContribuyente, addContribuyente, addAuditLog, tcmmv, addCertificado } = useAppContext();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [formData, setFormData] = useState<any>(null);
@@ -388,73 +389,7 @@ function ContribuyentesPageContent() {
   };
 
   const generarSolvenciaIndividual = async (contribuyente: any, inmuebleSpec: string) => {
-    try {
-      const doc = new jsPDF();
-      
-      const loadImage = (url: string): Promise<string> => {
-        return new Promise((resolve, reject) => {
-          const img = new Image();
-          img.crossOrigin = 'Anonymous';
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.drawImage(img, 0, 0);
-              resolve(canvas.toDataURL('image/png'));
-            } else reject(new Error('Canvas ctx null'));
-          };
-          img.onerror = () => resolve('');
-          img.src = url;
-        });
-      };
-
-      let logoIsma = '', logoAlcaldia = '';
-      try {
-        logoAlcaldia = await loadImage('/logo_alcaldia.png');
-        logoIsma = await loadImage('/logo_isma.png');
-      } catch(e) {}
-      
-      if (logoIsma) doc.addImage(logoIsma, 'PNG', 14, 10, 20, 20);
-      if (logoAlcaldia) doc.addImage(logoAlcaldia, 'PNG', 176, 10, 20, 20);
-
-      doc.setFontSize(16);
-      doc.setFont("helvetica", "bold");
-      doc.text("CERTIFICADO DE SOLVENCIA MUNICIPAL", 105, 45, { align: "center" });
-      
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "normal");
-      
-      const fechaActual = new Date().toLocaleDateString('es-VE', { year: 'numeric', month: 'long', day: 'numeric' });
-      
-      let texto = '';
-      if (inmuebleSpec && inmuebleSpec !== 'general') {
-        texto = `Se hace constar por medio de la presente que el contribuyente "${contribuyente.Contribuyente}" (RIF/CI: ${contribuyente.Identidad}), respecto a su inmueble identificado como "${inmuebleSpec}", se encuentra SOLVENTE con sus obligaciones referentes a la prestación del servicio de Aseo Urbano hasta la fecha de emisión de este documento.\n\nEste certificado se expide a petición de la parte interesada, a los ${fechaActual}.`;
-      } else {
-        texto = `Se hace constar por medio de la presente que el contribuyente "${contribuyente.Contribuyente}" (RIF/CI: ${contribuyente.Identidad}), se encuentra SOLVENTE con todas sus obligaciones referentes a la prestación del servicio de Aseo Urbano hasta la fecha de emisión de este documento.\n\nEste certificado se expide a petición de la parte interesada, a los ${fechaActual}.`;
-      }
-        
-      const splitText = doc.splitTextToSize(texto, 170);
-      doc.text(splitText, 20, 70);
-
-      const qrData = `Solvencia - ${contribuyente.Identidad} - ${inmuebleSpec || 'General'} - Fecha: ${fechaActual}`;
-      const qrDataUrl = await QRCode.toDataURL(qrData, { margin: 1, width: 100 });
-      doc.addImage(qrDataUrl, 'PNG', 80, 130, 50, 50);
-      
-      doc.setFontSize(8);
-      doc.text("Escanear para verificar validez", 105, 185, { align: 'center' });
-      
-      doc.line(40, 230, 90, 230);
-      doc.text("Firma Autorizada", 65, 235, { align: 'center' });
-      
-      doc.line(120, 230, 170, 230);
-      doc.text("Sello de la Institución", 145, 235, { align: 'center' });
-
-      doc.save(`Solvencia_${contribuyente.Identidad}_${new Date().getTime()}.pdf`);
-    } catch (e: any) {
-      alert("Error al generar PDF de Solvencia: " + e.message);
-    }
+    await generarSolvenciaPDF(contribuyente, inmuebleSpec, addCertificado);
   };
 
   const handleEdit = (row: any) => {
