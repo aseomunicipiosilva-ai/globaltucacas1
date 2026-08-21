@@ -20,7 +20,7 @@ export default function OperadorLayout({ children }: { children: React.ReactNode
     } else {
       setOperador(storedOp);
     }
-  }, [router]);
+  }, [router, pathname]);
 
   const handleLogout = () => {
     localStorage.removeItem('operador_censo_auth');
