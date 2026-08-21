@@ -25,7 +25,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 function ContribuyentesPageContent() {
-  const { inmuebles, contribuyentes, facturas, setFacturas, convenios, updateContribuyente, addContribuyente, addAuditLog, tcmmv, addCertificado } = useAppContext();
+  const { inmuebles, contribuyentes, facturas, setFacturas, convenios, updateContribuyente, addContribuyente, addAuditLog, tcmmv, addCertificado, auditLogs } = useAppContext();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [formData, setFormData] = useState<any>(null);
@@ -57,7 +57,22 @@ function ContribuyentesPageContent() {
   const [debtMonths, setDebtMonths] = useState(1);
   const [isProcessingDebt, setIsProcessingDebt] = useState(false);
 
+  // Status Modal (Eliminar/Desactivar)
+  const [statusModal, setStatusModal] = useState<{type: 'Eliminar'|'Desactivar', row: any} | null>(null);
+  const [statusNota, setStatusNota] = useState('');
+  const [isProcessingStatus, setIsProcessingStatus] = useState(false);
+  const [activeTab, setActiveTab] = useState<'Activos' | 'Inactivos'>('Activos');
+  const [filteredContribuyentes, setFilteredContribuyentes] = useState<any[]>([]);
+
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (activeTab === 'Activos') {
+      setFilteredContribuyentes(contribuyentes.filter(c => c.Estado !== 'Eliminado' && c.Estado !== 'Inactivo'));
+    } else {
+      setFilteredContribuyentes(contribuyentes.filter(c => c.Estado === 'Eliminado' || c.Estado === 'Inactivo'));
+    }
+  }, [activeTab, contribuyentes]);
 
   useEffect(() => {
     if (searchParams.get('action') === 'new') {
@@ -91,31 +106,42 @@ function ContribuyentesPageContent() {
     setIsProcessingAction(false);
   };
 
-  const handleDelete = async (row: any) => {
-    if (!confirm(`¿Está seguro de que desea eliminar permanentemente al contribuyente ${row.Contribuyente}? Esta acción no se puede deshacer y borrará todos sus inmuebles.`)) {
-      return;
-    }
-    try {
-      const { error } = await supabase.from('inmuebles').delete().eq('identidad', row.Identidad);
-      if (error) throw error;
-      alert('Contribuyente eliminado exitosamente.');
-      window.location.reload(); // Reload to refresh context
-    } catch (err: any) {
-      alert('Error eliminando contribuyente: ' + err.message);
-    }
+  const handleDelete = (row: any) => {
+    setStatusModal({ type: 'Eliminar', row });
   };
 
-  const handleDeactivate = async (row: any) => {
-    if (!confirm(`¿Está seguro de que desea desactivar al contribuyente ${row.Contribuyente}?`)) {
+  const handleDeactivate = (row: any) => {
+    setStatusModal({ type: 'Desactivar', row });
+  };
+
+  const handleStatusSubmit = async () => {
+    if (!statusModal || !statusNota.trim()) {
+      alert("Debe ingresar el motivo obligatoriamente.");
       return;
     }
+    setIsProcessingStatus(true);
     try {
-      const { error } = await supabase.from('inmuebles').update({ estado: 'Inactivo' }).eq('identidad', row.Identidad);
+      const { type, row } = statusModal;
+      const nuevoEstado = type === 'Eliminar' ? 'Eliminado' : 'Inactivo';
+      
+      const { error } = await supabase.from('inmuebles').update({ estado: nuevoEstado }).eq('identidad', row.Identidad);
       if (error) throw error;
-      alert('Contribuyente desactivado exitosamente.');
+      
+      await addAuditLog(
+        type === 'Eliminar' ? 'ELIMINAR_CONTRIBUYENTE' : 'DESACTIVAR_CONTRIBUYENTE',
+        JSON.stringify({
+          identidad: row.Identidad,
+          contribuyente: row.Contribuyente,
+          motivo: statusNota.trim()
+        })
+      );
+      
+      alert(`Contribuyente ${type === 'Eliminar' ? 'eliminado' : 'desactivado'} exitosamente.`);
       window.location.reload();
     } catch (err: any) {
-      alert('Error desactivando contribuyente: asegúrese de haber creado la columna "estado" en su tabla inmuebles. ' + err.message);
+      alert(`Error procesando acción: ${err.message}`);
+    } finally {
+      setIsProcessingStatus(false);
     }
   };
 
@@ -1491,6 +1517,39 @@ function ContribuyentesPageContent() {
     }
   ];
 
+  const inactiveColumns = [
+    { key: 'CodCont', header: 'Código' },
+    { key: 'Identidad', header: 'R.I.F. / Cédula' },
+    { key: 'Contribuyente', header: 'Nombre / Razón Social' },
+    {
+      key: 'Estado',
+      header: 'Estatus',
+      render: (row: any) => (
+        <span className={`px-2 py-1 rounded text-[10px] font-bold ${row.Estado === 'Eliminado' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+          {row.Estado}
+        </span>
+      )
+    },
+    {
+      key: 'Motivo',
+      header: 'Motivo de Baja',
+      render: (row: any) => {
+        const auditLog = auditLogs?.find((log: any) => 
+          (log.action === 'ELIMINAR_CONTRIBUYENTE' || log.action === 'DESACTIVAR_CONTRIBUYENTE') && 
+          log.details.includes(row.Identidad)
+        );
+        let motivo = 'No registrado';
+        if (auditLog) {
+          try {
+            const parsed = JSON.parse(auditLog.details);
+            motivo = parsed.motivo || motivo;
+          } catch(e) {}
+        }
+        return <p className="text-[10px] text-slate-600 italic max-w-[250px] line-clamp-3">{motivo}</p>;
+      }
+    }
+  ];
+
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto p-6">
       <div className="flex items-center justify-between pb-4 border-b border-slate-200">
@@ -1510,8 +1569,24 @@ function ContribuyentesPageContent() {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-4 border-b border-slate-200 mt-4">
+        <button
+          onClick={() => setActiveTab('Activos')}
+          className={`pb-2 px-2 text-sm font-semibold transition-colors border-b-2 ${activeTab === 'Activos' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          Activos
+        </button>
+        <button
+          onClick={() => setActiveTab('Inactivos')}
+          className={`pb-2 px-2 text-sm font-semibold transition-colors border-b-2 ${activeTab === 'Inactivos' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          Usuarios Inactivos / Eliminados
+        </button>
+      </div>
+
       <div className="bg-white rounded border border-slate-200 shadow-sm mt-4 overflow-hidden">
-        <DataTable data={contribuyentes} columns={columns} itemsPerPage={15} />
+        <DataTable data={filteredContribuyentes} columns={activeTab === 'Activos' ? columns : inactiveColumns} itemsPerPage={15} />
       </div>
 
       {isViewModalOpen && viewData && (
@@ -1921,6 +1996,49 @@ function ContribuyentesPageContent() {
                   className={`px-6 py-2 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50 ${actionModal.type === 'Anular' ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-600 hover:bg-orange-700'}`}
                 >
                   {isProcessingAction ? 'Procesando...' : `Confirmar ${actionModal.type}`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Status Modal (Eliminar/Desactivar) */}
+      {statusModal && (
+        <div className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className={`px-6 py-4 border-b flex items-center justify-between ${statusModal.type === 'Eliminar' ? 'bg-red-50 border-red-100' : 'bg-amber-50 border-amber-100'}`}>
+              <h2 className={`text-lg font-bold ${statusModal.type === 'Eliminar' ? 'text-red-800' : 'text-amber-800'}`}>
+                {statusModal.type} Contribuyente
+              </h2>
+              <button onClick={() => setStatusModal(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-slate-600 mb-4">
+                Está a punto de <strong>{statusModal.type.toLowerCase()}</strong> al contribuyente <span className="font-bold">{statusModal.row.Contribuyente}</span>. 
+                Por favor, indique el motivo detallado de esta acción. <span className="text-red-600 font-bold">* Obligatorio</span>
+              </p>
+              
+              <textarea
+                value={statusNota}
+                onChange={e => setStatusNota(e.target.value)}
+                placeholder="Ej. Cese de actividades, orden de Alcaldía..."
+                className="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-slate-500 min-h-[100px] outline-none"
+              ></textarea>
+              
+              <div className="mt-6 flex justify-end gap-3">
+                <button 
+                  onClick={() => setStatusModal(null)}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium text-sm transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleStatusSubmit}
+                  disabled={isProcessingStatus || !statusNota.trim()}
+                  className={`px-6 py-2 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50 ${statusModal.type === 'Eliminar' ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'}`}
+                >
+                  {isProcessingStatus ? 'Procesando...' : `Confirmar`}
                 </button>
               </div>
             </div>

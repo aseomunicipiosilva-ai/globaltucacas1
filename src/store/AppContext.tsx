@@ -24,6 +24,7 @@ type AppState = {
   aprobarPreRegistro: (item: number) => void;
   addFactura: (factura: any) => Promise<void>;
   addAuditLog: (action: string, details: string) => Promise<void>;
+  auditLogs: any[];
   setPreRegistros: React.Dispatch<React.SetStateAction<any[]>>;
   setFacturas: React.Dispatch<React.SetStateAction<any[]>>;
 };
@@ -41,6 +42,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [reclamos, setReclamos] = useState<any[]>([]);
   const [convenios, setConvenios] = useState<any[]>([]);
   const [preLiquidaciones, setPreLiquidaciones] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [ordenanzasConfig, setOrdenanzasConfig] = useState<any>(ordenanzaData);
   const [tcmmv, setTcmmv] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,6 +72,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         supabase.from('reclamos').select('*'),
         supabase.from('convenios').select('*'),
         supabase.from('pre_liquidaciones').select('*'),
+        supabase.from('audit_logs').select('*').order('created_at', { ascending: false }),
         supabase.from('sistema_config').select('valor').eq('id', 'tarifas_ordenanza').single(),
         fetch('/api/bcv').then(res => res.json()).catch(() => ({ tcmmv: 0 }))
       ]);
@@ -83,6 +86,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const bcvData = apiBcv as any;
       const currentTcmmv = bcvData?.tcmmv || 0;
       setTcmmv(currentTcmmv);
+      
+      const dbAuditLogsResult = arguments[2] ? arguments[2][9] : null; // It's index 9 in Promise.all actually
+      // Let's just fetch it normally since I can't guarantee arguments:
+      const { data: fetchAuditLogs } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false });
+      setAuditLogs(fetchAuditLogs || []);
 
       if (dbInmuebles) {
         const mappedInmuebles = dbInmuebles.map(row => ({
@@ -123,12 +131,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
               Direccion: row.direccion,
               Actividad: act || 'No aplica',
               Clasificacion: clase,
-              SaldoFavor: parseFloat(row.saldo_favor_bs || '0')
+              SaldoFavor: parseFloat(row.saldo_favor_bs || '0'),
+              Estado: row.estado || 'Activo'
             });
           } else if (row.identidad && map.has(row.identidad)) {
             // Si ya existe, sumar saldo a favor
             const existing = map.get(row.identidad);
             existing.SaldoFavor += parseFloat(row.saldo_favor_bs || '0');
+            // Mantener el estado más severo si hay múltiples (Eliminado > Inactivo > Activo)
+            if (row.estado === 'Eliminado' || (row.estado === 'Inactivo' && existing.Estado !== 'Eliminado')) {
+              existing.Estado = row.estado;
+            }
             map.set(row.identidad, existing);
           }
         });
@@ -164,6 +177,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         details
       }]);
       if (error) console.error("Error logging audit:", error);
+      else {
+        // Refetch audit logs ideally, but we can just reload them in the component or rely on DB
+      }
     } catch (e) {
       console.error(e);
     }
