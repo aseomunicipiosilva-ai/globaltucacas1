@@ -148,7 +148,7 @@ function ContribuyentesPageContent() {
 
   const calculateFactorForRow = async (row: any) => {
     try {
-      const res = await fetch('/api/bcv');
+      const res = await fetch(`/api/bcv?t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
       
       let factorTotal = 0;
@@ -520,7 +520,7 @@ function ContribuyentesPageContent() {
     setIsCalculating(true);
     try {
       // Fetch BCV
-      const res = await fetch('/api/bcv');
+      const res = await fetch(`/api/bcv?t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
       
       const tasaTruncada = (Math.trunc(data.tcmmv * 100) / 100).toFixed(2);
