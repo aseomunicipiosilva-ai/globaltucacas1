@@ -41,15 +41,16 @@ export default function DatosContribuyentePage() {
 
         const { data, error } = await supabase
           .from('inmuebles')
-          .select('correo_electronico, correo, telefono, direccion, actividad_principal')
+          .select('id, correo_electronico, telefono, direccion, actividad_principal')
           .or(`identidad.eq.${idFormateado},identidad.eq.${idLimpio},identidad.eq.${fullDoc.toUpperCase()},identidad.eq.${soloNumeros}`)
+          .order('id', { ascending: true })
           .limit(1);
           
         if (data && data.length > 0 && !error) {
           const firstRow = data[0];
           setUserData(prev => ({
             ...prev,
-            email: firstRow.correo_electronico || firstRow.correo || '',
+            email: firstRow.correo_electronico || '',
             telefonoMovil: firstRow.telefono || '',
             direccion: firstRow.direccion || '',
             nombreComercial: firstRow.actividad_principal || '',
