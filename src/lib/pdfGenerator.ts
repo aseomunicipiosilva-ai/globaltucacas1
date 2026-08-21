@@ -27,11 +27,7 @@ const loadImage = (url: string): Promise<string> => {
   });
 };
 
-export const generarSolvenciaPDF = async (
-  contribuyente: any,
-  inmuebleSpec: string,
-  addCertificadoToContext?: (cert: any) => void
-) => {
+export const dibujarYDescargarPDF = async (data: any, isPreview = false) => {
   try {
     const doc = new jsPDF();
     
@@ -51,32 +47,27 @@ export const generarSolvenciaPDF = async (
     doc.setFontSize(12);
     doc.setFont("helvetica", "normal");
     
-    const fechaEmision = new Date();
+    const fechaEmision = new Date(data.emision);
     const fechaActualStr = fechaEmision.toLocaleDateString('es-VE', { year: 'numeric', month: 'long', day: 'numeric' });
     
-    // Vencimiento (ej. 30 días después o fin de mes, por defecto 30 días para certificados)
-    const fechaVencimiento = new Date(fechaEmision);
-    fechaVencimiento.setDate(fechaVencimiento.getDate() + 30);
-    
     let texto = '';
-    if (inmuebleSpec && inmuebleSpec !== 'general') {
-      texto = `Se hace constar por medio de la presente que el contribuyente "${contribuyente.Contribuyente}" (RIF/CI: ${contribuyente.Identidad}), respecto a su inmueble identificado como "${inmuebleSpec}", se encuentra SOLVENTE con sus obligaciones referentes a la prestación del servicio de Aseo Urbano hasta la fecha de emisión de este documento.\n\nEste certificado se expide a petición de la parte interesada, a los ${fechaActualStr}.`;
+    if (data.inmuebleSpec && data.inmuebleSpec !== 'general') {
+      texto = `Se hace constar por medio de la presente que el contribuyente "${data.contribuyente}" (RIF/CI: ${data.identidad}), respecto a su inmueble identificado como "${data.inmuebleSpec}", se encuentra SOLVENTE con sus obligaciones referentes a la prestación del servicio de Aseo Urbano hasta la fecha de emisión de este documento.\n\nEste certificado se expide a petición de la parte interesada, a los ${fechaActualStr}.`;
     } else {
-      texto = `Se hace constar por medio de la presente que el contribuyente "${contribuyente.Contribuyente}" (RIF/CI: ${contribuyente.Identidad}), se encuentra SOLVENTE con todas sus obligaciones referentes a la prestación del servicio de Aseo Urbano hasta la fecha de emisión de este documento.\n\nEste certificado se expide a petición de la parte interesada, a los ${fechaActualStr}.`;
+      texto = `Se hace constar por medio de la presente que el contribuyente "${data.contribuyente}" (RIF/CI: ${data.identidad}), se encuentra SOLVENTE con todas sus obligaciones referentes a la prestación del servicio de Aseo Urbano hasta la fecha de emisión de este documento.\n\nEste certificado se expide a petición de la parte interesada, a los ${fechaActualStr}.`;
     }
       
     const splitText = doc.splitTextToSize(texto, 170);
     doc.text(splitText, 20, 70);
 
-    const codigoUnico = `SOL-${contribuyente.Identidad}-${Date.now().toString().slice(-6)}`;
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://globalgreentucacas.com';
-    const qrData = `${baseUrl}/validar?codigo=${codigoUnico}`;
+    const qrData = `${baseUrl}/validar?codigo=${data.codigo}`;
     const qrDataUrl = await QRCode.toDataURL(qrData, { margin: 1, width: 100 });
     doc.addImage(qrDataUrl, 'PNG', 80, 130, 50, 50);
     
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text(`CÓDIGO: ${codigoUnico}`, 105, 125, { align: 'center' });
+    doc.text(`CÓDIGO: ${data.codigo}`, 105, 125, { align: 'center' });
 
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
@@ -88,10 +79,25 @@ export const generarSolvenciaPDF = async (
     doc.line(120, 230, 170, 230);
     doc.text("Sello de la Institución", 145, 235, { align: 'center' });
 
-    // Download locally
-    doc.save(`Solvencia_${contribuyente.Identidad}_${new Date().getTime()}.pdf`);
+    doc.save(`Solvencia_${data.identidad}_${data.codigo}.pdf`);
+  } catch (e: any) {
+    alert("Error al generar PDF de Solvencia: " + e.message);
+    throw e;
+  }
+};
 
-    // Register in database
+export const generarSolvenciaPDF = async (
+  contribuyente: any,
+  inmuebleSpec: string,
+  addCertificadoToContext?: (cert: any) => void
+) => {
+  try {
+    const fechaEmision = new Date();
+    const fechaVencimiento = new Date(fechaEmision);
+    fechaVencimiento.setDate(fechaVencimiento.getDate() + 30);
+    
+    const codigoUnico = `SOL-${contribuyente.Identidad}-${Date.now().toString().slice(-6)}`;
+    
     const dbRecord = {
       codigo: codigoUnico,
       contribuyente: contribuyente.Contribuyente,
@@ -102,6 +108,7 @@ export const generarSolvenciaPDF = async (
       estado: 'Vigente'
     };
 
+    // Registrar en BD
     const { error } = await supabase.from('certificados').insert(dbRecord);
     if (error) {
       console.error("No se pudo registrar el certificado en la base de datos", error);
@@ -111,9 +118,27 @@ export const generarSolvenciaPDF = async (
       }
     }
 
+    // Dibujar y descargar
+    await dibujarYDescargarPDF({
+      ...dbRecord,
+      inmuebleSpec
+    });
+
     return dbRecord;
   } catch (e: any) {
     alert("Error al generar PDF de Solvencia: " + e.message);
     throw e;
   }
+};
+
+export const reimprimirSolvenciaPDF = async (certificadoRow: any) => {
+  // Aquí usamos los datos existentes de la base de datos sin generar uno nuevo
+  await dibujarYDescargarPDF({
+    codigo: certificadoRow.codigo,
+    contribuyente: certificadoRow.contribuyente,
+    identidad: certificadoRow.identidad || 'N/A',
+    emision: certificadoRow.emision,
+    vencimiento: certificadoRow.vencimiento,
+    inmuebleSpec: 'general'
+  });
 };

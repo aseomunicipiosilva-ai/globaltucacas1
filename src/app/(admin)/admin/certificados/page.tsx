@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { DataTable } from '@/components/DataTable';
 import { Award, Printer, CheckCircle, Search, Download, AlertCircle } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
-import { generarSolvenciaPDF } from '@/lib/pdfGenerator';
+import { generarSolvenciaPDF, reimprimirSolvenciaPDF } from '@/lib/pdfGenerator';
 
 export default function CertificadosPage() {
   const { certificados, contribuyentes, facturas, inmuebles, addCertificado } = useAppContext();
@@ -79,7 +79,16 @@ export default function CertificadosPage() {
         {row.estado === 'Vigente' && <CheckCircle size={12} />}
         {row.estado}
       </span>
-    ) }
+    ) },
+    { key: 'acciones', header: 'Acciones', render: (row: any) => (
+      <button 
+        onClick={() => reimprimirSolvenciaPDF(row)}
+        className="text-slate-600 hover:text-blue-600 p-2 rounded transition-colors"
+        title="Descargar PDF"
+      >
+        <Download size={18} />
+      </button>
+    )}
   ];
 
   return (
