@@ -19,6 +19,7 @@ export default function Sidebar() {
     { icon: User, name: 'Contribuyentes', href: '/admin/contribuyentes' },
     { icon: Users, name: 'Condominios COB', href: '/admin/condominios-cob' },
     { icon: FileText, name: 'Pre-registros WEB', href: '/admin/pre-registros' },
+    { icon: FileText, name: 'Censo de Contribuyentes', href: '/admin/censo' },
     { icon: Calculator, name: 'Cálculo y Proyección', href: '/admin/calculo' },
     { icon: Briefcase, name: 'Caja / Pagos', href: '/admin/caja' },
     { icon: FileSpreadsheet, name: 'Facturación / Estado de Cuenta', href: '/admin/estado-cuenta' },

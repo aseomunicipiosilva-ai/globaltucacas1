@@ -13,6 +13,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export default function PreRegistrosPage() {
   const { inmuebles, facturas, preRegistros, setPreRegistros, setInmuebles, setFacturas, addAuditLog, tcmmv } = useAppContext();
   const [showSuccess, setShowSuccess] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'Web' | 'Censo'>('Web');
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -45,7 +46,20 @@ export default function PreRegistrosPage() {
   const handleApproveClick = (row: any) => {
     setRowToApprove(row);
     setCalculatedFactor(calculateFactor(row));
-    setMeses(1);
+    
+    let defaultMeses = 1;
+    if (row.origen === 'Censo' && row.fecha_inicio) {
+      const start = new Date(row.fecha_inicio);
+      const now = new Date();
+      let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+      if (now.getDate() < start.getDate()) {
+        months--; // Aún no ha pasado el mismo día del mes actual
+      }
+      if (months < 0) months = 0;
+      defaultMeses = months;
+    }
+    
+    setMeses(defaultMeses);
     setIsModalOpen(true);
   };
 
@@ -125,6 +139,7 @@ export default function PreRegistrosPage() {
     { key: 'tipo', header: 'Clasificación' },
     { key: 'actividad', header: 'Actividad P.' },
     { key: 'codigo', header: 'Metraje' },
+    ...(activeTab === 'Censo' ? [{ key: 'fecha_inicio', header: 'Fecha Inicio Actividad' }] : []),
     {
       key: 'acciones',
       header: 'Acciones',
@@ -159,13 +174,27 @@ export default function PreRegistrosPage() {
       )}
 
       <div className="flex bg-slate-100 p-2 rounded text-sm text-slate-700 font-medium mb-4">
-        <div className="px-4 py-1 flex items-center gap-2 bg-white rounded shadow-sm border border-slate-200">
-          <Check className="w-4 h-4 text-green-500" />
-          Pre-registros WEB PENDIENTES ({preRegistros.length})
-        </div>
+        <button
+          onClick={() => setActiveTab('Web')}
+          className={`px-4 py-2 flex-1 rounded flex items-center justify-center gap-2 transition-colors ${activeTab === 'Web' ? 'bg-white shadow-sm border border-slate-200 text-slate-800' : 'hover:bg-slate-200'}`}
+        >
+          <Check className={`w-4 h-4 ${activeTab === 'Web' ? 'text-green-500' : ''}`} />
+          Pre-registros WEB ({preRegistros.filter((r: any) => r.origen !== 'Censo').length})
+        </button>
+        <button
+          onClick={() => setActiveTab('Censo')}
+          className={`px-4 py-2 flex-1 rounded flex items-center justify-center gap-2 transition-colors ${activeTab === 'Censo' ? 'bg-white shadow-sm border border-slate-200 text-slate-800' : 'hover:bg-slate-200'}`}
+        >
+          <Check className={`w-4 h-4 ${activeTab === 'Censo' ? 'text-green-500' : ''}`} />
+          Censo Trabajadores ({preRegistros.filter((r: any) => r.origen === 'Censo').length})
+        </button>
       </div>
 
-      <DataTable data={preRegistros} columns={columns} itemsPerPage={10} />
+      <DataTable 
+        data={preRegistros.filter((r: any) => activeTab === 'Censo' ? r.origen === 'Censo' : r.origen !== 'Censo')} 
+        columns={columns} 
+        itemsPerPage={10} 
+      />
 
       {/* MODAL DE APROBACION Y DEUDA */}
       {isModalOpen && rowToApprove && (
@@ -187,6 +216,9 @@ export default function PreRegistrosPage() {
                 <p className="text-sm"><span className="font-semibold text-slate-700">Clasificación:</span> {rowToApprove.tipo}</p>
                 <p className="text-sm"><span className="font-semibold text-slate-700">Actividad:</span> {rowToApprove.actividad}</p>
                 <p className="text-sm"><span className="font-semibold text-slate-700">Nivel/Metraje:</span> {rowToApprove.codigo}</p>
+                {rowToApprove.origen === 'Censo' && rowToApprove.fecha_inicio && (
+                  <p className="text-sm text-orange-700 bg-orange-100 p-1.5 rounded inline-block"><span className="font-semibold">Inicio Actividad:</span> {rowToApprove.fecha_inicio}</p>
+                )}
               </div>
 
               <div className="space-y-4">
