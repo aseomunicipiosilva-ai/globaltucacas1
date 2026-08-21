@@ -14,15 +14,13 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Consultamos la API oficial usando Next.js Data Cache
-    // Se mantendrá almacenado de forma permanente hasta que se pulse Sincronizar
     const [usdRes, eurRes] = await Promise.all([
       fetch('https://ve.dolarapi.com/v1/dolares/oficial', { next: { tags: ['bcv-rate'] } }),
       fetch('https://ve.dolarapi.com/v1/euros/oficial', { next: { tags: ['bcv-rate'] } })
     ]);
 
     if (!usdRes.ok || !eurRes.ok) {
-      throw new Error('Error HTTP obteniendo tasas de la API');
+      throw new Error('DolarAPI falló');
     }
 
     const usdData = await usdRes.json();
@@ -46,11 +44,32 @@ export async function GET(request: Request) {
     });
 
   } catch (error: any) {
-    console.error('Error fetching BCV:', error.message);
-    return NextResponse.json({
-      success: false,
-      error: 'No se pudo contactar a la API de tasas',
-      tcmmv: 0
-    }, { status: 500 });
+    console.error('Error fetching from DolarAPI, trying fallback:', error.message);
+    try {
+      // Fallback a pydolarvenezuela
+      const res = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar/page?page=bcv', { next: { tags: ['bcv-rate'] } });
+      if (!res.ok) throw new Error('Fallback API falló');
+      
+      const data = await res.json();
+      const usdVal = data.monitors.usd.price;
+      const euroVal = data.monitors.eur.price;
+      const tcmmv = Math.max(usdVal, euroVal);
+      
+      return NextResponse.json({
+        success: true,
+        euro: euroVal,
+        usd: usdVal,
+        tcmmv: tcmmv,
+        timestamp: data.datetime?.date || new Date().toISOString(),
+        source: 'pydolar-fallback'
+      });
+    } catch (fallbackError: any) {
+      console.error('All APIs failed:', fallbackError.message);
+      return NextResponse.json({
+        success: false,
+        error: 'No se pudo contactar a las APIs de tasas',
+        tcmmv: 0
+      }, { status: 500 });
+    }
   }
 }
