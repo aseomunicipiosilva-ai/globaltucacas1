@@ -77,8 +77,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         fetch('/api/bcv').then(res => res.json()).catch(() => ({ tcmmv: 0 }))
       ]);
 
-      if (dbConfig && dbConfig.valor) {
-        setOrdenanzasConfig(dbConfig.valor);
+      if (dbConfig && (dbConfig as any).valor) {
+        setOrdenanzasConfig((dbConfig as any).valor);
       } else {
         setOrdenanzasConfig(ordenanzaData); // fallback
       }
@@ -350,6 +350,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       preLiquidaciones,
       ordenanzasConfig,
       addCertificado,
+      addAuditLog,
+      auditLogs,
       tcmmv,
       isLoading,
       setInmuebles,
@@ -357,7 +359,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addContribuyente,
       aprobarPreRegistro,
       addFactura,
-      addAuditLog,
       setPreRegistros,
       setFacturas
     }}>
