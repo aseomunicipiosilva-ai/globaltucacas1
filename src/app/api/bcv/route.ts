@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import { revalidateTag } from 'next/cache';
 
 export async function GET(request: Request) {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-  
   const { searchParams } = new URL(request.url);
   const sync = searchParams.get('sync') === 'true';
 
@@ -15,8 +13,8 @@ export async function GET(request: Request) {
 
   try {
     const [usdRes, eurRes] = await Promise.all([
-      fetch('https://ve.dolarapi.com/v1/dolares/oficial', { next: { tags: ['bcv-rate'] } }),
-      fetch('https://ve.dolarapi.com/v1/euros/oficial', { next: { tags: ['bcv-rate'] } })
+      fetch('https://ve.dolarapi.com/v1/dolares/oficial', { cache: 'no-store' }),
+      fetch('https://ve.dolarapi.com/v1/euros/oficial', { cache: 'no-store' })
     ]);
 
     if (!usdRes.ok || !eurRes.ok) {
@@ -47,7 +45,7 @@ export async function GET(request: Request) {
     console.error('Error fetching from DolarAPI, trying fallback:', error.message);
     try {
       // Fallback a pydolarvenezuela
-      const res = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar/page?page=bcv', { next: { tags: ['bcv-rate'] } });
+      const res = await fetch('https://pydolarvenezuela-api.vercel.app/api/v1/dollar/page?page=bcv', { cache: 'no-store' });
       if (!res.ok) throw new Error('Fallback API falló');
       
       const data = await res.json();
