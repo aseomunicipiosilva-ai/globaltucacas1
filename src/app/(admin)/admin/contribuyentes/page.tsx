@@ -294,9 +294,11 @@ function ContribuyentesPageContent() {
     doc.text(`Razón Social: ${viewData.Contribuyente}`, 14, 40);
     doc.text(`R.I.F / C.I: ${viewData.Identidad}`, 14, 46);
     doc.text(`Teléfono: ${viewData.Telefono || 'N/A'}`, 14, 52);
-    doc.text(`Dirección: ${viewData.Direccion || 'N/A'}`, 14, 58);
     
-    let currentY = 65;
+    const splitDireccion = doc.splitTextToSize(`Dirección: ${viewData.Direccion || 'N/A'}`, 180);
+    doc.text(splitDireccion, 14, 58);
+    
+    let currentY = 58 + (splitDireccion.length * 5) + 5;
 
     // Desglose de Inmuebles
     if (inmueblesContribuyente.length > 0) {
@@ -305,6 +307,7 @@ function ContribuyentesPageContent() {
       
       const inmueblesData = inmueblesContribuyente.map((i: any) => [
         i.Inmueble,
+        i.cant_inmuebles || '1',
         i.Clasificacion || 'N/A',
         i['Actividad Principal'] || 'N/A',
         i.Direccion || 'N/A'
@@ -313,7 +316,7 @@ function ContribuyentesPageContent() {
       try {
         autoTable(doc, {
           startY: currentY + 3,
-          head: [['Inmueble', 'Clasif.', 'Actividad', 'Dirección']],
+          head: [['Inmueble', 'Cant.', 'Clasif.', 'Actividad', 'Dirección']],
           body: inmueblesData,
           theme: 'grid',
           headStyles: { fillColor: [51, 65, 85] }, // Slate-700
