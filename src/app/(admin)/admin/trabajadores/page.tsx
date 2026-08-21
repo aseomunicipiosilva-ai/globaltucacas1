@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Users, Save, ArrowLeft, Plus, Shield, ShieldAlert, ShieldCheck, AlertCircle } from 'lucide-react';
 import { DataTable } from '@/components/DataTable';
 import { createClient } from '@supabase/supabase-js';
