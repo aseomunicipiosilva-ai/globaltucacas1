@@ -14,10 +14,15 @@ import {
   ShieldCheck,
   SearchCheck,
   User as UserIcon,
-  Power
+  Power,
+  Menu
 } from 'lucide-react';
 
-export default function PortalHeader() {
+interface PortalHeaderProps {
+  onMenuClick?: () => void;
+}
+
+export default function PortalHeader({ onMenuClick }: PortalHeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -42,10 +47,16 @@ export default function PortalHeader() {
   const { title, icon: Icon } = getPageInfo();
 
   return (
-    <header className="bg-white border-b border-slate-200 h-14 flex items-center justify-between px-6 sticky top-0 z-40">
+    <header className="bg-white border-b border-slate-200 h-14 flex items-center justify-between px-4 md:px-6 sticky top-0 z-40">
       <div className="flex items-center gap-3 text-slate-700">
-        <Icon className="w-5 h-5 text-slate-500" />
-        <h1 className="font-semibold text-sm tracking-wide uppercase">{title}</h1>
+        <button 
+          onClick={onMenuClick}
+          className="md:hidden p-2 -ml-2 text-slate-500 hover:text-slate-800 focus:outline-none"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+        <Icon className="w-5 h-5 text-slate-500 hidden sm:block" />
+        <h1 className="font-semibold text-xs sm:text-sm tracking-wide uppercase truncate max-w-[200px] sm:max-w-none">{title}</h1>
       </div>
       
       <div className="flex items-center gap-4 text-sm text-slate-600">

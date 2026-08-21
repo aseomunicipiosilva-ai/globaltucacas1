@@ -7,6 +7,7 @@ import PortalHeader from '@/components/PortalHeader';
 export default function PortalDashboardLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [isClient, setIsClient] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -21,12 +22,12 @@ export default function PortalDashboardLayout({ children }: { children: ReactNod
   return (
     <div className="min-h-screen bg-[#f1f5f9] flex">
       {/* Sidebar Fijo a la Izquierda */}
-      <PortalSidebar />
+      <PortalSidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
 
-      {/* Contenido Principal con margen izquierdo igual al ancho del Sidebar (w-64 = 16rem = 256px) */}
-      <div className="flex-1 flex flex-col ml-64">
+      {/* Contenido Principal con margen en md: para el sidebar */}
+      <div className="flex-1 flex flex-col md:ml-64 w-full">
         {/* Cabecera Superior Fija */}
-        <PortalHeader />
+        <PortalHeader onMenuClick={() => setIsSidebarOpen(true)} />
 
         {/* Área de trabajo */}
         <main className="flex-1 p-6">

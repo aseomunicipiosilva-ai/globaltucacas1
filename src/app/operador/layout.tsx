@@ -1,13 +1,18 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { LogOut, User, MapPin } from 'lucide-react';
 
 export default function OperadorLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [operador, setOperador] = useState<string | null>(null);
 
+  const isLoginPage = pathname === '/operador/login';
+
   useEffect(() => {
+    if (isLoginPage) return;
+    
     // Check if operator is logged in
     const storedOp = localStorage.getItem('operador_censo_auth');
     if (!storedOp) {
@@ -21,6 +26,10 @@ export default function OperadorLayout({ children }: { children: React.ReactNode
     localStorage.removeItem('operador_censo_auth');
     router.replace('/');
   };
+
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
 
   if (!operador) return <div className="min-h-screen bg-slate-50 flex items-center justify-center">Cargando...</div>;
 

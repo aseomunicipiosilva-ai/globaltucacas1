@@ -79,7 +79,7 @@ export default function SolvenciaPage() {
           </div>
 
           {/* Datos */}
-          <div className="grid grid-cols-2 gap-12 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 mb-8">
             <div>
               <h3 className="text-xs font-bold text-slate-800 uppercase mb-3 border-b border-slate-200 pb-1">Datos del Contribuyente</h3>
               <div className="space-y-2 text-sm">
