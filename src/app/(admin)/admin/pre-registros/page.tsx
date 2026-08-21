@@ -70,23 +70,51 @@ export default function PreRegistrosPage() {
       const deudaMMV = calculatedFactor * meses;
       const codCont = `N-${Math.floor(Math.random() * 100000)}`;
 
-      // 1. Insert into inmuebles
-      const inmuebleData = {
+      // 1. Insert into inmuebles (one or multiple)
+      const baseInmuebleData = {
         identidad: rowToApprove.identidad,
         contribuyente: rowToApprove.contribuyente,
         telefono: rowToApprove.registro || '', // Read telefono from registro
-        correo_electronico: '', // We don't have this mapped anymore
-        direccion: '', // We don't have this mapped anymore
-        cod_cont: codCont,
-        clasificacion: rowToApprove.tipo, // Read clasificacion from tipo
+        correo_electronico: '', // Can be improved later if we split the field
+        direccion: rowToApprove.domicilio_fiscal || rowToApprove.direccion_exacta || '', // Use new fields
+        cod_cont: `N-${Math.floor(Math.random() * 100000)}`,
+        clasificacion: rowToApprove.tipo,
         actividad_principal: rowToApprove.actividad,
-        inmueble: 'Principal', // default since we re-used tipo
+        inmueble: 'Principal', 
         deuda_mmv: deudaMMV,
-        deuda_congelada_bs: 0
+        deuda_congelada_bs: 0,
+        // New advanced fields
+        nota: rowToApprove.nota || '',
+        coordenadas: rowToApprove.coordenadas,
+        direccion_exacta: rowToApprove.direccion_exacta,
+        is_condominio: rowToApprove.is_condominio || false,
+        cant_inmuebles: rowToApprove.cantidad_inmuebles || 0
       };
 
-      const { data: newInmueble, error: err1 } = await supabase.from('inmuebles').insert([inmuebleData]).select().single();
+      let recordsToInsert = [];
+      let mainInmueble = null;
+
+      if (rowToApprove.is_condominio && rowToApprove.locales?.length > 0) {
+        recordsToInsert = rowToApprove.locales.map((local: any) => ({
+          ...baseInmuebleData,
+          inmueble: local.numeracion,
+          actividad_principal: local.uso === 'Comercial' ? local.actividad : local.uso,
+          tipo: local.uso === 'Residencial' ? local.tipoResidencia : 'Inmueble',
+          area: local.uso === 'Comercial' ? local.nivel : null,
+          mmv_mes: 0 // Will be recalculated in general or mapped later if needed
+        }));
+      } else {
+        recordsToInsert = [{
+          ...baseInmuebleData,
+          tipo: rowToApprove.tipo === 'Residencial' ? rowToApprove.codigo : 'Inmueble',
+          area: rowToApprove.tipo !== 'Residencial' ? rowToApprove.codigo : null
+        }];
+      }
+
+      const { data: newInmuebles, error: err1 } = await supabase.from('inmuebles').insert(recordsToInsert).select();
       if (err1) throw err1;
+      
+      mainInmueble = newInmuebles?.[0];
 
       // 2. Generate Factura if debt > 0
       if (deudaMMV > 0) {
@@ -108,7 +136,9 @@ export default function PreRegistrosPage() {
       if (err3) throw err3;
 
       // Update state
-      setInmuebles([newInmueble, ...inmuebles]);
+      if (newInmuebles) {
+        setInmuebles([...newInmuebles, ...inmuebles]);
+      }
       setPreRegistros(preRegistros.filter((r: any) => r.id !== rowToApprove.id));
       await addAuditLog('APROBAR_PREREGISTRO', `Aprobado con deuda inicial de ${deudaMMV} MMV para ${rowToApprove.identidad}`);
 
