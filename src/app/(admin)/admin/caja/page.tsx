@@ -5,7 +5,7 @@ import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
 
 export default function CajaPage() {
-  const { facturas, convenios, contribuyentes, documentos, tcmmv } = useAppContext();
+  const { inmuebles, convenios, contribuyentes, facturas, documentos, tcmmv } = useAppContext();
   
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState<'Pagos' | 'NotasCredito'>('Pagos');
@@ -510,7 +510,20 @@ export default function CajaPage() {
               </div>
               <p className="text-sm text-slate-500">{foundUser.Identidad}</p>
               <div className="mt-2 text-xs bg-slate-100 text-slate-600 px-3 py-2 rounded border border-slate-200 inline-block">
-                <span className="font-bold">Fórmula de Referencia:</span> El cálculo original se realizó multiplicando el Factor MMV por la Tasa BCV vigente en la emisión.
+                <span className="font-bold">Fórmula Aplicada:</span>{' '}
+                {(() => {
+                  const userInms = inmuebles.filter((i: any) => i.identidad === foundUser.Identidad);
+                  const totalMMV = userInms.reduce((acc: number, inm: any) => acc + (parseFloat(inm.deuda_mmv) || parseFloat(inm.DeudaMMV) || 0), 0);
+                  if (totalMMV > 0) {
+                    return (
+                      <>
+                        {totalMMV.toFixed(2)} MMV (Tarifa) × {currentBcvRate.toFixed(2)} Bs/MMV (Tasa BCV) = {(totalMMV * currentBcvRate).toFixed(2)} Bs Mensuales.
+                        <span className="block text-[9px] text-slate-400 mt-0.5">* Las facturas previas mantienen la tasa del día de su emisión.</span>
+                      </>
+                    );
+                  }
+                  return 'El cálculo se realizó multiplicando el Factor MMV por la Tasa BCV vigente en la emisión.';
+                })()}
               </div>
             </div>
             {foundUser.SaldoFavor > 0 && (
