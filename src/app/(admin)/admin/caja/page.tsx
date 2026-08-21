@@ -32,6 +32,9 @@ export default function CajaPage() {
   const [montoTransferido, setMontoTransferido] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const [customBcvRate, setCustomBcvRate] = useState<string>('');
+  const [useSaldoFavor, setUseSaldoFavor] = useState<boolean>(false);
+  const currentBcvRate = customBcvRate && !isNaN(parseFloat(customBcvRate)) ? parseFloat(customBcvRate) : tcmmv;
 
   const bancosVenezuela = [
     'Banesco', 'Banco Mercantil', 'Banco Provincial', 'Banco de Venezuela', 
@@ -52,8 +55,8 @@ export default function CajaPage() {
 
     const user = contribuyentes.find((c: any) => {
       if (!c.Identidad) return false;
-      const idClean = c.Identidad.replace(/-/g, '').toUpperCase();
-      return idClean === cleanFullDoc;
+      const idClean = String(c.Identidad).replace(/-/g, '').toUpperCase();
+      return idClean === cleanFullDoc || idClean === idLimpioSearch;
     });
     
     if (user) {
@@ -132,9 +135,12 @@ export default function CajaPage() {
   const handlePayment = async () => {
     if (totalBs <= 0) return alert("Debe seleccionar al menos una deuda a pagar.");
     
-    let saldoAFavor = 0;
+    const finalTotal = Math.max(0, totalBs - (useSaldoFavor ? foundUser.SaldoFavor : 0));
+    const descuentoSaldoFavor = useSaldoFavor ? Math.min(totalBs, foundUser.SaldoFavor) : 0;
+    
+    let saldoAFavorNuevo = 0;
     let esAbono = false;
-    let montoReal = totalBs;
+    let montoReal = finalTotal;
 
     if (paymentMethod === 'Transferencia') {
       if (!banco) return alert("Debe seleccionar el banco emisor.");
@@ -143,35 +149,54 @@ export default function CajaPage() {
       const transferido = parseFloat(montoTransferido);
       if (isNaN(transferido) || transferido <= 0) return alert("Debe ingresar un monto transferido válido.");
       
-      if (transferido < totalBs) {
+      if (transferido < finalTotal) {
         esAbono = true;
         montoReal = transferido;
-      } else if (transferido > totalBs) {
-        saldoAFavor = transferido - totalBs;
+      } else if (transferido > finalTotal) {
+        saldoAFavorNuevo = transferido - finalTotal;
         montoReal = transferido;
       } else {
         montoReal = transferido;
       }
     }
     
-    if (!confirm(`¿Confirmar pago por Bs. ${montoReal.toFixed(2)}${saldoAFavor > 0 ? ` (Generará un Saldo a Favor de Bs. ${saldoAFavor.toFixed(2)})` : ''}${esAbono ? ` (Es un ABONO. Quedará un saldo pendiente de Bs. ${(totalBs - montoReal).toFixed(2)})` : ''} mediante ${paymentMethod}?`)) return;
+    if (!confirm(`¿Confirmar pago por Bs. ${montoReal.toFixed(2)}${saldoAFavorNuevo > 0 ? ` (Generará un Saldo a Favor de Bs. ${saldoAFavorNuevo.toFixed(2)})` : ''}${esAbono ? ` (Es un ABONO. Quedará un saldo pendiente de Bs. ${(finalTotal - montoReal).toFixed(2)})` : ''} mediante ${paymentMethod}?`)) return;
 
     setIsProcessing(true);
     
     try {
       // Si hay saldo a favor, generar Nota de Crédito
-      if (saldoAFavor > 0) {
+      if (saldoAFavorNuevo > 0) {
         await supabase.from('documentos').insert([{
           identidad: foundUser.Identidad,
           contribuyente: foundUser.Contribuyente,
           tipo: 'Nota de Credito',
           estado: 'Vigente',
           detalles: JSON.stringify({
-            monto: saldoAFavor.toFixed(2),
+            monto: saldoAFavorNuevo.toFixed(2),
             origen_referencia: paymentMethod === 'Transferencia' ? referencia : 'Debito',
             fecha_emision: new Date().toISOString()
           })
         }]);
+        const { data: userInmuebles } = await supabase.from('inmuebles').select('id, saldo_favor_bs').eq('identidad', foundUser.Identidad);
+        if (userInmuebles && userInmuebles.length > 0) {
+          const firstInmueble = userInmuebles[0];
+          const currentSaldo = parseFloat(firstInmueble.saldo_favor_bs || '0');
+          if (paymentMethod === 'Debito') {
+             await supabase.from('inmuebles').update({ saldo_favor_bs: currentSaldo + saldoAFavorNuevo }).eq('id', firstInmueble.id);
+          }
+        }
+      }
+      
+      // Deduct used Saldo a Favor immediately
+      if (descuentoSaldoFavor > 0) {
+        const { data: userInmuebles } = await supabase.from('inmuebles').select('id, saldo_favor_bs').eq('identidad', foundUser.Identidad);
+        if (userInmuebles && userInmuebles.length > 0) {
+          const firstInmueble = userInmuebles[0];
+          const currentSaldo = parseFloat(firstInmueble.saldo_favor_bs || '0');
+          const newSaldo = Math.max(0, currentSaldo - descuentoSaldoFavor);
+          await supabase.from('inmuebles').update({ saldo_favor_bs: newSaldo }).eq('id', firstInmueble.id);
+        }
       }
       if (paymentMethod === 'Debito') {
         // Direct Payment (Pagado)
@@ -220,9 +245,10 @@ export default function CajaPage() {
           detalles: JSON.stringify({ 
             recibos: selectedRecibos, 
             cuotas: selectedCuotas,
-            saldo_favor: saldoAFavor,
+            saldo_favor: saldoAFavorNuevo,
             es_abono: esAbono,
-            total_seleccionado: totalBs
+            total_seleccionado: totalBs,
+            saldo_usado: descuentoSaldoFavor
           })
         });
         
@@ -309,9 +335,18 @@ export default function CajaPage() {
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-lg text-sm font-semibold border border-emerald-200 flex items-center gap-2">
-            <span>Tasa BCV Aplicada:</span>
-            <span className="font-bold text-lg">Bs. {tcmmv.toFixed(2)}</span>
+          <div className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-lg text-sm font-semibold border border-emerald-200 flex flex-col justify-center">
+            <div className="flex items-center gap-2">
+              <span>Tasa BCV Aplicada:</span>
+              <input 
+                type="number" step="0.01" 
+                value={customBcvRate} 
+                onChange={e => setCustomBcvRate(e.target.value)}
+                placeholder={tcmmv.toFixed(2)}
+                className="w-24 px-2 py-0.5 rounded border border-emerald-300 bg-white text-emerald-900 font-bold outline-none focus:ring-1 focus:ring-emerald-500"
+                title="Tasa BCV Manual (Requiere Permiso)"
+              />
+            </div>
           </div>
           <div className="flex bg-slate-100 rounded-lg p-1">
             <button
@@ -425,9 +460,26 @@ export default function CajaPage() {
       </div>
 
       {foundUser && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Listado de Deudas */}
-          <div className="lg:col-span-2 space-y-6">
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-slate-800">{foundUser.Contribuyente}</h2>
+              <p className="text-sm text-slate-500">{foundUser.Identidad}</p>
+              <div className="mt-2 text-xs bg-slate-100 text-slate-600 px-3 py-2 rounded border border-slate-200 inline-block">
+                <span className="font-bold">Fórmula de Referencia:</span> El cálculo original se realizó multiplicando el Factor MMV por la Tasa BCV vigente en la emisión.
+              </div>
+            </div>
+            {foundUser.SaldoFavor > 0 && (
+              <div className="bg-emerald-100 border-2 border-emerald-500 p-4 rounded-xl flex flex-col items-center justify-center min-w-[200px]">
+                <span className="text-emerald-700 font-bold text-sm uppercase">Saldo a Favor</span>
+                <span className="text-2xl font-black text-emerald-600">Bs. {foundUser.SaldoFavor.toFixed(2)}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Listado de Deudas */}
+            <div className="lg:col-span-2 space-y-6">
             
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
               <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center gap-2">
@@ -553,14 +605,14 @@ export default function CajaPage() {
                       onChange={(e) => setMontoTransferido(e.target.value)}
                       className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                     />
-                    {parseFloat(montoTransferido) > totalBs && (
+                    {parseFloat(montoTransferido) > Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0)) && (
                       <p className="text-[10px] text-emerald-600 mt-1 font-bold">
-                        * Se generará un saldo a favor de Bs. {(parseFloat(montoTransferido) - totalBs).toFixed(2)}
+                        * Se generará un saldo a favor de Bs. {(parseFloat(montoTransferido) - Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0))).toFixed(2)}
                       </p>
                     )}
-                    {(parseFloat(montoTransferido) > 0 && parseFloat(montoTransferido) < totalBs) && (
+                    {(parseFloat(montoTransferido) > 0 && parseFloat(montoTransferido) < Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0))) && (
                       <p className="text-[10px] text-orange-600 mt-1 font-bold">
-                        * Es un ABONO. Quedará un saldo pendiente de Bs. {(totalBs - parseFloat(montoTransferido)).toFixed(2)}
+                        * Es un ABONO. Quedará un saldo pendiente de Bs. {(Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0)) - parseFloat(montoTransferido)).toFixed(2)}
                       </p>
                     )}
                   </label>
@@ -577,6 +629,7 @@ export default function CajaPage() {
               {isProcessing ? 'Procesando...' : 'Procesar Pago'}
             </button>
           </div>
+        </div>
         </div>
       )}
       </div>

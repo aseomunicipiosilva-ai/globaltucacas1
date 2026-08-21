@@ -111,8 +111,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
               CodCont: row.cod_cont,
               Direccion: row.direccion,
               Actividad: act || 'No aplica',
-              Clasificacion: clase
+              Clasificacion: clase,
+              SaldoFavor: parseFloat(row.saldo_favor_bs || '0')
             });
+          } else if (row.identidad && map.has(row.identidad)) {
+            // Si ya existe, sumar saldo a favor
+            const existing = map.get(row.identidad);
+            existing.SaldoFavor += parseFloat(row.saldo_favor_bs || '0');
+            map.set(row.identidad, existing);
           }
         });
         setContribuyentes(Array.from(map.values()));
