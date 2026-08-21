@@ -12,6 +12,39 @@ export async function GET(request: Request) {
     revalidateTag('bcv-rate');
   }
 
+  // 0. Revisar si hay una tasa manual en la base de datos
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    if (supabaseUrl && supabaseKey) {
+      const dbRes = await fetch(`${supabaseUrl}/rest/v1/sistema_config?id=eq.tasa_bcv_manual&select=valor`, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`
+        },
+        cache: 'no-store'
+      });
+      if (dbRes.ok) {
+        const rows = await dbRes.json();
+        if (rows && rows.length > 0 && rows[0].valor) {
+          const manualRate = parseFloat(rows[0].valor);
+          if (!isNaN(manualRate) && manualRate > 0) {
+            return NextResponse.json({
+              success: true,
+              euro: manualRate,
+              usd: manualRate,
+              tcmmv: manualRate,
+              timestamp: new Date().toISOString(),
+              source: 'manual-db'
+            });
+          }
+        }
+      }
+    }
+  } catch(e) {
+    console.error('Error fetching manual rate:', e);
+  }
+
   try {
     // 1. Scraping directo de bcv.org.ve (Más seguro dado que las APIs están caídas o devolviendo pesos argentinos)
     const agent = new https.Agent({ rejectUnauthorized: false });

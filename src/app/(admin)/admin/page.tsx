@@ -1,7 +1,7 @@
 import { MapPin, Phone, Mail, FileText, Download } from 'lucide-react';
 import MapWrapper from '@/components/MapWrapper';
 import { supabase } from '@/lib/supabase';
-import SyncBCVButton from '@/components/SyncBCVButton';
+import ManualBCVRateEditor from '@/components/ManualBCVRateEditor';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,8 +50,8 @@ export default async function AdminHome() {
         {/* Tasa de Cambio */}
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
           <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-            <span className="font-semibold text-slate-700">Tasa de Cambio Semanal BCV</span>
-            <SyncBCVButton />
+            <span className="font-semibold text-slate-700">Tasa de Cambio (Oficial / Manual)</span>
+            <ManualBCVRateEditor currentRate={rates.tcmmv} />
           </div>
           <div className="p-6">
             <div className="flex flex-wrap gap-4 text-sm text-slate-700 items-center justify-center">
