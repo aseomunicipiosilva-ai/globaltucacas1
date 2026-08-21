@@ -1502,12 +1502,34 @@ function ContribuyentesPageContent() {
             >
               <Calculator className="w-4 h-4" />
             </button>
-            <button 
-              className={`${hasDebt ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'} p-1.5 rounded transition-colors`}
-              title={hasDebt ? `Deuda pendiente: Bs. ${debtAmount}` : 'Solvente'}
-            >
-              <DollarSign className="w-4 h-4" />
-            </button>
+            {hasDebt ? (
+              <button 
+                className="bg-red-50 text-red-600 p-1.5 rounded cursor-default"
+                title={`Deuda pendiente: Bs. ${debtAmount}`}
+              >
+                <DollarSign className="w-4 h-4" />
+              </button>
+            ) : (
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const isCondominio = (row.CantidadInmuebles && parseInt(row.CantidadInmuebles) > 1) || 
+                                       (row.Contribuyente && row.Contribuyente.toUpperCase().includes('CONDOMINIO'));
+                  
+                  if (isCondominio) {
+                    // Open view modal to let them select specific unit
+                    setViewData(row);
+                    setIsViewModalOpen(true);
+                  } else {
+                    generarSolvenciaIndividual(row, 'general');
+                  }
+                }}
+                className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 p-1.5 rounded transition-colors flex items-center gap-1"
+                title="Descargar Solvencia"
+              >
+                <Download className="w-4 h-4" />
+              </button>
+            )}
             <button 
               className={`${hasAgreement ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-slate-50 text-slate-400 cursor-default'} p-1.5 rounded transition-colors`}
               title={hasAgreement ? 'Tiene convenio activo' : 'Sin convenios'}
