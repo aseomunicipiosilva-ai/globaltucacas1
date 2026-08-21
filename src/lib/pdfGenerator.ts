@@ -37,8 +37,8 @@ export const generarSolvenciaPDF = async (
     
     let logoIsma = '', logoAlcaldia = '';
     try {
-      logoAlcaldia = await loadImage('/logo_alcaldia.png');
-      logoIsma = await loadImage('/logo_isma.png');
+      logoAlcaldia = await loadImage('/images/logo_alcaldia.png');
+      logoIsma = await loadImage('/images/logo_isma.png');
     } catch(e) {}
     
     if (logoIsma) doc.addImage(logoIsma, 'PNG', 14, 10, 20, 20);
@@ -69,7 +69,8 @@ export const generarSolvenciaPDF = async (
     doc.text(splitText, 20, 70);
 
     const codigoUnico = `SOL-${contribuyente.Identidad}-${Date.now().toString().slice(-6)}`;
-    const qrData = `Certificado: ${codigoUnico} - Solvencia - ${contribuyente.Identidad} - Fecha: ${fechaActualStr}`;
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://globalgreentucacas.com';
+    const qrData = `${baseUrl}/validar?codigo=${codigoUnico}`;
     const qrDataUrl = await QRCode.toDataURL(qrData, { margin: 1, width: 100 });
     doc.addImage(qrDataUrl, 'PNG', 80, 130, 50, 50);
     
