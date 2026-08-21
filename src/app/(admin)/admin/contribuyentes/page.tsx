@@ -1265,11 +1265,11 @@ function ContribuyentesPageContent() {
                     <p className="mb-1"><span className="font-semibold text-slate-700">Factor Multiplicador (Ordenanza):</span> {calculoDetalle.factor} TCMMV-BCV</p>
                   </div>
                   <div>
-                    <p className="mb-1"><span className="font-semibold text-slate-700">Tasa de Cambio Oficial:</span> {bcvRate} Bs/EUR</p>
-                    <p className="text-[10px] text-slate-400 italic mb-1">Fuente: {calculoDetalle.fuente} al {bcvDate}</p>
+                    <p className="mb-1"><span className="font-semibold text-slate-700">Tasa de Cambio Oficial:</span> {calculoDetalle.tasaBcv} Bs/EUR</p>
+                    <p className="text-[10px] text-slate-400 italic mb-1">Fuente: {calculoDetalle.fuente} al {new Date().toLocaleDateString()}</p>
                   </div>
                   <div className="md:col-span-2 pt-2 border-t border-slate-100 flex justify-between items-center">
-                    <p className="text-xs font-medium">Fórmula: {calculoDetalle.factor} × {bcvRate} Bs</p>
+                    <p className="text-xs font-medium">Fórmula: {calculoDetalle.factor} × {calculoDetalle.tasaBcv} Bs</p>
                     <div className="flex items-center gap-4">
                       <p className="text-lg font-bold text-green-700">Total Mensual: Bs. {calculoDetalle.totalBs}</p>
                       {!isNew && (
@@ -1361,7 +1361,7 @@ function ContribuyentesPageContent() {
                     <span className="font-bold text-orange-800">Nueva Deuda Total:</span>
                     <div className="text-right">
                       <span className="block font-black text-orange-600 text-2xl">{(calculoDetalle.factor * debtMonths).toFixed(2)} MMV</span>
-                      <span className="block text-xs font-semibold text-orange-700 mt-1">≈ Bs. {(calculoDetalle.factor * debtMonths * (bcvRate ? parseFloat(bcvRate.replace(',', '.')) : 1)).toFixed(2)}</span>
+                      <span className="block text-xs font-semibold text-orange-700 mt-1">≈ Bs. {(calculoDetalle.factor * debtMonths * (calculoDetalle.tasaBcv || 1)).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
