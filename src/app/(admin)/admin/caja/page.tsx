@@ -34,6 +34,9 @@ export default function CajaPage() {
   const [successMsg, setSuccessMsg] = useState('');
   const [customBcvRate, setCustomBcvRate] = useState<string>('');
   const [useSaldoFavor, setUseSaldoFavor] = useState<boolean>(false);
+  const [isNotaModalOpen, setIsNotaModalOpen] = useState(false);
+  const [notaManualMonto, setNotaManualMonto] = useState('');
+  const [notaManualRef, setNotaManualRef] = useState('');
   const currentBcvRate = customBcvRate && !isNaN(parseFloat(customBcvRate)) ? parseFloat(customBcvRate) : tcmmv;
 
   const bancosVenezuela = [
@@ -292,11 +295,47 @@ export default function CajaPage() {
         setReferencia('');
       }, 3000);
       
-    } catch (e: any) {
-      console.error(e);
-      alert("Error procesando pago: " + e.message);
+    } catch (err: any) {
+      console.error(err);
+      alert('Error: ' + err.message);
     }
     setIsProcessing(false);
+  };
+
+  const handleCrearNotaManual = async () => {
+    if (!notaManualMonto || parseFloat(notaManualMonto) <= 0) return alert('Ingrese un monto válido');
+    if (!notaManualRef) return alert('Ingrese la referencia origen');
+    if (!foundUser) return;
+    
+    try {
+      await supabase.from('documentos').insert([{
+        identidad: foundUser.Identidad,
+        contribuyente: foundUser.Contribuyente,
+        tipo: 'Nota de Credito',
+        estado: 'Vigente',
+        detalles: JSON.stringify({
+          monto: parseFloat(notaManualMonto).toFixed(2),
+          origen_referencia: `Manual: ${notaManualRef}`,
+          fecha_emision: new Date().toISOString()
+        })
+      }]);
+      
+      const { data: userInmuebles } = await supabase.from('inmuebles').select('id, saldo_favor_bs').eq('identidad', foundUser.Identidad);
+      if (userInmuebles && userInmuebles.length > 0) {
+        const firstInmueble = userInmuebles[0];
+        const currentSaldo = parseFloat(firstInmueble.saldo_favor_bs || '0');
+        await supabase.from('inmuebles').update({ saldo_favor_bs: currentSaldo + parseFloat(notaManualMonto) }).eq('id', firstInmueble.id);
+      }
+      
+      setSuccessMsg('Nota de crédito manual generada exitosamente.');
+      setIsNotaModalOpen(false);
+      setNotaManualMonto('');
+      setNotaManualRef('');
+      setTimeout(() => setSuccessMsg(''), 4000);
+      handleSearch(); // Refresh user data
+    } catch (e: any) {
+      alert('Error creando nota: ' + e.message);
+    }
   };
 
   const generarExcelNotasCredito = async () => {
@@ -463,7 +502,12 @@ export default function CajaPage() {
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold text-slate-800">{foundUser.Contribuyente}</h2>
+              <div className="flex items-center gap-4">
+                <h2 className="text-xl font-bold text-slate-800">{foundUser.Contribuyente}</h2>
+                <button onClick={() => setIsNotaModalOpen(true)} className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-full border border-slate-300 transition-colors">
+                  + Agregar Saldo a Favor / Nota Manual
+                </button>
+              </div>
               <p className="text-sm text-slate-500">{foundUser.Identidad}</p>
               <div className="mt-2 text-xs bg-slate-100 text-slate-600 px-3 py-2 rounded border border-slate-200 inline-block">
                 <span className="font-bold">Fórmula de Referencia:</span> El cálculo original se realizó multiplicando el Factor MMV por la Tasa BCV vigente en la emisión.
@@ -633,6 +677,42 @@ export default function CajaPage() {
         </div>
       )}
       </div>
+      )}
+
+      {/* Modal Nota Manual */}
+      {isNotaModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-lg">
+              <h3 className="font-bold text-slate-800">Generar Nota de Crédito Manual</h3>
+              <button onClick={() => setIsNotaModalOpen(false)} className="text-slate-500 hover:text-slate-700 font-bold">&times;</button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Monto (Bs)</label>
+                <input 
+                  type="number" step="0.01" 
+                  value={notaManualMonto} onChange={e => setNotaManualMonto(e.target.value)}
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                  placeholder="Ej. 1000.00"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Motivo / Referencia Origen</label>
+                <input 
+                  type="text" 
+                  value={notaManualRef} onChange={e => setNotaManualRef(e.target.value)}
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                  placeholder="Ej. Transferencia no facturada #12345678"
+                />
+              </div>
+            </div>
+            <div className="p-4 border-t border-slate-200 bg-slate-50 rounded-b-lg flex justify-end gap-3">
+              <button onClick={() => setIsNotaModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200 rounded">Cancelar</button>
+              <button onClick={handleCrearNotaManual} className="px-4 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded shadow-sm">Generar Nota</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

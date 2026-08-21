@@ -175,7 +175,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Update local state immediately for better UX
       setContribuyentes(prev => prev.map(c => c.Identidad === id ? { ...c, ...data } : c));
       
-      await addAuditLog('ACTUALIZAR_CONTRIBUYENTE', `Se actualizaron los datos del contribuyente: ${data.Contribuyente} (Identidad: ${id})`);
+      let logMsg = `Se actualizaron los datos del contribuyente: ${data.Contribuyente} (Identidad: ${id})`;
+      if (data.Nota?.trim()) logMsg += ` | Nota Simple: ${data.Nota}`;
+      if (data.Notas_Adicionales?.trim()) logMsg += ` | Notas Adicionales: ${data.Notas_Adicionales}`;
+      
+      await addAuditLog('ACTUALIZAR_CONTRIBUYENTE', logMsg);
     } catch (e) {
       console.error("Error updating contribuyente in Supabase:", e);
       throw e;

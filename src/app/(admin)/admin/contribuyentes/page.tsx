@@ -633,7 +633,7 @@ function ContribuyentesPageContent() {
       const changedResidencia = formData.TipoResidencia !== originalData.TipoResidencia;
       const changedClasificacion = formData.Clasificacion !== originalData.Clasificacion;
       
-      if ((changedActividad || changedResidencia || changedClasificacion) && !formData.Nota?.trim()) {
+      if ((changedActividad || changedResidencia || changedClasificacion) && !formData.Notas_Adicionales?.trim()) {
         alert("Es OBLIGATORIO ingresar una Nota Adicional explicando el cambio de Actividad Comercial, Tipo de Residencia o Clasificación.");
         return;
       }
@@ -848,18 +848,14 @@ function ContribuyentesPageContent() {
                 <input type="text" className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
               </div>
               <div className="md:col-span-2 mt-2">
-                {isNew && (
-                  <>
-                    <label className="block text-[10px] font-bold text-blue-800 mb-1">Nota</label>
-                    <input 
-                      type="text" 
-                      value={formData.Nota || ''} 
-                      onChange={e => setFormData({...formData, Nota: e.target.value.toUpperCase()})}
-                      placeholder="SE CREA USUARIO YA QUE TRAJO DOCUMENTACION..." 
-                      className="w-full border border-slate-200 rounded px-3 py-2 text-xs text-slate-600 font-medium outline-none focus:border-blue-400 uppercase"
-                    />
-                  </>
-                )}
+                <label className="block text-[10px] font-bold text-blue-800 mb-1">Nota Simple (Opcional)</label>
+                <textarea 
+                  value={formData.Nota || ''}
+                  onChange={e => setFormData({...formData, Nota: e.target.value})}
+                  placeholder="Ingrese una nota sencilla, ej: Trajo documentación completa..."
+                  className="w-full border border-blue-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-blue-50/30"
+                  rows={2}
+                />
               </div>
             </div>
 
@@ -1155,8 +1151,8 @@ function ContribuyentesPageContent() {
                   (Requerido obligatoriamente si se cambia la Actividad Comercial o Tipo de Residencia)
                 </p>
                 <textarea
-                  value={formData.Nota || ''}
-                  onChange={e => setFormData({ ...formData, Nota: e.target.value })}
+                  value={formData.Notas_Adicionales || ''}
+                  onChange={e => setFormData({ ...formData, Notas_Adicionales: e.target.value })}
                   rows={3}
                   placeholder="Ingrese cualquier observación o motivo de modificación..."
                   className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-yellow-500"
