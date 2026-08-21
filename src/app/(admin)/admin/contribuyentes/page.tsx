@@ -1673,7 +1673,42 @@ function ContribuyentesPageContent() {
                       return (
                         <div className="p-6 text-center">
                           <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-2" />
-                          <p className="text-slate-600 font-medium">El contribuyente está solvente.</p>
+                          <p className="text-slate-600 font-medium mb-4">El contribuyente está solvente.</p>
+                          
+                          <div className="max-w-xs mx-auto bg-green-50 p-4 rounded-lg border border-green-100">
+                            {viewData.isCondominio ? (
+                              <div className="space-y-3">
+                                <label className="text-xs font-bold text-green-800 block text-left">Seleccione el Inmueble:</label>
+                                <select 
+                                  className="w-full text-sm p-2 border border-green-200 rounded text-slate-700 bg-white"
+                                  value={selectedSolvenciaInmueble}
+                                  onChange={(e) => setSelectedSolvenciaInmueble(e.target.value)}
+                                >
+                                  <option value="">-- Condominio General --</option>
+                                  {viewCalculo?.misInmuebles?.map((inm: any, idx: number) => (
+                                    <option key={idx} value={inm.inmueble || `Local ${idx+1}`}>
+                                      {inm.inmueble || `Local ${idx+1}`} - {inm.actividad_principal || 'Residencial'}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button 
+                                  onClick={() => generarSolvenciaIndividual(viewData, selectedSolvenciaInmueble)}
+                                  className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded shadow-sm text-sm font-bold flex items-center justify-center gap-2 transition-colors"
+                                >
+                                  <Download className="w-4 h-4" />
+                                  Descargar Solvencia
+                                </button>
+                              </div>
+                            ) : (
+                              <button 
+                                onClick={() => generarSolvenciaIndividual(viewData, 'general')}
+                                className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded shadow-sm text-sm font-bold flex items-center justify-center gap-2 transition-colors"
+                              >
+                                <Download className="w-4 h-4" />
+                                Descargar Solvencia
+                              </button>
+                            )}
+                          </div>
                         </div>
                       );
                     }
