@@ -45,8 +45,7 @@ export default function CertificadosPage() {
       // Buscar inmuebles
       const misInmuebles = (inmuebles || []).filter((i: any) => i.identidad === found.Identidad);
       const isCondominio = (found.CantidadInmuebles && parseInt(found.CantidadInmuebles) > 1) || 
-                           (found.Contribuyente && found.Contribuyente.toUpperCase().includes('CONDOMINIO')) ||
-                           (misInmuebles.length > 1);
+                           (found.Contribuyente && found.Contribuyente.toUpperCase().includes('CONDOMINIO'));
 
       setSearchResult({
         ...found,
