@@ -3,7 +3,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
 import { useAppContext } from '@/store/AppContext';
-import { Users, Save, ArrowLeft, Plus, Building, Home as HomeIcon, MapPin, Edit, DollarSign, Handshake, Eye, X, CheckCircle, Calculator, AlertCircle, Download, FileText } from 'lucide-react';
+import { Users, Save, ArrowLeft, Plus, Building, Home as HomeIcon, MapPin, Edit, DollarSign, Handshake, Eye, X, CheckCircle, Calculator, AlertCircle, Download, FileText, Trash2, Power } from 'lucide-react';
 import { ordenanzaData } from '@/data/ordenanza';
 import Select from 'react-select';
 import dynamic from 'next/dynamic';
@@ -87,6 +87,34 @@ function ContribuyentesPageContent() {
       alert("Error procesando acción: " + e.message);
     }
     setIsProcessingAction(false);
+  };
+
+  const handleDelete = async (row: any) => {
+    if (!confirm(`¿Está seguro de que desea eliminar permanentemente al contribuyente ${row.Contribuyente}? Esta acción no se puede deshacer y borrará todos sus inmuebles.`)) {
+      return;
+    }
+    try {
+      const { error } = await supabase.from('inmuebles').delete().eq('identidad', row.Identidad);
+      if (error) throw error;
+      alert('Contribuyente eliminado exitosamente.');
+      window.location.reload(); // Reload to refresh context
+    } catch (err: any) {
+      alert('Error eliminando contribuyente: ' + err.message);
+    }
+  };
+
+  const handleDeactivate = async (row: any) => {
+    if (!confirm(`¿Está seguro de que desea desactivar al contribuyente ${row.Contribuyente}?`)) {
+      return;
+    }
+    try {
+      const { error } = await supabase.from('inmuebles').update({ estado: 'Inactivo' }).eq('identidad', row.Identidad);
+      if (error) throw error;
+      alert('Contribuyente desactivado exitosamente.');
+      window.location.reload();
+    } catch (err: any) {
+      alert('Error desactivando contribuyente: asegúrese de haber creado la columna "estado" en su tabla inmuebles. ' + err.message);
+    }
   };
 
   const calculateFactorForRow = async (row: any) => {
@@ -1397,6 +1425,20 @@ function ContribuyentesPageContent() {
               title={hasAgreement ? 'Tiene convenio activo' : 'Sin convenios'}
             >
               <Handshake className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => handleDeactivate(row)}
+              className="bg-amber-50 text-amber-600 hover:bg-amber-100 p-1.5 rounded transition-colors"
+              title="Desactivar Contribuyente"
+            >
+              <Power className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => handleDelete(row)}
+              className="bg-red-50 text-red-600 hover:bg-red-100 p-1.5 rounded transition-colors"
+              title="Eliminar Contribuyente"
+            >
+              <Trash2 className="w-4 h-4" />
             </button>
           </div>
         );
