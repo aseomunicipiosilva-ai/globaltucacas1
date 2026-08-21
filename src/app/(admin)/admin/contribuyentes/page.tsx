@@ -56,6 +56,7 @@ function ContribuyentesPageContent() {
   const [isDebtModalOpen, setIsDebtModalOpen] = useState(false);
   const [debtMonths, setDebtMonths] = useState(1);
   const [isProcessingDebt, setIsProcessingDebt] = useState(false);
+  const [customDebtBcvRate, setCustomDebtBcvRate] = useState<string>('');
 
   // Status Modal (Eliminar/Desactivar)
   const [statusModal, setStatusModal] = useState<{type: 'Eliminar'|'Desactivar', row: any} | null>(null);
@@ -632,10 +633,13 @@ function ContribuyentesPageContent() {
 
       // Insert new factura for the new balance if > 0
       if (deudaMMV > 0) {
+        const tasaToUse = customDebtBcvRate ? parseFloat(customDebtBcvRate.replace(',', '.')) : (calculoDetalle.tasaBcv || 1);
+        const montoBs = (deudaMMV * tasaToUse).toFixed(2);
+        
         const facturaData = {
           referencia: `FACT-${Math.floor(Math.random() * 1000000)}`,
           contribuyente: formData.Contribuyente,
-          monto: (deudaMMV * (bcvRate ? parseFloat(bcvRate.replace(',', '.')) : 1)).toFixed(2),
+          monto: montoBs,
           emision: new Date().toISOString().split('T')[0],
           vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           estado: 'Pendiente'
@@ -1357,11 +1361,25 @@ function ContribuyentesPageContent() {
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Tasa BCV Manual (Opcional)</label>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      min="0"
+                      placeholder={`Tasa Oficial: ${calculoDetalle.tasaBcv}`}
+                      value={customDebtBcvRate} 
+                      onChange={(e) => setCustomDebtBcvRate(e.target.value)}
+                      className="w-full border-2 border-slate-200 rounded-lg px-4 py-2 font-semibold text-slate-700 focus:border-orange-500 outline-none"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">Si dejas esto en blanco, se usará la tasa oficial ({calculoDetalle.tasaBcv} Bs).</p>
+                  </div>
+
                   <div className="flex justify-between items-center bg-orange-50 p-4 rounded-lg border border-orange-200 shadow-inner">
                     <span className="font-bold text-orange-800">Nueva Deuda Total:</span>
                     <div className="text-right">
                       <span className="block font-black text-orange-600 text-2xl">{(calculoDetalle.factor * debtMonths).toFixed(2)} MMV</span>
-                      <span className="block text-xs font-semibold text-orange-700 mt-1">≈ Bs. {(calculoDetalle.factor * debtMonths * (calculoDetalle.tasaBcv || 1)).toFixed(2)}</span>
+                      <span className="block text-xs font-semibold text-orange-700 mt-1">≈ Bs. {(calculoDetalle.factor * debtMonths * (customDebtBcvRate ? parseFloat(customDebtBcvRate.replace(',', '.')) : (calculoDetalle.tasaBcv || 1))).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
