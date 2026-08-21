@@ -25,10 +25,14 @@ export default function CertificadosPage() {
     setIsSearching(true);
     
     const query = searchQuery.trim().toLowerCase();
-    const found = contribuyentes.find(c => 
-      c.Identidad?.toLowerCase() === query || 
-      c.Contribuyente?.toLowerCase().includes(query)
-    );
+    const cleanQuery = query.replace(/[^a-z0-9]/g, ''); // Remove dashes, spaces, etc.
+    
+    const found = contribuyentes.find(c => {
+      const identClean = (c.Identidad || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      return identClean === cleanQuery || 
+             identClean.includes(cleanQuery) ||
+             (c.Contribuyente || '').toLowerCase().includes(query);
+    });
     
     if (found) {
       // Calcular deuda
