@@ -844,6 +844,16 @@ function ContribuyentesPageContent() {
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Nombre Comercial</label>
                 <input type="text" className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
               </div>
+              <div className="md:col-span-2 mt-2">
+                <label className="block text-[10px] font-bold text-blue-800 mb-1">Nota</label>
+                <input 
+                  type="text" 
+                  value={formData.Nota || ''} 
+                  onChange={e => setFormData({...formData, Nota: e.target.value.toUpperCase()})}
+                  placeholder="SE CREA USUARIO YA QUE TRAJO DOCUMENTACION..." 
+                  className="w-full border border-slate-200 rounded px-3 py-2 text-xs text-slate-600 font-medium outline-none focus:border-blue-400 uppercase"
+                />
+              </div>
             </div>
 
             {/* Clasificación de Ordenanza */}
@@ -1125,25 +1135,6 @@ function ContribuyentesPageContent() {
             )}
           </div>
 
-          {/* Section: Notas */}
-          <div className="bg-yellow-50 border-y border-yellow-200 px-4 py-2 mt-4">
-            <h2 className="text-[10px] font-bold text-yellow-800 uppercase tracking-wide">
-              Notas Adicionales
-            </h2>
-          </div>
-          <div className="p-6">
-            <p className="text-[10px] text-slate-500 mb-2">
-              (Requerido obligatoriamente si se cambia la Actividad Comercial o Tipo de Residencia)
-            </p>
-            <textarea
-              value={formData.Nota || ''}
-              onChange={e => setFormData({ ...formData, Nota: e.target.value })}
-              rows={3}
-              placeholder="Ingrese cualquier observación o motivo de modificación..."
-              className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-yellow-500"
-            />
-          </div>
-          
           {/* Section: Datos de Seguridad */}
           <div className="bg-purple-100 border-y border-purple-200 px-4 py-2 mt-4">
             <h2 className="text-[10px] font-bold text-slate-800 uppercase tracking-wide">
