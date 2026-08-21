@@ -74,7 +74,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         supabase.from('pre_liquidaciones').select('*'),
         supabase.from('audit_logs').select('*').order('created_at', { ascending: false }),
         supabase.from('sistema_config').select('valor').eq('id', 'tarifas_ordenanza').single(),
-        fetch('/api/bcv').then(res => res.json()).catch(() => ({ tcmmv: 0 }))
+        fetch(`/api/bcv?t=${Date.now()}`, { cache: 'no-store' }).then(res => res.json()).catch(() => ({ tcmmv: 0 }))
       ]);
 
       if (dbConfig && (dbConfig as any).valor) {
