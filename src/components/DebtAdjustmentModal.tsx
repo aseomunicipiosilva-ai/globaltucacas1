@@ -12,8 +12,17 @@ export function DebtAdjustmentModal({ row, inmuebles, tcmmv, facturas, setFactur
   const [debtMonths, setDebtMonths] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [calculoDetalle, setCalculoDetalle] = useState<any>(null);
+  const [dynamicTcmmv, setDynamicTcmmv] = useState<number>(tcmmv || 1);
   
   useEffect(() => {
+    // Fetch fresh rate just in case AppContext has a stale one
+    fetch(`/api/bcv?t=${Date.now()}`, { cache: 'no-store' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.tcmmv) setDynamicTcmmv(data.tcmmv);
+      })
+      .catch(console.error);
+      
     const calcView = async () => {
       try {
         let factorTotal = 0;
@@ -80,12 +89,13 @@ export function DebtAdjustmentModal({ row, inmuebles, tcmmv, facturas, setFactur
       }
 
       // Generate a single new invoice for the adjusted debt
-      const nuevaDeudaTotal = (calculoDetalle.factor * debtMonths * (tcmmv || 1)).toFixed(2);
+      const deudaMMV = (calculoDetalle.factor * debtMonths);
+      const montoBs = (deudaMMV * dynamicTcmmv).toFixed(2);
       
       const facturaData = {
         referencia: `FACT-${Math.floor(Math.random() * 1000000)}`,
         contribuyente: rowContribuyente,
-        monto: nuevaDeudaTotal,
+        monto: montoBs,
         emision: new Date().toISOString().split('T')[0],
         vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         estado: 'Pendiente'
@@ -154,7 +164,7 @@ export function DebtAdjustmentModal({ row, inmuebles, tcmmv, facturas, setFactur
               <span className="font-bold text-orange-800">Nueva Deuda Total:</span>
               <div className="text-right">
                 <span className="block font-black text-orange-600 text-2xl">{(calculoDetalle.factor * debtMonths).toFixed(2)} MMV</span>
-                <span className="block text-xs font-semibold text-orange-700 mt-1">≈ Bs. {(calculoDetalle.factor * debtMonths * (tcmmv || 1)).toFixed(2)}</span>
+                <span className="block text-xs font-semibold text-orange-700 mt-1">≈ Bs. {(calculoDetalle.factor * debtMonths * dynamicTcmmv).toFixed(2)}</span>
               </div>
             </div>
           </div>
