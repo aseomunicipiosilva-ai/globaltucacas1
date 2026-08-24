@@ -109,7 +109,7 @@ export function DebtAdjustmentModal({ row, inmuebles, tcmmv, facturas, setFactur
       setFacturas([newFactura, ...facturasRestantes]);
 
       if (addAuditLog) {
-        await addAuditLog('AJUSTAR_DEUDA', `Deuda ajustada a ${debtMonths} meses (${nuevaDeudaTotal} Bs) para el contribuyente ${rowContribuyente}`);
+        await addAuditLog('AJUSTAR_DEUDA', `Deuda ajustada a ${debtMonths} meses (${montoBs} Bs) para el contribuyente ${rowContribuyente}`);
       }
 
       alert('Deuda ajustada y factura generada exitosamente.');
