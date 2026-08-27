@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { LogOut, User, MapPin } from 'lucide-react';
+import { AppProvider } from '@/store/AppContext';
 
 export default function OperadorLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -34,8 +35,9 @@ export default function OperadorLayout({ children }: { children: React.ReactNode
   if (!operador) return <div className="min-h-screen bg-slate-50 flex items-center justify-center">Cargando...</div>;
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col max-w-md mx-auto shadow-2xl relative">
-      {/* Mobile Top Header */}
+    <AppProvider>
+      <div className="min-h-screen bg-slate-100 flex flex-col max-w-md mx-auto shadow-2xl relative">
+        {/* Mobile Top Header */}
       <header className="bg-orange-600 text-white p-4 shadow-md sticky top-0 z-50 rounded-b-xl flex justify-between items-center">
         <div>
           <h1 className="text-lg font-black tracking-tight leading-none">CENSO MÓVIL</h1>
@@ -70,5 +72,6 @@ export default function OperadorLayout({ children }: { children: React.ReactNode
         </button>
       </nav>
     </div>
+    </AppProvider>
   );
 }

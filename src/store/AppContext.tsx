@@ -87,7 +87,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const currentTcmmv = bcvData?.tcmmv || 0;
       setTcmmv(currentTcmmv);
       
-      const dbAuditLogsResult = arguments[2] ? arguments[2][9] : null; // It's index 9 in Promise.all actually
       // Let's just fetch it normally since I can't guarantee arguments:
       const { data: fetchAuditLogs } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false });
       setAuditLogs(fetchAuditLogs || []);
