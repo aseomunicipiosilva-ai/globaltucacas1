@@ -331,6 +331,15 @@ export default function CensoPage() {
             <input type="text" value={formData.DireccionExacta || ''} onChange={e => setFormData({...formData, DireccionExacta: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
           </div>
 
+          <div>
+            <label className="block text-[10px] font-medium text-slate-500 mb-1">Número de Patente (Si aplica)</label>
+            <input type="text" value={formData.Patente || ''} onChange={e => setFormData({...formData, Patente: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" placeholder="Ej: P-12345" />
+          </div>
+          <div>
+            <label className="block text-[10px] font-medium text-slate-500 mb-1">Ficha Catastral</label>
+            <input type="text" value={formData.FichaCatastral || ''} onChange={e => setFormData({...formData, FichaCatastral: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" placeholder="Ej: 01-23-456-789" />
+          </div>
+
           <div className="md:col-span-2">
             <label className="block text-[10px] font-medium text-slate-500 mb-1">Notas / Observaciones</label>
             <textarea value={formData.Nota || ''} onChange={e => setFormData({...formData, Nota: e.target.value})} rows={2} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" placeholder="Añade detalles adicionales o justificaciones aquí..." />
