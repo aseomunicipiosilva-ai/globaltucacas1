@@ -1,4 +1,4 @@
-import { Briefcase, Plus, FileText, Search } from 'lucide-react';
+﻿import { Briefcase, Plus, FileText, Search } from 'lucide-react';
 import Link from 'next/link';
 
 export default function ActividadesEconomicasPage() {
@@ -28,11 +28,11 @@ export default function ActividadesEconomicasPage() {
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
         <div className="p-6 border-b border-slate-200 flex gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-11/2 transform --translate-y-1/2 w-5 h-5 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
               type="text"
               placeholder="Buscar por RIF o Razón Social..."
-              className="w\-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500/20"}
+              className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
           <select className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none">
