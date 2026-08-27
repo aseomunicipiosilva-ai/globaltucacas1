@@ -51,6 +51,8 @@ export default function CensoMobilePage() {
     isCondominio: false,
     cantidadInmuebles: 0,
     locales: [],
+    NumeroPatente: '',
+    FichaCatastral: '',
     Nota: '',
     FechaInicioActividad: new Date().toISOString().split('T')[0]
   });
@@ -193,7 +195,11 @@ export default function CensoMobilePage() {
         is_condominio: formData.isCondominio,
         cantidad_inmuebles: formData.cantidadInmuebles,
         locales: formData.locales,
-        nota: formData.Nota
+        nota: [
+          formData.NumeroPatente ? `Patente: ${formData.NumeroPatente}` : '',
+          formData.FichaCatastral ? `Catastro: ${formData.FichaCatastral}` : '',
+          formData.Nota || ''
+        ].filter(Boolean).join(' | ')
       }]);
 
       if (error) throw error;
@@ -219,6 +225,8 @@ export default function CensoMobilePage() {
         isCondominio: false,
         cantidadInmuebles: 0,
         locales: [],
+        NumeroPatente: '',
+        FichaCatastral: '',
         Nota: '',
         FechaInicioActividad: new Date().toISOString().split('T')[0]
       });
@@ -413,8 +421,32 @@ export default function CensoMobilePage() {
               <label htmlFor="isCondominio" className="text-xs font-medium text-slate-700">Es un Condominio (Contiene múltiples inmuebles)</label>
             </div>
 
+            {/* Catastro y Patente */}
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <div>
+                <label className="block text-[10px] font-medium text-slate-500 mb-1 uppercase tracking-wide">Ficha Catastral (Opcional)</label>
+                <input
+                  type="text"
+                  value={formData.FichaCatastral || ''}
+                  onChange={e => setFormData({...formData, FichaCatastral: e.target.value})}
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500"
+                  placeholder="Ej. CAT-0001"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-medium text-slate-500 mb-1 uppercase tracking-wide">Número de Patente (Opcional)</label>
+                <input
+                  type="text"
+                  value={formData.NumeroPatente || ''}
+                  onChange={e => setFormData({...formData, NumeroPatente: e.target.value})}
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500"
+                  placeholder="Ej. PAT-9876"
+                />
+              </div>
+            </div>
+
             {formData.isCondominio && (
-              <div className="mb-4">
+              <div className="mt-4">
                  <label className="block text-[10px] font-medium text-slate-500 mb-1">Cantidad de Locales / Apartamentos</label>
                  <input 
                    type="number" 
@@ -620,7 +652,7 @@ export default function CensoMobilePage() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-600 font-medium">Factor Total Mensual:</span>
-                    <span className="font-bold text-slate-800">{calculoDetalle.factor.toFixed(2)} MMV</span>
+                    <span className="font-bold text-slate-800">{calculoDetalle.factor.toFixed(2)} EUR (€) (Tarifa Real)</span>
                   </div>
                   
                   {calculoDetalle.desglose?.length > 0 ? (
@@ -634,7 +666,7 @@ export default function CensoMobilePage() {
                               <p className="text-[10px] text-slate-500">{d.leyenda.substring(0, 45)}...</p>
                             </div>
                             <div className="text-right">
-                              <p className="text-xs font-bold text-slate-700">{d.factor.toFixed(2)} MMV</p>
+                              <p className="text-xs font-bold text-slate-700">{d.factor.toFixed(2)} EUR (€)</p>
                             </div>
                           </div>
                         ))}
