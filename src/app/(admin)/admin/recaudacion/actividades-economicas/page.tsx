@@ -1,23 +1,25 @@
 ﻿'use client';
 import { useState, useEffect } from 'react';
-import { Briefcase, Plus, FileText, Search, X } from 'lucide-react';
+import { Briefcase, Plus, FileText, Search, X, Calculator } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
 export default function ActividadesEconomicasPage() {
   const [empresas, setEmpresas] = useState<any[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [showDeclForm, setShowDeclForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  
+  // Empresa Form
   const [formData, setFormData] = useState({
-    rif: '',
-    razon_social: '',
-    representante_legal: '',
-    direccion: '',
-    telefono: '',
-    correo: '',
-    clasificador_actividad: '',
-    alicuota: 0
+    rif: '', razon_social: '', representante_legal: '', direccion: '',
+    telefono: '', correo: '', clasificador_actividad: '', alicuota: 0
+  });
+
+  // Declaracion Form
+  const [declData, setDeclData] = useState({
+    empresa_id: '', periodo: '', tipo_declaracion: 'Mensual', ingresos_brutos: 0, impuesto_calculado: 0
   });
 
   useEffect(() => {
@@ -33,7 +35,7 @@ export default function ActividadesEconomicasPage() {
     setLoading(false);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleEmpresaSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     const { error } = await supabase.from('hacienda_empresas').insert([formData]);
@@ -52,6 +54,38 @@ export default function ActividadesEconomicasPage() {
     }
   };
 
+  const handleDeclSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    
+    // Auto-calcular impuesto si no se ha hecho
+    const empresa = empresas.find(emp => emp.id === declData.empresa_id);
+    let impuesto = declData.impuesto_calculado;
+    if (empresa && impuesto === 0 && declData.ingresos_brutos > 0) {
+      impuesto = (declData.ingresos_brutos * empresa.alicuota) / 100;
+    }
+
+    const payload = { ...declData, impuesto_calculado: impuesto };
+    const { error } = await supabase.from('hacienda_declaraciones').insert([payload]);
+    setSaving(false);
+    
+    if (!error) {
+      alert('Declaración procesada exitosamente. El impuesto calculado es: ' + impuesto + ' EUR');
+      setShowDeclForm(false);
+      setDeclData({ empresa_id: '', periodo: '', tipo_declaracion: 'Mensual', ingresos_brutos: 0, impuesto_calculado: 0 });
+    } else {
+      alert('Error al procesar declaración: ' + error.message);
+    }
+  };
+
+  const calcularImpuesto = () => {
+    const empresa = empresas.find(emp => emp.id === declData.empresa_id);
+    if (empresa && declData.ingresos_brutos > 0) {
+      const calculo = (declData.ingresos_brutos * empresa.alicuota) / 100;
+      setDeclData({ ...declData, impuesto_calculado: calculo });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -64,7 +98,7 @@ export default function ActividadesEconomicasPage() {
         </div>
 
         <div className="flex gap-3">
-          <button className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2">
+          <button onClick={() => setShowDeclForm(true)} className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2">
             <FileText className="w-4 h-4" />
             Nueva Declaración
           </button>
@@ -75,6 +109,7 @@ export default function ActividadesEconomicasPage() {
         </div>
       </div>
 
+      {/* MODAL REGISTRO EMPRESA */}
       {showForm && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -85,7 +120,7 @@ export default function ActividadesEconomicasPage() {
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleEmpresaSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">RIF</label>
@@ -128,6 +163,68 @@ export default function ActividadesEconomicasPage() {
         </div>
       )}
 
+      {/* MODAL NUEVA DECLARACION */}
+      {showDeclForm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-200 flex justify-between items-center sticky top-0 bg-white">
+              <h2 className="text-xl font-bold text-slate-800">Procesar Declaración Jurada</h2>
+              <button onClick={() => setShowDeclForm(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleDeclSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Empresa Contribuyente</label>
+                <select required value={declData.empresa_id} onChange={e => setDeclData({...declData, empresa_id: e.target.value})} className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-500">
+                  <option value="">Seleccione una empresa...</option>
+                  {empresas.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.rif} - {emp.razon_social}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Período</label>
+                  <input required type="text" value={declData.periodo} onChange={e => setDeclData({...declData, periodo: e.target.value})} className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-500" placeholder="Ej. Enero 2026" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de Declaración</label>
+                  <select value={declData.tipo_declaracion} onChange={e => setDeclData({...declData, tipo_declaracion: e.target.value})} className="w-full border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-500">
+                    <option value="Mensual">Mensual</option>
+                    <option value="Anual">Anual</option>
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Ingresos Brutos Declarados (EUR)</label>
+                  <div className="flex gap-2">
+                    <input required type="number" step="0.01" value={declData.ingresos_brutos} onChange={e => setDeclData({...declData, ingresos_brutos: parseFloat(e.target.value)})} className="flex-1 border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-blue-500" />
+                    <button type="button" onClick={calcularImpuesto} className="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors flex items-center gap-2">
+                      <Calculator className="w-4 h-4" /> Calcular
+                    </button>
+                  </div>
+                </div>
+                {declData.impuesto_calculado > 0 && (
+                  <div className="col-span-2 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                    <p className="text-sm text-blue-600 font-medium">Impuesto a pagar (según alícuota):</p>
+                    <p className="text-2xl font-bold text-blue-800">{declData.impuesto_calculado.toFixed(2)} EUR</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button type="button" onClick={() => setShowDeclForm(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancelar</button>
+                <button type="submit" disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">
+                  {saving ? 'Procesando...' : 'Procesar Declaración'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* TABLA PRINCIPAL DE EMPRESAS */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-slate-200 flex gap-4">
           <div className="flex-1 relative">
@@ -138,10 +235,6 @@ export default function ActividadesEconomicasPage() {
               className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
-          <select className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none">
-            <option value="todas">Todas las Empresas</option>
-            <option value="activas">Activas</option>
-          </select>
         </div>
 
         <div className="overflow-x-auto">
@@ -179,7 +272,7 @@ export default function ActividadesEconomicasPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-blue-600 hover:text-blue-800 font-medium text-xs">Ver Detalles</button>
+                      <button onClick={() => { setDeclData({...declData, empresa_id: emp.id}); setShowDeclForm(true); }} className="text-blue-600 hover:text-blue-800 font-medium text-xs">Declarar Ingresos</button>
                     </td>
                   </tr>
                 ))
