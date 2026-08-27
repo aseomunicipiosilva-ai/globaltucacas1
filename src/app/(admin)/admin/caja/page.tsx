@@ -28,6 +28,7 @@ export default function CajaPage() {
 
   // Payment State
   const [paymentMethod, setPaymentMethod] = useState<'Debito' | 'Transferencia'>('Debito');
+  const [referenciaDebito, setReferenciaDebito] = useState('');
   const [banco, setBanco] = useState('Banesco');
   const [referencia, setReferencia] = useState('');
   const [montoTransferido, setMontoTransferido] = useState<string>('');
@@ -164,6 +165,8 @@ export default function CajaPage() {
       } else {
         montoReal = transferido;
       }
+    } else if (paymentMethod === 'Debito') {
+      if (!referenciaDebito.trim()) return alert("Debe ingresar el número de comprobante o referencia del pago por punto.");
     }
     
     if (!confirm(`¿Confirmar pago por Bs. ${formatBs(montoReal)}${saldoAFavorNuevo > 0 ? ` (Generará un Saldo a Favor de Bs. ${formatBs(saldoAFavorNuevo)})` : ''}${esAbono ? ` (Es un ABONO. Quedará un saldo pendiente de Bs. ${formatBs(finalTotal - montoReal)})` : ''} mediante ${paymentMethod}?`)) return;
@@ -237,6 +240,25 @@ export default function CajaPage() {
           }
         }
         
+        // Record the direct payment in pagos_reportados for auditing and reporting
+        const cajero = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'Administrador';
+        const letra = (typeof window !== 'undefined' ? localStorage.getItem('adminLetra') : null);
+        const cajero_id = letra && cajero !== 'Administrador' ? `${letra}-${cajero}` : cajero;
+
+        await supabase.from('pagos_reportados').insert({
+          identidad: foundUser.Identidad,
+          monto: montoReal,
+          banco: 'Punto de Venta',
+          referencia: referenciaDebito,
+          tipo: 'Punto',
+          estado: 'Aprobado', // Aprobado automáticamente porque es en sitio
+          detalles: JSON.stringify({
+            recibos: selectedRecibos,
+            cuotas: selectedCuotas,
+            cajero: cajero_id
+          })
+        });
+
         setSuccessMsg("Pago procesado exitosamente por Tarjeta de Débito. La deuda ha sido eliminada.");
         
       } else {
@@ -628,7 +650,22 @@ export default function CajaPage() {
                 </select>
               </label>
 
-              {paymentMethod === 'Transferencia' && (
+                  {paymentMethod === 'Debito' && (
+                    <div className="mt-4">
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-2">
+                        Número de Comprobante <span className="text-red-500">*</span>
+                      </label>
+                      <input 
+                        type="text" 
+                        value={referenciaDebito} 
+                        onChange={e => setReferenciaDebito(e.target.value)} 
+                        placeholder="Ej. 0001234" 
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:bg-white transition-all font-medium text-slate-700"
+                      />
+                    </div>
+                  )}
+
+                  {paymentMethod === 'Transferencia' && (
                 <div className="space-y-3 bg-white p-3 rounded border border-slate-200">
                   <label className="block">
                     <span className="text-xs font-semibold text-slate-600 mb-1 block">Banco Emisor</span>
