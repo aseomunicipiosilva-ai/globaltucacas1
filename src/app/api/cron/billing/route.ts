@@ -26,7 +26,7 @@ export async function GET(request: Request) {
 
     const usdData = await usdRes.json();
     const eurData = await eurRes.json();
-    const tcmmv = Math.max(usdData.promedio, eurData.promedio);
+    const tcmmv = eurData.promedio;
 
     // 3. Obtener todos los inmuebles
     const { data: inmuebles, error: inmueblesError } = await supabase

@@ -20,7 +20,7 @@ async function getExchangeRates() {
     return {
       usd: usd.promedio,
       eur: eur.promedio,
-      tcmmv: Math.max(usd.promedio, eur.promedio),
+      tcmmv: eur.promedio,
       fecha: new Date(eur.fechaActualizacion || usd.fechaActualizacion).toLocaleDateString('es-VE', {
         weekday: 'long',
         year: 'numeric',

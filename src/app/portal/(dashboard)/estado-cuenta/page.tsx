@@ -14,7 +14,7 @@ export default function EstadoCuentaPage() {
     // Como el portal esta harcodeado, tomaremos el primer contribuyente o los inmuebles del mismo.
     const calcView = async () => {
       try {
-        const res = await fetch('/api/bcv');
+        const res = await fetch(`/api/bcv?t=${Date.now()}`, { cache: 'no-store' });
         const data = await res.json();
         
         let factorTotal = 0;

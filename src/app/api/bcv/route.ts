@@ -71,7 +71,7 @@ export async function GET(request: Request) {
       throw new Error('Could not parse BCV HTML correctly');
     }
 
-    const tcmmv = Math.max(usdVal, euroVal);
+    const tcmmv = euroVal; // Se usa estrictamente la tasa del Euro por ordenanza
 
     return NextResponse.json({
       success: true,
@@ -102,7 +102,7 @@ export async function GET(request: Request) {
          throw new Error('DolarAPI is returning Argentine Pesos instead of Bolivares (Bug)');
       }
 
-      const tcmmv = Math.max(usdVal, euroVal);
+      const tcmmv = euroVal; // Estrictamente tasa Euro
       return NextResponse.json({
         success: true,
         euro: euroVal,
