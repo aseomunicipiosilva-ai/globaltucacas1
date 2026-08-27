@@ -22,10 +22,21 @@ export default function Sidebar() {
     { icon: Users, name: 'Condominios COB', href: '/admin/condominios-cob' },
     { icon: FileText, name: 'Pre-registros WEB', href: '/admin/pre-registros' },
     { icon: FileText, name: 'Censo de Contribuyentes', href: '/admin/censo' },
+    { icon: Building2, name: 'Inmuebles', href: '/admin/inmuebles' },
     { icon: Calculator, name: 'Cálculo y Proyección', href: '/admin/calculo' },
     { icon: Briefcase, name: 'Caja / Pagos', href: '/admin/caja' },
     { icon: FileSpreadsheet, name: 'Facturación / Edo Cuenta', href: '/admin/estado-cuenta' },
-    { icon: PieChart, name: 'Reportes Generales', href: '/admin/reportes' }
+    { icon: Clock, name: 'Cuentas Por Facturar', href: '/admin/por-facturar' },
+    { icon: Handshake, name: 'Convenios de Pago', href: '/admin/convenios-pago' },
+    { icon: Award, name: 'Certificados Emitidos', href: '/admin/certificados' },
+    { icon: History, name: 'Historial Documentos', href: '/admin/historial-documentos' },
+    { icon: Inbox, name: 'Buzón de Solicitudes', href: '/admin/buzon' },
+    { icon: AlertTriangle, name: 'Reclamos / Atención', href: '/admin/reclamos' },
+    { icon: AlertTriangle, name: 'Denuncias Ciudadanas', href: '/admin/denuncias' },
+    { icon: Truck, name: 'Rutas Camiones', href: '/admin/rutas' },
+    { icon: PieChart, name: 'Reportes Generales', href: '/admin/reportes' },
+    { icon: Mail, name: 'Correos Informativos', href: '/admin/correos' },
+    { icon: UserPlus, name: 'Trabajadores Aseo', href: '/admin/trabajadores' }
   ];
 
   const menuRecaudacion = [
@@ -77,7 +88,7 @@ export default function Sidebar() {
       <div className="p-4 bg-[#0f172a] border-b border-slate-700 text-sm text-yellow-500 text-center uppercase tracking-wider font-semibold">
         {title}
       </div>
-      <nav className="flex-1 overflow-y-auto py-4">
+      <nav className="flex-1 overflow-y-auto py-4 sidebar-scroll">
         <ul className="space-y-1">
           {activeMenu.map((item) => (
             <li key={item.name}>
@@ -93,11 +104,27 @@ export default function Sidebar() {
         </ul>
       </nav>
       
-      <div className="p-4 bg-[#0f172a] border-t border-slate-700">
+      <div className="p-4 bg-[#0f172a] border-t border-slate-700 shrink-0">
         <Link href="/" className="flex items-center justify-center gap-2 text-xs font-semibold text-slate-400 hover:text-white transition-colors">
           <Home className="w-4 h-4" /> Volver al Inicio
         </Link>
       </div>
+
+      <style jsx global>{`
+        .sidebar-scroll::-webkit-scrollbar {
+          width: 4px;
+        }
+        .sidebar-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .sidebar-scroll::-webkit-scrollbar-thumb {
+          background: #334155;
+          border-radius: 10px;
+        }
+        .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+          background: #475569;
+        }
+      `}</style>
     </aside>
   );
 }
