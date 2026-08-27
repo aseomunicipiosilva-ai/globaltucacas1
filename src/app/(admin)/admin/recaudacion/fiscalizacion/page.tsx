@@ -1,4 +1,4 @@
-﻿import { Search, Plus, Search, Filter } from 'lucide-react';
+﻿import { Search, Plus, Filter } from 'lucide-react';
 import Link from 'next/link';
 
 export default function SubmoduloPage() {
