@@ -654,6 +654,12 @@ export default function CensoMobilePage() {
                     <span className="text-slate-600 font-medium">Factor Total Mensual:</span>
                     <span className="font-bold text-slate-800">{calculoDetalle.factor.toFixed(2)} EUR (€) (Tarifa Real)</span>
                   </div>
+                  {bcvRate && (
+                    <div className="flex justify-between items-center text-sm bg-indigo-100/50 p-2 rounded">
+                      <span className="text-indigo-800 font-medium">Equivalente Estimado (Bs):</span>
+                      <span className="font-bold text-indigo-700">Bs. {(calculoDetalle.factor * parseFloat(bcvRate.replace(',', '.'))).toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                    </div>
+                  )}
                   
                   {calculoDetalle.desglose?.length > 0 ? (
                     <div className="bg-white border border-indigo-100 rounded p-3">
