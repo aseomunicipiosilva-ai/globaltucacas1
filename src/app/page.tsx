@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useState } from 'react';
 import { Building2, Users, ArrowRight, LayoutDashboard, Lock, Unlock } from 'lucide-react';
 import Link from 'next/link';
@@ -61,27 +61,19 @@ export default function Home() {
               </div>
             </Link>
 
-            {/* Tarjeta Funcionario (Aseo - Bloqueable) */}
-            <div className={`relative group p-8 rounded-xl backdrop-blur-sm transition-all duration-300 flex flex-col items-center border ${funcionarioActivo ? 'bg-white/10 hover:bg-white/20 border-white/20 hover:scale-105' : 'bg-slate-800/50 border-slate-700 grayscale opacity-75'}`}>
-              <button 
-                onClick={(e) => { e.preventDefault(); toggleAcceso('Funcionario (Aseo)', funcionarioActivo, setFuncionarioActivo); }}
-                className="absolute top-4 right-4 p-2 rounded-full bg-slate-800 hover:bg-slate-700 transition-colors z-20"
-              >
-                {funcionarioActivo ? <Unlock className="w-4 h-4 text-cyan-400" /> : <Lock className="w-4 h-4 text-slate-400" />}
-              </button>
-              <Link href="/admin" onClick={(e) => handleLinkClick(e, funcionarioActivo, '/admin')} className="flex flex-col items-center w-full h-full z-10">
-                <div className="bg-cyan-500/20 p-4 rounded-full mb-4 group-hover:bg-cyan-500/40 transition-colors">
-                  <Building2 className={`w-10 h-10 ${funcionarioActivo ? 'text-cyan-400' : 'text-slate-500'}`} />
-                </div>
-                <h2 className="text-xl font-bold text-white mb-2">Soy Funcionario</h2>
-                <p className="text-xs text-slate-300 mb-6 text-center">
-                  Acceso al sistema administrativo para gestión de recaudación y reportes de aseo.
-                </p>
-                <div className={`mt-auto flex items-center gap-2 font-semibold group-hover:gap-3 transition-all text-sm ${funcionarioActivo ? 'text-cyan-400' : 'text-slate-500'}`}>
-                  Acceder al Sistema <ArrowRight className="w-4 h-4" />
-                </div>
-              </Link>
-            </div>
+            {/* Tarjeta Funcionario (Aseo - Siempre Activa) */}
+            <Link href="/admin" className="group bg-white/10 hover:bg-white/20 border border-white/20 p-8 rounded-xl backdrop-blur-sm transition-all duration-300 flex flex-col items-center hover:scale-105">
+              <div className="bg-cyan-500/20 p-4 rounded-full mb-4 group-hover:bg-cyan-500/40 transition-colors">
+                <Building2 className="w-10 h-10 text-cyan-400" />
+              </div>
+              <h2 className="text-xl font-bold text-white mb-2">Soy Funcionario</h2>
+              <p className="text-xs text-slate-300 mb-6 text-center">
+                Acceso al sistema administrativo para gestión de recaudación y reportes de aseo.
+              </p>
+              <div className="mt-auto flex items-center gap-2 text-cyan-400 font-semibold group-hover:gap-3 transition-all text-sm">
+                Acceder al Sistema <ArrowRight className="w-4 h-4" />
+              </div>
+            </Link>
 
             {/* Tarjeta Operador Móvil (Siempre Activa) */}
             <Link href="/operador/login" className="group bg-white/10 hover:bg-white/20 border border-white/20 p-8 rounded-xl backdrop-blur-sm transition-all duration-300 flex flex-col items-center hover:scale-105">
