@@ -233,7 +233,15 @@ export default function EstadoCuentaPage() {
       }
     }
 
-    const cajeroActivo = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'ADMINISTRADOR';
+    const cajeroActivo = (() => {
+    if (typeof window !== 'undefined') {
+      const user = localStorage.getItem('adminUser');
+      const letra = localStorage.getItem('adminLetra');
+      if (user && letra) return `${letra}-${user}`;
+      if (user) return user;
+    }
+    return 'ADMINISTRADOR';
+  })();
 
     setSelectedRecibo({
       reciboNo: row.referencia ? row.referencia.split('-').pop()?.padStart(7, '0') : '0000001',

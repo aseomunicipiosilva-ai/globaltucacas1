@@ -66,6 +66,7 @@ export default function TrabajadoresPage() {
       clave: '',
       rol: 'Taquilla / Operador',
       estado: 'Activo',
+      letra: '',
       permisos: { ...defaultPermissions }
     });
     setIsEditing(true);
@@ -86,6 +87,7 @@ export default function TrabajadoresPage() {
         clave: formData.clave,
         rol: formData.rol,
         estado: formData.estado,
+        letra: formData.letra || '',
         permisos: formData.permisos
       };
 
@@ -144,6 +146,9 @@ export default function TrabajadoresPage() {
   const columns = [
     { key: 'nombre', header: 'Nombre Completo' },
     { key: 'usuario', header: 'Usuario' },
+    { key: 'letra', header: 'Letra', render: (row: any) => (
+      <span className="font-bold text-slate-700">{row.letra || '-'}</span>
+    )},
     { key: 'rol', header: 'Rol', render: (row: any) => (
       <span className={`px-2 py-1 rounded text-xs font-semibold ${row.rol === 'Administrador' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
         {row.rol}
@@ -224,6 +229,12 @@ export default function TrabajadoresPage() {
                   <option value="Activo">Activo</option>
                   <option value="Suspendido">Suspendido</option>
                 </select>
+              </div>
+              
+              <div className="pt-2 border-t border-slate-100">
+                <label className="block text-[10px] font-medium text-slate-500 mb-1">Letra Identificadora (Caja / Auditoría)</label>
+                <input type="text" maxLength={1} placeholder="Ej: A, B, F..." value={formData.letra || ''} onChange={e => setFormData({...formData, letra: e.target.value.toUpperCase()})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 font-bold text-center uppercase" />
+                <span className="text-[10px] text-slate-400 mt-1 block">Aparecerá en los recibos impresos (ej. Caja: F-OMAR)</span>
               </div>
             </div>
           </div>

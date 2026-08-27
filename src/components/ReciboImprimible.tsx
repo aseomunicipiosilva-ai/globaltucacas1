@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import Image from 'next/image';
+import { formatBs } from '@/lib/formatCurrency';
 
 interface ReciboProps {
   reciboNo: string;
@@ -107,8 +108,8 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
           {data.conceptos.map((c, i) => (
             <tr key={i}>
               <td className="p-2 border-r border-black text-left">{c.descripcion}</td>
-              <td className="p-2 border-r border-black text-right">Bs. {c.precioUnit.toFixed(2)}</td>
-              <td className="p-2 text-right">Bs. {c.total.toFixed(2)}</td>
+              <td className="p-2 border-r border-black text-right">Bs. {formatBs(c.precioUnit)}</td>
+              <td className="p-2 text-right">Bs. {formatBs(c.total)}</td>
             </tr>
           ))}
           {/* Pad with empty rows to match height if needed */}
@@ -129,25 +130,25 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
             <span>TRANSFERENCIA <u className="font-bold">{data.formaPago === 'TRANSFERENCIA' ? ' X ' : '___'}</u></span>
           </div>
           <div>
-            <strong>Banco:</strong> {data.banco} &nbsp;&nbsp; <strong>Referencia:</strong> {data.referencia} &nbsp;&nbsp; <strong>Monto:</strong> Bs. {data.total.toFixed(2)}
+            <strong>Banco:</strong> {data.banco} &nbsp;&nbsp; <strong>Referencia:</strong> {data.referencia} &nbsp;&nbsp; <strong>Monto:</strong> Bs. {formatBs(data.total)}
           </div>
         </div>
         <div className="col-span-1">
           <div className="flex justify-between border-b border-black p-1">
             <span className="font-bold">Sub-Total</span>
-            <span>Bs. {data.subTotal.toFixed(2)}</span>
+            <span>Bs. {formatBs(data.subTotal)}</span>
           </div>
           <div className="flex justify-between border-b border-black p-1">
             <span className="font-bold">Exento</span>
-            <span>Bs. {data.exento.toFixed(2)}</span>
+            <span>Bs. {formatBs(data.exento)}</span>
           </div>
           <div className="flex justify-between border-b border-black p-1">
             <span className="font-bold">Iva (16%)</span>
-            <span>Bs. {data.iva.toFixed(2)}</span>
+            <span>Bs. {formatBs(data.iva)}</span>
           </div>
           <div className="flex justify-between p-1 bg-slate-100">
             <span className="font-bold">Total</span>
-            <span className="font-bold">Bs. {data.total.toFixed(2)}</span>
+            <span className="font-bold">Bs. {formatBs(data.total)}</span>
           </div>
         </div>
       </div>

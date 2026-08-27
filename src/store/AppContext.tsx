@@ -170,8 +170,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addAuditLog = async (action: string, details: string) => {
     try {
+      const user = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'Administrador';
+      const letra = (typeof window !== 'undefined' ? localStorage.getItem('adminLetra') : null);
+      const user_id = letra && user !== 'Administrador' ? `${letra}-${user}` : user;
+      
       const { error } = await supabase.from('audit_logs').insert([{
-        user_id: 'Administrador', // Placeholder hasta tener Auth
+        user_id,
         action,
         ip_address: 'Registrado por Sistema',
         details

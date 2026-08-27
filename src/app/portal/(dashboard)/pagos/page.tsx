@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { CreditCard, FileText, Upload, Send, Building, CheckSquare, AlertCircle } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
+import { formatBs } from '@/lib/formatCurrency';
 
 export default function DondePagarPage() {
   const [formData, setFormData] = useState({
@@ -79,7 +80,7 @@ export default function DondePagarPage() {
   const montoTotal = deudas.filter(d => d.seleccionado).reduce((acc, curr) => acc + curr.monto, 0);
 
   useEffect(() => {
-    setFormData(prev => ({ ...prev, monto: montoTotal > 0 ? montoTotal.toFixed(2) : '' }));
+    setFormData(prev => ({ ...prev, monto: montoTotal > 0 ? formatBs(montoTotal) : '' }));
   }, [montoTotal]);
 
   const toggleDeuda = (id: string | number) => {
@@ -230,7 +231,7 @@ export default function DondePagarPage() {
                   <div className="flex-1">
                     <div className="flex justify-between items-start">
                       <span className="font-medium text-sm text-slate-700 block">{deuda.concepto}</span>
-                      <span className="font-bold text-sm text-slate-800 block whitespace-nowrap ml-2">Bs. {deuda.monto.toFixed(2)}</span>
+                      <span className="font-bold text-sm text-slate-800 block whitespace-nowrap ml-2">Bs. {formatBs(deuda.monto)}</span>
                     </div>
                     {deuda.tipo === 'convenio' && (
                       <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-semibold uppercase mt-1 inline-block">Convenio</span>
@@ -248,7 +249,7 @@ export default function DondePagarPage() {
             
             <div className="bg-slate-50 p-4 border-t border-slate-200 flex justify-between items-center">
               <span className="font-semibold text-slate-600 text-sm">Monto a pagar:</span>
-              <span className="font-bold text-lg text-amber-600">Bs. {montoTotal.toFixed(2)}</span>
+              <span className="font-bold text-lg text-amber-600">Bs. {formatBs(montoTotal)}</span>
             </div>
           </div>
         </div>

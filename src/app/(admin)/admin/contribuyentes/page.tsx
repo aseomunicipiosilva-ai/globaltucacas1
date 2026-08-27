@@ -358,21 +358,34 @@ function ContribuyentesPageContent() {
     doc.setFont("helvetica", "bold");
     doc.text("RECIBOS PENDIENTES (DEUDA)", 14, currentY);
 
-    const tableData = deudas.map((d: any) => [
-      d.referencia,
-      d.emision || 'N/A',
-      d.vencimiento || 'N/A',
-      `${d.monto} Bs.`
-    ]);
+    const getMesTexto = (fecha: string) => {
+      if (!fecha) return 'N/A';
+      const parts = fecha.split('-');
+      if(parts.length >= 2) {
+        const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+        return `${meses[parseInt(parts[1]) - 1]} ${parts[0]}`;
+      }
+      return fecha;
+    };
 
-    const totalBs = deudas.reduce((acc: number, f: any) => acc + parseFloat(f.monto || '0'), 0);
+    const tableData = deudas.map((d: any) => {
+      let montoNum = parseFloat((d.monto || '0').toString().replace(/[^\d.]/g, ''));
+      return [
+        d.referencia,
+        getMesTexto(d.emision),
+        d.vencimiento || 'N/A',
+        `${montoNum.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs.`
+      ];
+    });
 
-    tableData.push(["", "", "TOTAL DEUDA:", `${totalBs.toFixed(2)} Bs.`]);
+    const totalBs = deudas.reduce((acc: number, f: any) => acc + parseFloat((f.monto || '0').toString().replace(/[^\d.]/g, '')), 0);
+
+    tableData.push(["", "", "TOTAL DEUDA:", `${totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs.`]);
 
     try {
       autoTable(doc, {
         startY: currentY + 3,
-        head: [['Referencia', 'Emisión', 'Vencimiento', 'Monto']],
+        head: [['Referencia', 'Período', 'Vencimiento', 'Monto']],
         body: tableData,
         theme: 'striped',
         headStyles: { fillColor: [220, 38, 38] }, // Red for debt

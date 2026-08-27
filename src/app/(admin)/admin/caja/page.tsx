@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, CreditCard, Landmark, CheckCircle, XCircle, FileText, Handshake } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
+import { formatBs } from '@/lib/formatCurrency';
 
 export default function CajaPage() {
   const { inmuebles, convenios, contribuyentes, facturas, documentos, tcmmv } = useAppContext();
@@ -32,6 +33,7 @@ export default function CajaPage() {
   const [montoTransferido, setMontoTransferido] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const [comprobante, setComprobante] = useState<File | null>(null);
   const [customBcvRate, setCustomBcvRate] = useState<string>('');
   const [useSaldoFavor, setUseSaldoFavor] = useState<boolean>(false);
   const [isNotaModalOpen, setIsNotaModalOpen] = useState(false);
@@ -148,6 +150,7 @@ export default function CajaPage() {
     if (paymentMethod === 'Transferencia') {
       if (!banco) return alert("Debe seleccionar el banco emisor.");
       if (referencia.length < 8) return alert("Debe ingresar los últimos 8 dígitos de la referencia.");
+      if (!comprobante) return alert("Debe adjuntar el comprobante de pago.");
       
       const transferido = parseFloat(montoTransferido);
       if (isNaN(transferido) || transferido <= 0) return alert("Debe ingresar un monto transferido válido.");
@@ -163,7 +166,7 @@ export default function CajaPage() {
       }
     }
     
-    if (!confirm(`¿Confirmar pago por Bs. ${montoReal.toFixed(2)}${saldoAFavorNuevo > 0 ? ` (Generará un Saldo a Favor de Bs. ${saldoAFavorNuevo.toFixed(2)})` : ''}${esAbono ? ` (Es un ABONO. Quedará un saldo pendiente de Bs. ${(finalTotal - montoReal).toFixed(2)})` : ''} mediante ${paymentMethod}?`)) return;
+    if (!confirm(`¿Confirmar pago por Bs. ${formatBs(montoReal)}${saldoAFavorNuevo > 0 ? ` (Generará un Saldo a Favor de Bs. ${formatBs(saldoAFavorNuevo)})` : ''}${esAbono ? ` (Es un ABONO. Quedará un saldo pendiente de Bs. ${formatBs(finalTotal - montoReal)})` : ''} mediante ${paymentMethod}?`)) return;
 
     setIsProcessing(true);
     
@@ -176,7 +179,7 @@ export default function CajaPage() {
           tipo: 'Nota de Credito',
           estado: 'Vigente',
           detalles: JSON.stringify({
-            monto: saldoAFavorNuevo.toFixed(2),
+            monto: formatBs(saldoAFavorNuevo),
             origen_referencia: paymentMethod === 'Transferencia' ? referencia : 'Debito',
             fecha_emision: new Date().toISOString()
           })
@@ -251,7 +254,8 @@ export default function CajaPage() {
             saldo_favor: saldoAFavorNuevo,
             es_abono: esAbono,
             total_seleccionado: totalBs,
-            saldo_usado: descuentoSaldoFavor
+            saldo_usado: descuentoSaldoFavor,
+            comprobante_nombre: comprobante?.name || ''
           })
         });
         
@@ -312,7 +316,7 @@ export default function CajaPage() {
         tipo: 'Nota de Credito',
         estado: 'Vigente',
         detalles: JSON.stringify({
-          monto: parseFloat(notaManualMonto).toFixed(2),
+          monto: formatBs(notaManualMonto),
           origen_referencia: `Manual: ${notaManualRef}`,
           fecha_emision: new Date().toISOString()
         })
@@ -527,7 +531,7 @@ export default function CajaPage() {
             {foundUser.SaldoFavor > 0 && (
               <div className="bg-emerald-100 border-2 border-emerald-500 p-4 rounded-xl flex flex-col items-center justify-center min-w-[200px]">
                 <span className="text-emerald-700 font-bold text-sm uppercase">Saldo a Favor</span>
-                <span className="text-2xl font-black text-emerald-600">Bs. {foundUser.SaldoFavor.toFixed(2)}</span>
+                <span className="text-2xl font-black text-emerald-600">Bs. {formatBs(foundUser.SaldoFavor)}</span>
               </div>
             )}
           </div>
@@ -608,7 +612,7 @@ export default function CajaPage() {
             
             <div className="flex justify-between items-center mb-6">
               <span className="text-slate-600 font-medium">Total a Pagar:</span>
-              <span className="text-2xl font-black text-emerald-700">Bs. {totalBs.toFixed(2)}</span>
+              <span className="text-2xl font-black text-emerald-700">Bs. {formatBs(totalBs)}</span>
             </div>
 
             <div className="space-y-4 mb-6">
@@ -662,14 +666,40 @@ export default function CajaPage() {
                     />
                     {parseFloat(montoTransferido) > Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0)) && (
                       <p className="text-[10px] text-emerald-600 mt-1 font-bold">
-                        * Se generará un saldo a favor de Bs. {(parseFloat(montoTransferido) - Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0))).toFixed(2)}
+                        * Se generará un saldo a favor de Bs. {formatBs(parseFloat(montoTransferido) - Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0)))}
                       </p>
                     )}
                     {(parseFloat(montoTransferido) > 0 && parseFloat(montoTransferido) < Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0))) && (
                       <p className="text-[10px] text-orange-600 mt-1 font-bold">
-                        * Es un ABONO. Quedará un saldo pendiente de Bs. {(Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0)) - parseFloat(montoTransferido)).toFixed(2)}
+                        * Es un ABONO. Quedará un saldo pendiente de Bs. {formatBs(Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0)) - parseFloat(montoTransferido))}
                       </p>
                     )}
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-semibold text-slate-600 mb-1 block">Comprobante de Pago <span className="text-red-500">*</span></span>
+                    <div className="border-2 border-dashed border-slate-300 bg-slate-50 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors relative">
+                      <input 
+                        type="file" 
+                        accept="image/*,.pdf"
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            setComprobante(e.target.files[0]);
+                          }
+                        }}
+                      />
+                      {comprobante ? (
+                        <div className="text-center">
+                          <span className="text-sm font-semibold text-emerald-600 truncate max-w-full block px-2">{comprobante.name}</span>
+                          <span className="text-[10px] text-slate-500 mt-1 block">Haz clic para cambiar el archivo</span>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <span className="text-sm font-medium text-slate-700 block">Haz clic para adjuntar comprobante</span>
+                          <span className="text-[10px] text-slate-500 mt-1 block">Formatos: JPG, PNG, PDF</span>
+                        </div>
+                      )}
+                    </div>
                   </label>
                 </div>
               )}
