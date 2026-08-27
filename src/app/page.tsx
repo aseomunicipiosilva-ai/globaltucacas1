@@ -1,7 +1,35 @@
-﻿import { Building2, Users, ArrowRight } from 'lucide-react';
+﻿'use client';
+import { useState } from 'react';
+import { Building2, Users, ArrowRight, LayoutDashboard, Lock, Unlock } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
+  const router = useRouter();
+  const [funcionarioActivo, setFuncionarioActivo] = useState(false);
+  const [adminActivo, setAdminActivo] = useState(false);
+  const [recaudacionActivo, setRecaudacionActivo] = useState(false);
+
+  const toggleAcceso = (tipo: string, estadoActual: boolean, setter: any) => {
+    if (estadoActual) {
+      setter(false);
+    } else {
+      const password = prompt(`Ingrese la clave para activar el módulo ${tipo}:`);
+      if (password === 'dzara') {
+        setter(true);
+      } else if (password !== null) {
+        alert('Clave incorrecta');
+      }
+    }
+  };
+
+  const handleLinkClick = (e: any, activo: boolean, href: string) => {
+    if (!activo) {
+      e.preventDefault();
+      alert('Este módulo está desactivado. Haga clic en el candado para desbloquearlo.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       {/* Hero Selection Gateway */}
@@ -15,195 +43,115 @@ export default function Home() {
             <span className="text-green-500">GLOBAL</span> GREEN
           </h1>
           <p className="text-slate-300 text-lg max-w-2xl mx-auto mb-12">
-            Sistema Integrado de AdministraciÃ³n PÃºblica Municipal. Seleccione su mÃ³dulo para acceder.
+            Sistema Integrado de Administración Pública Municipal. Seleccione su módulo para acceder.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto mb-6">
-            {/* Tarjeta Contribuyente */}
+            {/* Tarjeta Contribuyente (Siempre Activa) */}
             <Link href="/portal" className="group bg-white/10 hover:bg-white/20 border border-white/20 p-8 rounded-xl backdrop-blur-sm transition-all duration-300 flex flex-col items-center hover:scale-105">
               <div className="bg-green-500/20 p-4 rounded-full mb-4 group-hover:bg-green-500/40 transition-colors">
                 <Users className="w-10 h-10 text-green-400" />
-                {/* Administracion Publica */}
-              <Link href="/admin/administracion" className="group p-6 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-500 transition-all flex flex-col items-center text-center">
-                <div className="w-16 h-16 bg-indigo-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <LayoutDashboard className="w-8 h-8 text-indigo-600" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Administración Pública</h3>
-                <p className="text-slate-500 text-sm">
-                  Módulo de ERP interno: RRHH, Nómina, Presupuesto, Compras, Almacén y Licitaciones.
-                </p>
-              </Link>
-            </div>
+              </div>
               <h2 className="text-xl font-bold text-white mb-2">Soy Contribuyente</h2>
               <p className="text-xs text-slate-300 mb-6 text-center">
-                Paga tus servicios, tramita solvencias y reporta incidencias de manera rÃ¡pida y segura.
+                Paga tus servicios, tramita solvencias y reporta incidencias de manera rápida y segura.
               </p>
               <div className="mt-auto flex items-center gap-2 text-green-400 font-semibold group-hover:gap-3 transition-all text-sm">
                 Ingresar al Portal <ArrowRight className="w-4 h-4" />
-                {/* Administracion Publica */}
-              <Link href="/admin/administracion" className="group p-6 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-500 transition-all flex flex-col items-center text-center">
-                <div className="w-16 h-16 bg-indigo-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <LayoutDashboard className="w-8 h-8 text-indigo-600" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Administración Pública</h3>
-                <p className="text-slate-500 text-sm">
-                  Módulo de ERP interno: RRHH, Nómina, Presupuesto, Compras, Almacén y Licitaciones.
-                </p>
-              </Link>
-            </div>
+              </div>
             </Link>
 
-            {/* Tarjeta Funcionario */}
-            <Link href="/admin" className="group bg-white/10 hover:bg-white/20 border border-white/20 p-8 rounded-xl backdrop-blur-sm transition-all duration-300 flex flex-col items-center hover:scale-105">
-              <div className="bg-cyan-500/20 p-4 rounded-full mb-4 group-hover:bg-cyan-500/40 transition-colors">
-                <Building2 className="w-10 h-10 text-cyan-400" />
-                {/* Administracion Publica */}
-              <Link href="/admin/administracion" className="group p-6 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-500 transition-all flex flex-col items-center text-center">
-                <div className="w-16 h-16 bg-indigo-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <LayoutDashboard className="w-8 h-8 text-indigo-600" />
+            {/* Tarjeta Funcionario (Aseo - Bloqueable) */}
+            <div className={`relative group p-8 rounded-xl backdrop-blur-sm transition-all duration-300 flex flex-col items-center border ${funcionarioActivo ? 'bg-white/10 hover:bg-white/20 border-white/20 hover:scale-105' : 'bg-slate-800/50 border-slate-700 grayscale opacity-75'}`}>
+              <button 
+                onClick={(e) => { e.preventDefault(); toggleAcceso('Funcionario (Aseo)', funcionarioActivo, setFuncionarioActivo); }}
+                className="absolute top-4 right-4 p-2 rounded-full bg-slate-800 hover:bg-slate-700 transition-colors z-20"
+              >
+                {funcionarioActivo ? <Unlock className="w-4 h-4 text-cyan-400" /> : <Lock className="w-4 h-4 text-slate-400" />}
+              </button>
+              <Link href="/admin" onClick={(e) => handleLinkClick(e, funcionarioActivo, '/admin')} className="flex flex-col items-center w-full h-full z-10">
+                <div className="bg-cyan-500/20 p-4 rounded-full mb-4 group-hover:bg-cyan-500/40 transition-colors">
+                  <Building2 className={`w-10 h-10 ${funcionarioActivo ? 'text-cyan-400' : 'text-slate-500'}`} />
                 </div>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Administración Pública</h3>
-                <p className="text-slate-500 text-sm">
-                  Módulo de ERP interno: RRHH, Nómina, Presupuesto, Compras, Almacén y Licitaciones.
+                <h2 className="text-xl font-bold text-white mb-2">Soy Funcionario</h2>
+                <p className="text-xs text-slate-300 mb-6 text-center">
+                  Acceso al sistema administrativo para gestión de recaudación y reportes de aseo.
                 </p>
+                <div className={`mt-auto flex items-center gap-2 font-semibold group-hover:gap-3 transition-all text-sm ${funcionarioActivo ? 'text-cyan-400' : 'text-slate-500'}`}>
+                  Acceder al Sistema <ArrowRight className="w-4 h-4" />
+                </div>
               </Link>
             </div>
-              <h2 className="text-xl font-bold text-white mb-2">Soy Funcionario</h2>
-              <p className="text-xs text-slate-300 mb-6 text-center">
-                Acceso al sistema administrativo para gestiÃ³n de recaudaciÃ³n, auditorÃ­a y reportes de aseo.
-              </p>
-              <div className="mt-auto flex items-center gap-2 text-cyan-400 font-semibold group-hover:gap-3 transition-all text-sm">
-                Acceder al Sistema <ArrowRight className="w-4 h-4" />
-                {/* Administracion Publica */}
-              <Link href="/admin/administracion" className="group p-6 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-500 transition-all flex flex-col items-center text-center">
-                <div className="w-16 h-16 bg-indigo-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <LayoutDashboard className="w-8 h-8 text-indigo-600" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Administración Pública</h3>
-                <p className="text-slate-500 text-sm">
-                  Módulo de ERP interno: RRHH, Nómina, Presupuesto, Compras, Almacén y Licitaciones.
-                </p>
-              </Link>
-            </div>
-            </Link>
 
-            {/* Tarjeta Operador MÃ³vil */}
+            {/* Tarjeta Operador Móvil (Siempre Activa) */}
             <Link href="/operador/login" className="group bg-white/10 hover:bg-white/20 border border-white/20 p-8 rounded-xl backdrop-blur-sm transition-all duration-300 flex flex-col items-center hover:scale-105">
               <div className="bg-orange-500/20 p-4 rounded-full mb-4 group-hover:bg-orange-500/40 transition-colors">
                 <Users className="w-10 h-10 text-orange-400" />
-                {/* Administracion Publica */}
-              <Link href="/admin/administracion" className="group p-6 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-500 transition-all flex flex-col items-center text-center">
-                <div className="w-16 h-16 bg-indigo-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <LayoutDashboard className="w-8 h-8 text-indigo-600" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Administración Pública</h3>
-                <p className="text-slate-500 text-sm">
-                  Módulo de ERP interno: RRHH, Nómina, Presupuesto, Compras, Almacén y Licitaciones.
-                </p>
-              </Link>
-            </div>
+              </div>
               <h2 className="text-xl font-bold text-white mb-2 text-center">Operador de Censo</h2>
               <p className="text-xs text-slate-300 mb-6 text-center">
-                MÃ³dulo mÃ³vil exclusivo para trabajadores en jornada de empadronamiento de calle.
+                Módulo móvil exclusivo para trabajadores en jornada de empadronamiento de calle.
               </p>
               <div className="mt-auto flex items-center gap-2 text-orange-400 font-semibold group-hover:gap-3 transition-all text-sm">
-                Ingresar MÃ³vil <ArrowRight className="w-4 h-4" />
-                {/* Administracion Publica */}
-              <Link href="/admin/administracion" className="group p-6 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-500 transition-all flex flex-col items-center text-center">
-                <div className="w-16 h-16 bg-indigo-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <LayoutDashboard className="w-8 h-8 text-indigo-600" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Administración Pública</h3>
-                <p className="text-slate-500 text-sm">
-                  Módulo de ERP interno: RRHH, Nómina, Presupuesto, Compras, Almacén y Licitaciones.
-                </p>
-              </Link>
-            </div>
+                Ingresar Móvil <ArrowRight className="w-4 h-4" />
+              </div>
             </Link>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            {/* Tarjeta RecaudaciÃ³n de Impuestos */}
-            <Link href="/admin/recaudacion" className="group bg-white/10 hover:bg-white/20 border border-yellow-500/30 p-8 rounded-xl backdrop-blur-sm transition-all duration-300 flex flex-col items-center hover:scale-105 shadow-[0_0_15px_rgba(234,179,8,0.15)]">
-              <div className="bg-yellow-500/20 p-4 rounded-full mb-4 group-hover:bg-yellow-500/40 transition-colors">
-                <Building2 className="w-12 h-12 text-yellow-400" />
-                {/* Administracion Publica */}
-              <Link href="/admin/administracion" className="group p-6 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-500 transition-all flex flex-col items-center text-center">
-                <div className="w-16 h-16 bg-indigo-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <LayoutDashboard className="w-8 h-8 text-indigo-600" />
+            {/* Tarjeta Recaudación de Impuestos (Bloqueable) */}
+            <div className={`relative group p-8 rounded-xl backdrop-blur-sm transition-all duration-300 flex flex-col items-center border ${recaudacionActivo ? 'bg-white/10 hover:bg-white/20 border-yellow-500/30 hover:scale-105 shadow-[0_0_15px_rgba(234,179,8,0.15)]' : 'bg-slate-800/50 border-slate-700 grayscale opacity-75'}`}>
+              <button 
+                onClick={(e) => { e.preventDefault(); toggleAcceso('Recaudación', recaudacionActivo, setRecaudacionActivo); }}
+                className="absolute top-4 right-4 p-2 rounded-full bg-slate-800 hover:bg-slate-700 transition-colors z-20"
+              >
+                {recaudacionActivo ? <Unlock className="w-4 h-4 text-yellow-400" /> : <Lock className="w-4 h-4 text-slate-400" />}
+              </button>
+              <Link href="/admin/recaudacion" onClick={(e) => handleLinkClick(e, recaudacionActivo, '/admin/recaudacion')} className="flex flex-col items-center w-full h-full z-10">
+                <div className="bg-yellow-500/20 p-4 rounded-full mb-4 group-hover:bg-yellow-500/40 transition-colors">
+                  <Building2 className={`w-12 h-12 ${recaudacionActivo ? 'text-yellow-400' : 'text-slate-500'}`} />
                 </div>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Administración Pública</h3>
-                <p className="text-slate-500 text-sm">
-                  Módulo de ERP interno: RRHH, Nómina, Presupuesto, Compras, Almacén y Licitaciones.
-                </p>
+                <h2 className={`text-2xl font-black mb-3 text-center uppercase tracking-wide ${recaudacionActivo ? 'text-yellow-400' : 'text-slate-400'}`}>Recaudación de Impuestos</h2>
+                <ul className="text-xs text-slate-300 mb-6 text-left space-y-1 w-full max-w-xs list-disc pl-4">
+                  <li>Actividades Económicas y Declaraciones</li>
+                  <li>Catastro y Propiedad</li>
+                  <li>Vehículos (Registro y Patente)</li>
+                  <li>Ordenamiento Territorial y Vialidad</li>
+                  <li>Policía Municipal (Multas)</li>
+                </ul>
+                <div className={`mt-auto flex items-center gap-2 font-bold group-hover:gap-3 transition-all text-sm ${recaudacionActivo ? 'text-yellow-400' : 'text-slate-500'}`}>
+                  Ingresar a Recaudación <ArrowRight className="w-4 h-4" />
+                </div>
               </Link>
             </div>
-              <h2 className="text-2xl font-black text-yellow-400 mb-3 text-center uppercase tracking-wide">RecaudaciÃ³n de Impuestos</h2>
-              <ul className="text-xs text-slate-300 mb-6 text-left space-y-1 w-full max-w-xs list-disc pl-4">
-                <li>Actividades EconÃ³micas y Declaraciones</li>
-                <li>Catastro y Propiedad</li>
-                <li>VehÃ­culos (Registro y Patente)</li>
-                <li>Ordenamiento Territorial y Vialidad</li>
-                <li>Terminal, Servicios PÃºblicos y Ambiente</li>
-                <li>PolicÃ­a Municipal (Multas)</li>
-              </ul>
-              <div className="mt-auto flex items-center gap-2 text-yellow-400 font-bold group-hover:gap-3 transition-all text-sm">
-                Ingresar a RecaudaciÃ³n <ArrowRight className="w-4 h-4" />
-                {/* Administracion Publica */}
-              <Link href="/admin/administracion" className="group p-6 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-500 transition-all flex flex-col items-center text-center">
-                <div className="w-16 h-16 bg-indigo-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <LayoutDashboard className="w-8 h-8 text-indigo-600" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Administración Pública</h3>
-                <p className="text-slate-500 text-sm">
-                  Módulo de ERP interno: RRHH, Nómina, Presupuesto, Compras, Almacén y Licitaciones.
-                </p>
-              </Link>
-            </div>
-            </Link>
 
-            {/* Tarjeta AdministraciÃ³n PÃºblica */}
-            <Link href="/admin/erp" className="group bg-white/10 hover:bg-white/20 border border-blue-500/30 p-8 rounded-xl backdrop-blur-sm transition-all duration-300 flex flex-col items-center hover:scale-105 shadow-[0_0_15px_rgba(59,130,246,0.15)]">
-              <div className="bg-blue-500/20 p-4 rounded-full mb-4 group-hover:bg-blue-500/40 transition-colors">
-                <Building2 className="w-12 h-12 text-blue-400" />
-                {/* Administracion Publica */}
-              <Link href="/admin/administracion" className="group p-6 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-500 transition-all flex flex-col items-center text-center">
-                <div className="w-16 h-16 bg-indigo-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <LayoutDashboard className="w-8 h-8 text-indigo-600" />
+            {/* Tarjeta Administración Pública (Bloqueable) */}
+            <div className={`relative group p-8 rounded-xl backdrop-blur-sm transition-all duration-300 flex flex-col items-center border ${adminActivo ? 'bg-white/10 hover:bg-white/20 border-blue-500/30 hover:scale-105 shadow-[0_0_15px_rgba(59,130,246,0.15)]' : 'bg-slate-800/50 border-slate-700 grayscale opacity-75'}`}>
+              <button 
+                onClick={(e) => { e.preventDefault(); toggleAcceso('Administración Interna', adminActivo, setAdminActivo); }}
+                className="absolute top-4 right-4 p-2 rounded-full bg-slate-800 hover:bg-slate-700 transition-colors z-20"
+              >
+                {adminActivo ? <Unlock className="w-4 h-4 text-blue-400" /> : <Lock className="w-4 h-4 text-slate-400" />}
+              </button>
+              <Link href="/admin/administracion" onClick={(e) => handleLinkClick(e, adminActivo, '/admin/administracion')} className="flex flex-col items-center w-full h-full z-10">
+                <div className="bg-blue-500/20 p-4 rounded-full mb-4 group-hover:bg-blue-500/40 transition-colors">
+                  <LayoutDashboard className={`w-12 h-12 ${adminActivo ? 'text-blue-400' : 'text-slate-500'}`} />
                 </div>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Administración Pública</h3>
-                <p className="text-slate-500 text-sm">
-                  Módulo de ERP interno: RRHH, Nómina, Presupuesto, Compras, Almacén y Licitaciones.
-                </p>
+                <h2 className={`text-2xl font-black mb-3 text-center uppercase tracking-wide ${adminActivo ? 'text-blue-400' : 'text-slate-400'}`}>Administración Pública</h2>
+                <ul className="text-xs text-slate-300 mb-6 text-left space-y-1 w-full max-w-xs list-disc pl-4">
+                  <li>Ingresos y Egresos Presupuestarios</li>
+                  <li>Plan de Contrataciones y Compras</li>
+                  <li>Bienes Nacionales e Inventario</li>
+                  <li>Nómina y Control de Personal (RRHH)</li>
+                </ul>
+                <div className={`mt-auto flex items-center gap-2 font-bold group-hover:gap-3 transition-all text-sm ${adminActivo ? 'text-blue-400' : 'text-slate-500'}`}>
+                  Ingresar a Administración <ArrowRight className="w-4 h-4" />
+                </div>
               </Link>
             </div>
-              <h2 className="text-2xl font-black text-blue-400 mb-3 text-center uppercase tracking-wide">AdministraciÃ³n PÃºblica</h2>
-              <ul className="text-xs text-slate-300 mb-6 text-left space-y-1 w-full max-w-xs list-disc pl-4">
-                <li>Ingresos y Egresos Presupuestarios</li>
-                <li>FormulaciÃ³n y Control de EjecuciÃ³n</li>
-                <li>ProgramaciÃ³n y Pagos</li>
-                <li>Plan de Contrataciones y Compras</li>
-                <li>Bienes Nacionales e Inventario</li>
-                <li>NÃ³mina y Control de Personal (RRHH)</li>
-              </ul>
-              <div className="mt-auto flex items-center gap-2 text-blue-400 font-bold group-hover:gap-3 transition-all text-sm">
-                Ingresar a AdministraciÃ³n <ArrowRight className="w-4 h-4" />
-                {/* Administracion Publica */}
-              <Link href="/admin/administracion" className="group p-6 bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-500 transition-all flex flex-col items-center text-center">
-                <div className="w-16 h-16 bg-indigo-50 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <LayoutDashboard className="w-8 h-8 text-indigo-600" />
-                </div>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">Administración Pública</h3>
-                <p className="text-slate-500 text-sm">
-                  Módulo de ERP interno: RRHH, Nómina, Presupuesto, Compras, Almacén y Licitaciones.
-                </p>
-              </Link>
-            </div>
-            </Link>
           </div>
         </div>
       </div>
     </div>
   );
 }
-
