@@ -2,8 +2,9 @@
 import React, { useState } from 'react';
 import { DataTable } from '@/components/DataTable';
 import { useAppContext } from '@/store/AppContext';
-import { List, Check, X, CheckCircle, Calculator, AlertCircle } from 'lucide-react';
+import { List, Check, X, CheckCircle, Calculator, AlertCircle, FileSpreadsheet, Clock } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
+import * as XLSX from 'xlsx';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -20,6 +21,111 @@ export default function PreRegistrosPage() {
   const [meses, setMeses] = useState(1);
   const [calculatedFactor, setCalculatedFactor] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportCensos = async () => {
+    setIsExporting(true);
+    try {
+      const { data, error } = await supabase
+        .from('pre_registros')
+        .select('*')
+        .like('origen', 'Censo - %')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        alert('No hay censos para exportar.');
+        setIsExporting(false);
+        return;
+      }
+
+      const excelData: any[] = [];
+      data.forEach((item: any) => {
+        let parentPatente = '';
+        let parentCatastro = '';
+        let notasStr = item.nota || '';
+
+        const patenteMatch = notasStr.match(/Patente:\s*([^|]+)/);
+        if (patenteMatch) {
+          parentPatente = patenteMatch[1].trim();
+          notasStr = notasStr.replace(patenteMatch[0], '').trim();
+        }
+
+        const catastroMatch = notasStr.match(/Catastro:\s*([^|]+)/);
+        if (catastroMatch) {
+          parentCatastro = catastroMatch[1].trim();
+          notasStr = notasStr.replace(catastroMatch[0], '').trim();
+        }
+
+        notasStr = notasStr.replace(/^\|\s*/, '').replace(/\s*\|\s*$/, '').replace(/\s*\|\s*\|\s*/g, ' | ').trim();
+
+        if (item.is_condominio && item.locales && item.locales.length > 0) {
+          item.locales.forEach((local: any) => {
+            excelData.push({
+              'Fecha de Registro': new Date(item.created_at).toLocaleString(),
+              'Operador': item.origen?.replace('Censo - ', '') || '',
+              'Identificación (Cédula/RIF)': local.documentoIdentidad || item.identidad,
+              'Nombre / Razón Social': local.nombreContribuyente || item.contribuyente,
+              'Teléfono / Registro': item.registro,
+              'Pertenece a Condominio': `Sí - ${item.contribuyente}`,
+              'Inmueble / Identificador': local.numeracion || 'N/A',
+              'Clasificación': local.uso === 'Residencial' ? 'Residencial' : 'Comercial/Industrial',
+              'Actividad / Tipo Residencia': local.uso === 'Residencial' ? local.tipoResidencia : local.actividad || 'Sin especificar',
+              'Código / Metraje': local.uso === 'Residencial' ? local.tipoResidencia : local.nivel,
+              'Estatus Inmueble': local.estatus || 'N/A',
+              'Fecha de Inicio de Actividad': item.fecha_inicio,
+              'Domicilio Fiscal': item.domicilio_fiscal,
+              'Dirección Exacta (Mapa)': item.direccion_exacta,
+              'Coordenadas (Lat, Lng)': item.coordenadas ? `${item.coordenadas.lat}, ${item.coordenadas.lng}` : '',
+              'Ficha Catastral': local.catastro || parentCatastro || '',
+              'Número de Patente': local.patente || parentPatente || '',
+              'Notas': notasStr
+            });
+          });
+        } else {
+          excelData.push({
+            'Fecha de Registro': new Date(item.created_at).toLocaleString(),
+            'Operador': item.origen?.replace('Censo - ', '') || '',
+            'Identificación (Cédula/RIF)': item.identidad,
+            'Nombre / Razón Social': item.contribuyente,
+            'Teléfono / Registro': item.registro,
+            'Pertenece a Condominio': 'No',
+            'Inmueble / Identificador': 'Principal',
+            'Clasificación': item.tipo,
+            'Actividad / Tipo Residencia': item.actividad,
+            'Código / Metraje': item.codigo,
+            'Estatus Inmueble': 'Principal',
+            'Fecha de Inicio de Actividad': item.fecha_inicio,
+            'Domicilio Fiscal': item.domicilio_fiscal,
+            'Dirección Exacta (Mapa)': item.direccion_exacta,
+            'Coordenadas (Lat, Lng)': item.coordenadas ? `${item.coordenadas.lat}, ${item.coordenadas.lng}` : '',
+            'Ficha Catastral': parentCatastro,
+            'Número de Patente': parentPatente,
+            'Notas': notasStr
+          });
+        }
+      });
+
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      
+      const colWidths = [
+        { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 30 }, { wch: 20 }, 
+        { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 35 }, { wch: 35 }, 
+        { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 40 }
+      ];
+      ws['!cols'] = colWidths;
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Todos los Censos');
+      XLSX.writeFile(wb, `Censo_General_Unificado_${new Date().toISOString().split('T')[0]}.xlsx`);
+    } catch (err) {
+      console.error(err);
+      alert('Hubo un error al exportar los datos.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const calculateFactor = (row: any) => {
     let factor = 0;
@@ -210,21 +316,34 @@ export default function PreRegistrosPage() {
         </div>
       )}
 
-      <div className="flex bg-slate-100 p-2 rounded text-sm text-slate-700 font-medium mb-4">
-        <button
-          onClick={() => setActiveTab('Web')}
-          className={`px-4 py-2 flex-1 rounded flex items-center justify-center gap-2 transition-colors ${activeTab === 'Web' ? 'bg-white shadow-sm border border-slate-200 text-slate-800' : 'hover:bg-slate-200'}`}
-        >
-          <Check className={`w-4 h-4 ${activeTab === 'Web' ? 'text-green-500' : ''}`} />
-          Pre-registros WEB ({preRegistros.filter((r: any) => !r.origen?.startsWith('Censo')).length})
-        </button>
-        <button
-          onClick={() => setActiveTab('Censo')}
-          className={`px-4 py-2 flex-1 rounded flex items-center justify-center gap-2 transition-colors ${activeTab === 'Censo' ? 'bg-white shadow-sm border border-slate-200 text-slate-800' : 'hover:bg-slate-200'}`}
-        >
-          <Check className={`w-4 h-4 ${activeTab === 'Censo' ? 'text-green-500' : ''}`} />
-          Censo Trabajadores ({preRegistros.filter((r: any) => r.origen?.startsWith('Censo')).length})
-        </button>
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex bg-slate-100 p-2 rounded text-sm text-slate-700 font-medium">
+          <button
+            onClick={() => setActiveTab('Web')}
+            className={`px-4 py-2 rounded flex items-center gap-2 transition-colors ${activeTab === 'Web' ? 'bg-white shadow-sm border border-slate-200 text-slate-800' : 'hover:bg-slate-200'}`}
+          >
+            <Check className={`w-4 h-4 ${activeTab === 'Web' ? 'text-green-500' : ''}`} />
+            Pre-registros WEB ({preRegistros.filter((r: any) => !r.origen?.startsWith('Censo')).length})
+          </button>
+          <button
+            onClick={() => setActiveTab('Censo')}
+            className={`px-4 py-2 rounded flex items-center gap-2 transition-colors ${activeTab === 'Censo' ? 'bg-white shadow-sm border border-slate-200 text-slate-800' : 'hover:bg-slate-200'}`}
+          >
+            <Check className={`w-4 h-4 ${activeTab === 'Censo' ? 'text-green-500' : ''}`} />
+            Censo Trabajadores ({preRegistros.filter((r: any) => r.origen?.startsWith('Censo')).length})
+          </button>
+        </div>
+
+        {activeTab === 'Censo' && (
+          <button 
+            onClick={handleExportCensos}
+            disabled={isExporting}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded flex items-center gap-2 shadow transition-colors disabled:opacity-50 text-sm"
+          >
+            {isExporting ? <Clock className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
+            <span>Exportar Censos</span>
+          </button>
+        )}
       </div>
 
       <DataTable 

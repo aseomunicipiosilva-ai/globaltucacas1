@@ -42,15 +42,22 @@ export default function OperadorDashboard() {
     }
   };
 
-  const handleExportExcel = async () => {
+  const handleExportExcel = async (exportAll: boolean = false) => {
     if (!operador) return;
     setIsExporting(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('pre_registros')
         .select('*')
-        .like('origen', `%Censo - ${operador}%`)
         .order('created_at', { ascending: false });
+
+      if (exportAll) {
+        query = query.like('origen', 'Censo - %');
+      } else {
+        query = query.like('origen', `%Censo - ${operador}%`);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -155,9 +162,12 @@ export default function OperadorDashboard() {
       ws['!cols'] = colWidths;
 
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Mis Censos');
+      const sheetName = exportAll ? 'Todos los Censos' : 'Mis Censos';
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
-      const fileName = `Censos_${operador.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      const fileName = exportAll
+        ? `Censo_General_Unificado_${new Date().toISOString().split('T')[0]}.xlsx`
+        : `Censos_${operador.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
       XLSX.writeFile(wb, fileName);
     } catch (err) {
       console.error(err);
@@ -186,12 +196,21 @@ export default function OperadorDashboard() {
         </button>
 
         <button 
-          onClick={handleExportExcel}
+          onClick={() => handleExportExcel(false)}
           disabled={isExporting}
           className="w-full mt-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow shadow-emerald-500/25 transition-transform active:scale-95 disabled:opacity-50"
         >
           {isExporting ? <Clock className="w-5 h-5 animate-spin" /> : <FileSpreadsheet className="w-5 h-5" />}
           <span>{isExporting ? 'Exportando...' : 'Descargar Mi Data (Excel)'}</span>
+        </button>
+
+        <button 
+          onClick={() => handleExportExcel(true)}
+          disabled={isExporting}
+          className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow shadow-blue-500/25 transition-transform active:scale-95 disabled:opacity-50"
+        >
+          {isExporting ? <Clock className="w-5 h-5 animate-spin" /> : <FileSpreadsheet className="w-5 h-5" />}
+          <span>{isExporting ? 'Exportando...' : 'Descargar Data Unificada (Todos)'}</span>
         </button>
       </div>
 
