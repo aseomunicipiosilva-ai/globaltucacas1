@@ -318,7 +318,7 @@ export default function CensoMobilePage() {
                 <option value="0426">0426</option>
                 <option value="0422">0422</option>
               </select>
-              <input type="tel" value={formData.telefonoNumero} onChange={e => setFormData({...formData, telefonoNumero: e.target.value.replace(/\D/g, '')})} placeholder="1234567" className="w-2/3 border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" required />
+              <input type="tel" value={formData.telefonoNumero} onChange={e => setFormData({...formData, telefonoNumero: e.target.value.replace(/\D/g, '')})} placeholder="1234567" maxLength={7} className="w-2/3 border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" required />
             </div>
           </div>
           
