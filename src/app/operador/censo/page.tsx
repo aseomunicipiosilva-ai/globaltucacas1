@@ -34,7 +34,8 @@ export default function CensoMobilePage() {
   const [calculoDetalle, setCalculoDetalle] = useState<any>(null);
   
   const [formData, setFormData] = useState<any>({
-    Identidad: '',
+    IdentidadTipo: 'V',
+    IdentidadNumero: '',
     Contribuyente: '',
     telefonoPrefijo: '0414',
     telefonoNumero: '',
@@ -73,7 +74,8 @@ export default function CensoMobilePage() {
           nivel: ordenanzaData.nivelesMetraje[0],
           tipoResidencia: ordenanzaData.tiposResidenciales[0].label,
           nombreContribuyente: '',
-          documentoIdentidad: '',
+          documentoIdentidadTipo: 'V',
+          documentoIdentidadNumero: '',
           catastro: '',
           patente: ''
         });
@@ -185,7 +187,7 @@ export default function CensoMobilePage() {
 
       // Save to pre_registros with advanced fields
       const { error } = await supabase.from('pre_registros').insert([{
-        identidad: formData.Identidad,
+        identidad: `${formData.IdentidadTipo || 'V'}${formData.IdentidadNumero || ''}`,
         contribuyente: formData.Contribuyente,
         registro: fullTelefono,
         tipo: formData.Clasificacion,
@@ -198,7 +200,10 @@ export default function CensoMobilePage() {
         coordenadas: formData.coordenadas,
         is_condominio: formData.isCondominio,
         cantidad_inmuebles: formData.cantidadInmuebles,
-        locales: formData.locales,
+        locales: formData.isCondominio ? formData.locales.map((l: any) => ({
+          ...l,
+          documentoIdentidad: `${l.documentoIdentidadTipo || 'V'}${l.documentoIdentidadNumero || ''}`
+        })) : formData.locales,
         nota: [
           formData.NumeroPatente ? `Patente: ${formData.NumeroPatente}` : '',
           formData.FichaCatastral ? `Catastro: ${formData.FichaCatastral}` : '',
@@ -212,7 +217,8 @@ export default function CensoMobilePage() {
       
       // Reset form
       setFormData({
-        Identidad: '',
+        IdentidadTipo: 'V',
+        IdentidadNumero: '',
         Contribuyente: '',
         telefonoPrefijo: '0414',
         telefonoNumero: '',
@@ -266,7 +272,39 @@ export default function CensoMobilePage() {
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wide mb-1">Cédula / RIF <span className="text-red-500">*</span></label>
-            <input type="text" value={formData.Identidad} onChange={e => setFormData({...formData, Identidad: e.target.value})} placeholder="V12345678" className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-orange-500 focus:bg-white uppercase font-medium transition-all" required />
+            <div className="flex gap-2">
+              <select 
+                value={formData.IdentidadTipo || 'V'}
+                onChange={e => {
+                  const newTipo = e.target.value;
+                  const maxLength = ['J', 'G', 'P', 'C'].includes(newTipo) ? 9 : 8;
+                  const newNumero = (formData.IdentidadNumero || '').slice(0, maxLength);
+                  setFormData({...formData, IdentidadTipo: newTipo, IdentidadNumero: newNumero});
+                }}
+                className="w-1/3 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-orange-500 focus:bg-white uppercase font-medium transition-all"
+              >
+                <option value="V">V</option>
+                <option value="E">E</option>
+                <option value="J">J</option>
+                <option value="G">G</option>
+                <option value="P">P</option>
+                <option value="C">C</option>
+              </select>
+              <input 
+                type="text" 
+                value={formData.IdentidadNumero || ''} 
+                onChange={e => {
+                  const val = e.target.value.replace(/\D/g, '');
+                  const maxLength = ['J', 'G', 'P', 'C'].includes(formData.IdentidadTipo || 'V') ? 9 : 8;
+                  if (val.length <= maxLength) {
+                    setFormData({...formData, IdentidadNumero: val});
+                  }
+                }} 
+                placeholder="12345678" 
+                className="w-2/3 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-orange-500 focus:bg-white uppercase font-medium transition-all" 
+                required 
+              />
+            </div>
           </div>
           
           <div>
@@ -619,11 +657,44 @@ export default function CensoMobilePage() {
                        <div className="col-span-1 md:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-3 mt-2 border-t border-slate-200 pt-3">
                          <div>
                            <label className="block text-[10px] font-medium text-slate-500 mb-1">Cédula / RIF</label>
-                           <input type="text" value={local.documentoIdentidad || ''} onChange={e => {
-                               const newLocales = [...formData.locales];
-                               newLocales[index].documentoIdentidad = e.target.value.toUpperCase();
-                               setFormData({...formData, locales: newLocales});
-                           }} className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none focus:border-blue-500" placeholder="V12345678" />
+                           <div className="flex gap-2">
+                             <select 
+                               value={local.documentoIdentidadTipo || 'V'}
+                               onChange={e => {
+                                   const newLocales = [...formData.locales];
+                                   const newTipo = e.target.value;
+                                   const maxLength = ['J', 'G', 'P', 'C'].includes(newTipo) ? 9 : 8;
+                                   const newNumero = (local.documentoIdentidadNumero || '').slice(0, maxLength);
+                                   newLocales[index].documentoIdentidadTipo = newTipo;
+                                   newLocales[index].documentoIdentidadNumero = newNumero;
+                                   setFormData({...formData, locales: newLocales});
+                               }} 
+                               className="w-1/3 border border-slate-300 rounded px-2 py-1.5 text-xs outline-none focus:border-blue-500"
+                             >
+                               <option value="V">V</option>
+                               <option value="E">E</option>
+                               <option value="J">J</option>
+                               <option value="G">G</option>
+                               <option value="P">P</option>
+                               <option value="C">C</option>
+                             </select>
+                             <input 
+                               type="text" 
+                               value={local.documentoIdentidadNumero || ''} 
+                               onChange={e => {
+                                   const val = e.target.value.replace(/\D/g, '');
+                                   const tipo = local.documentoIdentidadTipo || 'V';
+                                   const maxLength = ['J', 'G', 'P', 'C'].includes(tipo) ? 9 : 8;
+                                   if (val.length <= maxLength) {
+                                     const newLocales = [...formData.locales];
+                                     newLocales[index].documentoIdentidadNumero = val;
+                                     setFormData({...formData, locales: newLocales});
+                                   }
+                               }} 
+                               className="w-2/3 border border-slate-300 rounded px-2 py-1.5 text-xs outline-none focus:border-blue-500" 
+                               placeholder="12345678" 
+                             />
+                           </div>
                          </div>
                          <div>
                            <label className="block text-[10px] font-medium text-slate-500 mb-1">Nombre / Razón Social</label>
