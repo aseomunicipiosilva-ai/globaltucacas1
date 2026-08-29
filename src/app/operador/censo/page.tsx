@@ -625,16 +625,16 @@ export default function CensoMobilePage() {
                            }} className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none focus:border-blue-500" placeholder="Nombre completo" />
                          </div>
                          
-                         {local.uso === 'Residencial' ? (
-                           <div>
-                             <label className="block text-[10px] font-medium text-slate-500 mb-1">Ficha Catastral Individual</label>
-                             <input type="text" value={local.catastro || ''} onChange={e => {
-                                 const newLocales = [...formData.locales];
-                                 newLocales[index].catastro = e.target.value;
-                                 setFormData({...formData, locales: newLocales});
-                             }} className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none focus:border-blue-500" placeholder="Ej. CAT-0001" />
-                           </div>
-                         ) : (
+                         <div>
+                           <label className="block text-[10px] font-medium text-slate-500 mb-1">Ficha Catastral Individual</label>
+                           <input type="text" value={local.catastro || ''} onChange={e => {
+                               const newLocales = [...formData.locales];
+                               newLocales[index].catastro = e.target.value;
+                               setFormData({...formData, locales: newLocales});
+                           }} className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none focus:border-blue-500" placeholder="Ej. CAT-0001" />
+                         </div>
+                         
+                         {local.uso !== 'Residencial' && (
                            <div>
                              <label className="block text-[10px] font-medium text-slate-500 mb-1">Número de Patente</label>
                              <input type="text" value={local.patente || ''} onChange={e => {
