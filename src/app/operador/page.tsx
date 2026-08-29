@@ -61,46 +61,73 @@ export default function OperadorDashboard() {
       }
 
       // Format data for excel
-      const excelData = data.map((item: any) => {
-        let patenteStr = '';
-        let catastroStr = '';
+      const excelData: any[] = [];
+
+      data.forEach((item: any) => {
+        let parentPatente = '';
+        let parentCatastro = '';
         let notasStr = item.nota || '';
 
-        // Extraer Patente
+        // Extraer Patente del padre
         const patenteMatch = notasStr.match(/Patente:\s*([^|]+)/);
         if (patenteMatch) {
-          patenteStr = patenteMatch[1].trim();
+          parentPatente = patenteMatch[1].trim();
           notasStr = notasStr.replace(patenteMatch[0], '').trim();
         }
 
-        // Extraer Catastro
+        // Extraer Catastro del padre
         const catastroMatch = notasStr.match(/Catastro:\s*([^|]+)/);
         if (catastroMatch) {
-          catastroStr = catastroMatch[1].trim();
+          parentCatastro = catastroMatch[1].trim();
           notasStr = notasStr.replace(catastroMatch[0], '').trim();
         }
 
         // Limpiar " | " sueltos que puedan haber quedado
         notasStr = notasStr.replace(/^\|\s*/, '').replace(/\s*\|\s*$/, '').replace(/\s*\|\s*\|\s*/g, ' | ').trim();
 
-        return {
-          'Fecha de Registro': new Date(item.created_at).toLocaleString(),
-          'Identificación (Cédula/RIF)': item.identidad,
-          'Nombre / Razón Social': item.contribuyente,
-          'Teléfono / Registro': item.registro,
-          'Clasificación': item.tipo,
-          'Actividad / Tipo Residencia': item.actividad,
-          'Código / Metraje': item.codigo,
-          'Fecha de Inicio de Actividad': item.fecha_inicio,
-          'Domicilio Fiscal': item.domicilio_fiscal,
-          'Dirección Exacta (Mapa)': item.direccion_exacta,
-          'Coordenadas (Lat, Lng)': item.coordenadas ? `${item.coordenadas.lat}, ${item.coordenadas.lng}` : '',
-          '¿Es Condominio?': item.is_condominio ? 'Sí' : 'No',
-          'Cantidad de Inmuebles': item.cantidad_inmuebles || 0,
-          'Ficha Catastral': catastroStr,
-          'Número de Patente': patenteStr,
-          'Notas': notasStr
-        };
+        if (item.is_condominio && item.locales && item.locales.length > 0) {
+          item.locales.forEach((local: any) => {
+            excelData.push({
+              'Fecha de Registro': new Date(item.created_at).toLocaleString(),
+              'Identificación (Cédula/RIF)': local.documentoIdentidad || item.identidad,
+              'Nombre / Razón Social': local.nombreContribuyente || item.contribuyente,
+              'Teléfono / Registro': item.registro,
+              'Pertenece a Condominio': `Sí - ${item.contribuyente}`,
+              'Inmueble / Identificador': local.numeracion || 'N/A',
+              'Clasificación': local.uso === 'Residencial' ? 'Residencial' : 'Comercial/Industrial',
+              'Actividad / Tipo Residencia': local.uso === 'Residencial' ? local.tipoResidencia : local.actividad || 'Sin especificar',
+              'Código / Metraje': local.uso === 'Residencial' ? local.tipoResidencia : local.nivel,
+              'Estatus Inmueble': local.estatus || 'N/A',
+              'Fecha de Inicio de Actividad': item.fecha_inicio,
+              'Domicilio Fiscal': item.domicilio_fiscal,
+              'Dirección Exacta (Mapa)': item.direccion_exacta,
+              'Coordenadas (Lat, Lng)': item.coordenadas ? `${item.coordenadas.lat}, ${item.coordenadas.lng}` : '',
+              'Ficha Catastral': local.catastro || parentCatastro || '',
+              'Número de Patente': local.patente || parentPatente || '',
+              'Notas': notasStr
+            });
+          });
+        } else {
+          excelData.push({
+            'Fecha de Registro': new Date(item.created_at).toLocaleString(),
+            'Identificación (Cédula/RIF)': item.identidad,
+            'Nombre / Razón Social': item.contribuyente,
+            'Teléfono / Registro': item.registro,
+            'Pertenece a Condominio': 'No',
+            'Inmueble / Identificador': 'Principal',
+            'Clasificación': item.tipo,
+            'Actividad / Tipo Residencia': item.actividad,
+            'Código / Metraje': item.codigo,
+            'Estatus Inmueble': 'Principal',
+            'Fecha de Inicio de Actividad': item.fecha_inicio,
+            'Domicilio Fiscal': item.domicilio_fiscal,
+            'Dirección Exacta (Mapa)': item.direccion_exacta,
+            'Coordenadas (Lat, Lng)': item.coordenadas ? `${item.coordenadas.lat}, ${item.coordenadas.lng}` : '',
+            'Ficha Catastral': parentCatastro,
+            'Número de Patente': parentPatente,
+            'Notas': notasStr
+          });
+        }
       });
 
       const ws = XLSX.utils.json_to_sheet(excelData);
@@ -111,15 +138,16 @@ export default function OperadorDashboard() {
         { wch: 15 }, // Identidad
         { wch: 30 }, // Contribuyente
         { wch: 15 }, // Teléfono
+        { wch: 30 }, // Pertenece a Condominio
+        { wch: 20 }, // Inmueble
         { wch: 15 }, // Clasificación
         { wch: 25 }, // Actividad
         { wch: 15 }, // Código
+        { wch: 15 }, // Estatus
         { wch: 15 }, // Fecha Inicio
         { wch: 35 }, // Domicilio
         { wch: 35 }, // Dirección
         { wch: 20 }, // Coordenadas
-        { wch: 15 }, // Condominio
-        { wch: 20 }, // Inmuebles
         { wch: 20 }, // Catastro
         { wch: 20 }, // Patente
         { wch: 40 }, // Notas
