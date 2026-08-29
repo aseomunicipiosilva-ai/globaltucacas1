@@ -14,9 +14,17 @@ export default function OperadorLogin() {
     // En un sistema real, aquí harías fetch a tu backend de Trabajadores.
     // Como esto es un MVP front-end sin autenticación real backend aún, simulamos:
     
+    const userUpper = usuario.trim().toUpperCase();
+    if (userUpper === 'CATASTRO' || userUpper === 'HACIENDA') {
+      if (clave !== '1042700') {
+        setError('Clave incorrecta para este usuario especial');
+        return;
+      }
+    }
+
     if (usuario.trim().length > 0 && clave.length > 0) {
       // Guardamos el nombre del usuario logueado
-      localStorage.setItem('operador_censo_auth', usuario.toUpperCase());
+      localStorage.setItem('operador_censo_auth', userUpper);
       router.push('/operador');
     } else {
       setError('Credenciales incorrectas');

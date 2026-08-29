@@ -1,8 +1,8 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
-import { MapPin, TrendingUp, Clock, PlusCircle, Download, FileSpreadsheet } from 'lucide-react';
+import { MapPin, TrendingUp, Clock, PlusCircle, Download, FileSpreadsheet, UploadCloud } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -15,6 +15,40 @@ export default function OperadorDashboard() {
   const [censosRealizados, setCensosRealizados] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      alert('Por favor, selecciona un archivo Excel válido (.xlsx o .xls)');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const fileName = `${operador}_${Date.now()}_${file.name}`;
+      const { data, error } = await supabase.storage
+        .from('archivos_externos')
+        .upload(fileName, file);
+
+      if (error) {
+        throw error;
+      }
+
+      alert('¡Archivo subido exitosamente a la nube!');
+    } catch (err: any) {
+      console.error('Error uploading file:', err);
+      alert('Error al subir el archivo. Verifica que el bucket "archivos_externos" exista y sea público.');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   useEffect(() => {
     const storedOp = localStorage.getItem('operador_censo_auth');
@@ -213,6 +247,30 @@ export default function OperadorDashboard() {
           <span>{isExporting ? 'Exportando...' : 'Descargar Data Unificada (Todos)'}</span>
         </button>
       </div>
+
+      {(operador.toUpperCase() === 'CATASTRO' || operador.toUpperCase() === 'HACIENDA') && (
+        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 shadow-sm mt-2">
+          <h2 className="text-xl font-bold text-indigo-900">Base de Datos Externa</h2>
+          <p className="text-sm text-indigo-700/80 mt-1">Sube el archivo Excel con los datos de tu departamento.</p>
+          
+          <input 
+            type="file" 
+            accept=".xlsx, .xls" 
+            className="hidden" 
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+          />
+
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 transition-transform active:scale-95 disabled:opacity-50"
+          >
+            {isUploading ? <Clock className="w-5 h-5 animate-spin" /> : <UploadCloud className="w-5 h-5" />}
+            <span>{isUploading ? 'Subiendo Archivo...' : 'Seleccionar y Subir Excel'}</span>
+          </button>
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-4">
