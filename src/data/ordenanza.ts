@@ -13,6 +13,12 @@ export const ordenanzaData = {
     'Mayor a 201 m²'
   ],
   actividadesComerciales: [
+    { label: 'VENTAS AMBULANTES', factores: [0, 0, 0, 0] },
+    { label: 'BUHONEROS Y / ARTESANOS', factores: [0, 0, 0, 0] },
+    { label: 'MERCADOS A CIELO ABIERTO', factores: [0, 0, 0, 0] },
+    { label: 'COMERCIO ITINERANTE (PLAYAS)', factores: [0, 0, 0, 0] },
+    { label: 'MINIPUESTOS DE COMIDA O BEBIDA', factores: [0, 0, 0, 0] },
+    { label: 'SERVICIOS NÁUTICOS Y RECREATIVOS', factores: [0, 0, 0, 0] },
     { label: 'Academias varias Privadas', factores: [10, 15, 20, 50] },
     { label: 'Colegios Privados', factores: [20, 30, 40, 150] },
     { label: 'Prescolar, Guarderías infantiles Privadas', factores: [10, 15, 20, 50] },
