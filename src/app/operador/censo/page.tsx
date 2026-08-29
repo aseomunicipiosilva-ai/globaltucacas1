@@ -277,7 +277,7 @@ export default function CensoMobilePage() {
                 value={formData.IdentidadTipo || 'V'}
                 onChange={e => {
                   const newTipo = e.target.value;
-                  const maxLength = ['J', 'G', 'P', 'C'].includes(newTipo) ? 10 : 9;
+                  const maxLength = 10;
                   const newNumero = (formData.IdentidadNumero || '').slice(0, maxLength);
                   setFormData({...formData, IdentidadTipo: newTipo, IdentidadNumero: newNumero});
                 }}
@@ -295,7 +295,7 @@ export default function CensoMobilePage() {
                 value={formData.IdentidadNumero || ''} 
                 onChange={e => {
                   const val = e.target.value.replace(/\D/g, '');
-                  const maxLength = ['J', 'G', 'P', 'C'].includes(formData.IdentidadTipo || 'V') ? 10 : 9;
+                  const maxLength = 10;
                   if (val.length <= maxLength) {
                     setFormData({...formData, IdentidadNumero: val});
                   }
@@ -663,7 +663,7 @@ export default function CensoMobilePage() {
                                onChange={e => {
                                    const newLocales = [...formData.locales];
                                    const newTipo = e.target.value;
-                                   const maxLength = ['J', 'G', 'P', 'C'].includes(newTipo) ? 10 : 9;
+                                   const maxLength = 10;
                                    const newNumero = (local.documentoIdentidadNumero || '').slice(0, maxLength);
                                    newLocales[index].documentoIdentidadTipo = newTipo;
                                    newLocales[index].documentoIdentidadNumero = newNumero;
@@ -684,7 +684,7 @@ export default function CensoMobilePage() {
                                onChange={e => {
                                    const val = e.target.value.replace(/\D/g, '');
                                    const tipo = local.documentoIdentidadTipo || 'V';
-                                   const maxLength = ['J', 'G', 'P', 'C'].includes(tipo) ? 10 : 9;
+                                   const maxLength = 10;
                                    if (val.length <= maxLength) {
                                      const newLocales = [...formData.locales];
                                      newLocales[index].documentoIdentidadNumero = val;
