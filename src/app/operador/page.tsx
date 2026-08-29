@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
-import { MapPin, TrendingUp, Clock, PlusCircle } from 'lucide-react';
+import { MapPin, TrendingUp, Clock, PlusCircle, Download, FileSpreadsheet } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -13,6 +14,7 @@ export default function OperadorDashboard() {
   const [operador, setOperador] = useState<string | null>(null);
   const [censosRealizados, setCensosRealizados] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     const storedOp = localStorage.getItem('operador_censo_auth');
@@ -40,6 +42,78 @@ export default function OperadorDashboard() {
     }
   };
 
+  const handleExportExcel = async () => {
+    if (!operador) return;
+    setIsExporting(true);
+    try {
+      const { data, error } = await supabase
+        .from('pre_registros')
+        .select('*')
+        .like('origen', `%Censo - ${operador}%`)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        alert('No hay datos de censos registrados por usted para exportar.');
+        setIsExporting(false);
+        return;
+      }
+
+      // Format data for excel
+      const excelData = data.map((item: any) => {
+        return {
+          'Fecha de Registro': new Date(item.created_at).toLocaleString(),
+          'Identificación (Cédula/RIF)': item.identidad,
+          'Nombre / Razón Social': item.contribuyente,
+          'Teléfono / Registro': item.registro,
+          'Clasificación': item.tipo,
+          'Actividad / Tipo Residencia': item.actividad,
+          'Código / Metraje': item.codigo,
+          'Fecha de Inicio de Actividad': item.fecha_inicio,
+          'Domicilio Fiscal': item.domicilio_fiscal,
+          'Dirección Exacta (Mapa)': item.direccion_exacta,
+          'Coordenadas (Lat, Lng)': item.coordenadas ? `${item.coordenadas.lat}, ${item.coordenadas.lng}` : '',
+          '¿Es Condominio?': item.is_condominio ? 'Sí' : 'No',
+          'Cantidad de Inmuebles': item.cantidad_inmuebles || 0,
+          'Notas y Catastro': item.nota || ''
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      
+      // Auto-size columns slightly
+      const colWidths = [
+        { wch: 20 }, // Fecha Registro
+        { wch: 15 }, // Identidad
+        { wch: 30 }, // Contribuyente
+        { wch: 15 }, // Teléfono
+        { wch: 15 }, // Clasificación
+        { wch: 25 }, // Actividad
+        { wch: 15 }, // Código
+        { wch: 15 }, // Fecha Inicio
+        { wch: 35 }, // Domicilio
+        { wch: 35 }, // Dirección
+        { wch: 20 }, // Coordenadas
+        { wch: 15 }, // Condominio
+        { wch: 20 }, // Inmuebles
+        { wch: 40 }, // Notas
+      ];
+      ws['!cols'] = colWidths;
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Mis Censos');
+
+      const fileName = `Censos_${operador.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+    } catch (err) {
+      console.error(err);
+      alert('Hubo un error al exportar los datos.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (!operador) return null; // handled by layout
 
   return (
@@ -56,6 +130,15 @@ export default function OperadorDashboard() {
         >
           <PlusCircle className="w-6 h-6" /> 
           <span className="text-lg">Nuevo Censo</span>
+        </button>
+
+        <button 
+          onClick={handleExportExcel}
+          disabled={isExporting}
+          className="w-full mt-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow shadow-emerald-500/25 transition-transform active:scale-95 disabled:opacity-50"
+        >
+          {isExporting ? <Clock className="w-5 h-5 animate-spin" /> : <FileSpreadsheet className="w-5 h-5" />}
+          <span>{isExporting ? 'Exportando...' : 'Descargar Mi Data (Excel)'}</span>
         </button>
       </div>
 
