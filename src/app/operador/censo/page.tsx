@@ -57,8 +57,8 @@ export default function CensoMobilePage() {
     FechaInicioActividad: new Date().toISOString().split('T')[0]
   });
 
-  const handleCantidadChange = (e: any) => {
-    const val = parseInt(e.target.value) || 0;
+  const generarLocales = () => {
+    const val = formData.cantidadInmuebles || 0;
     const currentLocales = formData.locales || [];
     let newLocales = [...currentLocales];
     
@@ -81,7 +81,7 @@ export default function CensoMobilePage() {
     } else {
       newLocales = newLocales.slice(0, val);
     }
-    setFormData({...formData, cantidadInmuebles: val, locales: newLocales});
+    setFormData({...formData, locales: newLocales});
   };
 
   const calcularTarifa = async () => {
@@ -450,16 +450,25 @@ export default function CensoMobilePage() {
             </div>
 
             {formData.isCondominio && (
-              <div className="mt-4">
-                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Cantidad de Locales / Apartamentos</label>
-                 <input 
-                   type="number" 
-                   min="0"
-                   max="200"
-                   value={formData.cantidadInmuebles || 0}
-                   onChange={handleCantidadChange}
-                   className="w-32 border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" 
-                 />
+              <div className="mt-4 flex items-end gap-3">
+                 <div>
+                   <label className="block text-[10px] font-medium text-slate-500 mb-1">Cantidad de Locales / Apartamentos</label>
+                   <input 
+                     type="number" 
+                     min="0"
+                     max="200"
+                     value={formData.cantidadInmuebles || ''}
+                     onChange={e => setFormData({...formData, cantidadInmuebles: parseInt(e.target.value) || 0})}
+                     className="w-32 border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" 
+                   />
+                 </div>
+                 <button
+                   type="button"
+                   onClick={generarLocales}
+                   className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-sm transition-colors shadow-sm"
+                 >
+                   Generar Formulario
+                 </button>
               </div>
             )}
             
