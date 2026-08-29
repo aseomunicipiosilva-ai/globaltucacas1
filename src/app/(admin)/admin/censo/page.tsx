@@ -62,7 +62,11 @@ export default function CensoPage() {
           estatus: 'Desocupado',
           actividad: '',
           nivel: ordenanzaData.nivelesMetraje[0],
-          tipoResidencia: ordenanzaData.tiposResidenciales[0].label
+          tipoResidencia: ordenanzaData.tiposResidenciales[0].label,
+          nombreContribuyente: '',
+          documentoIdentidad: '',
+          catastro: '',
+          patente: ''
         });
       }
     } else {
@@ -586,6 +590,47 @@ export default function CensoPage() {
                            </div>
                          </>
                        )}
+
+                       {/* Nuevos campos de identidad, catastro y patente */}
+                       <div className="col-span-1 md:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-3 mt-2 border-t border-slate-200 pt-3">
+                         <div>
+                           <label className="block text-[10px] font-medium text-slate-500 mb-1">Cédula / RIF</label>
+                           <input type="text" value={local.documentoIdentidad || ''} onChange={e => {
+                               const newLocales = [...formData.locales];
+                               newLocales[index].documentoIdentidad = e.target.value.toUpperCase();
+                               setFormData({...formData, locales: newLocales});
+                           }} className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none focus:border-blue-500" placeholder="V12345678" />
+                         </div>
+                         <div>
+                           <label className="block text-[10px] font-medium text-slate-500 mb-1">Nombre / Razón Social</label>
+                           <input type="text" value={local.nombreContribuyente || ''} onChange={e => {
+                               const newLocales = [...formData.locales];
+                               newLocales[index].nombreContribuyente = e.target.value.toUpperCase();
+                               setFormData({...formData, locales: newLocales});
+                           }} className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none focus:border-blue-500" placeholder="Nombre completo" />
+                         </div>
+                         
+                         {local.uso === 'Residencial' ? (
+                           <div>
+                             <label className="block text-[10px] font-medium text-slate-500 mb-1">Ficha Catastral Individual</label>
+                             <input type="text" value={local.catastro || ''} onChange={e => {
+                                 const newLocales = [...formData.locales];
+                                 newLocales[index].catastro = e.target.value;
+                                 setFormData({...formData, locales: newLocales});
+                             }} className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none focus:border-blue-500" placeholder="Ej. CAT-0001" />
+                           </div>
+                         ) : (
+                           <div>
+                             <label className="block text-[10px] font-medium text-slate-500 mb-1">Número de Patente</label>
+                             <input type="text" value={local.patente || ''} onChange={e => {
+                                 const newLocales = [...formData.locales];
+                                 newLocales[index].patente = e.target.value;
+                                 setFormData({...formData, locales: newLocales});
+                             }} className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none focus:border-blue-500" placeholder="Ej. PAT-123" />
+                           </div>
+                         )}
+                       </div>
+
                     </div>
                   ))}
                 </div>
