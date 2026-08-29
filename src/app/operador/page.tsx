@@ -62,6 +62,27 @@ export default function OperadorDashboard() {
 
       // Format data for excel
       const excelData = data.map((item: any) => {
+        let patenteStr = '';
+        let catastroStr = '';
+        let notasStr = item.nota || '';
+
+        // Extraer Patente
+        const patenteMatch = notasStr.match(/Patente:\s*([^|]+)/);
+        if (patenteMatch) {
+          patenteStr = patenteMatch[1].trim();
+          notasStr = notasStr.replace(patenteMatch[0], '').trim();
+        }
+
+        // Extraer Catastro
+        const catastroMatch = notasStr.match(/Catastro:\s*([^|]+)/);
+        if (catastroMatch) {
+          catastroStr = catastroMatch[1].trim();
+          notasStr = notasStr.replace(catastroMatch[0], '').trim();
+        }
+
+        // Limpiar " | " sueltos que puedan haber quedado
+        notasStr = notasStr.replace(/^\|\s*/, '').replace(/\s*\|\s*$/, '').replace(/\s*\|\s*\|\s*/g, ' | ').trim();
+
         return {
           'Fecha de Registro': new Date(item.created_at).toLocaleString(),
           'Identificación (Cédula/RIF)': item.identidad,
@@ -76,7 +97,9 @@ export default function OperadorDashboard() {
           'Coordenadas (Lat, Lng)': item.coordenadas ? `${item.coordenadas.lat}, ${item.coordenadas.lng}` : '',
           '¿Es Condominio?': item.is_condominio ? 'Sí' : 'No',
           'Cantidad de Inmuebles': item.cantidad_inmuebles || 0,
-          'Notas y Catastro': item.nota || ''
+          'Ficha Catastral': catastroStr,
+          'Número de Patente': patenteStr,
+          'Notas': notasStr
         };
       });
 
@@ -97,6 +120,8 @@ export default function OperadorDashboard() {
         { wch: 20 }, // Coordenadas
         { wch: 15 }, // Condominio
         { wch: 20 }, // Inmuebles
+        { wch: 20 }, // Catastro
+        { wch: 20 }, // Patente
         { wch: 40 }, // Notas
       ];
       ws['!cols'] = colWidths;
