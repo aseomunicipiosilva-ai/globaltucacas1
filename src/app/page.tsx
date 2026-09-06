@@ -90,60 +90,7 @@ export default function Home() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            {/* Tarjeta Recaudación de Impuestos (Bloqueable) */}
-            <div className={`relative group p-8 rounded-xl backdrop-blur-sm transition-all duration-300 flex flex-col items-center border ${recaudacionActivo ? 'bg-white/10 hover:bg-white/20 border-yellow-500/30 hover:scale-105 shadow-[0_0_15px_rgba(234,179,8,0.15)]' : 'bg-slate-800/50 border-slate-700 grayscale opacity-75'}`}>
-              <button 
-                onClick={(e) => { e.preventDefault(); toggleAcceso('Recaudación', recaudacionActivo, setRecaudacionActivo); }}
-                className="absolute top-4 right-4 p-2 rounded-full bg-slate-800 hover:bg-slate-700 transition-colors z-20"
-              >
-                {recaudacionActivo ? <Unlock className="w-4 h-4 text-yellow-400" /> : <Lock className="w-4 h-4 text-slate-400" />}
-              </button>
-              <Link href="/admin/recaudacion" onClick={(e) => handleLinkClick(e, recaudacionActivo, '/admin/recaudacion')} className="flex flex-col items-center w-full h-full z-10">
-                <div className="bg-yellow-500/20 p-4 rounded-full mb-4 group-hover:bg-yellow-500/40 transition-colors">
-                  <Building2 className={`w-12 h-12 ${recaudacionActivo ? 'text-yellow-400' : 'text-slate-500'}`} />
-                </div>
-                <h2 className={`text-2xl font-black mb-3 text-center uppercase tracking-wide ${recaudacionActivo ? 'text-yellow-400' : 'text-slate-400'}`}>Recaudación de Impuestos</h2>
-                <ul className="text-xs text-slate-300 mb-6 text-left space-y-1 w-full max-w-xs list-disc pl-4">
-                  <li>Actividades Económicas y Declaraciones</li>
-                  <li>Catastro y Propiedad</li>
-                  <li>Vehículos (Registro y Patente)</li>
-                  <li>Ordenamiento Territorial y Vialidad</li>
-                  <li>Policía Municipal (Multas)</li>
-                </ul>
-                <div className={`mt-auto flex items-center gap-2 font-bold group-hover:gap-3 transition-all text-sm ${recaudacionActivo ? 'text-yellow-400' : 'text-slate-500'}`}>
-                  Ingresar a Recaudación <ArrowRight className="w-4 h-4" />
-                </div>
-              </Link>
-            </div>
-
-            {/* Tarjeta Administración Pública (Bloqueable) */}
-            <div className={`relative group p-8 rounded-xl backdrop-blur-sm transition-all duration-300 flex flex-col items-center border ${adminActivo ? 'bg-white/10 hover:bg-white/20 border-blue-500/30 hover:scale-105 shadow-[0_0_15px_rgba(59,130,246,0.15)]' : 'bg-slate-800/50 border-slate-700 grayscale opacity-75'}`}>
-              <button 
-                onClick={(e) => { e.preventDefault(); toggleAcceso('Administración Interna', adminActivo, setAdminActivo); }}
-                className="absolute top-4 right-4 p-2 rounded-full bg-slate-800 hover:bg-slate-700 transition-colors z-20"
-              >
-                {adminActivo ? <Unlock className="w-4 h-4 text-blue-400" /> : <Lock className="w-4 h-4 text-slate-400" />}
-              </button>
-              <Link href="/admin/administracion" onClick={(e) => handleLinkClick(e, adminActivo, '/admin/administracion')} className="flex flex-col items-center w-full h-full z-10">
-                <div className="bg-blue-500/20 p-4 rounded-full mb-4 group-hover:bg-blue-500/40 transition-colors">
-                  <LayoutDashboard className={`w-12 h-12 ${adminActivo ? 'text-blue-400' : 'text-slate-500'}`} />
-                </div>
-                <h2 className={`text-2xl font-black mb-3 text-center uppercase tracking-wide ${adminActivo ? 'text-blue-400' : 'text-slate-400'}`}>Administración Pública</h2>
-                <ul className="text-xs text-slate-300 mb-6 text-left space-y-1 w-full max-w-xs list-disc pl-4">
-                  <li>Ingresos y Egresos Presupuestarios</li>
-                  <li>Plan de Contrataciones y Compras</li>
-                  <li>Bienes Nacionales e Inventario</li>
-                  <li>Nómina y Control de Personal (RRHH)</li>
-                </ul>
-                <div className={`mt-auto flex items-center gap-2 font-bold group-hover:gap-3 transition-all text-sm ${adminActivo ? 'text-blue-400' : 'text-slate-500'}`}>
-                  Ingresar a Administración <ArrowRight className="w-4 h-4" />
-                </div>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
+          </div></div></div>
     </div>
   );
 }
