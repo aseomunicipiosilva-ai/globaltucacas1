@@ -27,7 +27,7 @@ export default function CajaPage() {
   const [totalBs, setTotalBs] = useState(0);
 
   // Payment State
-  const [paymentMethod, setPaymentMethod] = useState<'Debito' | 'Transferencia' | 'PagoMovil' | 'Biopago' | 'BotonPago'>('Debito');
+  const [paymentMethod, setPaymentMethod] = useState<'Debito' | 'Transferencia'>('Debito');
   const [referenciaDebito, setReferenciaDebito] = useState('');
   const [banco, setBanco] = useState('Banco de Venezuela');
   const [referencia, setReferencia] = useState('');
@@ -162,7 +162,7 @@ export default function CajaPage() {
     let esAbono = false;
     let montoReal = finalTotal;
     
-    const reqRef = ['Transferencia', 'PagoMovil', 'Biopago', 'BotonPago'].includes(paymentMethod);
+    const reqRef = ['Transferencia'].includes(paymentMethod);
 
     if (reqRef) {
       if (!banco) return alert("Debe seleccionar el banco emisor.");
@@ -228,7 +228,7 @@ export default function CajaPage() {
         }
       }
       
-      const isAutoAprobado = ['Debito', 'Biopago', 'BotonPago'].includes(paymentMethod);
+      const isAutoAprobado = ['Debito'].includes(paymentMethod);
 
       if (isAutoAprobado) {
         // Direct Payment (Pagado)
@@ -710,13 +710,10 @@ export default function CajaPage() {
                 >
                   <option value="Debito">Punto de Venta (TD/TC)</option>
                   <option value="Transferencia">Transferencia Bancaria</option>
-                  <option value="PagoMovil">Pago Móvil</option>
-                  <option value="Biopago">Biopago BDV</option>
-                  <option value="BotonPago">Botón de Pago (Online)</option>
-                </select>
+                  </select>
               </label>
 
-                  {['Debito', 'Biopago', 'BotonPago'].includes(paymentMethod) && (
+                  {['Debito'].includes(paymentMethod) && (
                     <div className="mt-4">
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-2">
                         Número de Comprobante / Referencia <span className="text-red-500">*</span>
@@ -731,7 +728,7 @@ export default function CajaPage() {
                     </div>
                   )}
 
-                  {['Transferencia', 'PagoMovil'].includes(paymentMethod) && (
+                  {['Transferencia'].includes(paymentMethod) && (
                 <div className="space-y-3 bg-white p-3 rounded border border-slate-200">
                   <label className="block">
                     <span className="text-xs font-semibold text-slate-600 mb-1 block">Fecha de Transacción</span>
