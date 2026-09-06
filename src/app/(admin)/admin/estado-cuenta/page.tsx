@@ -19,7 +19,7 @@ export default function EstadoCuentaPage() {
   const [loadingPagos, setLoadingPagos] = useState(false);
 
   const [filterStatus, setFilterStatus] = useState('Todos');
-  const [actionModal, setActionModal] = useState<{ isOpen: boolean, action: 'Anular' | 'Reversar', factura: any, nota: string }>({ isOpen: false, action: 'Anular', factura: null, nota: '' });
+  const [actionModal, setActionModal] = useState<{ isOpen: boolean, action: 'Anular' | 'Reversar' | 'Condonar' | 'Eliminar Multa', factura: any, nota: string }>({ isOpen: false, action: 'Anular', factura: null, nota: '' });
   
   const filteredFacturas = facturas.filter((f: any) => filterStatus === 'Todos' || f.estado === filterStatus);
 
@@ -316,6 +316,30 @@ export default function EstadoCuentaPage() {
     setLoadingTasa(false);
   };
 
+  
+  const exportarAExcel = async () => {
+    try {
+      const XLSX = await import('xlsx');
+      const ws = XLSX.utils.json_to_sheet(filteredFacturas.map((f: any) => ({
+        Referencia: f.referencia,
+        Contribuyente: f.contribuyente,
+        Identidad: f.identidad,
+        Monto: f.monto,
+        Emision: f.emision,
+        Estado: f.estado
+      })));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "EstadoCuenta");
+      XLSX.writeFile(wb, "EstadoDeCuenta_" + new Date().toISOString().split('T')[0] + ".xlsx");
+    } catch(e) {
+      alert("Error exportando a Excel");
+    }
+  };
+
+  const enviarCorreosMasivos = () => {
+    alert("Envío de notificaciones masivas programado. (Requiere integración de servicio de correo en backend).");
+  };
+
   const generarFacturacionMensual = async () => {
     if (!tcmmv) {
       alert("Debes actualizar la tasa TCMMV primero.");
@@ -387,7 +411,7 @@ export default function EstadoCuentaPage() {
     }
     try {
       const { error } = await supabase.from('facturas').update({
-        estado: actionModal.action === 'Anular' ? 'Anulado' : 'Reversado',
+        estado: actionModal.action === 'Condonar' ? 'Condonado' : actionModal.action === 'Anular' ? 'Anulado' : 'Reversado',
         nota: actionModal.nota
       }).eq('id', actionModal.factura.id);
       
@@ -440,6 +464,13 @@ export default function EstadoCuentaPage() {
               title="Anular Factura"
             >
               Anular
+            </button>
+            <button 
+              onClick={() => setActionModal({ isOpen: true, action: 'Condonar', factura: row, nota: '' })}
+              className="bg-purple-50 text-purple-600 hover:bg-purple-100 px-3 py-1.5 rounded text-xs transition-colors font-medium border border-purple-200"
+              title="Condonar Deuda"
+            >
+              Condonar
             </button>
           </>
         )}
@@ -522,6 +553,18 @@ export default function EstadoCuentaPage() {
           >
             <Zap className="w-4 h-4" /> 
             {isGenerating ? 'Generando...' : 'Generar Facturación'}
+          </button>
+          <button 
+            onClick={exportarAExcel}
+            className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded text-sm font-medium transition-colors shadow-sm flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" /> Exportar a Excel
+          </button>
+          <button 
+            onClick={enviarCorreosMasivos}
+            className="bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded text-sm font-medium transition-colors shadow-sm flex items-center gap-2"
+          >
+            Envío Masivo Correos
           </button>
           </div>
         </div>

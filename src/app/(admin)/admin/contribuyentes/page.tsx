@@ -812,7 +812,38 @@ function ContribuyentesPageContent() {
                     className="w-2/3 border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" 
                     required
                   />
+                </div> 
+ 
+            <div className="bg-slate-50 border-b border-t border-slate-200 px-4 py-3 mt-6">
+              <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-2">
+                <FileText className="w-4 h-4 text-slate-500" /> Expediente Digitalizado (Adjuntar Documentos)
+              </h2>
+            </div>
+            
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-600 mb-1">Copia de Cédula / RIF</label>
+                <div className="border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-slate-50">
+                  <span className="text-xs text-slate-500">Click para subir archivo</span>
+                  <input type="file" className="hidden" accept=".pdf,image/*" />
                 </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-600 mb-1">Ficha Catastral Digitalizada</label>
+                <div className="border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-slate-50">
+                  <span className="text-xs text-slate-500">Click para subir archivo</span>
+                  <input type="file" className="hidden" accept=".pdf,image/*" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-600 mb-1">Registro Mercantil / Otros</label>
+                <div className="border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-slate-50">
+                  <span className="text-xs text-slate-500">Click para subir archivo</span>
+                  <input type="file" className="hidden" accept=".pdf,image/*" />
+                </div>
+              </div>
+            </div>
+
               </div>
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Teléfono Fijo</label>

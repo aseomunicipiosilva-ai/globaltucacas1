@@ -15,7 +15,7 @@ export default function Home() {
       setter(false);
     } else {
       const password = prompt(`Ingrese la clave para activar el módulo ${tipo}:`);
-      if (password === 'dzara') {
+      if (password === 'andministrador') {
         setter(true);
       } else if (password !== null) {
         alert('Clave incorrecta');

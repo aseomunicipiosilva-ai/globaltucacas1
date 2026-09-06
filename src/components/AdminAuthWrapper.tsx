@@ -16,7 +16,7 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   useEffect(() => {
-    const auth = localStorage.getItem('admin_auth_dzara');
+    const auth = localStorage.getItem('admin_auth_andministrador');
     if (auth === 'true') {
       setIsAuthenticated(true);
     }
@@ -43,7 +43,7 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
       }
 
       if (data.clave === password) {
-        localStorage.setItem('admin_auth_dzara', 'true');
+        localStorage.setItem('admin_auth_andministrador', 'true');
         localStorage.setItem('admin_user_data', JSON.stringify(data));
         setIsAuthenticated(true);
       } else {

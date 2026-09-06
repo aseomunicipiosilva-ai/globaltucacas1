@@ -347,7 +347,7 @@ export default function PreRegistrosPage() {
       </div>
 
       <DataTable 
-        data={preRegistros.filter((r: any) => activeTab === 'Censo' ? r.origen?.startsWith('Censo') : !r.origen?.startsWith('Censo'))} 
+        data={preRegistros.filter((r: any) => activeTab === 'Censo' ? (r.origen && r.origen.startsWith('Censo')) : (!r.origen || !r.origen.startsWith('Censo')))} 
         columns={columns} 
         itemsPerPage={10} 
       />
