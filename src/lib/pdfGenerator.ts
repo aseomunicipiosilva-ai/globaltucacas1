@@ -1,3 +1,4 @@
+import { logos } from './logosBase64';
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
 import { createClient } from '@supabase/supabase-js';
@@ -31,14 +32,12 @@ export const dibujarYDescargarPDF = async (data: any, isPreview = false) => {
   try {
     const doc = new jsPDF();
     
-    let logoIsma = '', logoAlcaldia = '';
-    try {
-      logoAlcaldia = await loadImage('/images/logo_alcaldia.png');
-      logoIsma = await loadImage('/images/logo_isma.png');
-    } catch(e) {}
     
-    if (logoIsma) doc.addImage(logoIsma, 'PNG', 14, 10, 20, 20);
-    if (logoAlcaldia) doc.addImage(logoAlcaldia, 'PNG', 176, 10, 20, 20);
+    doc.addImage(logos.alcaldia, 'JPEG', 14, 10, 25, 25);
+    doc.addImage(logos.isma, 'JPEG', 42, 10, 25, 25);
+    doc.addImage(logos.global_rec, 'JPEG', 145, 10, 25, 25);
+    doc.addImage(logos.basura_cero, 'JPEG', 173, 10, 25, 25);
+
 
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");

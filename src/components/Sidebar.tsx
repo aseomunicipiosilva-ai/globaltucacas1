@@ -113,17 +113,18 @@ export default function Sidebar() {
 
       <style jsx global>{`
         .sidebar-scroll::-webkit-scrollbar {
-          width: 4px;
+          width: 8px;
         }
         .sidebar-scroll::-webkit-scrollbar-track {
-          background: transparent;
+          background: #0f172a;
         }
         .sidebar-scroll::-webkit-scrollbar-thumb {
-          background: #334155;
+          background: #475569;
           border-radius: 10px;
+          border: 2px solid #0f172a;
         }
         .sidebar-scroll::-webkit-scrollbar-thumb:hover {
-          background: #475569;
+          background: #64748b;
         }
       `}</style>
     </aside>

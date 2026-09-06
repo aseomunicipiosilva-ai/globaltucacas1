@@ -88,7 +88,7 @@ export default function PortalSidebar({ isOpen = false, setIsOpen }: PortalSideb
       )}
       
       {/* Sidebar container */}
-      <div className={`w-64 bg-[#1e293b] h-screen text-slate-300 flex flex-col fixed left-0 top-0 overflow-y-auto z-50 transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+      <div className={`sidebar-scroll w-64 bg-[#1e293b] h-screen text-slate-300 flex flex-col fixed left-0 top-0 overflow-y-auto z-50 transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
         {/* Profile Section */}
       <div className="flex flex-col items-center pt-8 pb-6 border-b border-slate-700/50">
         <div className="w-20 h-20 rounded-full bg-slate-700 mb-3 overflow-hidden border-2 border-slate-600 flex items-center justify-center">
@@ -151,6 +151,22 @@ export default function PortalSidebar({ isOpen = false, setIsOpen }: PortalSideb
         </div>
       </div>
     </div>
+    <style jsx global>{`
+      .sidebar-scroll::-webkit-scrollbar {
+        width: 8px;
+      }
+      .sidebar-scroll::-webkit-scrollbar-track {
+        background: #0f172a;
+      }
+      .sidebar-scroll::-webkit-scrollbar-thumb {
+        background: #475569;
+        border-radius: 10px;
+        border: 2px solid #0f172a;
+      }
+      .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+        background: #64748b;
+      }
+    `}</style>
     </>
   );
 }

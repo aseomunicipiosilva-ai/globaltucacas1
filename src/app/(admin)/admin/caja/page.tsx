@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import { exportToExcelWithLogos } from '@/lib/excelExport';
 import { Search, CreditCard, Landmark, CheckCircle, XCircle, FileText, Handshake, Calendar as CalendarIcon } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
@@ -405,10 +406,7 @@ export default function CajaPage() {
         };
       });
       
-      const worksheet = XLSX.utils.json_to_sheet(excelData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Notas de Crédito");
-      XLSX.writeFile(workbook, `Notas_Credito_${new Date().getTime()}.xlsx`);
+      const worksheet = exportToExcelWithLogos(excelData, `Notas_Credito_${new Date().getTime()}.xlsx`, "Notas de Crédito");
     } catch (e) {
       alert("Error exportando Excel");
     }

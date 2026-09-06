@@ -5,6 +5,7 @@ import { useAppContext } from '@/store/AppContext';
 import { List, Check, X, CheckCircle, Calculator, AlertCircle, FileSpreadsheet, Clock } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import * as XLSX from 'xlsx';
+import { exportToExcelWithLogos } from '@/lib/excelExport';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -107,18 +108,7 @@ export default function PreRegistrosPage() {
         }
       });
 
-      const ws = XLSX.utils.json_to_sheet(excelData);
-      
-      const colWidths = [
-        { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 30 }, { wch: 20 }, 
-        { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 35 }, { wch: 35 }, 
-        { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 40 }
-      ];
-      ws['!cols'] = colWidths;
-
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Todos los Censos');
-      XLSX.writeFile(wb, `Censo_General_Unificado_${new Date().toISOString().split('T')[0]}.xlsx`);
+      const ws = exportToExcelWithLogos(excelData, `Censo_General_Unificado_${new Date().toISOString().split('T')[0]}.xlsx`, 'Todos los Censos');
     } catch (err) {
       console.error(err);
       alert('Hubo un error al exportar los datos.');

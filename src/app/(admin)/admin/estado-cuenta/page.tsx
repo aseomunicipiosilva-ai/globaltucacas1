@@ -319,18 +319,16 @@ export default function EstadoCuentaPage() {
   
   const exportarAExcel = async () => {
     try {
-      const XLSX = await import('xlsx');
-      const ws = XLSX.utils.json_to_sheet(filteredFacturas.map((f: any) => ({
+      const { exportToExcelWithLogos } = await import('@/lib/excelExport');
+      const data = filteredFacturas.map((f: any) => ({
         Referencia: f.referencia,
         Contribuyente: f.contribuyente,
         Identidad: f.identidad,
         Monto: f.monto,
         Emision: f.emision,
         Estado: f.estado
-      })));
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "EstadoCuenta");
-      XLSX.writeFile(wb, "EstadoDeCuenta_" + new Date().toISOString().split('T')[0] + ".xlsx");
+      }));
+      await exportToExcelWithLogos(data, "EstadoDeCuenta_" + new Date().toISOString().split('T')[0] + ".xlsx", "EstadoCuenta");
     } catch(e) {
       alert("Error exportando a Excel");
     }

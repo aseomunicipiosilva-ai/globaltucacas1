@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
 import { useAppContext } from '@/store/AppContext';
+import { logos } from '@/lib/logosBase64';
 
 interface UnidadesModalProps {
   condominioId: number;
@@ -146,17 +147,12 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
       const doc = new jsPDF();
       
       // Load Logos
-      let logoAlcaldia = '';
-      let logoIsma = '';
-      try {
-        logoAlcaldia = await loadImage('/logo_alcaldia.png');
-        logoIsma = await loadImage('/logo_isma.png');
-      } catch(e) {
-        console.warn('Could not load logos', e);
-      }
       
-      if (logoIsma) doc.addImage(logoIsma, 'PNG', 14, 10, 20, 20);
-      if (logoAlcaldia) doc.addImage(logoAlcaldia, 'PNG', 176, 10, 20, 20);
+      doc.addImage(logos.alcaldia, 'JPEG', 14, 10, 25, 25);
+      doc.addImage(logos.isma, 'JPEG', 42, 10, 25, 25);
+      doc.addImage(logos.global_rec, 'JPEG', 145, 10, 25, 25);
+      doc.addImage(logos.basura_cero, 'JPEG', 173, 10, 25, 25);
+
 
       doc.setFontSize(16);
       doc.setFont("helvetica", "bold");

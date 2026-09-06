@@ -7,10 +7,17 @@ export default function Header() {
   
   return (
     <header className="h-16 bg-[#1e293b] fixed top-0 right-0 left-64 flex items-center justify-between px-6 z-10 border-b border-slate-700 shadow-sm">
-      <div className="flex items-center">
-        <button className="text-slate-300 hover:text-white transition-colors">
+      <div className="flex items-center gap-6">
+        <button className="text-slate-300 hover:text-white transition-colors mr-2">
           <Menu className="w-6 h-6" />
         </button>
+        {/* Banner de Logos */}
+        <div className="hidden md:flex items-center gap-4 bg-white/10 p-1.5 rounded-lg backdrop-blur-sm">
+          <img src="/logos/alcaldia.jpg" alt="Alcaldia" className="h-10 object-contain rounded" />
+          <img src="/logos/isma.jpg" alt="ISMA" className="h-10 object-contain rounded" />
+          <img src="/logos/global_rec.jpg" alt="Global Rec" className="h-10 object-contain rounded bg-white p-1" />
+          <img src="/logos/basura_cero.jpg" alt="Basura Cero" className="h-10 object-contain rounded bg-white p-1" />
+        </div>
       </div>
       <div className="flex items-center gap-4 text-sm">
         <div className="text-right">

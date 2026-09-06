@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabase';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { exportToExcelWithLogos } from '@/lib/excelExport';
+import { logos } from '@/lib/logosBase64';
 
 export default function ReportesPage() {
   const { facturas } = useAppContext();
@@ -42,17 +44,12 @@ export default function ReportesPage() {
       const doc = new jsPDF('landscape');
       
       // Load logos
-      let logoAlcaldia = '';
-      let logoIsma = '';
-      try {
-        logoAlcaldia = await loadImage('/logo_alcaldia.png');
-        logoIsma = await loadImage('/logo_isma.png');
-      } catch(e) {
-        console.warn('Could not load logos', e);
-      }
       
-      if (logoAlcaldia) doc.addImage(logoAlcaldia, 'PNG', 14, 10, 30, 30);
-      if (logoIsma) doc.addImage(logoIsma, 'PNG', 245, 10, 40, 30);
+      doc.addImage(logos.alcaldia, 'JPEG', 14, 10, 25, 25);
+      doc.addImage(logos.isma, 'JPEG', 45, 10, 25, 25);
+      doc.addImage(logos.global_rec, 'JPEG', 215, 10, 25, 25);
+      doc.addImage(logos.basura_cero, 'JPEG', 245, 10, 25, 25);
+      
 
       doc.setFontSize(16);
       doc.setFont("helvetica", "bold");
@@ -118,11 +115,7 @@ export default function ReportesPage() {
         };
       });
 
-      const worksheet = XLSX.utils.json_to_sheet(excelData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Conciliación");
-      
-      XLSX.writeFile(workbook, `Conciliacion_Bancaria_${new Date().getTime()}.xlsx`);
+      const worksheet = exportToExcelWithLogos(excelData, `Conciliacion_Bancaria_${new Date().getTime()}.xlsx`, "Conciliación");
     } catch (error) {
       alert("Error al generar Excel");
       console.error(error);
@@ -160,11 +153,7 @@ export default function ReportesPage() {
         };
       });
 
-      const worksheet = XLSX.utils.json_to_sheet(excelData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Monto Recaudado");
-      
-      XLSX.writeFile(workbook, `Monto_Recaudado_${new Date().getTime()}.xlsx`);
+      const worksheet = exportToExcelWithLogos(excelData, `Monto_Recaudado_${new Date().getTime()}.xlsx`, "Monto Recaudado");
     } catch (error) {
       alert("Error al generar Excel");
       console.error(error);

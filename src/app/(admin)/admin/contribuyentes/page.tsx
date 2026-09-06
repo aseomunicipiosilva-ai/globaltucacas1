@@ -18,6 +18,8 @@ const todasLasActividades = [...ordenanzaData.actividadesComerciales, ...ordenan
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
 import { DebtAdjustmentModal } from '@/components/DebtAdjustmentModal';
 
+import { logos } from '@/lib/logosBase64';
+import { exportToExcelWithLogos } from '@/lib/excelExport';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -301,17 +303,10 @@ function ContribuyentesPageContent() {
     const doc = new jsPDF();
     
     // Add Logos
-    let logoAlcaldia = '';
-    let logoIsma = '';
-    try {
-      logoAlcaldia = await loadImage('/logo_alcaldia.png');
-      logoIsma = await loadImage('/logo_isma.png');
-    } catch(e) {
-      console.warn('Could not load logos', e);
-    }
-    
-    if (logoIsma) doc.addImage(logoIsma, 'PNG', 14, 10, 20, 20);
-    if (logoAlcaldia) doc.addImage(logoAlcaldia, 'PNG', 176, 10, 20, 20);
+          doc.addImage(logos.alcaldia, 'JPEG', 14, 10, 25, 25);
+      doc.addImage(logos.isma, 'JPEG', 42, 10, 25, 25);
+      doc.addImage(logos.global_rec, 'JPEG', 145, 10, 25, 25);
+      doc.addImage(logos.basura_cero, 'JPEG', 173, 10, 25, 25);
 
     // Title & Taxpayer Info
     doc.setFontSize(16);
@@ -421,11 +416,7 @@ function ContribuyentesPageContent() {
       };
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Contribuyentes_y_Deudas");
-    
-    XLSX.writeFile(workbook, `Contribuyentes_${new Date().getTime()}.xlsx`);
+    const worksheet = exportToExcelWithLogos(dataToExport, `Contribuyentes_${new Date().getTime()}.xlsx`, "Contribuyentes_y_Deudas");
   };
 
   const generarSolvenciaIndividual = async (contribuyente: any, inmuebleSpec: string) => {

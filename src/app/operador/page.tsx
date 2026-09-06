@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { MapPin, TrendingUp, Clock, PlusCircle, Download, FileSpreadsheet, UploadCloud } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { exportToExcelWithLogos } from '@/lib/excelExport';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -171,38 +172,7 @@ export default function OperadorDashboard() {
         }
       });
 
-      const ws = XLSX.utils.json_to_sheet(excelData);
-      
-      // Auto-size columns slightly
-      const colWidths = [
-        { wch: 20 }, // Fecha Registro
-        { wch: 15 }, // Identidad
-        { wch: 30 }, // Contribuyente
-        { wch: 15 }, // Teléfono
-        { wch: 30 }, // Pertenece a Condominio
-        { wch: 20 }, // Inmueble
-        { wch: 15 }, // Clasificación
-        { wch: 25 }, // Actividad
-        { wch: 15 }, // Código
-        { wch: 15 }, // Estatus
-        { wch: 15 }, // Fecha Inicio
-        { wch: 35 }, // Domicilio
-        { wch: 35 }, // Dirección
-        { wch: 20 }, // Coordenadas
-        { wch: 20 }, // Catastro
-        { wch: 20 }, // Patente
-        { wch: 40 }, // Notas
-      ];
-      ws['!cols'] = colWidths;
-
-      const wb = XLSX.utils.book_new();
-      const sheetName = exportAll ? 'Todos los Censos' : 'Mis Censos';
-      XLSX.utils.book_append_sheet(wb, ws, sheetName);
-
-      const fileName = exportAll
-        ? `Censo_General_Unificado_${new Date().toISOString().split('T')[0]}.xlsx`
-        : `Censos_${operador.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
-      XLSX.writeFile(wb, fileName);
+      const ws = exportToExcelWithLogos(excelData, `Operador_${new Date().getTime()}.xlsx`, 'Operador');
     } catch (err) {
       console.error(err);
       alert('Hubo un error al exportar los datos.');
