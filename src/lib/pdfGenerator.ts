@@ -33,7 +33,7 @@ export const dibujarYDescargarPDF = async (data: any, isPreview = false) => {
     const doc = new jsPDF();
     
     
-    doc.addImage(logos.alcaldia, 'PNG', 14, 10, 25, 25);
+    doc.addImage(logos.alcaldia, 'JPEG', 14, 10, 25, 25);
     doc.addImage(logos.isma, 'JPEG', 42, 10, 25, 25);
     doc.addImage(logos.global_rec, 'JPEG', 145, 10, 25, 25);
     doc.addImage(logos.basura_cero, 'JPEG', 173, 10, 25, 25);
@@ -141,4 +141,5 @@ export const reimprimirSolvenciaPDF = async (certificadoRow: any) => {
     inmuebleSpec: 'general'
   });
 };
+
 

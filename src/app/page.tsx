@@ -13,13 +13,13 @@ export default function Home() {
             Sistema Integrado de Administración Pública Municipal
           </p>
           <div className="flex items-center justify-center gap-10 flex-wrap">
-            <img src="/logos/logo1.png" alt="Logo Institucional 1" className="h-24 w-auto object-contain" />
+            <img src="/logos/alcaldia.jpg" alt="Alcaldía del Municipio Silva" className="h-24 w-auto object-contain" />
             <div className="w-px h-20 bg-slate-200 hidden md:block" />
-            <img src="/logos/logo2.png" alt="Logo Institucional 2" className="h-24 w-auto object-contain" />
+            <img src="/logos/isma.jpg" alt="ISMA" className="h-24 w-auto object-contain" />
             <div className="w-px h-20 bg-slate-200 hidden md:block" />
-            <img src="/logos/logo3.png" alt="Logo Institucional 3" className="h-24 w-auto object-contain" />
+            <img src="/logos/global_rec.jpg" alt="Global Rec - Global Green" className="h-24 w-auto object-contain" />
             <div className="w-px h-20 bg-slate-200 hidden md:block" />
-            <img src="/logos/logo4.png" alt="Logo Institucional 4" className="h-24 w-auto object-contain" />
+            <img src="/logos/basura_cero.jpg" alt="Basura Cero" className="h-24 w-auto object-contain" />
           </div>
         </div>
 
@@ -27,7 +27,9 @@ export default function Home() {
         <div className="bg-[#0f172a] rounded-2xl overflow-hidden shadow-2xl relative">
           <div className="absolute top-0 left-0 w-full h-full opacity-10"></div>
           <div className="relative z-10 p-8 md:p-12 text-center">
-
+            <h1 className="text-2xl md:text-3xl font-bold text-white tracking-wider mb-2">
+              <span className="text-green-400">GLOBAL</span> GREEN
+            </h1>
             <p className="text-slate-400 text-sm max-w-xl mx-auto mb-10">
               Seleccione su módulo para acceder al sistema.
             </p>

@@ -45,7 +45,7 @@ export default function ReportesPage() {
       
       // Load logos
       
-      doc.addImage(logos.alcaldia, 'PNG', 14, 10, 25, 25);
+      doc.addImage(logos.alcaldia, 'JPEG', 14, 10, 25, 25);
       doc.addImage(logos.isma, 'JPEG', 45, 10, 25, 25);
       doc.addImage(logos.global_rec, 'JPEG', 215, 10, 25, 25);
       doc.addImage(logos.basura_cero, 'JPEG', 245, 10, 25, 25);
@@ -298,4 +298,5 @@ export default function ReportesPage() {
     </div>
   );
 }
+
 
