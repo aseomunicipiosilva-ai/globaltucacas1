@@ -98,7 +98,11 @@ export default function PortalLogin() {
                   required
                   placeholder="Ej: 123456789"
                   value={docNum}
-                  onChange={(e) => setDocNum(e.target.value.replace(/\D/g, ''))}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setDocNum(val);
+                    e.target.value = val;
+                  }}
                   className="w-3/4 border-2 border-slate-200 rounded-lg px-4 py-3 text-sm font-semibold text-slate-700 outline-none focus:border-green-500" 
                 />
               </div>
