@@ -133,26 +133,8 @@ export default function ReportesPage() {
         
       if (error) throw error;
       
-      const excelData = (pagos || []).map((p: any) => {
-        let detalles: any = {};
-        try { detalles = JSON.parse(p.detalles); } catch(e){}
-        const tcmmvRate = detalles.tcmmv || 1;
-        const montoBs = parseFloat(p.monto) || 0;
-        const montoEuro = (montoBs / tcmmvRate).toFixed(2);
-        
-        return {
-          "MES": p.created_at ? new Date(p.created_at).toLocaleDateString('es-ES', { month: 'long' }).toUpperCase() : '---',
-          "FECHA PAGO": p.created_at ? new Date(p.created_at).toLocaleDateString() : '---',
-          "EURO (TCMMV)": tcmmvRate,
-          "RECAUDADO Bs.": montoBs,
-          "CONCILIADO TRANSFERENCIA/DEPOSITO (Bs)": p.metodo !== 'Punto' ? montoBs : 0,
-          "CONCILIADO TRANSFERENCIA/DEPOSITO (€)": p.metodo !== 'Punto' ? Number(montoEuro) : 0,
-          "CONCILIADO PUNTO (Bs)": p.metodo === 'Punto' ? montoBs : 0,
-          "CONCILIADO PUNTO (€)": p.metodo === 'Punto' ? Number(montoEuro) : 0,
-        };
-      });
-
-      await exportToExcelWithLogos(excelData, `Monto_Recaudado_${new Date().getTime()}.xlsx`, "Monto Recaudado");
+      const { exportMontoRecaudadoExcel } = await import('@/lib/montoRecaudadoExport');
+      await exportMontoRecaudadoExcel(pagos || [], `Monto_Diario_Recaudado_${new Date().getTime()}.xlsx`);
     } catch (error) {
       alert("Error al generar Excel");
       console.error(error);
