@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 export default function ConveniosPagoPage() {
   const { convenios, inmuebles, tcmmv } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [viewCuotasModal, setViewCuotasModal] = useState<{isOpen: boolean, convenio: any}>({isOpen: false, convenio: null});
   const [searchDoc, setSearchDoc] = useState('');
   const [foundUser, setFoundUser] = useState<any>(null);
   
@@ -90,7 +91,10 @@ export default function ConveniosPagoPage() {
     ) },
     { key: 'actions', header: 'Gestión', render: (row: any) => (
       <div className="flex gap-2">
-        <button className="text-slate-600 hover:text-slate-900 text-xs flex items-center gap-1">
+        <button 
+          onClick={() => setViewCuotasModal({isOpen: true, convenio: row})}
+          className="text-slate-600 hover:text-slate-900 text-xs flex items-center gap-1"
+        >
           <FileEdit size={14} /> Cuotas
         </button>
         {row.documento_url && (
@@ -400,6 +404,87 @@ export default function ConveniosPagoPage() {
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded text-sm font-medium disabled:opacity-50 transition-colors"
               >
                 {isProcessing ? 'Procesando...' : 'Guardar y Congelar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewCuotasModal.isOpen && viewCuotasModal.convenio && (
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-lg">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">Detalles del Convenio</h3>
+                <p className="text-sm text-slate-500 mt-1">{viewCuotasModal.convenio.numero}</p>
+              </div>
+              <button 
+                onClick={() => setViewCuotasModal({isOpen: false, convenio: null})}
+                className="p-2 hover:bg-slate-200 rounded-full transition-colors"
+              >
+                <X size={20} className="text-slate-500" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto">
+              <div className="mb-6 grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="block text-slate-500 mb-1">Contribuyente</span>
+                  <span className="font-semibold text-slate-800">{viewCuotasModal.convenio.contribuyente}</span>
+                </div>
+                <div>
+                  <span className="block text-slate-500 mb-1">Total Refinanciado</span>
+                  <span className="font-semibold text-slate-800">{viewCuotasModal.convenio.monto_total}</span>
+                </div>
+              </div>
+
+              <h4 className="text-sm font-semibold text-slate-800 mb-3">Cronograma de Cuotas</h4>
+              
+              {(!viewCuotasModal.convenio.detalle_cuotas || viewCuotasModal.convenio.detalle_cuotas === '[]') ? (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-6 text-center text-orange-700">
+                  <p className="font-medium">Convenio Histórico Consolidado</p>
+                  <p className="text-sm mt-2 opacity-80">Este acuerdo proviene de la base de datos histórica. No posee un desglose de cuotas detallado en el sistema.</p>
+                </div>
+              ) : (
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50 text-slate-600 text-xs">
+                      <tr>
+                        <th className="px-4 py-3 font-semibold">N° Cuota</th>
+                        <th className="px-4 py-3 font-semibold">Fecha Vencimiento</th>
+                        <th className="px-4 py-3 font-semibold">Monto (Bs)</th>
+                        <th className="px-4 py-3 font-semibold">Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {(JSON.parse(viewCuotasModal.convenio.detalle_cuotas || '[]')).map((c: any, i: number) => (
+                        <tr key={i} className="hover:bg-slate-50">
+                          <td className="px-4 py-3 font-medium text-slate-600">{i + 1}</td>
+                          <td className="px-4 py-3 text-slate-600">{c.fecha}</td>
+                          <td className="px-4 py-3 font-semibold text-slate-800">{c.monto} Bs</td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                              c.estado === 'Pagado' ? 'bg-emerald-100 text-emerald-700' :
+                              c.estado === 'Vencido' ? 'bg-red-100 text-red-700' :
+                              'bg-amber-100 text-amber-700'
+                            }`}>
+                              {c.estado || 'Pendiente'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-slate-200 bg-slate-50 rounded-b-lg flex justify-end">
+              <button 
+                onClick={() => setViewCuotasModal({isOpen: false, convenio: null})}
+                className="px-6 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 rounded shadow-sm"
+              >
+                Cerrar
               </button>
             </div>
           </div>
