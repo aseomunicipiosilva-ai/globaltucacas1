@@ -45,6 +45,48 @@ export async function GET(request: Request) {
     console.error('Error fetching manual rate:', e);
   }
 
+
+  // 0.5 Revisar si hay una tasa semanal y qué día es hoy
+  let tasaSemanalGuardada = null;
+  let fechaSemanalGuardada = null;
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    if (supabaseUrl && supabaseKey) {
+      const dbRes = await fetch(`${supabaseUrl}/rest/v1/sistema_config?id=eq.tasa_bcv_semanal&select=valor,updated_at`, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`
+        },
+        cache: 'no-store'
+      });
+      if (dbRes.ok) {
+        const rows = await dbRes.json();
+        if (rows && rows.length > 0 && rows[0].valor) {
+          tasaSemanalGuardada = parseFloat(rows[0].valor);
+          fechaSemanalGuardada = rows[0].updated_at;
+        }
+      }
+    }
+  } catch(e) {
+    console.error('Error fetching semanal rate:', e);
+  }
+
+  const today = new Date();
+  const isMonday = today.getDay() === 1;
+
+  // Si no es lunes y tenemos una tasa semanal guardada, usarla
+  if (!isMonday && !sync && tasaSemanalGuardada !== null && !isNaN(tasaSemanalGuardada) && tasaSemanalGuardada > 0) {
+    return NextResponse.json({
+      success: true,
+      euro: tasaSemanalGuardada,
+      usd: tasaSemanalGuardada,
+      tcmmv: tasaSemanalGuardada,
+      timestamp: fechaSemanalGuardada || today.toISOString(),
+      source: 'semanal-db-congelada'
+    });
+  }
+
   try {
     // 1. Scraping directo de bcv.org.ve (Más seguro dado que las APIs están caídas o devolviendo pesos argentinos)
     const agent = new https.Agent({ rejectUnauthorized: false });
@@ -71,9 +113,31 @@ export async function GET(request: Request) {
       throw new Error('Could not parse BCV HTML correctly');
     }
 
+
     const tcmmv = euroVal; // Se usa estrictamente la tasa del Euro por ordenanza
 
+    // Guardar como tasa semanal si es lunes o si forzaron sync
+    try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+      if (supabaseUrl && supabaseKey) {
+        await fetch(`${supabaseUrl}/rest/v1/sistema_config?id=eq.tasa_bcv_semanal`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify({ valor: tcmmv.toString(), updated_at: new Date().toISOString() })
+        });
+      }
+    } catch (e) {
+      console.error('No se pudo actualizar la tasa semanal en la BD', e);
+    }
+
     return NextResponse.json({
+
       success: true,
       euro: euroVal,
       usd: usdVal,
@@ -102,8 +166,28 @@ export async function GET(request: Request) {
          throw new Error('DolarAPI is returning Argentine Pesos instead of Bolivares (Bug)');
       }
 
+
       const tcmmv = euroVal; // Estrictamente tasa Euro
+
+      try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+        if (supabaseUrl && supabaseKey) {
+          await fetch(`${supabaseUrl}/rest/v1/sistema_config?id=eq.tasa_bcv_semanal`, {
+            method: 'PATCH',
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify({ valor: tcmmv.toString(), updated_at: new Date().toISOString() })
+          });
+        }
+      } catch (e) {}
+
       return NextResponse.json({
+
         success: true,
         euro: euroVal,
         usd: usdVal,

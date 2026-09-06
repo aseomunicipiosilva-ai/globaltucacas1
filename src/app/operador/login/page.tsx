@@ -1,33 +1,69 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, User, Lock, Building2 } from 'lucide-react';
+import { ShieldCheck, User, Lock, Building2, AlertCircle } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function OperadorLogin() {
   const router = useRouter();
   const [usuario, setUsuario] = useState('');
   const [clave, setClave] = useState('');
   const [error, setError] = useState('');
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // En un sistema real, aquí harías fetch a tu backend de Trabajadores.
-    // Como esto es un MVP front-end sin autenticación real backend aún, simulamos:
-    
     const userUpper = usuario.trim().toUpperCase();
+
+    // Mantener bypass para CATASTRO e HACIENDA temporalmente si es necesario
     if (userUpper === 'CATASTRO' || userUpper === 'HACIENDA') {
       if (clave !== '1042700') {
         setError('Clave incorrecta para este usuario especial');
         return;
       }
-    }
-
-    if (usuario.trim().length > 0 && clave.length > 0) {
-      // Guardamos el nombre del usuario logueado
       localStorage.setItem('operador_censo_auth', userUpper);
       router.push('/operador');
-    } else {
-      setError('Credenciales incorrectas');
+      return;
+    }
+
+    if (usuario.trim().length === 0 || clave.length === 0) {
+      setError('Credenciales incompletas');
+      return;
+    }
+
+    setIsAuthenticating(true);
+    setError('');
+
+    try {
+      const { data, error: dbError } = await supabase
+        .from('trabajadores')
+        .select('*')
+        .eq('usuario', usuario.trim())
+        .eq('estado', 'Activo')
+        .single();
+
+      if (dbError || !data) {
+        setError('Usuario no encontrado o inactivo');
+        setIsAuthenticating(false);
+        return;
+      }
+
+      if (data.clave === clave) {
+        localStorage.setItem('operador_censo_auth', usuario.trim());
+        localStorage.setItem('operador_user_data', JSON.stringify(data));
+        router.push('/operador');
+      } else {
+        setError('Contraseña incorrecta');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Error al conectar con la base de datos');
+    } finally {
+      setIsAuthenticating(false);
     }
   };
 
@@ -87,9 +123,11 @@ export default function OperadorLogin() {
 
             <button 
               type="submit" 
-              className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 shadow-lg shadow-orange-500/30 transition-all active:scale-95"
+              disabled={isAuthenticating}
+              className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 shadow-lg shadow-orange-500/30 transition-all active:scale-95 disabled:opacity-50"
             >
-              <ShieldCheck className="w-5 h-5" /> Iniciar Jornada
+              {isAuthenticating ? <AlertCircle className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
+              {isAuthenticating ? 'Verificando...' : 'Iniciar Jornada'}
             </button>
           </form>
         </div>

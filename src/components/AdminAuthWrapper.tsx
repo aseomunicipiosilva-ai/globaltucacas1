@@ -1,6 +1,11 @@
 ﻿'use client';
 import React, { useState, useEffect } from 'react';
-import { Lock, User } from 'lucide-react';
+import { Lock, User, AlertCircle } from 'lucide-react';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function AdminAuthWrapper({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -8,6 +13,7 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   useEffect(() => {
     const auth = localStorage.getItem('admin_auth_dzara');
@@ -17,14 +23,37 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
     setLoading(false);
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (username.toLowerCase() === 'dzara' && password === 'dzara') {
-      localStorage.setItem('admin_auth_dzara', 'true');
-      setIsAuthenticated(true);
-      setError('');
-    } else {
-      setError('Credenciales incorrectas');
+    setIsAuthenticating(true);
+    setError('');
+
+    try {
+      const { data, error: dbError } = await supabase
+        .from('trabajadores')
+        .select('*')
+        .eq('usuario', username.trim())
+        .eq('estado', 'Activo')
+        .single();
+
+      if (dbError || !data) {
+        setError('Usuario no encontrado o inactivo');
+        setIsAuthenticating(false);
+        return;
+      }
+
+      if (data.clave === password) {
+        localStorage.setItem('admin_auth_dzara', 'true');
+        localStorage.setItem('admin_user_data', JSON.stringify(data));
+        setIsAuthenticated(true);
+      } else {
+        setError('Contraseña incorrecta');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Error al conectar con la base de datos');
+    } finally {
+      setIsAuthenticating(false);
     }
   };
 
@@ -77,9 +106,11 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
 
             <button 
               type="submit" 
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md shadow-blue-500/30 transition-all mt-4 active:scale-95 flex items-center justify-center gap-2"
+              disabled={isAuthenticating}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md shadow-blue-500/30 transition-all mt-4 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              Iniciar Sesión
+              {isAuthenticating ? <AlertCircle className="w-5 h-5 animate-spin" /> : null}
+              {isAuthenticating ? 'Verificando...' : 'Iniciar Sesión'}
             </button>
           </form>
         </div>
