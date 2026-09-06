@@ -39,6 +39,7 @@ function ContribuyentesPageContent() {
   const [viewData, setViewData] = useState<any>(null);
   const [selectedSolvenciaInmueble, setSelectedSolvenciaInmueble] = useState<string>('');
   const [viewCalculo, setViewCalculo] = useState<any>(null);
+  const [selectedCondominioModal, setSelectedCondominioModal] = useState<{ id: number, nombre: string, identidad: string } | null>(null);
 
   const [debtModalOpen, setDebtModalOpen] = useState(false);
   const [selectedDebtRow, setSelectedDebtRow] = useState<any>(null);
@@ -2114,11 +2115,10 @@ function ContribuyentesPageContent() {
 
       {selectedCondominioModal && (
         <UnidadesModal
-          isOpen={true}
           onClose={() => setSelectedCondominioModal(null)}
           condominioId={selectedCondominioModal.id}
           condominioNombre={selectedCondominioModal.nombre}
-          identidad={selectedCondominioModal.identidad}
+          condominioIdentidad={selectedCondominioModal.identidad}
         />
       )}
     </div>
