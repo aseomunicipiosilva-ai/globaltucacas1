@@ -73,7 +73,8 @@ export default function CajaPage() {
       if (!c.Identidad) return false;
       const idClean = String(c.Identidad).replace(/-/g, '').toUpperCase();
       const codMatch = c.cod_cont && c.cod_cont.toUpperCase() === docNumber.toUpperCase();
-      return idClean === cleanFullDoc || idClean === idLimpioSearch || codMatch;
+      const nombreMatch = c.Contribuyente && c.Contribuyente.toUpperCase().includes(docNumber.toUpperCase());
+      return idClean === cleanFullDoc || idClean === idLimpioSearch || codMatch || nombreMatch;
     });
     
     if (user) {
@@ -187,6 +188,7 @@ export default function CajaPage() {
       }
     } else if (paymentMethod === 'Debito') {
       if (!referenciaDebito.trim()) return alert("Debe ingresar el número de comprobante o referencia del pago por punto.");
+      if (referenciaDebito.trim().length !== 8) return alert("El número de referencia para Punto de Venta debe tener exactamente 8 dígitos.");
     }
     
     if (customBcvRate && !justificacionBcv.trim()) {

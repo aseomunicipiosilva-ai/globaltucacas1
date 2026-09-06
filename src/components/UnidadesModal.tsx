@@ -18,12 +18,18 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
   const [loading, setLoading] = useState(true);
   const [nuevaUnidad, setNuevaUnidad] = useState('');
   const [nuevoPropietario, setNuevoPropietario] = useState('');
+  const [nuevoTelefono, setNuevoTelefono] = useState('');
+  const [nuevoCorreo, setNuevoCorreo] = useState('');
+  const [nuevaFicha, setNuevaFicha] = useState('');
   
   // Edit State
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState({
     numero_unidad: '',
     propietario: '',
+    telefono: '',
+    correo: '',
+    ficha_catastral: '',
     estado: 'Solvente',
     ocupacion: 'Ocupada'
   });
@@ -56,6 +62,9 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
         condominio_id: condominioId,
         numero_unidad: nuevaUnidad,
         propietario: nuevoPropietario || 'No asignado',
+        telefono: nuevoTelefono || '',
+        correo: nuevoCorreo || '',
+        ficha_catastral: nuevaFicha || '',
         estado: 'Solvente',
         ocupacion: 'Ocupada'
       }])
@@ -65,6 +74,9 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
       setUnidades([...unidades, data[0]]);
       setNuevaUnidad('');
       setNuevoPropietario('');
+      setNuevoTelefono('');
+      setNuevoCorreo('');
+      setNuevaFicha('');
     }
   };
 
@@ -80,6 +92,9 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
     setEditForm({
       numero_unidad: u.numero_unidad || '',
       propietario: u.propietario || '',
+      telefono: u.telefono || '',
+      correo: u.correo || '',
+      ficha_catastral: u.ficha_catastral || '',
       estado: u.estado || 'Solvente',
       ocupacion: u.ocupacion || 'Ocupada'
     });
@@ -91,6 +106,9 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
       .update({
         numero_unidad: editForm.numero_unidad,
         propietario: editForm.propietario,
+        telefono: editForm.telefono,
+        correo: editForm.correo,
+        ficha_catastral: editForm.ficha_catastral,
         estado: editForm.estado,
         ocupacion: editForm.ocupacion
       })
@@ -148,7 +166,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
       
       // Load Logos
       
-      doc.addImage(logos.alcaldia, 'JPEG', 14, 10, 25, 25);
+      doc.addImage(logos.alcaldia, 'PNG', 14, 10, 25, 25);
       doc.addImage(logos.isma, 'JPEG', 42, 10, 25, 25);
       doc.addImage(logos.global_rec, 'JPEG', 145, 10, 25, 25);
       doc.addImage(logos.basura_cero, 'JPEG', 173, 10, 25, 25);
@@ -212,32 +230,67 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
         {/* Content */}
         <div className="p-6 flex-1 overflow-y-auto">
           {/* Add Form */}
-          <form onSubmit={agregarUnidad} className="flex gap-4 mb-8 bg-slate-50 p-4 rounded-lg border border-slate-100">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-slate-500 mb-1">Número/Identificador de Unidad</label>
-              <input 
-                type="text" 
-                value={nuevaUnidad}
-                onChange={(e) => setNuevaUnidad(e.target.value)}
-                placeholder="Ej. Apto 1A" 
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                required
-              />
+          <form onSubmit={agregarUnidad} className="flex flex-col gap-4 mb-8 bg-slate-50 p-4 rounded-lg border border-slate-100">
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-slate-500 mb-1">Número/Identificador de Unidad</label>
+                <input 
+                  type="text" 
+                  value={nuevaUnidad}
+                  onChange={(e) => setNuevaUnidad(e.target.value)}
+                  placeholder="Ej. Apto 1A" 
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  required
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-slate-500 mb-1">Nombre del Propietario (Opcional)</label>
+                <input 
+                  type="text" 
+                  value={nuevoPropietario}
+                  onChange={(e) => setNuevoPropietario(e.target.value)}
+                  placeholder="Ej. María Gómez" 
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
             </div>
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-slate-500 mb-1">Nombre del Propietario (Opcional)</label>
-              <input 
-                type="text" 
-                value={nuevoPropietario}
-                onChange={(e) => setNuevoPropietario(e.target.value)}
-                placeholder="Ej. María Gómez" 
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
-            <div className="flex items-end">
-              <button type="submit" className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors flex items-center gap-2 h-[38px]">
-                <Plus size={16} /> Añadir
-              </button>
+            
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-slate-500 mb-1">Teléfono (Opcional)</label>
+                <input 
+                  type="text" 
+                  value={nuevoTelefono}
+                  onChange={(e) => setNuevoTelefono(e.target.value)}
+                  placeholder="Ej. 0414-1234567" 
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-slate-500 mb-1">Correo Electrónico (Opcional)</label>
+                <input 
+                  type="email" 
+                  value={nuevoCorreo}
+                  onChange={(e) => setNuevoCorreo(e.target.value)}
+                  placeholder="Ej. correo@ejemplo.com" 
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-slate-500 mb-1">Ficha Catastral (Opcional)</label>
+                <input 
+                  type="text" 
+                  value={nuevaFicha}
+                  onChange={(e) => setNuevaFicha(e.target.value)}
+                  placeholder="Ficha catastral" 
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+              <div className="flex items-end">
+                <button type="submit" className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors flex items-center gap-2 h-[38px]">
+                  <Plus size={16} /> Añadir
+                </button>
+              </div>
             </div>
           </form>
 
@@ -257,6 +310,8 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                     <tr>
                       <th className="px-4 py-3">Unidad</th>
                       <th className="px-4 py-3">Propietario</th>
+                      <th className="px-4 py-3">Contacto</th>
+                      <th className="px-4 py-3">Ficha</th>
                       <th className="px-4 py-3">Ocupación</th>
                       <th className="px-4 py-3">Estado</th>
                       <th className="px-4 py-3 text-right">Acciones</th>
@@ -274,7 +329,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                                 type="text" 
                                 value={editForm.numero_unidad} 
                                 onChange={(e) => setEditForm({...editForm, numero_unidad: e.target.value})}
-                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500 min-w-[80px]"
                               />
                             </td>
                             <td className="px-4 py-2">
@@ -282,14 +337,39 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                                 type="text" 
                                 value={editForm.propietario} 
                                 onChange={(e) => setEditForm({...editForm, propietario: e.target.value})}
-                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500 min-w-[100px]"
+                              />
+                            </td>
+                            <td className="px-4 py-2">
+                              <input 
+                                type="text" 
+                                placeholder="Teléfono"
+                                value={editForm.telefono} 
+                                onChange={(e) => setEditForm({...editForm, telefono: e.target.value})}
+                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500 mb-1 min-w-[100px]"
+                              />
+                              <input 
+                                type="text" 
+                                placeholder="Correo"
+                                value={editForm.correo} 
+                                onChange={(e) => setEditForm({...editForm, correo: e.target.value})}
+                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500 min-w-[100px]"
+                              />
+                            </td>
+                            <td className="px-4 py-2">
+                              <input 
+                                type="text" 
+                                placeholder="Ficha"
+                                value={editForm.ficha_catastral} 
+                                onChange={(e) => setEditForm({...editForm, ficha_catastral: e.target.value})}
+                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500 min-w-[80px]"
                               />
                             </td>
                             <td className="px-4 py-2">
                               <select 
                                 value={editForm.ocupacion}
                                 onChange={(e) => setEditForm({...editForm, ocupacion: e.target.value})}
-                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500 min-w-[100px]"
                               >
                                 <option value="Ocupada">Ocupada</option>
                                 <option value="Desocupada">Desocupada</option>
@@ -299,7 +379,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                               <select 
                                 value={editForm.estado}
                                 onChange={(e) => setEditForm({...editForm, estado: e.target.value})}
-                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500"
+                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500 min-w-[100px]"
                                 disabled={!hasCondominioDebt}
                                 title={!hasCondominioDebt ? "El condominio está solvente" : ""}
                               >
@@ -307,7 +387,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                                 <option value="Con Deuda">Con Deuda</option>
                               </select>
                             </td>
-                            <td className="px-4 py-2 text-right">
+                            <td className="px-4 py-2 text-right whitespace-nowrap">
                               <button onClick={() => guardarEdicion(u.id)} className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors mr-1">
                                 <Save size={16} />
                               </button>
@@ -320,6 +400,11 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                           <>
                             <td className="px-4 py-3 font-medium text-slate-800">{u.numero_unidad}</td>
                             <td className="px-4 py-3 text-slate-600">{u.propietario}</td>
+                            <td className="px-4 py-3 text-slate-500 text-xs">
+                              <div>{u.telefono || 'Sin Telf.'}</div>
+                              <div>{u.correo || 'Sin Correo'}</div>
+                            </td>
+                            <td className="px-4 py-3 text-slate-500 text-xs">{u.ficha_catastral || 'N/A'}</td>
                             <td className="px-4 py-3 text-slate-600">
                               <span className={`px-2 py-1 rounded text-xs font-semibold ${
                                 u.ocupacion === 'Ocupada' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
@@ -334,7 +419,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                                 {isUnitSolvent ? 'Solvente' : 'Con Deuda'}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-right">
+                            <td className="px-4 py-3 text-right whitespace-nowrap">
                               <button 
                                 onClick={() => emitirSolvencia(u)} 
                                 className={`p-1.5 rounded-lg transition-colors mr-1 ${isUnitSolvent ? 'text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50' : 'text-slate-300 cursor-not-allowed'}`}
@@ -363,3 +448,4 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
     </div>
   );
 }
+

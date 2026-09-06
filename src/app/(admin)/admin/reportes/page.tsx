@@ -45,7 +45,7 @@ export default function ReportesPage() {
       
       // Load logos
       
-      doc.addImage(logos.alcaldia, 'JPEG', 14, 10, 25, 25);
+      doc.addImage(logos.alcaldia, 'PNG', 14, 10, 25, 25);
       doc.addImage(logos.isma, 'JPEG', 45, 10, 25, 25);
       doc.addImage(logos.global_rec, 'JPEG', 215, 10, 25, 25);
       doc.addImage(logos.basura_cero, 'JPEG', 245, 10, 25, 25);
@@ -115,7 +115,7 @@ export default function ReportesPage() {
         };
       });
 
-      const worksheet = exportToExcelWithLogos(excelData, `Conciliacion_Bancaria_${new Date().getTime()}.xlsx`, "Conciliación");
+      await exportToExcelWithLogos(excelData, `Conciliacion_Bancaria_${new Date().getTime()}.xlsx`, "Conciliación");
     } catch (error) {
       alert("Error al generar Excel");
       console.error(error);
@@ -153,7 +153,7 @@ export default function ReportesPage() {
         };
       });
 
-      const worksheet = exportToExcelWithLogos(excelData, `Monto_Recaudado_${new Date().getTime()}.xlsx`, "Monto Recaudado");
+      await exportToExcelWithLogos(excelData, `Monto_Recaudado_${new Date().getTime()}.xlsx`, "Monto Recaudado");
     } catch (error) {
       alert("Error al generar Excel");
       console.error(error);
@@ -237,7 +237,65 @@ export default function ReportesPage() {
           </button>
         </div>
 
+        {/* Tarjeta Reporte Diario por Caja */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col h-full">
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 bg-indigo-50 rounded-lg">
+              <FileSpreadsheet className="w-6 h-6 text-indigo-600" />
+            </div>
+          </div>
+          <h3 className="text-lg font-bold text-slate-800 mb-2">Reporte Diario por Caja</h3>
+          <p className="text-slate-500 text-sm mb-6 flex-grow">
+            Genera un reporte de caja de los pagos procesados en el día actual (Punto y Transferencias).
+          </p>
+          <button 
+            onClick={async () => {
+              setIsGeneratingExcel(true);
+              try {
+                const today = new Date().toISOString().split('T')[0];
+                const { data: pagos, error } = await supabase
+                  .from('pagos_reportados')
+                  .select('*')
+                  .gte('created_at', `${today}T00:00:00.000Z`)
+                  .lte('created_at', `${today}T23:59:59.999Z`)
+                  .order('created_at', { ascending: true });
+                  
+                if (error) throw error;
+                
+                const excelData = (pagos || []).map((p: any) => {
+                  let detalles: any = {};
+                  try { detalles = JSON.parse(p.detalles); } catch(e){}
+                  
+                  return {
+                    "FECHA HORA": new Date(p.created_at).toLocaleString(),
+                    "MÉTODO DE PAGO": p.tipo || p.metodo || 'No definido',
+                    "BANCO": p.banco || '---',
+                    "REFERENCIA": p.referencia || '---',
+                    "CÓDIGO/RIF": p.identidad,
+                    "CONTRIBUYENTE": p.contribuyente || '---',
+                    "MONTO BS": parseFloat(p.monto) || 0,
+                    "CAJERO": detalles.cajero || 'Sistema',
+                    "ESTADO": p.estado
+                  };
+                });
+
+                await exportToExcelWithLogos(excelData, `Reporte_Diario_Caja_${today}.xlsx`, "Reporte Diario");
+              } catch (error) {
+                alert("Error al generar Reporte de Caja");
+                console.error(error);
+              }
+              setIsGeneratingExcel(false);
+            }}
+            disabled={isGeneratingExcel}
+            className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+          >
+            {isGeneratingExcel ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            Descargar Excel
+          </button>
+        </div>
+
       </div>
     </div>
   );
 }
+

@@ -335,7 +335,7 @@ export default function EstadoCuentaPage() {
   };
 
   const enviarCorreosMasivos = () => {
-    alert("Envío de notificaciones masivas programado. (Requiere integración de servicio de correo en backend).");
+    window.location.href = '/admin/correos';
   };
 
   const generarFacturacionMensual = async () => {
@@ -621,7 +621,47 @@ export default function EstadoCuentaPage() {
           </div>
         )}
 
+        {/* Desglose mensual de deuda */}
+        {filterStatus === 'Todos' || filterStatus === 'Pendiente' ? (() => {
+          const pendientes = facturas.filter((f: any) => f.estado === 'Pendiente');
+          const mesesMap: Record<string, {total: number, count: number}> = {};
+          pendientes.forEach((f: any) => {
+            const key = f.emision ? f.emision.substring(0, 7) : 'Sin Fecha';
+            const monto = parseFloat((f.monto || '0').toString().replace(/[^\d.]/g, ''));
+            if (!mesesMap[key]) mesesMap[key] = { total: 0, count: 0 };
+            mesesMap[key].total += monto;
+            mesesMap[key].count += 1;
+          });
+          const mesesArray = Object.entries(mesesMap).sort(([a], [b]) => a.localeCompare(b));
+          const totalPendiente = pendientes.reduce((acc: number, f: any) => acc + parseFloat((f.monto || '0').toString().replace(/[^\d.]/g, '')), 0);
+          const mesesNombre = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+          const fmt = (v: number) => v.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          if (mesesArray.length === 0) return null;
+          return (
+            <div className="bg-white rounded-lg border border-slate-200 shadow-sm mb-4 overflow-hidden">
+              <div className="bg-slate-50 px-4 py-2 border-b border-slate-200 flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Desglose Mensual de Deuda Pendiente</span>
+                <span className="text-xs font-bold text-red-600">Total: {fmt(totalPendiente)} Bs</span>
+              </div>
+              <div className="p-3 flex flex-wrap gap-2">
+                {mesesArray.map(([mes, { total, count }]) => {
+                  const parts = mes.split('-');
+                  const label = parts.length >= 2 ? `${mesesNombre[parseInt(parts[1]) - 1]} ${parts[0]}` : mes;
+                  return (
+                    <div key={mes} className="flex flex-col items-center bg-red-50 border border-red-200 rounded-lg px-3 py-2 min-w-[100px]">
+                      <span className="text-[10px] font-bold text-red-500 uppercase">{label}</span>
+                      <span className="text-sm font-bold text-slate-800">{fmt(total)} Bs</span>
+                      <span className="text-[10px] text-slate-400">{count} recibo{count > 1 ? 's' : ''}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })() : null}
+
         <DataTable data={filteredFacturas} columns={columns} itemsPerPage={10} />
+
       </>
       )}
 

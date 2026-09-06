@@ -33,6 +33,21 @@ export default function PorFacturarPage() {
           Generar Facturación Masiva
         </button>
       </div>
+      
+      <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg flex items-start gap-3">
+        <div className="bg-blue-100 p-2 rounded-full mt-0.5 text-blue-600 shrink-0">
+          <Clock size={20} />
+        </div>
+        <div>
+          <h3 className="text-blue-800 font-bold text-sm">¿Qué es este módulo?</h3>
+          <p className="text-blue-700 text-xs mt-1 leading-relaxed">
+            Este módulo muestra los <strong>próximos ciclos automatizados</strong> a generar para comercios y residencias. 
+            Actúa como una <strong>sala de espera o pre-liquidación</strong> donde se calculan las deudas del mes en curso antes de convertirse en facturas reales.
+            Puedes generar las facturas de forma individual o usar la "Facturación Masiva" para emitirlas todas a la vez en el próximo corte.
+          </p>
+        </div>
+      </div>
+
       <DataTable data={preLiquidaciones} columns={columns} itemsPerPage={10} />
     </div>
   );

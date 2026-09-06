@@ -37,7 +37,7 @@ export default function CertificadosPage() {
     if (found) {
       // Calcular deuda
       const deudas = (facturas || [])
-        .filter((f: any) => (f.contribuyente === found.Contribuyente || f.contribuyente === found.Identidad))
+        .filter((f: any) => f.identidad === found.Identidad)
         .filter((f: any) => f.estado === 'Pendiente');
       
       const totalBs = deudas.reduce((acc: number, f: any) => acc + parseFloat(f.monto || '0'), 0);

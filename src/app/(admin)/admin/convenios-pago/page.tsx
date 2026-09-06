@@ -105,8 +105,8 @@ export default function ConveniosPagoPage() {
   const handleSearch = () => {
     const userInmuebles = inmuebles.filter(i => i.identidad === searchDoc || i.cod_cont === searchDoc);
     if (userInmuebles.length > 0) {
-      const totalMMV = userInmuebles.reduce((acc, curr) => acc + (curr.DeudaMMV || 0), 0);
-      const totalCongelada = userInmuebles.reduce((acc, curr) => acc + (curr.DeudaCongelada || 0), 0);
+      const totalMMV = userInmuebles.reduce((acc, curr) => acc + (parseFloat(curr.deuda_mmv) || parseFloat(curr.DeudaMMV) || 0), 0);
+      const totalCongelada = userInmuebles.reduce((acc, curr) => acc + (parseFloat(curr.deuda_congelada_bs) || parseFloat(curr.DeudaCongelada) || 0), 0);
       setFoundUser({
         identidad: userInmuebles[0].identidad,
         contribuyente: userInmuebles[0].contribuyente,

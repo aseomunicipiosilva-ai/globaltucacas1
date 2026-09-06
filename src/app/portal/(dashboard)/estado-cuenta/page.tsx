@@ -227,6 +227,59 @@ export default function EstadoCuentaPage() {
                 </div>
               </div>
             )}
+            
+            {/* INICIO DESGLOSE DEUDAS */}
+            {(() => {
+              const { facturas } = useAppContext();
+              const portalDoc = typeof window !== 'undefined' ? localStorage.getItem('portal_doc') : '';
+              const pendientes = facturas.filter((f: any) => f.estado === 'Pendiente' && (f.identidad === portalDoc || !portalDoc));
+              
+              if (pendientes.length === 0) return null;
+              
+              return (
+                <div className="mt-4 border border-red-200 rounded overflow-hidden shadow-sm">
+                  <div className="bg-red-50 px-3 py-2 border-b border-red-200 flex items-center gap-2 justify-between">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-3 h-3 text-red-600" />
+                      <span className="text-[10px] font-bold text-red-700 uppercase tracking-wide">Desglose Mensual de Deudas (Facturas Pendientes)</span>
+                    </div>
+                  </div>
+                  <div className="max-h-[200px] overflow-y-auto bg-white">
+                    <table className="w-full text-left text-[10px] text-slate-600">
+                      <thead className="bg-slate-50 border-b border-slate-100 sticky top-0">
+                        <tr>
+                          <th className="px-3 py-2 font-semibold">Referencia</th>
+                          <th className="px-3 py-2 font-semibold">Mes de Facturación</th>
+                          <th className="px-3 py-2 font-semibold text-center">Vencimiento</th>
+                          <th className="px-3 py-2 font-semibold text-right text-red-700">Monto (Bs)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pendientes.sort((a: any, b: any) => new Date(a.emision).getTime() - new Date(b.emision).getTime()).map((f: any, i: number) => {
+                          let mesTexto = f.emision;
+                          if (f.emision) {
+                            const parts = f.emision.split('-');
+                            if(parts.length >= 2) {
+                              const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+                              mesTexto = `${meses[parseInt(parts[1]) - 1]} ${parts[0]}`;
+                            }
+                          }
+                          return (
+                            <tr key={i} className="border-b border-slate-50 last:border-0 hover:bg-red-50/10">
+                              <td className="px-3 py-2 font-medium text-slate-700">{f.referencia}</td>
+                              <td className="px-3 py-2 font-bold">{mesTexto}</td>
+                              <td className="px-3 py-2 text-center text-red-600">{f.vencimiento || 'N/A'}</td>
+                              <td className="px-3 py-2 text-right font-bold text-red-700">{f.monto}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
+            {/* FIN DESGLOSE DEUDAS */}
           </div>
         )}
         

@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import { DataTable } from '@/components/DataTable';
-import { Building2, Settings, DollarSign, Handshake, Calculator } from 'lucide-react';
+import { Building2, Settings, DollarSign, Handshake, Calculator, Download } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { UnidadesModal } from '@/components/UnidadesModal';
 import { DebtAdjustmentModal } from '@/components/DebtAdjustmentModal';
@@ -74,6 +74,40 @@ export default function CondominiosCOBPage() {
           <h1 className="text-lg font-semibold text-slate-800 uppercase tracking-wide">
             Gestión de Condominios COB
           </h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={async () => {
+              try {
+                const { supabase } = await import('@/lib/supabase');
+                const { data: unidades, error } = await supabase.from('unidades_condominio').select('*');
+                if (error) throw error;
+          
+                const { exportToExcelWithLogos } = await import('@/lib/excelExport');
+                
+                const data = (unidades || []).map((u: any) => {
+                  const parent = condominios.find(c => c.id === u.condominio_id);
+                  return {
+                    "Condominio": parent?.nombre || 'Desconocido',
+                    "RIF Condominio": parent?.identidad || 'N/A',
+                    "Unidad/Local": u.numero_unidad,
+                    "Propietario": u.propietario || 'No asignado',
+                    "Ocupación": u.ocupacion || 'Ocupada',
+                    "Estado": u.estado || 'Solvente'
+                  };
+                });
+                
+                data.sort((a: any, b: any) => a.Condominio.localeCompare(b.Condominio) || a["Unidad/Local"].localeCompare(b["Unidad/Local"]));
+          
+                await exportToExcelWithLogos(data, `Unidades_Condominios_${new Date().toISOString().split('T')[0]}.xlsx`, "Unidades");
+              } catch(e) {
+                alert("Error exportando a Excel");
+              }
+            }}
+            className="bg-emerald-600 text-white hover:bg-emerald-700 px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
+          >
+            <Download className="w-4 h-4" /> Exportar Unidades a Excel
+          </button>
         </div>
       </div>
 

@@ -304,7 +304,7 @@ function ContribuyentesPageContent() {
     const doc = new jsPDF();
     
     // Add Logos
-          doc.addImage(logos.alcaldia, 'JPEG', 14, 10, 25, 25);
+          doc.addImage(logos.alcaldia, 'PNG', 14, 10, 25, 25);
       doc.addImage(logos.isma, 'JPEG', 42, 10, 25, 25);
       doc.addImage(logos.global_rec, 'JPEG', 145, 10, 25, 25);
       doc.addImage(logos.basura_cero, 'JPEG', 173, 10, 25, 25);
@@ -1450,7 +1450,11 @@ function ContribuyentesPageContent() {
   }
 
   const columns = [
-    { key: 'CodCont', header: 'Código' },
+    { 
+      key: 'cod_cont', 
+      header: 'Código',
+      render: (row: any) => <span className="font-bold text-slate-700">{row.cod_cont || row.CodCont || 'N/A'}</span>
+    },
     { key: 'Identidad', header: 'R.I.F. / Cédula' },
     { key: 'Contribuyente', header: 'Nombre / Razón Social' },
     {
@@ -1571,7 +1575,11 @@ function ContribuyentesPageContent() {
   ];
 
   const inactiveColumns = [
-    { key: 'CodCont', header: 'Código' },
+    { 
+      key: 'cod_cont', 
+      header: 'Código',
+      render: (row: any) => <span className="font-bold text-slate-700">{row.cod_cont || row.CodCont || 'N/A'}</span>
+    },
     { key: 'Identidad', header: 'R.I.F. / Cédula' },
     { key: 'Contribuyente', header: 'Nombre / Razón Social' },
     {
@@ -2114,3 +2122,4 @@ export default function ContribuyentesPage() {
     </Suspense>
   );
 }
+

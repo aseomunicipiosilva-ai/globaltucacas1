@@ -18,6 +18,7 @@ export default function PreRegistrosPage() {
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [rowToApprove, setRowToApprove] = useState<any>(null);
   const [meses, setMeses] = useState(1);
   const [calculatedFactor, setCalculatedFactor] = useState(0);
@@ -278,6 +279,12 @@ export default function PreRegistrosPage() {
       header: 'Acciones',
       render: (row: any) => (
         <div className="flex gap-2">
+          <button onClick={() => {
+            setRowToApprove(row);
+            setIsDetailsModalOpen(true);
+          }} className="bg-blue-50 text-blue-600 hover:bg-blue-100 p-1.5 rounded transition-colors" title="Ver Detalles">
+            <FileSpreadsheet className="w-4 h-4" />
+          </button>
           <button onClick={() => handleApproveClick(row)} className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 p-1.5 rounded transition-colors" title="Aprobar y Asignar Deuda">
             <Check className="w-4 h-4" />
           </button>
@@ -413,6 +420,99 @@ export default function PreRegistrosPage() {
                   className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg transition-colors shadow-sm disabled:opacity-70 flex justify-center"
                 >
                   {isProcessing ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : 'Confirmar Aprobación'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL DE DETALLES */}
+      {isDetailsModalOpen && rowToApprove && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-slate-200">
+            <div className="bg-slate-800 p-4 flex items-center justify-between sticky top-0 z-10">
+              <h2 className="text-white font-bold flex items-center gap-2">
+                <List className="w-5 h-5 text-blue-400" />
+                Detalles del Pre-Registro
+              </h2>
+              <button onClick={() => setIsDetailsModalOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1 border-b border-slate-100 pb-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Identidad (CI/RIF)</span>
+                  <p className="text-sm font-medium text-slate-800">{rowToApprove.identidad}</p>
+                </div>
+                <div className="space-y-1 border-b border-slate-100 pb-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nombre / Razón Social</span>
+                  <p className="text-sm font-medium text-slate-800">{rowToApprove.contribuyente}</p>
+                </div>
+                <div className="space-y-1 border-b border-slate-100 pb-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Clasificación</span>
+                  <p className="text-sm font-medium text-slate-800">{rowToApprove.tipo}</p>
+                </div>
+                <div className="space-y-1 border-b border-slate-100 pb-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Actividad Principal</span>
+                  <p className="text-sm font-medium text-slate-800">{rowToApprove.actividad}</p>
+                </div>
+                <div className="space-y-1 border-b border-slate-100 pb-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nivel / Metraje</span>
+                  <p className="text-sm font-medium text-slate-800">{rowToApprove.codigo}</p>
+                </div>
+                <div className="space-y-1 border-b border-slate-100 pb-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Teléfono / Registro</span>
+                  <p className="text-sm font-medium text-slate-800">{rowToApprove.registro}</p>
+                </div>
+                <div className="space-y-1 border-b border-slate-100 pb-2 col-span-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Domicilio Fiscal</span>
+                  <p className="text-sm font-medium text-slate-800">{rowToApprove.domicilio_fiscal}</p>
+                </div>
+                <div className="space-y-1 border-b border-slate-100 pb-2 col-span-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Dirección Exacta</span>
+                  <p className="text-sm font-medium text-slate-800">{rowToApprove.direccion_exacta}</p>
+                </div>
+                <div className="space-y-1 border-b border-slate-100 pb-2 col-span-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Notas u Observaciones</span>
+                  <p className="text-sm font-medium text-slate-800 whitespace-pre-wrap">{rowToApprove.nota || 'Ninguna'}</p>
+                </div>
+                
+                {rowToApprove.is_condominio && rowToApprove.locales && rowToApprove.locales.length > 0 && (
+                  <div className="col-span-2 space-y-2 mt-4">
+                    <span className="text-sm font-bold text-slate-700">Sub-Unidades Registradas ({rowToApprove.locales.length}):</span>
+                    <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50 p-2">
+                       <ul className="space-y-2 text-sm text-slate-600">
+                         {rowToApprove.locales.map((local: any, idx: number) => (
+                           <li key={idx} className="border-b border-slate-200 pb-2 last:border-0 last:pb-0">
+                             <strong>{local.numeracion}</strong> - {local.uso} ({local.tipoResidencia || local.actividad}) - Ficha: {local.catastro || 'N/A'}
+                           </li>
+                         ))}
+                       </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t border-slate-100">
+                <button 
+                  onClick={() => {
+                    setIsDetailsModalOpen(false);
+                    handleReject(rowToApprove);
+                  }}
+                  className="flex-1 bg-white border border-red-200 text-red-600 hover:bg-red-50 font-bold py-2.5 rounded-lg transition-colors"
+                >
+                  Rechazar
+                </button>
+                <button 
+                  onClick={() => {
+                    setIsDetailsModalOpen(false);
+                    handleApproveClick(rowToApprove);
+                  }}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg transition-colors shadow-sm flex justify-center"
+                >
+                  Aprobar
                 </button>
               </div>
             </div>
