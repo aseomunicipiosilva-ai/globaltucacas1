@@ -44,6 +44,14 @@ export default function CajaPage() {
   const [useSaldoFavor, setUseSaldoFavor] = useState<boolean>(true); // Por defecto usar el saldo
   
   const [isNotaModalOpen, setIsNotaModalOpen] = useState(false);
+
+  // BCV Rate Override States
+  const [showRateModal, setShowRateModal] = useState(false);
+  const [tempBcvRate, setTempBcvRate] = useState<string>('');
+  const [adminPassword, setAdminPassword] = useState<string>('');
+  const [rateNote, setRateNote] = useState<string>('');
+  const [rateAuthError, setRateAuthError] = useState<string>('');
+  const [isAuthorizing, setIsAuthorizing] = useState(false);
   const [notaManualMonto, setNotaManualMonto] = useState('');
   const [notaManualRef, setNotaManualRef] = useState('');
   
@@ -58,6 +66,39 @@ export default function CajaPage() {
     'BanFanb', 'Bancovi', 'Instituto Municipal de Crédito Popular (IMCP)',
     'Fondemi', 'Microfinanzas', 'Pagomovil BDV'
   ].sort();
+
+  const handleAuthorizeRateChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRateAuthError('');
+    setIsAuthorizing(true);
+    
+    if (adminPassword !== 'dzara') {
+      const { data, error } = await supabase
+        .from('trabajadores')
+        .select('*')
+        .eq('clave', adminPassword)
+        .in('rol', ['Administrador', 'Super Admin', 'Admin'])
+        .maybeSingle();
+        
+      if (error || !data) {
+        setRateAuthError('Contraseña incorrecta o el usuario no es Administrador');
+        setIsAuthorizing(false);
+        return;
+      }
+    }
+    
+    if (!rateNote.trim()) {
+      setRateAuthError('Debe agregar una nota o motivo');
+      setIsAuthorizing(false);
+      return;
+    }
+
+    setCustomBcvRate(tempBcvRate);
+    setJustificacionBcv(rateNote);
+    setShowRateModal(false);
+    setAdminPassword('');
+    setIsAuthorizing(false);
+  };
 
   const handleSearch = () => {
     setIsSearching(true);
@@ -270,10 +311,17 @@ export default function CajaPage() {
           }
         }
         
-        // Record the direct payment in pagos_reportados for auditing and reporting
         const cajero = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'Administrador';
         const letra = (typeof window !== 'undefined' ? localStorage.getItem('adminLetra') : null);
         const cajero_id = letra && cajero !== 'Administrador' ? `${letra}-${cajero}` : cajero;
+
+        if (justificacionBcv) {
+          await supabase.from('audit_logs').insert({
+            usuario: cajero_id,
+            accion: 'CAMBIO_TASA_CAJA',
+            detalles: `Se aplicó tasa manual BCV: ${customBcvRate} para contribuyente ${foundUser.Identidad}. Motivo: ${justificacionBcv}`
+          });
+        }
 
         await supabase.from('pagos_reportados').insert({
           identidad: foundUser.Identidad,
@@ -286,13 +334,27 @@ export default function CajaPage() {
             recibos: selectedRecibos,
             cuotas: selectedCuotas,
             cajero: cajero_id,
-            fecha_transaccion: fechaTransaccion
+            fecha_transaccion: fechaTransaccion,
+            tasa_bcv_aplicada: customBcvRate ? customBcvRate : undefined,
+            nota_cambio_tasa: justificacionBcv ? justificacionBcv : undefined
           })
         });
 
         setSuccessMsg(`Pago procesado exitosamente por ${paymentMethod}. La deuda ha sido conciliada automáticamente.`);
         
       } else {
+        const cajero = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'Administrador';
+        const letra = (typeof window !== 'undefined' ? localStorage.getItem('adminLetra') : null);
+        const cajero_id = letra && cajero !== 'Administrador' ? `${letra}-${cajero}` : cajero;
+
+        if (justificacionBcv) {
+          await supabase.from('audit_logs').insert({
+            usuario: cajero_id,
+            accion: 'CAMBIO_TASA_CAJA',
+            detalles: `Se aplicó tasa manual BCV: ${customBcvRate} para contribuyente ${foundUser.Identidad} (En Verificación). Motivo: ${justificacionBcv}`
+          });
+        }
+
         // Transferencia / PagoMovil -> Enviar a Verificación
         const { error: pErr } = await supabase.from('pagos_reportados').insert({
           identidad: foundUser.Identidad,
@@ -309,7 +371,9 @@ export default function CajaPage() {
             total_seleccionado: totalBs,
             saldo_usado: descuentoSaldoFavor,
             comprobante_nombre: comprobante?.name || '',
-            fecha_transaccion: fechaTransaccion
+            fecha_transaccion: fechaTransaccion,
+            tasa_bcv_aplicada: customBcvRate ? customBcvRate : undefined,
+            nota_cambio_tasa: justificacionBcv ? justificacionBcv : undefined
           })
         });
         
@@ -433,23 +497,22 @@ export default function CajaPage() {
             <div className="flex items-center gap-2 mb-1">
               <span>Tasa BCV Aplicada:</span>
               <input 
-                type="number" step="0.01" 
-                value={customBcvRate} 
-                onChange={e => setCustomBcvRate(e.target.value)}
-                placeholder={tcmmv.toFixed(2)}
-                disabled={!isAdmin}
-                className="w-24 px-2 py-0.5 rounded border border-emerald-300 bg-white text-emerald-900 font-bold outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-70"
-                title="Tasa BCV Manual (Solo Administrador)"
+                type="text"
+                readOnly
+                value={customBcvRate || tcmmv.toFixed(2)}
+                onClick={() => {
+                  setTempBcvRate(customBcvRate || tcmmv.toFixed(2));
+                  setShowRateModal(true);
+                }}
+                className="w-24 px-2 py-0.5 rounded border border-emerald-300 bg-white text-emerald-900 font-bold outline-none cursor-pointer hover:bg-emerald-100 transition-colors"
+                title="Tasa BCV Manual (Requiere Autorización)"
               />
             </div>
             {customBcvRate && (
-              <input 
-                type="text" 
-                placeholder="Motivo de ajuste (Obligatorio)..."
-                value={justificacionBcv}
-                onChange={e => setJustificacionBcv(e.target.value)}
-                className="w-full text-xs px-2 py-1 border border-emerald-300 rounded outline-none"
-              />
+              <div className="text-xs px-2 py-1 bg-emerald-100 border border-emerald-300 rounded text-emerald-800 break-words">
+                <span className="font-bold block mb-0.5">Motivo del ajuste:</span>
+                {justificacionBcv}
+              </div>
             )}
             <div className="flex items-center gap-1 mt-1 border-t border-emerald-200 pt-1">
               <CalendarIcon size={12} />
@@ -873,6 +936,64 @@ export default function CajaPage() {
               <button onClick={() => setIsNotaModalOpen(false)} className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200 rounded">Cancelar</button>
               <button onClick={handleCrearNotaManual} className="px-4 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded shadow-sm">Generar Nota</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Cambio Tasa BCV */}
+      {showRateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+              <h3 className="font-bold text-slate-800">Modificar Tasa BCV (Autorización)</h3>
+              <button onClick={() => setShowRateModal(false)} className="text-slate-500 hover:text-slate-700 font-bold">&times;</button>
+            </div>
+            <form onSubmit={handleAuthorizeRateChange} className="p-6 space-y-4">
+              <p className="text-sm text-slate-600 mb-2">Por favor ingresa tu contraseña de administrador, agrega una nota. Si no posees contraseña comunícate con el administrador.</p>
+              {rateAuthError && (
+                <div className="p-2 bg-red-50 text-red-600 text-xs font-semibold rounded border border-red-200 text-center">
+                  {rateAuthError}
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Nueva Tasa BCV</label>
+                <input 
+                  type="number" step="0.01" 
+                  value={tempBcvRate} 
+                  onChange={e => setTempBcvRate(e.target.value)}
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none font-bold"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Contraseña de Administrador</label>
+                <input 
+                  type="password" 
+                  value={adminPassword} 
+                  onChange={e => setAdminPassword(e.target.value)}
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                  placeholder="********"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Nota / Motivo del Cambio</label>
+                <textarea 
+                  value={rateNote} 
+                  onChange={e => setRateNote(e.target.value)}
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
+                  rows={2}
+                  placeholder="Justifique el cambio de tasa..."
+                  required
+                />
+              </div>
+              <div className="pt-2 flex justify-end gap-3">
+                <button type="button" onClick={() => setShowRateModal(false)} className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200 rounded">Cancelar</button>
+                <button type="submit" disabled={isAuthorizing} className="px-4 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded shadow-sm disabled:opacity-70">
+                  {isAuthorizing ? 'Validando...' : 'Autorizar y Aplicar'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
