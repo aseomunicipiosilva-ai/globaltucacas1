@@ -291,7 +291,6 @@ export default function EstadoCuentaPage() {
       referencia: row.estado === 'Pagado' ? Math.floor(Math.random() * 90000000 + 10000000).toString() : '---'
     });
   };
-  };
 
   const handleTest6Meses = () => {
     const meses = ['MARZO 2026', 'ABRIL 2026', 'MAYO 2026', 'JUNIO 2026', 'JULIO 2026', 'AGOSTO 2026'];

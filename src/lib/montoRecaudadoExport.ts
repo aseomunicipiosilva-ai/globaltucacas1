@@ -42,22 +42,22 @@ export const exportMontoRecaudadoExcel = async (
   ];
 
   const titleRow = worksheet.addRow(['MONTO DIARIO RECAUDADO']);
-  worksheet.mergeCells(A+titleRow.number+:I+titleRow.number);
+  worksheet.mergeCells('A' + titleRow.number + ':I' + titleRow.number);
   titleRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E4E79' } };
   titleRow.getCell(1).font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 14 };
   titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
   titleRow.height = 25;
 
-  const yearRow = worksheet.addRow(['AÑO ' + new Date().getFullYear()]);
-  worksheet.mergeCells(A+yearRow.number+:I+yearRow.number);
+  const yearRow = worksheet.addRow(['Aï¿½O ' + new Date().getFullYear()]);
+  worksheet.mergeCells('A' + yearRow.number + ':I' + yearRow.number);
   yearRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00B0F0' } };
   yearRow.getCell(1).font = { bold: true, size: 12 };
   yearRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
 
   const headerRow = worksheet.addRow([
-    'MES', 'FECHA PAGO', 'EURO (TCMMV)', 'RECAUDADO POR PUNTO Bs.', 'CONCILIADO POR PUNTO EN €',
-    'CONCILIADO POR TRANSFERENCIA Y/O DEPOSITOS (Bs)', 'CONCILIADO POR TRANSFERENCIA Y/O DEPOSITOS (€)',
-    'RECAUDADO EN EL ESTADO DE CUENTA (Bs)', 'RECAUDADO EN EL ESTADO DE CUENTA (€)'
+    'MES', 'FECHA PAGO', 'EURO (TCMMV)', 'RECAUDADO POR PUNTO Bs.', 'CONCILIADO POR PUNTO EN ï¿½',
+    'CONCILIADO POR TRANSFERENCIA Y/O DEPOSITOS (Bs)', 'CONCILIADO POR TRANSFERENCIA Y/O DEPOSITOS (ï¿½)',
+    'RECAUDADO EN EL ESTADO DE CUENTA (Bs)', 'RECAUDADO EN EL ESTADO DE CUENTA (ï¿½)'
   ]);
   
   headerRow.eachCell((cell) => {
@@ -129,7 +129,7 @@ export const exportMontoRecaudadoExcel = async (
     'TOTAL', '', '',
     totalPuntoBs, totalPuntoEur, totalTransfBs, totalTransfEur, totalCuentaBs, totalCuentaEur
   ]);
-  worksheet.mergeCells(A+totRow.number+:C+totRow.number);
+  worksheet.mergeCells('A' + totRow.number + ':C' + totRow.number);
   totRow.getCell(1).alignment = { horizontal: 'right', vertical: 'middle' };
   totRow.getCell(1).font = { bold: true };
   
@@ -155,14 +155,14 @@ export const exportMontoRecaudadoExcel = async (
 
   const summaryData = [
     { label: 'TOTAL CONCILIADO EN BOLIVARES (Bs.)', val: totalPuntoBs + totalTransfBs, color: 'FFE2EFDA' },
-    { label: 'TOTAL CONCILIADO EN EURO (€)', val: totalPuntoEur + totalTransfEur, color: 'FFD9E1F2' },
+    { label: 'TOTAL CONCILIADO EN EURO (ï¿½)', val: totalPuntoEur + totalTransfEur, color: 'FFD9E1F2' },
     { label: 'TOTAL RECAUDADO EN CUENTA EN BOLIVARES (Bs.)', val: totalCuentaBs, color: 'FFFFF2CC' },
-    { label: 'TOTAL RECAUDADO EN CUENTA EN EURO (€)', val: totalCuentaEur, color: 'FFE4DFEC' }
+    { label: 'TOTAL RECAUDADO EN CUENTA EN EURO (ï¿½)', val: totalCuentaEur, color: 'FFE4DFEC' }
   ];
 
   summaryData.forEach((s) => {
     const sRow = worksheet.addRow(['', '', s.label, s.val]);
-    worksheet.mergeCells(C+sRow.number+:E+sRow.number);
+    worksheet.mergeCells('C' + sRow.number + ':E' + sRow.number);
     
     sRow.getCell(3).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: s.color } };
     sRow.getCell(3).font = { bold: true };
@@ -177,8 +177,8 @@ export const exportMontoRecaudadoExcel = async (
   });
 
   worksheet.addRow([]);
-  const noteRow = worksheet.addRow(['NOTA IMPORTANTE: Las conciliaciones bancarias correspondientes a transferencias electrónicas se efectúan conforme a la recepción de los estados de cuenta emitidos; en consecuencia, los saldos registrados están sujetos a variaciones diarias.']);
-  worksheet.mergeCells(A+noteRow.number+:I+noteRow.number);
+  const noteRow = worksheet.addRow(['NOTA IMPORTANTE: Las conciliaciones bancarias correspondientes a transferencias electrï¿½nicas se efectï¿½an conforme a la recepciï¿½n de los estados de cuenta emitidos; en consecuencia, los saldos registrados estï¿½n sujetos a variaciones diarias.']);
+  worksheet.mergeCells('A' + noteRow.number + ':I' + noteRow.number);
   noteRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
   noteRow.getCell(1).font = { bold: true, size: 9 };
   noteRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
