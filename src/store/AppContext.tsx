@@ -78,16 +78,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ]);
 
       let manualTcmmv = 0;
+      let semanalTcmmv = 0;
       if (dbConfig) {
         const ordenanza = dbConfig.find(c => c.id === 'tarifas_ordenanza');
         if (ordenanza && ordenanza.valor) setOrdenanzasConfig(ordenanza.valor);
         
         const manual = dbConfig.find(c => c.id === 'tasa_bcv_manual');
         if (manual && manual.valor) manualTcmmv = parseFloat(manual.valor);
+        
+        const semanal = dbConfig.find(c => c.id === 'tasa_bcv_semanal');
+        if (semanal && semanal.valor) semanalTcmmv = parseFloat(semanal.valor);
       }
 
       const bcvData = apiBcv as any;
-      const currentTcmmv = bcvData?.tcmmv > 0 ? bcvData.tcmmv : manualTcmmv;
+      let currentTcmmv = manualTcmmv > 0 ? manualTcmmv : (bcvData?.tcmmv > 0 ? bcvData.tcmmv : semanalTcmmv);
+
+      // Si aAon es 0 (por ejemplo si el API de Nextjs estA! caA-do en Amplify), intentamos directo desde el cliente
+      if (currentTcmmv <= 0) {
+        try {
+          const eurRes = await fetch('https://ve.dolarapi.com/v1/euros/oficial');
+          const eurData = await eurRes.json();
+          if (eurData && eurData.promedio > 0 && eurData.promedio < 200) {
+            currentTcmmv = eurData.promedio;
+          }
+        } catch (e) {
+          console.error("DolarAPI Frontend Fallback failed", e);
+        }
+      }
+
       setTcmmv(currentTcmmv);
       
       // Let's just fetch it normally since I can't guarantee arguments:
