@@ -211,7 +211,7 @@ export default function CajaPage() {
         if (userInmuebles && userInmuebles.length > 0) {
           const firstInmueble = userInmuebles[0];
           const currentSaldo = parseFloat(firstInmueble.saldo_favor_bs || '0');
-          if (paymentMethod === 'Debito' || paymentMethod === 'Biopago') {
+          if (paymentMethod === 'Debito') {
              await supabase.from('inmuebles').update({ saldo_favor_bs: currentSaldo + saldoAFavorNuevo }).eq('id', firstInmueble.id);
           }
         }

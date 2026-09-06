@@ -89,8 +89,8 @@ export default function Home() {
               </div>
             </Link>
           </div>
-
-          </div></div></div>
+        </div>
+      </div>
     </div>
   );
 }
