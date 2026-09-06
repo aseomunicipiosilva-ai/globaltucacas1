@@ -217,7 +217,7 @@ export default function EstadoCuentaPage() {
     }
   };
 
-  const handleOpenRecibo = (row: any) => {
+  const handleOpenRecibo = async (row: any) => {
     const montoNumerico = parseFloat((row.monto || "0").replace(/[^\d.]/g, '')) || 0;
     
     // Obtener mes y año
@@ -225,8 +225,6 @@ export default function EstadoCuentaPage() {
     if (row.emision) {
       const date = new Date(row.emision);
       const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
-      // Se ajusta usando la fecha local o UTC dependiendo del formato (YYYY-MM-DD usa UTC si se parsea directo o local si tiene T)
-      // Extraemos los trozos manualmente para evitar desfases horarios:
       const parts = row.emision.split('-');
       if(parts.length >= 2) {
         mesTexto = `${meses[parseInt(parts[1]) - 1]} ${parts[0]}`;
@@ -234,14 +232,39 @@ export default function EstadoCuentaPage() {
     }
 
     const cajeroActivo = (() => {
-    if (typeof window !== 'undefined') {
-      const user = localStorage.getItem('adminUser');
-      const letra = localStorage.getItem('adminLetra');
-      if (user && letra) return `${letra}-${user}`;
-      if (user) return user;
+      if (typeof window !== 'undefined') {
+        const user = localStorage.getItem('adminUser');
+        const letra = localStorage.getItem('adminLetra');
+        if (user && letra) return `${letra}-${user}`;
+        if (user) return user;
+      }
+      return 'ADMINISTRADOR';
+    })();
+
+    let formaPagoStr = row.estado === 'Pagado' ? 'TRANSFERENCIA' : 'POR PAGAR';
+    
+    if (row.estado === 'Pagado') {
+      try {
+        const { data: doc } = await supabase
+          .from('documentos')
+          .select('tipo')
+          .eq('identidad', row.identidad)
+          .like('tipo', 'RECIBO DE PAGO%')
+          .ilike('detalles', `%${row.referencia}%`)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+          
+        if (doc) {
+          const t = doc.tipo.toUpperCase();
+          if (t.includes('PUNTO DE VENTA')) formaPagoStr = 'PUNTO DE VENTA';
+          else if (t.includes('EFECTIVO')) formaPagoStr = 'EFECTIVO';
+          else if (t.includes('PAGO MOVIL')) formaPagoStr = 'TRANSFERENCIA'; // grouped under transferencia typically, or add logic
+        }
+      } catch (e) {
+        // If not found, keep default
+      }
     }
-    return 'ADMINISTRADOR';
-  })();
 
     setSelectedRecibo({
       reciboNo: row.referencia ? row.referencia.split('-').pop()?.padStart(7, '0') : '0000001',
@@ -263,10 +286,11 @@ export default function EstadoCuentaPage() {
       exento: montoNumerico,
       iva: 0,
       total: montoNumerico,
-      formaPago: row.estado === 'Pagado' ? 'TRANSFERENCIA' : 'POR PAGAR',
+      formaPago: formaPagoStr,
       banco: row.estado === 'Pagado' ? 'BANCO CONFIRMADO' : '---',
       referencia: row.estado === 'Pagado' ? Math.floor(Math.random() * 90000000 + 10000000).toString() : '---'
     });
+  };
   };
 
   const handleTest6Meses = () => {

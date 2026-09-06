@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, User, Lock, Building2, AlertCircle } from 'lucide-react';
+import { ShieldCheck, User, Lock, Building2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -14,6 +14,7 @@ export default function OperadorLogin() {
   const [clave, setClave] = useState('');
   const [error, setError] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,13 +111,20 @@ export default function OperadorLogin() {
                 <div className="relative">
                   <Lock className="w-5 h-5 absolute left-3 top-2.5 text-slate-400" />
                   <input 
-                    type="password" 
+                    type={showPassword ? "text" : "password"} 
                     required
                     value={clave}
                     onChange={e => setClave(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 text-sm outline-none focus:border-orange-500 focus:bg-white transition-all font-medium text-slate-700" 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-10 py-2.5 text-sm outline-none focus:border-orange-500 focus:bg-white transition-all font-medium text-slate-700" 
                     placeholder="********"
                   />
+                  <button 
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
                 </div>
               </div>
             </div>
