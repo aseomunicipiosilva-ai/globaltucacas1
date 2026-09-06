@@ -81,10 +81,12 @@ export default function Sidebar() {
 
   return (
     <aside className="w-64 bg-[#1e293b] h-screen text-slate-300 flex flex-col fixed left-0 top-0 z-50">
-      <div className="h-16 flex items-center justify-center border-b border-slate-700 bg-[#0f172a]">
-        <h1 className="text-xl font-bold text-green-500 tracking-wider">
-          <span className="text-white">GLOBAL</span> GREEN
-        </h1>
+      <div className="h-20 flex items-center justify-center border-b border-slate-700 bg-[#0f172a] px-3">
+        <img
+          src="/logos/global_rec.jpg"
+          alt="Global Green"
+          className="h-14 w-auto object-contain"
+        />
       </div>
       <div className="p-4 bg-[#0f172a] border-b border-slate-700 text-sm text-yellow-500 text-center uppercase tracking-wider font-semibold">
         {title}
