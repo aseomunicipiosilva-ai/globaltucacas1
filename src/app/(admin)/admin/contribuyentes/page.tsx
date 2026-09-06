@@ -8,6 +8,7 @@ import { generarSolvenciaPDF } from '@/lib/pdfGenerator';
 import { ordenanzaData } from '@/data/ordenanza';
 import Select from 'react-select';
 import dynamic from 'next/dynamic';
+import { UnidadesModal } from '@/components/UnidadesModal';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
@@ -2111,6 +2112,15 @@ function ContribuyentesPageContent() {
         </div>
       )}
 
+      {selectedCondominioModal && (
+        <UnidadesModal
+          isOpen={true}
+          onClose={() => setSelectedCondominioModal(null)}
+          condominioId={selectedCondominioModal.id}
+          condominioNombre={selectedCondominioModal.nombre}
+          identidad={selectedCondominioModal.identidad}
+        />
+      )}
     </div>
   );
 }
