@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import { DataTable } from '@/components/DataTable';
-import { Building2, Settings, DollarSign, Handshake, Calculator, Download } from 'lucide-react';
+import { Building2, Settings, DollarSign, Handshake, Calculator, Download, Edit2, X, Save } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { UnidadesModal } from '@/components/UnidadesModal';
 import { DebtAdjustmentModal } from '@/components/DebtAdjustmentModal';
@@ -11,6 +11,9 @@ export default function CondominiosCOBPage() {
   const { condominios, inmuebles, tcmmv, facturas, setFacturas, addAuditLog } = useAppContext();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCondominio, setSelectedCondominio] = useState<{ id: number, nombre: string, identidad: string } | null>(null);
+
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingCondominio, setEditingCondominio] = useState<any>(null);
 
   const [debtModalOpen, setDebtModalOpen] = useState(false);
   const [selectedDebtRow, setSelectedDebtRow] = useState<any>(null);
@@ -42,6 +45,16 @@ export default function CondominiosCOBPage() {
       return (
         <div className="flex gap-2 items-center">
           <button 
+            onClick={() => {
+              setEditingCondominio({...row});
+              setEditModalOpen(true);
+            }}
+            className="bg-blue-50 text-blue-600 hover:bg-blue-100 p-1.5 rounded transition-colors"
+            title="Editar Condominio"
+          >
+            <Edit2 className="w-4 h-4" />
+          </button>
+          <button
             onClick={() => handleOpenModal(row)}
             className="bg-slate-100 text-slate-600 hover:bg-slate-200 p-1.5 rounded transition-colors"
             title="Administrar Unidades"
@@ -169,6 +182,95 @@ export default function CondominiosCOBPage() {
           addAuditLog={addAuditLog}
           onClose={() => setDebtModalOpen(false)}
         />
+      )}
+      {editModalOpen && editingCondominio && (
+        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center p-4 border-b border-slate-200 bg-slate-50">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Edit2 className="w-5 h-5 text-blue-600" />
+                Editar Condominio
+              </h2>
+              <button 
+                onClick={() => setEditModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-200 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">RIF / Cédula</label>
+                <input 
+                  type="text" 
+                  value={editingCondominio.identidad}
+                  onChange={(e) => setEditingCondominio({...editingCondominio, identidad: e.target.value})}
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Nombre del Condominio</label>
+                <input 
+                  type="text" 
+                  value={editingCondominio.nombre}
+                  onChange={(e) => setEditingCondominio({...editingCondominio, nombre: e.target.value})}
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Representante Legal</label>
+                <input 
+                  type="text" 
+                  value={editingCondominio.representante}
+                  onChange={(e) => setEditingCondominio({...editingCondominio, representante: e.target.value})}
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Dirección</label>
+                <textarea 
+                  value={editingCondominio.direccion}
+                  onChange={(e) => setEditingCondominio({...editingCondominio, direccion: e.target.value})}
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={2}
+                />
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
+              <button 
+                onClick={() => setEditModalOpen(false)}
+                className="px-4 py-2 border border-slate-300 rounded text-slate-700 text-sm font-medium hover:bg-slate-100 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={async () => {
+                  try {
+                    const { supabase } = await import('@/lib/supabase');
+                    const { error } = await supabase.from('condominios').update({
+                      nombre: editingCondominio.nombre,
+                      identidad: editingCondominio.identidad,
+                      representante: editingCondominio.representante,
+                      direccion: editingCondominio.direccion
+                    }).eq('id', editingCondominio.id);
+                    
+                    if (error) throw error;
+                    
+                    alert('Condominio actualizado correctamente (Refresca la página para ver los cambios).');
+                    setEditModalOpen(false);
+                  } catch (e: any) {
+                    alert('Error al actualizar condominio: ' + e.message);
+                  }
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <Save className="w-4 h-4" /> Guardar Cambios
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
