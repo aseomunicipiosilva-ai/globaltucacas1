@@ -66,6 +66,7 @@ function ContribuyentesPageContent() {
   const [isProcessingStatus, setIsProcessingStatus] = useState(false);
   const [activeTab, setActiveTab] = useState<'Activos' | 'Inactivos'>('Activos');
   const [filteredContribuyentes, setFilteredContribuyentes] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const searchParams = useSearchParams();
 

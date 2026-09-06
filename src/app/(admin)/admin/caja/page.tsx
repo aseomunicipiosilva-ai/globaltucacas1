@@ -53,7 +53,10 @@ export default function CajaPage() {
     '100% Banco', 'Bancamiga', 'Bancaribe', 'Banco Activo', 'Banco Bicentenario',
     'Banco Caroní', 'Banco de Venezuela', 'Banco del Tesoro', 'Banco Exterior',
     'Banco Mercantil', 'Banco Nacional de Crédito (BNC)', 'Banco Plaza',
-    'Banco Provincial', 'Banco Sofitasa', 'Banesco', 'Banplus', 'Bancrecer', 'Mi Banco'
+    'Banco Provincial', 'Banco Sofitasa', 'Banesco', 'Banplus', 'Bancrecer',
+    'Mi Banco', 'Banco Internacional (BIB)', 'Banco Venezolano de Crédito (BVC)',
+    'BanFanb', 'Bancovi', 'Instituto Municipal de Crédito Popular (IMCP)',
+    'Fondemi', 'Microfinanzas', 'Pagomovil BDV'
   ].sort();
 
   const handleSearch = () => {
@@ -712,17 +715,26 @@ export default function CajaPage() {
               </label>
 
                   {['Debito'].includes(paymentMethod) && (
-                    <div className="mt-4">
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-2">
-                        Número de Comprobante / Referencia <span className="text-red-500">*</span>
+                    <div className="mt-4 space-y-3">
+                      <label className="block">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 block">Fecha de Transacción <span className="text-red-500">*</span></span>
+                        <input
+                          type="date"
+                          value={fechaTransaccion}
+                          onChange={(e) => setFechaTransaccion(e.target.value)}
+                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                        />
                       </label>
-                      <input 
-                        type="text" 
-                        value={referenciaDebito} 
-                        onChange={e => setReferenciaDebito(e.target.value)} 
-                        placeholder="Ej. 0001234" 
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:bg-white transition-all font-medium text-slate-700"
-                      />
+                      <label className="block">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 block">Número de Comprobante / Referencia <span className="text-red-500">*</span></span>
+                        <input 
+                          type="text" 
+                          value={referenciaDebito} 
+                          onChange={e => setReferenciaDebito(e.target.value)} 
+                          placeholder="Ej. 0001234" 
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:bg-white transition-all font-medium text-slate-700"
+                        />
+                      </label>
                     </div>
                   )}
 
