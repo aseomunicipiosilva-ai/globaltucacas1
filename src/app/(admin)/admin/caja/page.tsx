@@ -50,9 +50,9 @@ export default function CajaPage() {
   const currentBcvRate = customBcvRate && !isNaN(parseFloat(customBcvRate)) ? parseFloat(customBcvRate) : tcmmv;
 
   const bancosVenezuela = [
-    '100% Banco', 'Bancamiga', 'Bancaribe', 'Banco Activo', 'Banco Bicentenario',
-    'Banco Caroní', 'Banco de Venezuela', 'Banco del Tesoro', 'Banco Exterior',
-    'Banco Mercantil', 'Banco Nacional de Crédito (BNC)', 'Banco Plaza',
+    '100% Banco', 'Bancamiga', 'Bancaribe', 'Banco Activo', 'Banco Agrícola de Venezuela',
+    'Banco Bicentenario', 'Banco Caroní', 'Banco de Venezuela', 'Banco del Tesoro', 
+    'Banco Exterior', 'Banco Mercantil', 'Banco Nacional de Crédito (BNC)', 'Banco Plaza',
     'Banco Provincial', 'Banco Sofitasa', 'Banesco', 'Banplus', 'Bancrecer',
     'Mi Banco', 'Banco Internacional (BIB)', 'Banco Venezolano de Crédito (BVC)',
     'BanFanb', 'Bancovi', 'Instituto Municipal de Crédito Popular (IMCP)',
@@ -72,9 +72,10 @@ export default function CajaPage() {
     const user = contribuyentes.find((c: any) => {
       if (!c.Identidad) return false;
       const idClean = String(c.Identidad).replace(/-/g, '').toUpperCase();
-      const codMatch = c.cod_cont && c.cod_cont.toUpperCase() === docNumber.toUpperCase();
+      const codMatch = c.CodCont && c.CodCont.toUpperCase() === docNumber.toUpperCase();
+      const codContMatch = c.cod_cont && c.cod_cont.toUpperCase() === docNumber.toUpperCase();
       const nombreMatch = c.Contribuyente && c.Contribuyente.toUpperCase().includes(docNumber.toUpperCase());
-      return idClean === cleanFullDoc || idClean === idLimpioSearch || codMatch || nombreMatch;
+      return idClean === cleanFullDoc || idClean === idLimpioSearch || codMatch || codContMatch || nombreMatch;
     });
     
     if (user) {

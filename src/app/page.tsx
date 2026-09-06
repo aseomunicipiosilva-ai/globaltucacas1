@@ -13,13 +13,13 @@ export default function Home() {
             Sistema Integrado de Administración Pública Municipal
           </p>
           <div className="flex items-center justify-center gap-10 flex-wrap">
-            <img src="/logos/alcaldia.jpg" alt="Alcaldía del Municipio Silva" className="h-24 w-auto object-contain" />
-            <div className="w-px h-20 bg-slate-200 hidden md:block" />
-            <img src="/logos/isma.jpg" alt="ISMA" className="h-24 w-auto object-contain" />
-            <div className="w-px h-20 bg-slate-200 hidden md:block" />
-            <img src="/logos/global_rec.jpg" alt="Global Rec - Global Green" className="h-24 w-auto object-contain" />
-            <div className="w-px h-20 bg-slate-200 hidden md:block" />
-            <img src="/logos/basura_cero.jpg" alt="Basura Cero" className="h-24 w-auto object-contain" />
+            <img src="/logos/alcaldia.jpg" alt="Alcaldía del Municipio Silva" className="h-24 w-auto object-contain shrink-0" />
+            <div className="w-px h-20 bg-slate-200 hidden md:block shrink-0" />
+            <img src="/logos/isma.jpg" alt="ISMA" className="h-24 w-auto object-contain shrink-0" />
+            <div className="w-px h-20 bg-slate-200 hidden md:block shrink-0" />
+            <img src="/logos/global_rec.jpg" alt="Global Rec - Global Green" className="h-24 w-auto object-contain shrink-0" />
+            <div className="w-px h-20 bg-slate-200 hidden md:block shrink-0" />
+            <img src="/logos/basura_cero.jpg" alt="Basura Cero" className="h-24 w-auto object-contain shrink-0" />
           </div>
         </div>
 

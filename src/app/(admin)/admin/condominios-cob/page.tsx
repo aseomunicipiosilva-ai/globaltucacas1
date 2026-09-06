@@ -49,6 +49,35 @@ export default function CondominiosCOBPage() {
             <Settings className="w-4 h-4" />
           </button>
           <button 
+            onClick={async () => {
+              try {
+                const { supabase } = await import('@/lib/supabase');
+                const { data: unidades, error } = await supabase.from('unidades_condominio').select('*').eq('condominio_id', row.id);
+                if (error) throw error;
+                if (!unidades || unidades.length === 0) {
+                  alert('Este condominio no tiene unidades registradas.');
+                  return;
+                }
+                const { exportToExcelWithLogos } = await import('@/lib/excelExport');
+                const data = unidades.map((u: any) => ({
+                  "Condominio": row.nombre,
+                  "RIF Condominio": row.identidad,
+                  "Unidad/Local": u.numero_unidad,
+                  "Propietario": u.propietario || 'No asignado',
+                  "Ocupación": u.ocupacion || 'Ocupada',
+                  "Estado": u.estado || 'Solvente'
+                }));
+                await exportToExcelWithLogos(data, `Unidades_${row.identidad}.xlsx`, "Unidades");
+              } catch (e) {
+                alert("Error exportando a Excel");
+              }
+            }}
+            className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 p-1.5 rounded transition-colors"
+            title="Exportar Hijos a Excel"
+          >
+            <Download className="w-4 h-4" />
+          </button>
+          <button 
             onClick={() => { setSelectedDebtRow(row); setDebtModalOpen(true); }}
             className={`${hasDebt ? 'bg-orange-50 text-orange-600 hover:bg-orange-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'} p-1.5 rounded transition-colors`}
             title="Ajustar Deuda"

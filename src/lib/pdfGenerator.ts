@@ -33,11 +33,10 @@ export const dibujarYDescargarPDF = async (data: any, isPreview = false) => {
     const doc = new jsPDF();
     
     
-    doc.addImage(logos.alcaldia, 'JPEG', 14, 10, 25, 25);
-    doc.addImage(logos.isma, 'JPEG', 42, 10, 25, 25);
-    doc.addImage(logos.global_rec, 'JPEG', 145, 10, 25, 25);
-    doc.addImage(logos.basura_cero, 'JPEG', 173, 10, 25, 25);
-
+    doc.addImage(logos.alcaldia, 'JPEG', 14, 10, 20, 25);
+    doc.addImage(logos.isma, 'JPEG', 40, 12, 20, 20);
+    doc.addImage(logos.global_rec, 'JPEG', 145, 15, 35, 12);
+    doc.addImage(logos.basura_cero, 'JPEG', 185, 12, 20, 20);
 
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");

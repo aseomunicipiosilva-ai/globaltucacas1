@@ -45,12 +45,11 @@ export default function ReportesPage() {
       
       // Load logos
       
-      doc.addImage(logos.alcaldia, 'JPEG', 14, 10, 25, 25);
-      doc.addImage(logos.isma, 'JPEG', 45, 10, 25, 25);
-      doc.addImage(logos.global_rec, 'JPEG', 215, 10, 25, 25);
-      doc.addImage(logos.basura_cero, 'JPEG', 245, 10, 25, 25);
+      doc.addImage(logos.alcaldia, 'JPEG', 14, 10, 20, 25);
+      doc.addImage(logos.isma, 'JPEG', 40, 12, 20, 20);
+      doc.addImage(logos.global_rec, 'JPEG', 230, 15, 35, 12);
+      doc.addImage(logos.basura_cero, 'JPEG', 270, 12, 20, 20);
       
-
       doc.setFontSize(16);
       doc.setFont("helvetica", "bold");
       doc.text("FACTURAS ANULADAS Y REVERSADAS", 140, 25, { align: 'center' });

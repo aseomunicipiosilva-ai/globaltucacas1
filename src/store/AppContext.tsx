@@ -73,18 +73,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
         supabase.from('convenios').select('*'),
         supabase.from('pre_liquidaciones').select('*'),
         supabase.from('audit_logs').select('*').order('created_at', { ascending: false }),
-        supabase.from('sistema_config').select('valor').eq('id', 'tarifas_ordenanza').single(),
+        supabase.from('sistema_config').select('*'),
         fetch(`/api/bcv?t=${Date.now()}`, { cache: 'no-store' }).then(res => res.json()).catch(() => ({ tcmmv: 0 }))
       ]);
 
-      if (dbConfig && (dbConfig as any).valor) {
-        setOrdenanzasConfig((dbConfig as any).valor);
-      } else {
-        setOrdenanzasConfig(ordenanzaData); // fallback
+      let manualTcmmv = 0;
+      if (dbConfig) {
+        const ordenanza = dbConfig.find(c => c.id === 'tarifas_ordenanza');
+        if (ordenanza && ordenanza.valor) setOrdenanzasConfig(ordenanza.valor);
+        
+        const manual = dbConfig.find(c => c.id === 'tasa_bcv_manual');
+        if (manual && manual.valor) manualTcmmv = parseFloat(manual.valor);
       }
 
       const bcvData = apiBcv as any;
-      const currentTcmmv = bcvData?.tcmmv || 0;
+      const currentTcmmv = bcvData?.tcmmv > 0 ? bcvData.tcmmv : manualTcmmv;
       setTcmmv(currentTcmmv);
       
       // Let's just fetch it normally since I can't guarantee arguments:
