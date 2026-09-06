@@ -472,6 +472,15 @@ export default function EstadoCuentaPage() {
             </button>
           </>
         )}
+        {row.estado === 'Por Verificar' && (
+          <button 
+            onClick={() => setActiveTab('PorVerificar')}
+            className="bg-orange-50 text-orange-600 hover:bg-orange-100 px-3 py-1.5 rounded text-xs transition-colors font-medium border border-orange-200 flex items-center gap-1"
+            title="Ir a verificar transferencias"
+          >
+            <CheckCircle size={14} /> Verificar
+          </button>
+        )}
       </div>
     ) }
   ];

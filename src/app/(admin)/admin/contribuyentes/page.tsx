@@ -455,15 +455,27 @@ function ContribuyentesPageContent() {
       correoNombre = row.Correo;
     }
 
+    let autoClasificacion = row.Clasificacion || 'A';
+    
+    // Auto-detectar condominio si viene de una importación con clasificación 'A'
+    if (autoClasificacion !== 'Condominio') {
+      const nombreLC = (row.Contribuyente || '').toLowerCase();
+      const cant = parseInt(row.Cant_Inmuebles) || 1;
+      if (nombreLC.includes('condominio') || nombreLC.includes('residencias') || nombreLC.includes('conjunto') || cant > 1) {
+        autoClasificacion = 'Condominio';
+      }
+    }
+
     setFormData({ 
       ...row,
+      Clasificacion: autoClasificacion,
       telefonoPrefijo,
       telefonoNumero,
       correoNombre,
       correoDominio,
       correoDominioOtro
     });
-    setOriginalData({ ...row });
+    setOriginalData({ ...row, Clasificacion: autoClasificacion });
     setEditingId(row.Identidad);
     setIsNew(false);
     setShowSuccess(false);
@@ -1289,6 +1301,18 @@ function ContribuyentesPageContent() {
                 >
                   Eliminar Usuario Definitivamente
                 </button>
+              </div>
+            )}
+            
+            {/* INLINE CONDOMINIO UNITS */}
+            {!isNew && formData.Clasificacion === 'Condominio' && formData.id && (
+              <div className="mb-6">
+                <UnidadesModal
+                  isInline={true}
+                  condominioId={formData.id}
+                  condominioNombre={formData.Contribuyente}
+                  condominioIdentidad={formData.Identidad}
+                />
               </div>
             )}
             

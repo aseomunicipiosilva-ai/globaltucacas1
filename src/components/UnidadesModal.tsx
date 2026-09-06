@@ -10,10 +10,11 @@ interface UnidadesModalProps {
   condominioId: number;
   condominioNombre: string;
   condominioIdentidad?: string;
-  onClose: () => void;
+  onClose?: () => void;
+  isInline?: boolean;
 }
 
-export function UnidadesModal({ condominioId, condominioNombre, condominioIdentidad, onClose }: UnidadesModalProps) {
+export function UnidadesModal({ condominioId, condominioNombre, condominioIdentidad, onClose, isInline }: UnidadesModalProps) {
   const [unidades, setUnidades] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [nuevaUnidad, setNuevaUnidad] = useState('');
@@ -213,19 +214,28 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
-        {/* Header */}
+  const modalContent = (
+    <div className={`bg-white w-full flex flex-col overflow-hidden ${isInline ? 'mt-4 border border-slate-200 rounded-lg shadow-sm' : 'rounded-xl shadow-xl max-w-5xl max-h-[90vh]'}`}>
+      {/* Header */}
+      {!isInline && (
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
           <div>
-            <h2 className="text-lg font-bold text-slate-800">Administrar Unidades</h2>
-            <p className="text-sm text-slate-500">{condominioNombre}</p>
+            <h2 className="text-xl font-bold text-slate-800">Unidades del Condominio</h2>
+            <p className="text-sm text-slate-500 mt-1">{condominioNombre} • RIF: {condominioIdentidad || 'N/A'}</p>
           </div>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-full transition-colors">
-            <X size={20} />
-          </button>
+          {onClose && (
+            <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500 hover:text-slate-700">
+              <X size={24} />
+            </button>
+          )}
         </div>
+      )}
+      
+      {isInline && (
+        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Unidades del Condominio Registradas</h3>
+        </div>
+      )}
 
         {/* Content */}
         <div className="p-6 flex-1 overflow-y-auto">
@@ -445,6 +455,15 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
           </div>
         </div>
       </div>
+  );
+
+  if (isInline) {
+    return modalContent;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      {modalContent}
     </div>
   );
 }
