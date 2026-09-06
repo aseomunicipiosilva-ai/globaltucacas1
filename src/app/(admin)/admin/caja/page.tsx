@@ -461,17 +461,17 @@ export default function CajaPage() {
           <div className="flex bg-slate-100 rounded-lg p-1">
             <button
               onClick={() => setActiveTab('Pagos')}
-              className={\`px-4 py-2 text-sm font-medium rounded-md transition-colors \${
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                 activeTab === 'Pagos' ? 'bg-white text-emerald-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'
-              }\`}
+              }`}
             >
               Procesar Pagos
             </button>
             <button
               onClick={() => setActiveTab('NotasCredito')}
-              className={\`px-4 py-2 text-sm font-medium rounded-md transition-colors \${
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                 activeTab === 'NotasCredito' ? 'bg-white text-emerald-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'
-              }\`}
+              }`}
             >
               Notas de Crédito
             </button>
@@ -624,7 +624,7 @@ export default function CajaPage() {
                 ) : (
                   <div className="space-y-2">
                     {recibos.map(r => (
-                      <label key={r.referencia} className={\`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors \${selectedRecibos.includes(r.referencia) ? 'bg-emerald-50 border-emerald-200' : 'hover:bg-slate-50 border-slate-200'}\`}>
+                      <label key={r.referencia} className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${selectedRecibos.includes(r.referencia) ? 'bg-emerald-50 border-emerald-200' : 'hover:bg-slate-50 border-slate-200'}`}>
                         <div className="flex items-center gap-3">
                           <input 
                             type="checkbox" 
@@ -656,7 +656,7 @@ export default function CajaPage() {
                 ) : (
                   <div className="space-y-2">
                     {cuotas.map((c, i) => (
-                      <label key={i} className={\`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors \${selectedCuotas.find(sc => sc.convId === c.convId && sc.cuotaId === c.cuotaId) ? 'bg-orange-50 border-orange-200' : 'hover:bg-slate-50 border-slate-200'}\`}>
+                      <label key={i} className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${selectedCuotas.find(sc => sc.convId === c.convId && sc.cuotaId === c.cuotaId) ? 'bg-orange-50 border-orange-200' : 'hover:bg-slate-50 border-slate-200'}`}>
                         <div className="flex items-center gap-3">
                           <input 
                             type="checkbox" 
