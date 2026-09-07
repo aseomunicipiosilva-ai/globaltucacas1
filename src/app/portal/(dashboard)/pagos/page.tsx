@@ -186,7 +186,7 @@ export default function DondePagarPage() {
 
               <div className="pt-5 mt-2 border-t border-slate-200">
                 <span className="text-slate-500 font-medium block text-xs mb-1">A nombre de:</span>
-                <strong className="text-slate-800 block text-lg">GLOBAL GREEN TUCACAS</strong> 
+                <strong className="text-slate-800 block text-lg">GLOBAL REC MUN SILVA</strong> 
                 <span className="text-slate-600 block mt-1 font-medium">R.I.F.: J-123456789</span>
               </div>
             </div>

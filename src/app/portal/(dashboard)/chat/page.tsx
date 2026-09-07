@@ -14,7 +14,7 @@ export default function ChatPage() {
           <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
         </div>
         <div>
-          <h2 className="font-semibold text-slate-700 text-sm">Soporte en línea GLOBAL GREEN</h2>
+          <h2 className="font-semibold text-slate-700 text-sm">Soporte en línea GLOBAL REC</h2>
           <p className="text-xs text-green-600 font-medium">Agentes disponibles</p>
         </div>
       </div>
@@ -26,7 +26,7 @@ export default function ChatPage() {
             <MessageCircle className="w-4 h-4 text-blue-600" />
           </div>
           <div className="bg-white p-4 rounded-2xl rounded-tl-sm border border-slate-200 shadow-sm max-w-[80%]">
-            <p className="text-sm text-slate-700">¡Hola! Bienvenido al sistema de soporte de Global Green. ¿En qué podemos ayudarte el día de hoy?</p>
+            <p className="text-sm text-slate-700">¡Hola! Bienvenido al sistema de soporte de Global Rec. ¿En qué podemos ayudarte el día de hoy?</p>
             <span className="text-[10px] text-slate-400 block mt-2">10:00 AM</span>
           </div>
         </div>

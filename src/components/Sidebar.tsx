@@ -84,7 +84,7 @@ export default function Sidebar() {
       <div className="h-20 flex items-center justify-center border-b border-slate-700 bg-[#0f172a] px-3">
         <img
           src="/logos/global_rec.jpg"
-          alt="Global Green"
+          alt="Global Rec"
           className="h-14 w-auto object-contain"
         />
       </div>

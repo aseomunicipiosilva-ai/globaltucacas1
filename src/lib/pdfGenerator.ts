@@ -58,7 +58,7 @@ export const dibujarYDescargarPDF = async (data: any, isPreview = false) => {
     const splitText = doc.splitTextToSize(texto, 170);
     doc.text(splitText, 20, 70);
 
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://globalgreentucacas.com';
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://aseosilva.globalrecca.com';
     const qrData = `${baseUrl}/validar?codigo=${data.codigo}`;
     const qrDataUrl = await QRCode.toDataURL(qrData, { margin: 1, width: 100 });
     doc.addImage(qrDataUrl, 'PNG', 80, 130, 50, 50);

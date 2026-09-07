@@ -79,7 +79,7 @@ export default function OperadorLogin() {
             <div className="bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
               <Building2 className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-2xl font-black tracking-tight">GLOBAL GREEN</h1>
+            <h1 className="text-2xl font-black tracking-tight">GLOBAL REC</h1>
             <p className="text-orange-200 text-sm font-medium mt-1">Módulo Operador de Censo</p>
           </div>
           

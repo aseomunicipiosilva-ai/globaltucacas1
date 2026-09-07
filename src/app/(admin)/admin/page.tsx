@@ -87,7 +87,7 @@ export default async function AdminHome() {
               </button>
             </div>
             <div className="pt-4 mt-4 border-t border-slate-100 text-sm text-slate-600">
-              Todos los pagos a nombre de: <strong className="text-slate-800">GLOBAL GREEN TUCACAS R.I.F.: J-123456789</strong>
+              Todos los pagos a nombre de: <strong className="text-slate-800">GLOBAL REC MUN SILVA R.I.F.: J-123456789</strong>
             </div>
           </div>
         </div>
@@ -117,7 +117,7 @@ export default async function AdminHome() {
                 <Mail className="w-5 h-5 text-slate-400 mt-0.5" />
                 <div>
                   <div className="font-semibold text-sm text-slate-700 mb-1">Correo Electrónico:</div>
-                  <a href="mailto:info@globalgreentucacas.com" className="text-sm text-blue-600 hover:underline">info@globalgreentucacas.com</a>
+                  <a href="mailto:info@aseosilva.globalrecca.com" className="text-sm text-blue-600 hover:underline">info@aseosilva.globalrecca.com</a>
                 </div>
               </div>
             </div>

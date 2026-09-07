@@ -67,7 +67,7 @@ export default function SolvenciaPage() {
                 GG
               </div>
               <div>
-                <h1 className="text-3xl font-black text-slate-800 tracking-tighter">GLOBAL GREEN</h1>
+                <h1 className="text-3xl font-black text-slate-800 tracking-tighter">GLOBAL REC</h1>
                 <p className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Un ambiente limpio para todos</p>
               </div>
             </div>
