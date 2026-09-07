@@ -149,11 +149,60 @@ export async function GET(request: Request) {
   } catch (error: any) {
     console.error('Error scraping BCV, falling back:', error.message);
     
-    // Eliminado el fallback de dolarapi por causar errores de tasa (Argentina)
-    return NextResponse.json({
-      success: false,
-      tcmmv: 0,
-      error: "No se pudo contactar al BCV. Se usará la tasa manual o semanal de la base de datos si existe."
-    }, { status: 500 });
+    // Fallback 1: DolarAPI (Solo si dejó de devolver 911 que es el peso argentino)
+    try {
+      const [usdRes, eurRes] = await Promise.all([
+        fetch('https://ve.dolarapi.com/v1/dolares/oficial', { cache: 'no-store' }),
+        fetch('https://ve.dolarapi.com/v1/euros/oficial', { cache: 'no-store' })
+      ]);
+      const usdData = await usdRes.json();
+      const eurData = await eurRes.json();
+      
+      const usdVal = usdData.promedio;
+      const euroVal = eurData.promedio;
+      
+      // Safety check: if Euro is > 200, it's definitely the Argentine Peso bug.
+      if (euroVal > 200) {
+         throw new Error('DolarAPI is returning Argentine Pesos instead of Bolivares (Bug)');
+      }
+
+
+      const tcmmv = euroVal; // Estrictamente tasa Euro
+
+      try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+        if (supabaseUrl && supabaseKey) {
+          await fetch(`${supabaseUrl}/rest/v1/sistema_config?id=eq.tasa_bcv_semanal`, {
+            method: 'PATCH',
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify({ valor: tcmmv.toString(), updated_at: new Date().toISOString() })
+          });
+        }
+      } catch (e) {}
+
+      return NextResponse.json({
+
+        success: true,
+        euro: euroVal,
+        usd: usdVal,
+        tcmmv: tcmmv,
+        timestamp: eurData.fechaActualizacion || new Date().toISOString(),
+        source: 'dolarapi-cached'
+      });
+    } catch (e2: any) {
+       console.error('DolarAPI failed:', e2.message);
+       // Return generic failure if all fails
+       return NextResponse.json({
+          success: false,
+          tcmmv: 0,
+          error: "No se pudo contactar a la API de tasas de manera confiable"
+       }, { status: 500 });
+    }
   }
 }

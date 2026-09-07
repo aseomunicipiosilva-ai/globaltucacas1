@@ -93,7 +93,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const bcvData = apiBcv as any;
       let currentTcmmv = manualTcmmv > 0 ? manualTcmmv : (bcvData?.tcmmv > 0 ? bcvData.tcmmv : semanalTcmmv);
 
-      // Se eliminó el fallback a dolarapi.com porque estaba devolviendo la tasa de Argentina (938 Bs)
+      // Si aAon es 0 (por ejemplo si el API de Nextjs estA! caA-do en Amplify), intentamos directo desde el cliente
+      if (currentTcmmv <= 0) {
+        try {
+          const eurRes = await fetch('https://ve.dolarapi.com/v1/euros/oficial');
+          const eurData = await eurRes.json();
+          if (eurData && eurData.promedio > 0 && eurData.promedio < 200) {
+            currentTcmmv = eurData.promedio;
+          }
+        } catch (e) {
+          console.error("DolarAPI Frontend Fallback failed", e);
+        }
+      }
 
       setTcmmv(currentTcmmv);
       
