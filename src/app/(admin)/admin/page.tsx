@@ -77,7 +77,7 @@ export default async function AdminHome() {
           <div className="p-6 space-y-4">
             <div className="flex items-center gap-2 text-sm text-slate-700">
               <span className="font-semibold w-24">Banco:</span>
-              <span>BANESCO (0134)</span>
+              <span>Banesco</span>
             </div>
             <div className="flex items-center gap-2 text-sm text-slate-700">
               <span className="font-semibold w-24">Cta Corriente:</span>
@@ -87,7 +87,7 @@ export default async function AdminHome() {
               </button>
             </div>
             <div className="pt-4 mt-4 border-t border-slate-100 text-sm text-slate-600">
-              Todos los pagos a nombre de: <strong className="text-slate-800">GLOBAL REC MUN SILVA R.I.F.: J-123456789</strong>
+              Todos los pagos a nombre de: <strong className="text-slate-800">Instituto Socialista Municipal para el Ambiente R.I.F.: G-200076739</strong>
             </div>
           </div>
         </div>
