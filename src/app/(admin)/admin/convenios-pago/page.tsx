@@ -6,7 +6,7 @@ import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
 
 export default function ConveniosPagoPage() {
-  const { convenios, inmuebles, tcmmv } = useAppContext();
+  const { convenios, inmuebles, facturas, tcmmv } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewCuotasModal, setViewCuotasModal] = useState<{isOpen: boolean, convenio: any}>({isOpen: false, convenio: null});
   const [searchDoc, setSearchDoc] = useState('');
@@ -108,16 +108,32 @@ export default function ConveniosPagoPage() {
 
   const handleSearch = () => {
     const userInmuebles = inmuebles.filter(i => i.identidad === searchDoc || i.cod_cont === searchDoc);
-    if (userInmuebles.length > 0) {
+    
+    // Also find pending facturas
+    const cleanSearchDoc = searchDoc.replace(/-/g, '').toUpperCase();
+    const userFacturas = (facturas || []).filter(f => {
+      const idCleanFactura = (f.identidad || '').replace(/-/g, '').toUpperCase();
+      const belongsToUser = idCleanFactura === cleanSearchDoc || (userInmuebles.length > 0 && f.identidad === userInmuebles[0].identidad);
+      return belongsToUser && f.estado === 'Pendiente';
+    });
+
+    if (userInmuebles.length > 0 || userFacturas.length > 0) {
+      const identidad = userInmuebles.length > 0 ? userInmuebles[0].identidad : userFacturas[0].identidad;
+      const contribuyente = userInmuebles.length > 0 ? userInmuebles[0].contribuyente : userFacturas[0].contribuyente;
+      
       const totalMMV = userInmuebles.reduce((acc, curr) => acc + (parseFloat(curr.deuda_mmv) || parseFloat(curr.DeudaMMV) || 0), 0);
       const totalCongelada = userInmuebles.reduce((acc, curr) => acc + (parseFloat(curr.deuda_congelada_bs) || parseFloat(curr.DeudaCongelada) || 0), 0);
+      const totalFacturasBs = userFacturas.reduce((acc, curr) => acc + (parseFloat(curr.monto) || 0), 0);
+
       setFoundUser({
-        identidad: userInmuebles[0].identidad,
-        contribuyente: userInmuebles[0].contribuyente,
+        identidad,
+        contribuyente,
         inmuebles: userInmuebles,
+        facturas: userFacturas,
         totalMMV,
         totalCongelada,
-        montoACongelar: ((totalMMV * tcmmv) + totalCongelada).toFixed(2)
+        totalFacturasBs,
+        montoACongelar: ((totalMMV * tcmmv) + totalCongelada + totalFacturasBs).toFixed(2)
       });
     } else {
       setFoundUser(null);
@@ -172,10 +188,10 @@ export default function ConveniosPagoPage() {
 
       // Actualizar inmuebles
       for (const inm of foundUser.inmuebles) {
-        const mmv = inm.DeudaMMV || 0;
+        const mmv = inm.DeudaMMV || inm.deuda_mmv || 0;
         if (mmv > 0) {
           const bsToFreeze = mmv * tcmmv;
-          const currentFrozen = inm.DeudaCongelada || 0;
+          const currentFrozen = parseFloat(inm.deuda_congelada_bs || inm.DeudaCongelada || '0');
           await supabase
             .from('inmuebles')
             .update({ 
@@ -184,6 +200,15 @@ export default function ConveniosPagoPage() {
             })
             .eq('id', inm.id);
         }
+      }
+
+      // Actualizar facturas incluidas
+      if (foundUser.facturas && foundUser.facturas.length > 0) {
+        const referencias = foundUser.facturas.map((f: any) => f.referencia);
+        await supabase
+          .from('facturas')
+          .update({ estado: 'Refinanciado' })
+          .in('referencia', referencias);
       }
 
       // Crear registro en convenios
@@ -280,6 +305,10 @@ export default function ConveniosPagoPage() {
                     <p className="flex justify-between items-center text-red-600 font-medium">
                       <span>Deuda Fluctuante a Congelar (MMV):</span>
                       <span>{foundUser.totalMMV} MMV</span>
+                    </p>
+                    <p className="flex justify-between items-center text-slate-600 font-medium mt-1">
+                      <span>Deuda por Recibos (Facturas):</span>
+                      <span>{foundUser.totalFacturasBs?.toFixed(2)} Bs</span>
                     </p>
                     <p className="flex justify-between items-center text-emerald-700 font-bold text-lg mt-1 pt-1 border-t border-blue-200/50">
                       <span>Monto Final de la Deuda (Bs):</span>
