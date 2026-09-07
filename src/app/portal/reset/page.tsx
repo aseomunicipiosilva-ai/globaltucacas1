@@ -1,10 +1,10 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Building2, Key, ShieldCheck, ArrowLeft, Loader2, Lock, Eye, EyeOff } from 'lucide-react';
 
-export default function ResetContrasena() {
+function ResetContrasenaContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
@@ -171,5 +171,13 @@ export default function ResetContrasena() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ResetContrasena() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-100 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-green-600" /></div>}>
+      <ResetContrasenaContent />
+    </Suspense>
   );
 }
