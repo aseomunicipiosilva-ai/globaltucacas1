@@ -113,7 +113,7 @@ export default function ConveniosPagoPage() {
     const cleanSearchDoc = searchDoc.replace(/-/g, '').toUpperCase();
     const userFacturas = (facturas || []).filter(f => {
       const idCleanFactura = (f.identidad || '').replace(/-/g, '').toUpperCase();
-      const belongsToUser = idCleanFactura === cleanSearchDoc || (userInmuebles.length > 0 && f.identidad === userInmuebles[0].identidad);
+      const belongsToUser = idCleanFactura === cleanSearchDoc || (userInmuebles.length > 0 && f.contribuyente === userInmuebles[0].contribuyente);
       return belongsToUser && f.estado === 'Pendiente';
     });
 
