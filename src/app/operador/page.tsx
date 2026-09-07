@@ -65,7 +65,7 @@ export default function OperadorDashboard() {
       const { count, error } = await supabase
         .from('pre_registros')
         .select('*', { count: 'exact', head: true })
-        .like('origen', `%Censo - ${opName}%`);
+        .ilike('origen', `%Censo - ${opName}%`);
         
       if (!error && count !== null) {
         setCensosRealizados(count);
@@ -87,9 +87,9 @@ export default function OperadorDashboard() {
         .order('created_at', { ascending: false });
 
       if (exportAll) {
-        query = query.like('origen', 'Censo - %');
+        query = query.ilike('origen', 'Censo - %');
       } else {
-        query = query.like('origen', `%Censo - ${operador}%`);
+        query = query.ilike('origen', `%Censo - ${operador}%`);
       }
 
       const { data, error } = await query;

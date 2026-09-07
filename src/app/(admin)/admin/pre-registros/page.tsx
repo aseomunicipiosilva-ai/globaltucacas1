@@ -31,7 +31,7 @@ export default function PreRegistrosPage() {
       const { data, error } = await supabase
         .from('pre_registros')
         .select('*')
-        .like('origen', 'Censo - %')
+        .ilike('origen', 'Censo - %')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
