@@ -161,10 +161,7 @@ export async function GET(request: Request) {
       const usdVal = usdData.promedio;
       const euroVal = eurData.promedio;
       
-      // Safety check: if Euro is > 200, it's definitely the Argentine Peso bug.
-      if (euroVal > 200) {
-         throw new Error('DolarAPI is returning Argentine Pesos instead of Bolivares (Bug)');
-      }
+
 
 
       const tcmmv = euroVal; // Estrictamente tasa Euro
