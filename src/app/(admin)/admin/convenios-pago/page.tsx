@@ -117,7 +117,7 @@ export default function ConveniosPagoPage() {
         inmuebles: userInmuebles,
         totalMMV,
         totalCongelada,
-        montoACongelar: (totalMMV * tcmmv).toFixed(2)
+        montoACongelar: ((totalMMV * tcmmv) + totalCongelada).toFixed(2)
       });
     } else {
       setFoundUser(null);

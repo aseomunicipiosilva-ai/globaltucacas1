@@ -14,7 +14,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {/* Marcas de agua - logos institucionales en esquinas */}
             <div className="pointer-events-none fixed inset-0 ml-64 mt-20 z-0">
               {/* Superior izquierda - Alcaldía */}
-              <img src="/logos/alcaldia.jpg" alt="" className="absolute top-4 left-4 h-28 w-auto object-contain opacity-20" />
+              <img src="/logos/alcaldia.png" alt="" className="absolute top-4 left-4 h-28 w-auto object-contain opacity-20" />
               {/* Superior derecha - ISMA */}
               <img src="/logos/isma.jpg" alt="" className="absolute top-4 right-4 h-28 w-auto object-contain opacity-20" />
               {/* Inferior izquierda - Basura Cero */}
