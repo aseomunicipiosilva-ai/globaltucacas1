@@ -71,6 +71,12 @@ export default function CajaPage() {
       // If we found a valid monthly MMV and the receipt seems to be a monthly bill
       if (monthlyMMV > 0 && (r.referencia.startsWith('CM-') || r.referencia.startsWith('FACT-'))) {
         return (monthlyMMV * parseFloat(customBcvRate)).toFixed(2);
+      } else {
+        // Fallback para usuarios con datos incompletos en inmuebles (mmv_mes = null)
+        const originalBs = parseFloat(r.monto) || 0;
+        // Asumimos que la deuda original fue calculada con el tcmmv actual para estimar su valor en MMV
+        const mmvAprox = originalBs / (tcmmv || 1);
+        return (mmvAprox * parseFloat(customBcvRate)).toFixed(2);
       }
     }
     return r.monto;
