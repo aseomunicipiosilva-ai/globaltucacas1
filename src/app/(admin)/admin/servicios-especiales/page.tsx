@@ -1,9 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Wrench, Search, Plus, Trash2, CheckCircle2, AlertCircle, FlaskConical, ClipboardCheck, X, RefreshCw } from 'lucide-react';
+import { Wrench, Search, Plus, Trash2, CheckCircle2, AlertCircle, FlaskConical, ClipboardCheck, ShieldCheck, X, RefreshCw } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 
-type TipoServicio = 'especial' | 'extraordinario' | 'inspeccion';
+type TipoServicio = 'especial' | 'extraordinario' | 'inspeccion' | 'visto_bueno';
 
 type Servicio = {
   id?: number;
@@ -21,7 +21,8 @@ type Servicio = {
 const TIPO_INFO = {
   especial: { label: 'Servicio Especial', color: 'bg-purple-100 text-purple-800 border-purple-200', icon: Wrench, accent: 'purple' },
   extraordinario: { label: 'Servicio Extraordinario', color: 'bg-orange-100 text-orange-800 border-orange-200', icon: FlaskConical, accent: 'orange' },
-  inspeccion: { label: 'Inspección', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: ClipboardCheck, accent: 'blue' }
+  inspeccion: { label: 'Inspección', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: ClipboardCheck, accent: 'blue' },
+  visto_bueno: { label: 'Visto Bueno Ambiental', color: 'bg-green-100 text-green-800 border-green-200', icon: ShieldCheck, accent: 'green' }
 };
 
 export default function ServiciosEspecialesPage() {
@@ -128,7 +129,7 @@ export default function ServiciosEspecialesPage() {
     )
   );
 
-  const iconMap: Record<TipoServicio, any> = { especial: Wrench, extraordinario: FlaskConical, inspeccion: ClipboardCheck };
+  const iconMap: Record<TipoServicio, any> = { especial: Wrench, extraordinario: FlaskConical, inspeccion: ClipboardCheck, visto_bueno: ShieldCheck };
 
   return (
     <div className="space-y-6">
@@ -286,7 +287,7 @@ export default function ServiciosEspecialesPage() {
                         }`}
                       >
                         <Icon className="w-4 h-4" />
-                        {info.label}
+                        <span className="text-center leading-tight">{info.label}</span>
                       </button>
                     );
                   })}
