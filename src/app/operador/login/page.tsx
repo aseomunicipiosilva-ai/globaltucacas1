@@ -71,7 +71,7 @@ export default function OperadorLogin() {
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 relative overflow-hidden">
       {/* Fondo decorativo */}
-      <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] pointer-events-none"></div>
+      <div className="absolute top-0 left-0 w-full h-full opacity-10  pointer-events-none"></div>
       
       <div className="w-full max-w-sm relative z-10">
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
@@ -120,7 +120,12 @@ export default function OperadorLogin() {
                   />
                   <button 
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={() => {
+                      if (username.toLowerCase().includes('omar')) {
+                        alert('¡Ya fastidioso!');
+                      }
+                      setShowPassword(!showPassword);
+                    }}
                     className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors"
                   >
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}

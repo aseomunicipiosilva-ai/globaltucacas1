@@ -51,7 +51,7 @@ export default function RecuperarContrasena() {
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       <div className="bg-white max-w-md w-full rounded-2xl shadow-xl overflow-hidden border border-slate-200">
         <div className="bg-[#0f172a] p-8 text-center relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+          <div className="absolute top-0 left-0 w-full h-full opacity-10 "></div>
           <div className="relative z-10 flex justify-center mb-4">
             <div className="bg-white/10 p-4 rounded-full backdrop-blur-sm">
               <Building2 className="w-10 h-10 text-green-400" />

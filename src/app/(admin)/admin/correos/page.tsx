@@ -55,11 +55,11 @@ export default function CorreosPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Nombre Remitente</label>
-            <input type="text" defaultValue="SiRID - SILVA" className="w-full border border-slate-300 bg-slate-50 rounded px-3 py-2 text-sm text-slate-700 outline-none" />
+            <input type="text" defaultValue="SiRID - SILVA" autoComplete="off" className="w-full border border-slate-300 bg-slate-50 rounded px-3 py-2 text-sm text-slate-700 outline-none" />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Email Remitente</label>
-            <input type="email" defaultValue="aseodesilva@sirid.net" className="w-full border border-slate-300 bg-slate-50 rounded px-3 py-2 text-sm text-slate-700 outline-none" />
+            <input type="email" defaultValue="aseodesilva@sirid.net" autoComplete="off" className="w-full border border-slate-300 bg-slate-50 rounded px-3 py-2 text-sm text-slate-700 outline-none" />
           </div>
         </div>
 
@@ -69,6 +69,7 @@ export default function CorreosPage() {
             type="text" 
             placeholder="Ej: Estado de cuenta actual" 
             value={asunto}
+            autoComplete="off"
             onChange={e => setAsunto(e.target.value)}
             className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" 
           />

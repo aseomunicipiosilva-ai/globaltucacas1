@@ -108,7 +108,7 @@ export default function RegistroPublico() {
 
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
           <div className="bg-[#0f172a] p-6 text-center relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+            <div className="absolute top-0 left-0 w-full h-full opacity-10 "></div>
             <div className="relative z-10 flex justify-center mb-2">
               <div className="bg-white/10 p-3 rounded-full backdrop-blur-sm">
                 <Building2 className="w-8 h-8 text-emerald-400" />
