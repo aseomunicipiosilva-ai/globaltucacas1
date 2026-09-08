@@ -39,6 +39,9 @@ export default function PortalSidebar({ isOpen = false, setIsOpen }: PortalSideb
 
   const handleLogout = () => {
     localStorage.removeItem('portal_user');
+    localStorage.removeItem('portal_doc');
+    localStorage.removeItem('portal_codigo');
+    localStorage.removeItem('portal_setup_mode');
     router.push('/portal');
   };
 

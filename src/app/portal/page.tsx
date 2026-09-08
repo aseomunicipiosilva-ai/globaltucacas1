@@ -20,6 +20,15 @@ export default function PortalLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Si ya tiene sesión activa, redirigir al dashboard
+  useEffect(() => {
+    const doc = localStorage.getItem('portal_doc');
+    if (doc) {
+      router.replace('/portal/dashboard');
+    }
+  }, []);
+
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
