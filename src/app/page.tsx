@@ -3,6 +3,14 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { logos } from '@/lib/logosBase64';
 
+// ── Brand colors (Official Guide) ──────────────────
+// #B8CD29  lime accent
+// #5DB130  medium green
+// #154C44  dark green (primary)
+// #EF7B00  orange accent
+// #9D519A  purple accent
+// #3D509E  blue accent
+
 export default function Home() {
   const [showContribuyente, setShowContribuyente] = useState(true);
 
@@ -10,142 +18,157 @@ export default function Home() {
     const host = window.location.hostname;
     if (host.includes('aseosilvaad')) {
       setShowContribuyente(false);
-    } else if (host.includes('aseosilva.globalrecca.com')) {
-      window.location.href = '/portal';
     }
   }, []);
 
-  return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#e8f5e9' }}>
+  const cardStyle: React.CSSProperties = {
+    background: 'linear-gradient(160deg, #1e6b50 0%, #154C44 100%)',
+    border: '2px solid rgba(184,205,41,0.35)',
+    borderRadius: '1.25rem',
+  };
 
-      {/* ── TOP HEADER ── */}
-      <div
-        className="w-full flex items-center justify-between px-10 py-8"
-        style={{ background: 'linear-gradient(135deg, #0d3b2e 0%, #1a5c40 60%, #0d3b2e 100%)' }}
-      >
-        {/* Left: Title */}
+  const iconCircle: React.CSSProperties = {
+    width: 80, height: 80, borderRadius: '50%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: 'rgba(184,205,41,0.18)',
+    border: '2px solid rgba(184,205,41,0.5)',
+    marginBottom: 20, flexShrink: 0,
+  };
+
+  const DotLink = ({ label }: { label: string }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#B8CD29', fontWeight: 700, fontSize: 14, marginTop: 'auto' }}>
+      {label}
+      <span style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+        {[1,0.75,0.5,0.3].map((o,i) => (
+          <span key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: '#B8CD29', opacity: o, display: 'inline-block' }} />
+        ))}
+        <span style={{ fontSize: 18, fontWeight: 900, color: '#B8CD29', lineHeight: 1 }}>✦</span>
+      </span>
+    </div>
+  );
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'Poppins, sans-serif', background: '#d4edda' }}>
+
+      {/* ── HEADER ── */}
+      <div style={{
+        background: 'linear-gradient(135deg, #154C44 0%, #1e6b50 55%, #154C44 100%)',
+        padding: '36px 60px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24
+      }}>
         <div>
-          <h1 className="text-4xl md:text-5xl font-black text-white leading-tight tracking-tight uppercase" style={{ fontFamily: 'Arial Black, Arial, sans-serif' }}>
-            SISTEMA INTEGRADO
+          <h1 style={{ margin: 0, color: '#fff', fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 800, lineHeight: 1.1, textTransform: 'uppercase', letterSpacing: '-0.5px' }}>
+            Sistema Integrado
           </h1>
-          <h1 className="text-4xl md:text-5xl font-black text-white leading-tight tracking-tight uppercase" style={{ fontFamily: 'Arial Black, Arial, sans-serif' }}>
-            DE ADMINISTRACIÓN
+          <h1 style={{ margin: 0, color: '#fff', fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 800, lineHeight: 1.1, textTransform: 'uppercase' }}>
+            de Administración
           </h1>
-          <h1 className="text-4xl md:text-5xl font-black text-white leading-tight tracking-tight uppercase" style={{ fontFamily: 'Arial Black, Arial, sans-serif' }}>
-            PÚBLICA MUNICIPAL
+          <h1 style={{ margin: 0, color: '#fff', fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 800, lineHeight: 1.1, textTransform: 'uppercase' }}>
+            Pública Municipal
           </h1>
         </div>
-        {/* Right: Alcaldia Logo */}
-        <div className="flex-shrink-0">
-          <img src={logos.alcaldia} alt="Alcaldía del Municipio Silva" className="h-36 w-auto object-contain" />
-        </div>
+        <img src={logos.alcaldia} alt="Alcaldía del Municipio Silva" style={{ height: 140, width: 'auto', objectFit: 'contain', flexShrink: 0 }} />
       </div>
 
-      {/* ── GREEN SEPARATOR LINE ── */}
-      <div className="w-full h-1" style={{ background: '#a3e000' }} />
+      {/* lime separator */}
+      <div style={{ height: 5, background: '#B8CD29', flexShrink: 0 }} />
 
-      {/* ── CENTER SECTION ── */}
-      <div className="flex-1 flex flex-col items-center justify-center px-8 py-12"
-        style={{ background: 'linear-gradient(180deg, #c8e6c9 0%, #a5d6a7 100%)' }}>
-
+      {/* ── CENTER ── */}
+      <div style={{
+        flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        padding: '48px 40px',
+        background: 'linear-gradient(180deg, #c5e0bc 0%, #9ecf94 100%)'
+      }}>
         {/* Title */}
-        <div className="text-center mb-10">
-          <h2 className="text-4xl font-black mb-1" style={{ color: '#1a5c40', fontFamily: 'Arial Black, Arial, sans-serif' }}>
-            Global Green
-          </h2>
-          <p className="text-slate-600 text-base font-medium">Seleccione su módulo para acceder al sistema.</p>
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <h2 style={{ margin: 0, color: '#154C44', fontSize: 40, fontWeight: 800 }}>Global Green</h2>
+          <p style={{ margin: '6px 0 0', color: '#2d6e45', fontSize: 15, fontWeight: 400 }}>
+            Seleccione su módulo para acceder al sistema.
+          </p>
         </div>
 
         {/* Cards */}
-        <div className={`grid ${showContribuyente ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2 max-w-2xl'} gap-6 w-full max-w-5xl`}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: showContribuyente ? 'repeat(3, minmax(260px, 340px))' : 'repeat(2, minmax(260px, 340px))',
+          gap: 24, width: '100%', maxWidth: 1100, justifyContent: 'center'
+        }}>
 
           {/* Card 1 – Contribuyente */}
           {showContribuyente && (
-            <Link href="/portal" className="group flex flex-col items-center text-center rounded-2xl p-8 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
-              style={{ background: 'linear-gradient(160deg, #1a5c40 0%, #0d3b2e 100%)', border: '2px solid rgba(163,224,0,0.3)' }}>
-              {/* Icon circle */}
-              <div className="w-20 h-20 rounded-full flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110"
-                style={{ background: 'rgba(163,224,0,0.2)', border: '2px solid rgba(163,224,0,0.5)' }}>
-                <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="#a3e000" strokeWidth={1.5}>
+            <Link href="/portal" style={{ ...cardStyle, padding: 36, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', textDecoration: 'none', transition: 'transform 0.25s, box-shadow 0.25s' }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-8px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 24px 48px rgba(0,0,0,0.3)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ''; (e.currentTarget as HTMLElement).style.boxShadow = ''; }}>
+              <div style={iconCircle}>
+                <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="#B8CD29" strokeWidth="1.5">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-black text-white mb-3">
-                <span className="font-black">Soy</span> <span className="font-light">Contribuyente</span>
+              <h3 style={{ margin: '0 0 12px', color: '#fff', fontSize: 20 }}>
+                <span style={{ fontWeight: 800 }}>Soy</span>{' '}
+                <span style={{ fontWeight: 400 }}>Contribuyente</span>
               </h3>
-              <p className="text-sm leading-relaxed mb-8" style={{ color: 'rgba(255,255,255,0.7)' }}>
+              <p style={{ margin: '0 0 28px', color: 'rgba(255,255,255,0.72)', fontSize: 13, lineHeight: 1.7, fontWeight: 400 }}>
                 Paga tus servicios, tramita solvencias y reporta incidencias de manera rápida y segura.
               </p>
-              <div className="mt-auto flex items-center gap-2 text-sm font-bold transition-all duration-300 group-hover:gap-4" style={{ color: '#a3e000' }}>
-                Ingresar al portal
-                <span className="flex gap-0.5">
-                  {[0,1,2,3].map(i => <span key={i} className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#a3e000', opacity: 1 - i*0.2 }} />)}
-                  <span className="text-lg font-black leading-none" style={{ color: '#a3e000' }}>✦</span>
-                </span>
-              </div>
+              <DotLink label="Ingresar al portal" />
             </Link>
           )}
 
           {/* Card 2 – Funcionario */}
-          <Link href="/admin" className="group flex flex-col items-center text-center rounded-2xl p-8 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
-            style={{ background: 'linear-gradient(160deg, #1a5c40 0%, #0d3b2e 100%)', border: '2px solid rgba(163,224,0,0.3)' }}>
-            <div className="w-20 h-20 rounded-full flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110"
-              style={{ background: 'rgba(163,224,0,0.2)', border: '2px solid rgba(163,224,0,0.5)' }}>
-              <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="#a3e000" strokeWidth={1.5}>
+          <Link href="/admin" style={{ ...cardStyle, padding: 36, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', textDecoration: 'none', transition: 'transform 0.25s, box-shadow 0.25s' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-8px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 24px 48px rgba(0,0,0,0.3)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ''; (e.currentTarget as HTMLElement).style.boxShadow = ''; }}>
+            <div style={iconCircle}>
+              <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="#B8CD29" strokeWidth="1.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" />
               </svg>
             </div>
-            <h3 className="text-xl font-black text-white mb-3">
-              <span className="font-black">Soy</span> <span className="font-light">Funcionario</span>
+            <h3 style={{ margin: '0 0 12px', color: '#fff', fontSize: 20 }}>
+              <span style={{ fontWeight: 800 }}>Soy</span>{' '}
+              <span style={{ fontWeight: 400 }}>Funcionario</span>
             </h3>
-            <p className="text-sm leading-relaxed mb-8" style={{ color: 'rgba(255,255,255,0.7)' }}>
+            <p style={{ margin: '0 0 28px', color: 'rgba(255,255,255,0.72)', fontSize: 13, lineHeight: 1.7, fontWeight: 400 }}>
               Acceso el sistema administrativo para gestión de recaudación y reportes de aseo.
             </p>
-            <div className="mt-auto flex items-center gap-2 text-sm font-bold transition-all duration-300 group-hover:gap-4" style={{ color: '#a3e000' }}>
-              Acceder al Sistema
-              <span className="flex gap-0.5">
-                {[0,1,2,3].map(i => <span key={i} className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#a3e000', opacity: 1 - i*0.2 }} />)}
-                <span className="text-lg font-black leading-none" style={{ color: '#a3e000' }}>✦</span>
-              </span>
-            </div>
+            <DotLink label="Acceder al Sistema" />
           </Link>
 
-          {/* Card 3 – Operador Censo */}
-          <Link href="/operador/login" className="group flex flex-col items-center text-center rounded-2xl p-8 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
-            style={{ background: 'linear-gradient(160deg, #1a5c40 0%, #0d3b2e 100%)', border: '2px solid rgba(163,224,0,0.3)' }}>
-            <div className="w-20 h-20 rounded-full flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110"
-              style={{ background: 'rgba(163,224,0,0.2)', border: '2px solid rgba(163,224,0,0.5)' }}>
-              <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="#a3e000" strokeWidth={1.5}>
+          {/* Card 3 – Operador */}
+          <Link href="/operador/login" style={{ ...cardStyle, padding: 36, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', textDecoration: 'none', transition: 'transform 0.25s, box-shadow 0.25s' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-8px)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 24px 48px rgba(0,0,0,0.3)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ''; (e.currentTarget as HTMLElement).style.boxShadow = ''; }}>
+            <div style={iconCircle}>
+              <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="#B8CD29" strokeWidth="1.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
               </svg>
             </div>
-            <h3 className="text-xl font-black text-white mb-3">
-              <span className="font-black">Operador</span> <span className="font-light">de Censo</span>
+            <h3 style={{ margin: '0 0 12px', color: '#fff', fontSize: 20 }}>
+              <span style={{ fontWeight: 800 }}>Operador</span>{' '}
+              <span style={{ fontWeight: 400 }}>de Censo</span>
             </h3>
-            <p className="text-sm leading-relaxed mb-8" style={{ color: 'rgba(255,255,255,0.7)' }}>
+            <p style={{ margin: '0 0 28px', color: 'rgba(255,255,255,0.72)', fontSize: 13, lineHeight: 1.7, fontWeight: 400 }}>
               Módulo móvil exclusivo para trabajadores en jornada de empadronamiento de calle.
             </p>
-            <div className="mt-auto flex items-center gap-2 text-sm font-bold transition-all duration-300 group-hover:gap-4" style={{ color: '#a3e000' }}>
-              Ingresar Móvil
-              <span className="flex gap-0.5">
-                {[0,1,2,3].map(i => <span key={i} className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#a3e000', opacity: 1 - i*0.2 }} />)}
-                <span className="text-lg font-black leading-none" style={{ color: '#a3e000' }}>✦</span>
-              </span>
-            </div>
+            <DotLink label="Ingresar Móvil" />
           </Link>
 
         </div>
       </div>
 
       {/* ── FOOTER LOGOS ── */}
-      <div className="w-full flex items-center justify-around px-10 py-6 bg-white border-t-4" style={{ borderColor: '#a3e000' }}>
-        <img src={logos.isma} alt="ISMA" className="h-16 w-auto object-contain" />
-        <div className="w-px h-12 bg-slate-200" />
-        <img src={logos.global_rec} alt="Global Rec" className="h-14 w-auto object-contain" />
-        <div className="w-px h-12 bg-slate-200" />
-        <img src={logos.global_green} alt="Global Green" className="h-14 w-auto object-contain" />
-        <div className="w-px h-12 bg-slate-200" />
-        <img src={logos.basura_cero} alt="Basura Cero" className="h-14 w-auto object-contain" />
+      <div style={{
+        background: '#fff', borderTop: '4px solid #B8CD29',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-around',
+        padding: '20px 48px', flexWrap: 'wrap', gap: 24
+      }}>
+        <img src={logos.isma} alt="ISMA" style={{ height: 60, width: 'auto', objectFit: 'contain' }} />
+        <div style={{ width: 1, height: 48, background: '#e2e8f0' }} />
+        <img src={logos.global_rec} alt="Global Rec" style={{ height: 52, width: 'auto', objectFit: 'contain' }} />
+        <div style={{ width: 1, height: 48, background: '#e2e8f0' }} />
+        <img src={logos.global_green} alt="Global Green" style={{ height: 52, width: 'auto', objectFit: 'contain' }} />
+        <div style={{ width: 1, height: 48, background: '#e2e8f0' }} />
+        <img src={logos.basura_cero} alt="Basura Cero" style={{ height: 52, width: 'auto', objectFit: 'contain' }} />
       </div>
 
     </div>
