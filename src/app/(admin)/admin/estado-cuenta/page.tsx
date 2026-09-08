@@ -242,27 +242,26 @@ export default function EstadoCuentaPage() {
     })();
 
     let formaPagoStr = row.estado === 'Pagado' ? 'TRANSFERENCIA' : 'POR PAGAR';
+    let bancoReal = row.estado === 'Pagado' ? 'BANCO CONFIRMADO' : '---';
+    let referenciaReal = row.estado === 'Pagado' ? Math.floor(Math.random() * 90000000 + 10000000).toString() : '---';
     
-    if (row.estado === 'Pagado') {
+    if (row.estado === 'Pagado' && row.referencia) {
       try {
-        const { data: doc } = await supabase
-          .from('documentos')
-          .select('tipo')
-          .eq('identidad', row.identidad)
-          .like('tipo', 'RECIBO DE PAGO%')
+        const { data: pago } = await supabase
+          .from('pagos_reportados')
+          .select('tipo, banco, referencia')
           .ilike('detalles', `%${row.referencia}%`)
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
           
-        if (doc) {
-          const t = doc.tipo.toUpperCase();
-          if (t.includes('PUNTO DE VENTA')) formaPagoStr = 'PUNTO DE VENTA';
-          else if (t.includes('EFECTIVO')) formaPagoStr = 'EFECTIVO';
-          else if (t.includes('PAGO MOVIL')) formaPagoStr = 'TRANSFERENCIA'; // grouped under transferencia typically, or add logic
+        if (pago) {
+          formaPagoStr = pago.tipo === 'Debito' || pago.tipo === 'Punto de Venta' ? 'PUNTO DE VENTA' : 'TRANSFERENCIA';
+          bancoReal = pago.banco || bancoReal;
+          referenciaReal = pago.referencia || referenciaReal;
         }
       } catch (e) {
-        // If not found, keep default
+        // Fallback or not found
       }
     }
 
@@ -287,8 +286,8 @@ export default function EstadoCuentaPage() {
       iva: 0,
       total: montoNumerico,
       formaPago: formaPagoStr,
-      banco: row.estado === 'Pagado' ? 'BANCO CONFIRMADO' : '---',
-      referencia: row.estado === 'Pagado' ? Math.floor(Math.random() * 90000000 + 10000000).toString() : '---'
+      banco: bancoReal,
+      referencia: referenciaReal
     });
   };
 
