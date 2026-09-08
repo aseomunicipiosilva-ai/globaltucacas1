@@ -1,5 +1,5 @@
 'use client';
-import { Home, Search, FileText, UserPlus, Users, FileSpreadsheet, History, Award, Clock, Building2, AlertTriangle, Handshake, LayoutDashboard, Mail, User, PieChart, Truck, Inbox, Calculator, Briefcase, Landmark, BookOpen, Car, Map, Bus, TreePine, ShieldAlert, DollarSign, Wallet, FileCheck, Package, ShoppingCart, Target } from 'lucide-react';
+import { Home, Search, FileText, FlaskConical, Wrench, UserPlus, Users, FileSpreadsheet, History, Award, Clock, Building2, AlertTriangle, Handshake, LayoutDashboard, Mail, User, PieChart, Truck, Inbox, Calculator, Briefcase, Landmark, BookOpen, Car, Map, Bus, TreePine, ShieldAlert, DollarSign, Wallet, FileCheck, Package, ShoppingCart, Target } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
@@ -35,6 +35,7 @@ export default function Sidebar() {
     { icon: AlertTriangle, name: 'Reclamos / Atención', href: '/admin/reclamos' },
     { icon: AlertTriangle, name: 'Denuncias Ciudadanas', href: '/admin/denuncias' },
     { icon: Truck, name: 'Rutas Camiones', href: '/admin/rutas' },
+    { icon: Wrench, name: 'Servicios Especiales', href: '/admin/servicios-especiales' },
     { icon: PieChart, name: 'Reportes Generales', href: '/admin/reportes' },
     { icon: Mail, name: 'Correos Informativos', href: '/admin/correos' },
     { icon: UserPlus, name: 'Trabajadores Aseo', href: '/admin/trabajadores' }

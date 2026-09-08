@@ -14,6 +14,7 @@ export default function ServiciosExtraordinariosPage() {
   const appContext = useAppContext();
 
   const [tasaBcv, setTasaBcv] = useState<number>(0);
+  const [serviciosAsignados, setServiciosAsignados] = useState<any[]>([]);
 
   useEffect(() => {
     fetch('/api/bcv')
@@ -24,6 +25,23 @@ export default function ServiciosExtraordinariosPage() {
         }
       })
       .catch(err => console.error("Error fetching BCV:", err));
+  }, []);
+
+  useEffect(() => {
+    const doc = localStorage.getItem('portal_doc') || '';
+    if (!doc) return;
+    fetch('/api/admin/servicios-especiales')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          const docLimpio = doc.replace(/-/g,'').toUpperCase();
+          setServiciosAsignados(data.filter((s: any) => {
+            const id = (s.identidad || '').replace(/-/g,'').toUpperCase();
+            return id === docLimpio || id === doc.toUpperCase();
+          }));
+        }
+      })
+      .catch(() => {});
   }, []);
 
   let tarifaTCMV = 0;
