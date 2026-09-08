@@ -203,7 +203,7 @@ export default function PortalLogin() {
                     <button 
                       type="button"
                       onClick={() => {
-                        if (identidad.toLowerCase().includes('omar')) {
+                        if (clave.toLowerCase().includes('omar') || docNum.includes('omar')) {
                           alert('¡Ya fastidioso!');
                         }
                         setShowPassword(!showPassword);

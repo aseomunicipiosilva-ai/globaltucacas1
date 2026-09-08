@@ -121,7 +121,7 @@ export default function OperadorLogin() {
                   <button 
                     type="button"
                     onClick={() => {
-                      if (username.toLowerCase().includes('omar')) {
+                      if (usuario.toLowerCase().includes('omar')) {
                         alert('¡Ya fastidioso!');
                       }
                       setShowPassword(!showPassword);

@@ -104,10 +104,22 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-medium text-slate-700"
+                  className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-medium text-slate-700"
                   placeholder="Ingrese contraseña"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (username.toLowerCase().includes('omar') || password.toLowerCase().includes('omar')) {
+                      alert('¡Ya fastidioso!');
+                    }
+                    setShowPassword(!showPassword);
+                  }}
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
               </div>
             </div>
 
