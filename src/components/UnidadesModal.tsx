@@ -221,8 +221,8 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
       
       // Inmueble data
       doc.setFont("helvetica", "normal");
-      doc.text("Código:", 110, 62);
-      doc.text(unidad.numero_unidad, 130, 62);
+      doc.text("Nro de Inmueble:", 110, 62);
+      doc.text(unidad.numero_unidad, 135, 62);
       
       doc.text("Condominio:", 110, 68);
       doc.text(condominioNombre, 130, 68);

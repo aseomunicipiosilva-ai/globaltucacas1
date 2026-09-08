@@ -30,10 +30,12 @@ export default function CajaPage() {
   // Payment State
   const [paymentMethod, setPaymentMethod] = useState<'Debito' | 'Transferencia'>('Debito');
   const [referenciaDebito, setReferenciaDebito] = useState('');
+  const [montoDebito, setMontoDebito] = useState<string>(''); // Monto manual punto de venta
   const [banco, setBanco] = useState('Banco de Venezuela');
   const [referencia, setReferencia] = useState('');
   const [montoTransferido, setMontoTransferido] = useState<string>('');
   const [fechaTransaccion, setFechaTransaccion] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [dupRefWarning, setDupRefWarning] = useState<string>('');
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
@@ -242,6 +244,16 @@ export default function CajaPage() {
       if (referencia.length < 4) return alert("Debe ingresar la referencia de la transacción.");
       if (!fechaTransaccion) return alert("La fecha de transacción es obligatoria.");
       
+      // Verificar referencia duplicada
+      const { data: dupCheck } = await supabase
+        .from('pagos_reportados')
+        .select('id')
+        .eq('referencia', referencia)
+        .limit(1);
+      if (dupCheck && dupCheck.length > 0) {
+        return alert(`⚠️ ADVERTENCIA: El número de referencia "${referencia}" ya fue registrado previamente en el sistema. Verifique antes de continuar.`);
+      }
+
       const transferido = parseFloat(montoTransferido);
       if (isNaN(transferido) || transferido <= 0) return alert("Debe ingresar un monto transferido válido.");
       
@@ -256,7 +268,14 @@ export default function CajaPage() {
       }
     } else if (paymentMethod === 'Debito') {
       if (!referenciaDebito.trim()) return alert("Debe ingresar el número de comprobante o referencia del pago por punto.");
-      if (referenciaDebito.trim().length !== 8) return alert("El número de referencia para Punto de Venta debe tener exactamente 8 dígitos.");
+      if (referenciaDebito.trim().length > 8) return alert("El número de referencia para Punto de Venta no puede superar los 8 dígitos.");
+      if (montoDebito && (parseFloat(montoDebito) <= 0 || isNaN(parseFloat(montoDebito)))) {
+        return alert("Si ingresa un monto manual, debe ser un valor válido mayor a 0.");
+      }
+      // Use manual debit amount if provided
+      if (montoDebito && parseFloat(montoDebito) > 0) {
+        montoReal = parseFloat(montoDebito);
+      }
     }
     
     if (customBcvRate && !justificacionBcv.trim()) {
@@ -818,14 +837,33 @@ export default function CajaPage() {
                         />
                       </label>
                       <label className="block">
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 block">Número de Comprobante / Referencia <span className="text-red-500">*</span></span>
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 block">Número de Comprobante / Referencia <span className="text-red-500">*</span> (máx. 8 dígitos)</span>
                         <input 
                           type="text" 
                           value={referenciaDebito} 
-                          onChange={e => setReferenciaDebito(e.target.value)} 
-                          placeholder="Ej. 0001234" 
+                          onChange={e => {
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 8);
+                            setReferenciaDebito(val);
+                          }}
+                          maxLength={8}
+                          placeholder="Ej. 00012345" 
                           className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:bg-white transition-all font-medium text-slate-700"
                         />
+                        <span className="text-[10px] text-slate-400">{referenciaDebito.length}/8 dígitos</span>
+                      </label>
+                      <label className="block">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 block">Monto del Punto de Venta (Bs) <span className="text-slate-400 font-normal">(opcional — si difiere del total)</span></span>
+                        <input 
+                          type="number"
+                          step="0.01"
+                          value={montoDebito}
+                          onChange={e => setMontoDebito(e.target.value)}
+                          placeholder={`Total calculado: Bs. ${formatBs(Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0)))}`}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:bg-white transition-all font-medium text-slate-700"
+                        />
+                        {montoDebito && parseFloat(montoDebito) > 0 && (
+                          <p className="text-[10px] text-blue-600 mt-1 font-bold">* Se registrará el monto manual: Bs. {formatBs(parseFloat(montoDebito))}</p>
+                        )}
                       </label>
                     </div>
                   )}
@@ -855,14 +893,25 @@ export default function CajaPage() {
                     </select>
                   </label>
                   <label className="block">
-                    <span className="text-xs font-semibold text-slate-600 mb-1 block">Referencia (Últimos dígitos)</span>
+                    <span className="text-xs font-semibold text-slate-600 mb-1 block">Referencia de Transferencia (máx. 8 dígitos)</span>
                     <input 
                       type="text" 
                       placeholder="12345678"
                       value={referencia}
-                      onChange={(e) => setReferencia(e.target.value.replace(/\D/g, ''))}
-                      className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                      onChange={async (e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 8);
+                        setReferencia(val);
+                        setDupRefWarning('');
+                        if (val.length >= 4) {
+                          const { data } = await supabase.from('pagos_reportados').select('id').eq('referencia', val).limit(1);
+                          if (data && data.length > 0) setDupRefWarning(`⚠️ Esta referencia "${val}" ya fue registrada antes.`);
+                        }
+                      }}
+                      maxLength={8}
+                      className={`w-full border rounded px-3 py-2 text-sm focus:ring-2 outline-none ${dupRefWarning ? 'border-red-400 focus:ring-red-400 bg-red-50' : 'border-slate-300 focus:ring-emerald-500'}`}
                     />
+                    {dupRefWarning && <p className="text-[10px] text-red-600 font-bold mt-1">{dupRefWarning}</p>}
+                    <span className="text-[10px] text-slate-400">{referencia.length}/8 dígitos</span>
                   </label>
                   <label className="block">
                     <span className="text-xs font-semibold text-slate-600 mb-1 block">Monto Total Pagado (Bs)</span>
