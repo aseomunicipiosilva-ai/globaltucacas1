@@ -1383,8 +1383,8 @@ function ContribuyentesPageContent() {
                             <tr key={i} className="border-b border-slate-100 hover:bg-blue-50 transition-colors">
                               <td className="px-3 py-2 font-medium border-r border-slate-100">{item.numeracion}</td>
                               <td className="px-3 py-2 truncate max-w-[200px] border-r border-slate-100">{item.leyenda}</td>
-                              <td className="px-3 py-2 text-right border-r border-slate-100">{item.factor.toFixed(2)}</td>
-                              <td className="px-3 py-2 text-right font-bold text-green-700 bg-green-50/30">{item.montoBs}</td>
+                              <td className="px-3 py-2 text-right border-r border-slate-100">{Number(item.factor || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                              <td className="px-3 py-2 text-right font-bold text-green-700 bg-green-50/30">{Number(item.montoBs || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1717,7 +1717,7 @@ function ContribuyentesPageContent() {
                 </div>
                 <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100 col-span-1">
                   <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1 block">Saldo a Favor</span>
-                  <p className="text-lg font-black text-emerald-700">Bs. {viewData.SaldoFavor ? Number(viewData.SaldoFavor).toFixed(2) : '0.00'}</p>
+                  <p className="text-lg font-black text-emerald-700">Bs. {viewData.SaldoFavor ? Number(viewData.SaldoFavor).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2}) : '0,00'}</p>
                 </div>
               </div>
               
@@ -1732,11 +1732,11 @@ function ContribuyentesPageContent() {
                       <p className="mb-1"><span className="font-semibold text-slate-700">Factor Multiplicador:</span> {viewCalculo.factor} TCMMV</p>
                     </div>
                     <div>
-                      <p className="mb-1"><span className="font-semibold text-slate-700">Tasa de Cambio Oficial:</span> {viewCalculo.tasaBcv} Bs</p>
+                      <p className="mb-1"><span className="font-semibold text-slate-700">Tasa de Cambio Oficial:</span> {Number(viewCalculo.tasaBcv || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:4})} Bs</p>
                     </div>
                     <div className="md:col-span-2 pt-2 border-t border-slate-100 flex justify-between items-center">
-                      <p className="text-xs font-medium">Fórmula: {viewCalculo.factor} × {viewCalculo.tasaBcv} Bs</p>
-                      <p className="text-lg font-bold text-green-700">Total Mensual: Bs. {viewCalculo.totalBs}</p>
+                      <p className="text-xs font-medium">Fórmula: {viewCalculo.factor} × {Number(viewCalculo.tasaBcv || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:4})} Bs</p>
+                      <p className="text-lg font-bold text-green-700">Total Mensual: Bs. {Number(viewCalculo.totalBs || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</p>
                     </div>
                   </div>
                   
@@ -1760,8 +1760,8 @@ function ContribuyentesPageContent() {
                               <tr key={i} className="border-b border-slate-100 last:border-0">
                                 <td className="px-3 py-2 font-medium">{item.numeracion}</td>
                                 <td className="px-3 py-2">{item.leyenda}</td>
-                                <td className="px-3 py-2 text-right">{item.factor.toFixed(2)}</td>
-                                <td className="px-3 py-2 text-right font-bold text-green-700">{item.montoBs}</td>
+                                <td className="px-3 py-2 text-right">{Number(item.factor || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                                <td className="px-3 py-2 text-right font-bold text-green-700">{Number(item.montoBs || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -1840,7 +1840,7 @@ function ContribuyentesPageContent() {
                       <div>
                         <div className="p-4 bg-white border-b border-slate-100 flex justify-between items-center">
                           <span className="font-semibold text-slate-600">Monto Total Adeudado:</span>
-                          <span className="text-xl font-black text-red-600">Bs. {totalBs.toFixed(2)}</span>
+                          <span className="text-xl font-black text-red-600">Bs. {totalBs.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
                         </div>
                         <div className="bg-slate-50">
                           <table className="w-full text-sm text-left">
@@ -1857,7 +1857,7 @@ function ContribuyentesPageContent() {
                                 <tr key={idx} className="border-b border-slate-100 last:border-0 bg-white group">
                                   <td className="px-4 py-2 font-medium text-slate-700">{d.referencia}</td>
                                   <td className="px-4 py-2 text-slate-600">{d.emision || 'N/A'}</td>
-                                  <td className="px-4 py-2 text-right font-bold text-slate-800">{d.monto}</td>
+                                  <td className="px-4 py-2 text-right font-bold text-slate-800">{Number(d.monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
                                   <td className="px-4 py-2 text-center">
                                     <button 
                                       onClick={() => handleDeleteFactura(d)}
@@ -1917,7 +1917,7 @@ function ContribuyentesPageContent() {
                                   {d.estado}
                                 </span>
                               </td>
-                              <td className="px-4 py-2 font-bold text-slate-800">{d.monto}</td>
+                              <td className="px-4 py-2 font-bold text-slate-800">{Number(d.monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
                               <td className="px-4 py-2 flex justify-center gap-2">
                                 {(d.estado === 'Pagado' || d.estado === 'Por Verificar') && (
                                   <>

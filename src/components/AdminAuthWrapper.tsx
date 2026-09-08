@@ -111,9 +111,6 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
                 <button
                   type="button"
                   onClick={() => {
-                    if (username.toLowerCase().includes('omar') || password.toLowerCase().includes('omar')) {
-                      alert('¡Ya fastidioso!');
-                    }
                     setShowPassword(!showPassword);
                   }}
                   className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors"

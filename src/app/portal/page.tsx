@@ -203,9 +203,6 @@ export default function PortalLogin() {
                     <button 
                       type="button"
                       onClick={() => {
-                        if (clave.toLowerCase().includes('omar') || docNum.includes('omar')) {
-                          alert('¡Ya fastidioso!');
-                        }
                         setShowPassword(!showPassword);
                       }}
                       className="absolute right-3 top-3.5 text-slate-400 hover:text-slate-600 transition-colors"
