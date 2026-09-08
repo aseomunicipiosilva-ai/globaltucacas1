@@ -1,7 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Wrench, Search, Plus, Trash2, CheckCircle2, AlertCircle, FlaskConical, ClipboardCheck, ShieldCheck, X, RefreshCw } from 'lucide-react';
+import { Wrench, Search, Plus, Trash2, CheckCircle2, AlertCircle, FlaskConical, ClipboardCheck, ShieldCheck, X, RefreshCw, BookOpen } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
+import { ordenanzaData } from '@/data/ordenanza';
 
 type TipoServicio = 'especial' | 'extraordinario' | 'inspeccion' | 'visto_bueno';
 
@@ -34,6 +35,12 @@ export default function ServiciosEspecialesPage() {
   const [search, setSearch] = useState('');
   const [msg, setMsg] = useState<{type: 'ok'|'error', text: string}|null>(null);
 
+  // BCV rate
+  const [tcmmv, setTcmmv] = useState(0);
+  useEffect(() => {
+    fetch('/api/bcv').then(r => r.json()).then(d => { if (d?.tcmmv) setTcmmv(d.tcmmv); }).catch(() => {});
+  }, []);
+
   // Formulario
   const [form, setForm] = useState({
     tipo: 'especial' as TipoServicio,
@@ -42,7 +49,13 @@ export default function ServiciosEspecialesPage() {
     descripcion: '',
     monto: '',
     fecha: new Date().toISOString().split('T')[0],
-    notas: ''
+    notas: '',
+    camion: '',
+    distancia: '',
+    area: '',
+    tipoVistoBueno: '',
+    tipoInspeccion: '',
+    codigoServicio: ''
   });
   const [searchContrib, setSearchContrib] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,6 +73,31 @@ export default function ServiciosEspecialesPage() {
   };
 
   useEffect(() => { loadServicios(); }, []);
+
+  // Calculo tarifas desde ordenanza
+  const getTarifaSugerida = () => {
+    if (form.tipo === 'extraordinario' && form.camion && form.distancia) {
+      const t = (ordenanzaData as any).serviciosExtraordinarios?.find(
+        (s: any) => s.camion === form.camion && s.distancia === form.distancia
+      );
+      if (t) return { tcmv: t.tcmv, label: t.label };
+    }
+    if (form.tipo === 'especial' && form.codigoServicio) {
+      const t = (ordenanzaData as any).serviciosEspeciales?.find((s: any) => s.codigo === form.codigoServicio);
+      if (t && t.tcmvBase > 0) return { tcmv: t.tcmvBase, label: t.label };
+    }
+    if (form.tipo === 'inspeccion' && form.tipoInspeccion) {
+      const t = (ordenanzaData as any).inspeccionesTecnicas?.find((s: any) => s.codigo === form.tipoInspeccion);
+      if (t) return { tcmv: t.tcmv, label: t.label };
+    }
+    if (form.tipo === 'visto_bueno' && form.tipoVistoBueno && form.area) {
+      const t = (ordenanzaData as any).vistoBueno?.find((s: any) => s.codigo === form.tipoVistoBueno);
+      if (t) return { tcmv: t.tcmvPorM2 * parseFloat(form.area || '0'), label: `${t.label} — ${form.area} m²` };
+    }
+    return null;
+  };
+  const tarifaSugerida = getTarifaSugerida();
+  const montoSugeridoBs = tarifaSugerida && tcmmv > 0 ? tarifaSugerida.tcmv * tcmmv : null;
 
   const filteredContrib = contribuyentes.filter((c: any) =>
     searchContrib.length > 1 && (
@@ -100,7 +138,7 @@ export default function ServiciosEspecialesPage() {
       if (res.ok) {
         setMsg({ type: 'ok', text: 'Servicio registrado y notificado al contribuyente.' });
         setShowModal(false);
-        setForm({ tipo: 'especial', identidad: '', contribuyenteNombre: '', descripcion: '', monto: '', fecha: new Date().toISOString().split('T')[0], notas: '' });
+        setForm({ tipo: 'especial', identidad: '', contribuyenteNombre: '', descripcion: '', monto: '', fecha: new Date().toISOString().split('T')[0], notas: '', camion: '', distancia: '', area: '', tipoVistoBueno: '', tipoInspeccion: '', codigoServicio: '' });
         setSearchContrib('');
         loadServicios();
       } else {
@@ -331,6 +369,105 @@ export default function ServiciosEspecialesPage() {
                 )}
               </div>
 
+              {/* Campos específicos por tipo desde la Ordenanza */}
+              {form.tipo === 'extraordinario' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Tipo de Camión</label>
+                    <select value={form.camion} onChange={e => setForm(prev => ({ ...prev, camion: e.target.value }))}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-500 bg-white">
+                      <option value="">Seleccione...</option>
+                      <option value="350">Camión 350</option>
+                      <option value="600">Camión 600</option>
+                      <option value="750">Camión 750 / Volteo</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Distancia</label>
+                    <select value={form.distancia} onChange={e => setForm(prev => ({ ...prev, distancia: e.target.value }))}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-500 bg-white">
+                      <option value="">Seleccione...</option>
+                      <option value="menor">Menor a 20 Km</option>
+                      <option value="mayor">Mayor a 20 Km</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {form.tipo === 'especial' && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Tipo de Servicio (Ordenanza Tabla 4)</label>
+                  <select value={form.codigoServicio} onChange={e => {
+                    const t = (ordenanzaData as any).serviciosEspeciales?.find((s: any) => s.codigo === e.target.value);
+                    setForm(prev => ({ ...prev, codigoServicio: e.target.value, descripcion: t ? t.label : prev.descripcion }));
+                  }}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-500 bg-white">
+                    <option value="">Seleccione o escriba descripción libre...</option>
+                    {((ordenanzaData as any).serviciosEspeciales || []).map((s: any) => (
+                      <option key={s.codigo} value={s.codigo}>{s.codigo} — {s.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {form.tipo === 'inspeccion' && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Tipo de Inspección (Ordenanza Tabla 5)</label>
+                  <select value={form.tipoInspeccion} onChange={e => {
+                    const t = (ordenanzaData as any).inspeccionesTecnicas?.find((s: any) => s.codigo === e.target.value);
+                    setForm(prev => ({ ...prev, tipoInspeccion: e.target.value, descripcion: t ? t.label : prev.descripcion }));
+                  }}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-500 bg-white">
+                    <option value="">Seleccione tipo de inspección...</option>
+                    {((ordenanzaData as any).inspeccionesTecnicas || []).map((s: any) => (
+                      <option key={s.codigo} value={s.codigo}>{s.codigo} — {s.label} ({s.tcmv} TCMV)</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {form.tipo === 'visto_bueno' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Tipo Visto Bueno (Tabla 6)</label>
+                    <select value={form.tipoVistoBueno} onChange={e => {
+                      const t = (ordenanzaData as any).vistoBueno?.find((s: any) => s.codigo === e.target.value);
+                      setForm(prev => ({ ...prev, tipoVistoBueno: e.target.value, descripcion: t ? t.label : prev.descripcion }));
+                    }}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-500 bg-white">
+                      <option value="">Seleccione tipo...</option>
+                      {((ordenanzaData as any).vistoBueno || []).map((s: any) => (
+                        <option key={s.codigo} value={s.codigo}>{s.codigo} — {s.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Área (m²)</label>
+                    <input type="number" min="0" placeholder="Metros cuadrados" value={form.area}
+                      onChange={e => setForm(prev => ({ ...prev, area: e.target.value }))}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-500" />
+                  </div>
+                </div>
+              )}
+
+              {/* Tarifa sugerida desde Ordenanza */}
+              {tarifaSugerida && tcmmv > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-amber-800 uppercase flex items-center gap-1">
+                      <BookOpen className="w-3.5 h-3.5" /> Tarifa según Ordenanza
+                    </p>
+                    <p className="text-xs text-amber-700 mt-0.5">{tarifaSugerida.label} — {tarifaSugerida.tcmv} TCMV</p>
+                    <p className="text-sm font-black text-amber-900">Bs. {(montoSugeridoBs || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</p>
+                  </div>
+                  <button type="button"
+                    onClick={() => setForm(prev => ({ ...prev, monto: (montoSugeridoBs || 0).toFixed(2) }))}
+                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg transition-colors">
+                    Aplicar
+                  </button>
+                </div>
+              )}
+
               {/* Descripción */}
               <div>
                 <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Descripción del Servicio *</label>
@@ -361,7 +498,7 @@ export default function ServiciosEspecialesPage() {
                       required
                     />
                   </div>
-                  <span className="text-[10px] text-slate-400 mt-1 block">Ingrese el monto manualmente.</span>
+                  <span className="text-[10px] text-slate-400 mt-1 block">Puede ajustar el monto manualmente.</span>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Fecha del Servicio</label>
