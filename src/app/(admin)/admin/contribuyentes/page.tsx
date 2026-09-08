@@ -1484,6 +1484,23 @@ function ContribuyentesPageContent() {
     { key: 'Identidad', header: 'R.I.F. / Cédula' },
     { key: 'Contribuyente', header: 'Nombre / Razón Social' },
     {
+      key: 'FechaRegistro',
+      header: 'Registro',
+      render: (row: any) => {
+        const fecha = row.FechaRegistro || row.created_at;
+        if (!fecha) return <span className="text-[10px] text-slate-400">N/D</span>;
+        const d = new Date(fecha);
+        const now = new Date();
+        const isNew = (now.getTime() - d.getTime()) < 30 * 24 * 60 * 60 * 1000;
+        return (
+          <div className="flex flex-col">
+            <span className="text-[10px] text-slate-600">{d.toLocaleDateString('es-VE')}</span>
+            {isNew && <span className="text-[9px] bg-emerald-100 text-emerald-700 font-bold px-1 rounded mt-0.5">NUEVO</span>}
+          </div>
+        );
+      }
+    },
+    {
       key: 'Clasificacion',
       header: 'Clasificación',
       render: (row: any) => {
@@ -1645,6 +1662,21 @@ function ContribuyentesPageContent() {
           <h1 className="text-lg font-semibold text-slate-800 uppercase tracking-wide">
             Listado de Contribuyentes
           </h1>
+          {(() => {
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const newThisMonth = contribuyentes.filter((c: any) => {
+              const fecha = c.FechaRegistro || c.created_at;
+              if (!fecha) return false;
+              return new Date(fecha) >= startOfMonth;
+            }).length;
+            if (newThisMonth > 0) return (
+              <span className="bg-emerald-100 text-emerald-700 border border-emerald-300 text-xs font-bold px-2 py-0.5 rounded-full">
+                +{newThisMonth} este mes
+              </span>
+            );
+            return null;
+          })()}
         </div>
         <div className="flex items-center gap-3">
           <button onClick={exportarExcelContribuyentes} className="bg-emerald-600 text-white hover:bg-emerald-700 px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 shadow-sm">

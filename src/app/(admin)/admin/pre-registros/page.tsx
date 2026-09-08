@@ -24,6 +24,7 @@ export default function PreRegistrosPage() {
   const [calculatedFactor, setCalculatedFactor] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [searchWeb, setSearchWeb] = useState('');
 
   const handleExportCensos = async () => {
     setIsExporting(true);
@@ -118,6 +119,24 @@ export default function PreRegistrosPage() {
     }
   };
 
+  const handleExportWeb = () => {
+    const webRegs = preRegistros.filter((r: any) => !r.origen?.startsWith('Censo'));
+    const dataToExport = webRegs.map((item: any) => ({
+      'Fecha Registro': new Date(item.created_at).toLocaleString('es-VE'),
+      'Identidad': item.identidad,
+      'Nombre / Razón Social': item.contribuyente,
+      'Clasificación': item.tipo,
+      'Actividad': item.actividad,
+      'Metraje / Código': item.codigo || 'N/A',
+      'Teléfono': item.registro || 'N/A',
+      'Domicilio Fiscal': item.domicilio_fiscal || '',
+      'Dirección Exacta': item.direccion_exacta || '',
+      'Notas': item.nota || ''
+    }));
+    if (dataToExport.length === 0) return alert('No hay pre-registros web para exportar.');
+    exportToExcelWithLogos(dataToExport, `PreRegistros_Web_${new Date().toISOString().split('T')[0]}.xlsx`, 'Pre-Registros Web');
+  };
+ 
   const calculateFactor = (row: any) => {
     let factor = 0;
     if (row.tipo === 'Residencial') {
@@ -331,20 +350,50 @@ export default function PreRegistrosPage() {
           </button>
         </div>
 
-        {activeTab === 'Censo' && (
-          <button 
-            onClick={handleExportCensos}
-            disabled={isExporting}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded flex items-center gap-2 shadow transition-colors disabled:opacity-50 text-sm"
-          >
-            {isExporting ? <Clock className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
-            <span>Exportar Censos</span>
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          <input
+            type="text"
+            placeholder="Buscar por nombre, identidad..."
+            value={searchWeb}
+            onChange={e => setSearchWeb(e.target.value)}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none w-64"
+          />
+          {activeTab === 'Web' && (
+            <button
+              onClick={handleExportWeb}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded flex items-center gap-2 shadow transition-colors text-sm"
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              Exportar Web
+            </button>
+          )}
+          {activeTab === 'Censo' && (
+            <button 
+              onClick={handleExportCensos}
+              disabled={isExporting}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded flex items-center gap-2 shadow transition-colors disabled:opacity-50 text-sm"
+            >
+              {isExporting ? <Clock className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
+              <span>Exportar Censos</span>
+            </button>
+          )}
+        </div>
       </div>
 
       <DataTable 
-        data={preRegistros.filter((r: any) => activeTab === 'Censo' ? (r.origen && r.origen.startsWith('Censo')) : (!r.origen || !r.origen.startsWith('Censo')))} 
+        data={preRegistros
+          .filter((r: any) => activeTab === 'Censo' ? (r.origen && r.origen.startsWith('Censo')) : (!r.origen || !r.origen.startsWith('Censo')))
+          .filter((r: any) => {
+            if (!searchWeb.trim()) return true;
+            const q = searchWeb.toLowerCase();
+            return (
+              (r.identidad || '').toLowerCase().includes(q) ||
+              (r.contribuyente || '').toLowerCase().includes(q) ||
+              (r.actividad || '').toLowerCase().includes(q) ||
+              (r.tipo || '').toLowerCase().includes(q)
+            );
+          })
+        } 
         columns={columns} 
         itemsPerPage={10} 
       />

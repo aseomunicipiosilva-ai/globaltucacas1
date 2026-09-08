@@ -14,6 +14,86 @@ export default function ReportesPage() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isGeneratingExcel, setIsGeneratingExcel] = useState(false);
 
+  // ── FILTRO DE RECAUDACIÓN POR PERÍODO ──────────────────────────────────────
+  const [periodoFilter, setPeriodoFilter] = useState<'esta_semana' | 'semana_pasada' | 'este_mes' | 'mes_pasado' | 'personalizado'>('este_mes');
+  const [fechaDesde, setFechaDesde] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
+  const [fechaHasta, setFechaHasta] = useState(new Date().toISOString().split('T')[0]);
+  const [recaudacionData, setRecaudacionData] = useState<any[]>([]);
+  const [isLoadingRecaud, setIsLoadingRecaud] = useState(false);
+  const [recaudTotal, setRecaudTotal] = useState(0);
+
+  const getPeriodDates = (period: string) => {
+    const now = new Date();
+    let desde = new Date();
+    let hasta = new Date();
+    switch (period) {
+      case 'esta_semana':
+        desde = new Date(now); desde.setDate(now.getDate() - now.getDay());
+        hasta = new Date();
+        break;
+      case 'semana_pasada':
+        desde = new Date(now); desde.setDate(now.getDate() - now.getDay() - 7);
+        hasta = new Date(now); hasta.setDate(now.getDate() - now.getDay() - 1);
+        break;
+      case 'este_mes':
+        desde = new Date(now.getFullYear(), now.getMonth(), 1);
+        hasta = new Date();
+        break;
+      case 'mes_pasado':
+        desde = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        hasta = new Date(now.getFullYear(), now.getMonth(), 0);
+        break;
+      default: return null;
+    }
+    return { desde: desde.toISOString().split('T')[0], hasta: hasta.toISOString().split('T')[0] };
+  };
+
+  const cargarRecaudacion = async () => {
+    setIsLoadingRecaud(true);
+    try {
+      let desde = fechaDesde;
+      let hasta = fechaHasta;
+      if (periodoFilter !== 'personalizado') {
+        const dates = getPeriodDates(periodoFilter);
+        if (dates) { desde = dates.desde; hasta = dates.hasta; }
+      }
+      const { data, error } = await supabase
+        .from('pagos_reportados')
+        .select('*')
+        .eq('estado', 'Aprobado')
+        .gte('created_at', `${desde}T00:00:00.000Z`)
+        .lte('created_at', `${hasta}T23:59:59.999Z`)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setRecaudacionData(data || []);
+      setRecaudTotal((data || []).reduce((acc: number, p: any) => acc + (parseFloat(p.monto) || 0), 0));
+    } catch (e: any) {
+      alert('Error cargando recaudación: ' + e.message);
+    }
+    setIsLoadingRecaud(false);
+  };
+
+  const exportarRecaudacion = () => {
+    if (recaudacionData.length === 0) return alert('No hay datos para exportar. Aplica un filtro primero.');
+    const excelData = recaudacionData.map((p: any) => {
+      let detalles: any = {};
+      try { detalles = JSON.parse(p.detalles); } catch(e){}
+      return {
+        'Fecha': new Date(p.created_at).toLocaleString('es-VE'),
+        'Identidad': p.identidad,
+        'Contribuyente': p.contribuyente || '---',
+        'Método de Pago': p.tipo,
+        'Banco': p.banco || '---',
+        'Referencia': p.referencia || '---',
+        'Monto (Bs)': parseFloat(p.monto) || 0,
+        'Cajero': detalles.cajero || 'Sistema',
+        'Estado': p.estado
+      };
+    });
+    exportToExcelWithLogos(excelData, `Recaudacion_${periodoFilter}_${new Date().toISOString().split('T')[0]}.xlsx`, 'Recaudación');
+  };
+  // ────────────────────────────────────────────────────────────────────────────
+
   // Helper to load image as base64
   const loadImage = async (src: string): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -152,6 +232,100 @@ export default function ReportesPage() {
           </h1>
         </div>
       </div>
+
+      {/* ── DASHBOARD RECAUDACIÓN POR PERÍODO ── */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
+          Recaudación por Período
+        </h2>
+        <div className="flex flex-wrap gap-3 items-end mb-4">
+          {(['esta_semana','semana_pasada','este_mes','mes_pasado','personalizado'] as const).map(p => (
+            <button
+              key={p}
+              onClick={() => setPeriodoFilter(p)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                periodoFilter === p
+                  ? 'bg-emerald-600 text-white border-emerald-600'
+                  : 'bg-white text-slate-600 border-slate-300 hover:bg-emerald-50'
+              }`}
+            >
+              {p === 'esta_semana' ? 'Esta Semana' : p === 'semana_pasada' ? 'Semana Pasada' : p === 'este_mes' ? 'Este Mes' : p === 'mes_pasado' ? 'Mes Pasado' : 'Personalizado'}
+            </button>
+          ))}
+          {periodoFilter === 'personalizado' && (
+            <>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-slate-500 font-semibold">Desde:</label>
+                <input type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)}
+                  className="border border-slate-300 rounded px-2 py-1 text-xs"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-slate-500 font-semibold">Hasta:</label>
+                <input type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)}
+                  className="border border-slate-300 rounded px-2 py-1 text-xs"
+                />
+              </div>
+            </>
+          )}
+          <button
+            onClick={cargarRecaudacion}
+            disabled={isLoadingRecaud}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 px-4 rounded-lg text-xs flex items-center gap-2 transition-colors disabled:opacity-50"
+          >
+            {isLoadingRecaud ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+            Consultar
+          </button>
+          {recaudacionData.length > 0 && (
+            <button
+              onClick={exportarRecaudacion}
+              className="bg-slate-700 hover:bg-slate-800 text-white font-bold py-1.5 px-4 rounded-lg text-xs flex items-center gap-2 transition-colors"
+            >
+              <FileSpreadsheet className="w-3 h-3" />
+              Exportar Excel ({recaudacionData.length})
+            </button>
+          )}
+        </div>
+
+        {recaudacionData.length > 0 ? (
+          <>
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 flex items-center justify-between mb-4">
+              <span className="text-sm font-semibold text-emerald-800">Total Recaudado en el Período:</span>
+              <span className="text-2xl font-black text-emerald-700">Bs. {recaudTotal.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-100">
+                  <tr>
+                    <th className="px-3 py-2 font-bold">Fecha</th>
+                    <th className="px-3 py-2 font-bold">Identidad</th>
+                    <th className="px-3 py-2 font-bold">Contribuyente</th>
+                    <th className="px-3 py-2 font-bold">Método</th>
+                    <th className="px-3 py-2 font-bold">Referencia</th>
+                    <th className="px-3 py-2 font-bold text-right">Monto (Bs)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {recaudacionData.map((p: any) => (
+                    <tr key={p.id} className="hover:bg-slate-50">
+                      <td className="px-3 py-2">{new Date(p.created_at).toLocaleDateString('es-VE')}</td>
+                      <td className="px-3 py-2 font-semibold">{p.identidad}</td>
+                      <td className="px-3 py-2">{p.contribuyente || '---'}</td>
+                      <td className="px-3 py-2"><span className={`px-2 py-0.5 rounded text-[10px] font-bold ${p.tipo === 'Debito' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>{p.tipo}</span></td>
+                      <td className="px-3 py-2">{p.referencia || '---'}</td>
+                      <td className="px-3 py-2 text-right font-bold text-emerald-700">Bs. {parseFloat(p.monto).toLocaleString('es-VE', { minimumFractionDigits: 2 })}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-slate-400 text-center py-6">Selecciona un período y haz clic en &quot;Consultar&quot; para ver la recaudación.</p>
+        )}
+      </div>
+
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
