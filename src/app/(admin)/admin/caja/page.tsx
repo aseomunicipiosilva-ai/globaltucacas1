@@ -57,6 +57,26 @@ export default function CajaPage() {
   
   const currentBcvRate = customBcvRate && !isNaN(parseFloat(customBcvRate)) ? parseFloat(customBcvRate) : tcmmv;
 
+  const getReciboMonto = (r: any) => {
+    if (customBcvRate && !isNaN(parseFloat(customBcvRate)) && foundUser) {
+      const userInms = inmuebles.filter((i: any) => i.identidad === foundUser.Identidad);
+      // Calculate monthly MMV based on cant_inmuebles * mmv_mes
+      let monthlyMMV = 0;
+      userInms.forEach((inm: any) => {
+        const cant = parseFloat(inm.cant_inmuebles || 1);
+        const mmv = parseFloat(inm.mmv_mes || 0);
+        if (mmv > 0) monthlyMMV += (cant * mmv);
+      });
+      
+      // If we found a valid monthly MMV and the receipt seems to be a monthly bill
+      if (monthlyMMV > 0 && (r.referencia.startsWith('CM-') || r.referencia.startsWith('FACT-'))) {
+        return (monthlyMMV * parseFloat(customBcvRate)).toFixed(2);
+      }
+    }
+    return r.monto;
+  };
+
+
   const bancosVenezuela = [
     '100% Banco', 'Bancamiga', 'Bancaribe', 'Banco Activo', 'Banco Agrícola de Venezuela',
     'Banco Bicentenario', 'Banco Caroní', 'Banco de Venezuela', 'Banco del Tesoro', 
@@ -164,7 +184,7 @@ export default function CajaPage() {
     
     selectedRecibos.forEach(ref => {
       const f = recibos.find(r => r.referencia === ref);
-      if (f) total += parseFloat(f.monto || '0');
+      if (f) total += parseFloat(getReciboMonto(f) || '0');
     });
     
     selectedCuotas.forEach(sc => {
@@ -651,12 +671,12 @@ export default function CajaPage() {
                 <span className="font-bold">Fórmula Aplicada:</span>{' '}
                 {(() => {
                   const userInms = inmuebles.filter((i: any) => i.identidad === foundUser.Identidad);
-                  const totalMMV = userInms.reduce((acc: number, inm: any) => acc + (parseFloat(inm.deuda_mmv) || parseFloat(inm.DeudaMMV) || 0), 0);
+                  const totalMMV = userInms.reduce((acc: number, inm: any) => acc + (parseFloat(inm.cant_inmuebles || 1) * parseFloat(inm.mmv_mes || 0)), 0);
                   if (totalMMV > 0) {
                     return (
                       <>
                         {totalMMV.toFixed(2)} MMV (Tarifa) × {currentBcvRate.toFixed(2)} Bs/MMV (Tasa BCV) = {(totalMMV * currentBcvRate).toFixed(2)} Bs Mensuales.
-                        <span className="block text-[9px] text-slate-400 mt-0.5">* Las facturas previas mantienen la tasa del día de su emisión.</span>
+                        <span className="block text-[9px] text-slate-400 mt-0.5">* Las facturas previas se están recalculando con la tasa manual asignada.</span>
                       </>
                     );
                   }
@@ -704,7 +724,7 @@ export default function CajaPage() {
                             <p className="text-xs text-slate-500">Emisión: {r.emision}</p>
                           </div>
                         </div>
-                        <span className="font-bold text-emerald-700">{r.monto}</span>
+                        <span className="font-bold text-emerald-700">{getReciboMonto(r)}</span>
                       </label>
                     ))}
                   </div>
