@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Building2, UserPlus, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Building2, UserPlus, CheckCircle, ArrowLeft, Upload, FileText, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useAppContext } from '@/store/AppContext';
 import { createClient } from '@supabase/supabase-js';
@@ -16,6 +16,21 @@ export default function RegistroPublico() {
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+
+  // File uploads
+  const [archivos, setArchivos] = useState<{
+    rif: File | null;
+    cedula: File | null;
+    patente: File | null;
+  }>({ rif: null, cedula: null, patente: null });
+
+  const toBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
 
   const todasLasActividades = [...ordenanzaData.actividadesComerciales, ...ordenanzaData.actividadesIndustriales];
 
@@ -51,15 +66,20 @@ export default function RegistroPublico() {
       const finalDireccion = formData.DireccionExacta ? `${formData.Direccion} | Exacta: ${formData.DireccionExacta}` : formData.Direccion;
       const finalActividad = formData.Clasificacion === 'Residencial' ? formData.TipoResidencia : formData.ActividadComercial;
 
-      const dataToSave = {
+      const dataToSave: any = {
         identidad: finalIdentidad,
         contribuyente: formData.Contribuyente,
-        registro: finalTelefono, // Map telefono to registro
-        tipo: formData.Clasificacion, // Map clasificacion to tipo
+        registro: finalTelefono,
+        tipo: formData.Clasificacion,
         actividad: finalActividad,
-        codigo: formData.NivelMetraje, // Map nivel to codigo
+        codigo: formData.NivelMetraje,
         registrado: new Date().toISOString()
       };
+
+      // Attach documents as base64 if uploaded
+      if (archivos.rif) dataToSave.rif_doc = await toBase64(archivos.rif);
+      if (archivos.cedula) dataToSave.cedula_doc = await toBase64(archivos.cedula);
+      if (archivos.patente) dataToSave.patente_doc = await toBase64(archivos.patente);
 
       const { error: dbError } = await supabase.from('pre_registros').insert([dataToSave]);
       if (dbError) throw dbError;
@@ -235,6 +255,66 @@ export default function RegistroPublico() {
                   </>
                 )}
               </div>
+            </div>
+
+            {/* Documentos */}
+            <div className="pt-4 border-t border-slate-100">
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-3">Documentos (Opcional pero Recomendado)</label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {([
+                  { key: 'rif', label: 'RIF (J-/V-)', accept: '.pdf,.jpg,.png,.jpeg' },
+                  { key: 'cedula', label: 'Cédula de Identidad', accept: '.pdf,.jpg,.png,.jpeg' },
+                  { key: 'patente', label: 'Patente Comercial', accept: '.pdf,.jpg,.png,.jpeg' },
+                ] as const).map(doc => (
+                  <div key={doc.key}>
+                    <label
+                      htmlFor={`file-${doc.key}`}
+                      className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-4 cursor-pointer transition-colors ${
+                        archivos[doc.key] ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 hover:border-emerald-400 hover:bg-emerald-50'
+                      }`}
+                    >
+                      {archivos[doc.key] ? (
+                        <>
+                          <FileText className="w-6 h-6 text-emerald-600" />
+                          <span className="text-xs font-semibold text-emerald-700 text-center truncate w-full text-center">{archivos[doc.key]!.name}</span>
+                          <span className="text-[10px] text-emerald-500">{(archivos[doc.key]!.size / 1024).toFixed(0)} KB</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-6 h-6 text-slate-400" />
+                          <span className="text-xs font-semibold text-slate-600 text-center">{doc.label}</span>
+                          <span className="text-[10px] text-slate-400">PDF, JPG o PNG</span>
+                        </>
+                      )}
+                    </label>
+                    <input
+                      id={`file-${doc.key}`}
+                      type="file"
+                      accept={doc.accept}
+                      className="hidden"
+                      onChange={e => {
+                        const file = e.target.files?.[0] || null;
+                        if (file && file.size > 5 * 1024 * 1024) {
+                          alert('El archivo no puede superar 5 MB');
+                          return;
+                        }
+                        setArchivos(prev => ({ ...prev, [doc.key]: file }));
+                      }}
+                    />
+                    {archivos[doc.key] && (
+                      <button
+                        type="button"
+                        onClick={() => setArchivos(prev => ({ ...prev, [doc.key]: null }))}
+                        className="mt-1 text-[10px] text-red-400 hover:text-red-600 w-full text-center"
+                      >Quitar archivo</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-slate-400 mt-2 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                Los documentos son opcionales. Tamaño máximo: 5 MB por archivo.
+              </p>
             </div>
 
             <div className="pt-6">

@@ -284,6 +284,29 @@ export default function PreRegistrosPage() {
     { key: 'tipo', header: 'Clasificación' },
     { key: 'actividad', header: 'Actividad P.' },
     { key: 'codigo', header: 'Metraje' },
+    ...(activeTab === 'Web' ? [{
+      key: 'documentos',
+      header: 'Docs',
+      render: (row: any) => {
+        const docs = [
+          { key: 'rif_doc', label: 'RIF' },
+          { key: 'cedula_doc', label: 'CI' },
+          { key: 'patente_doc', label: 'Pat.' }
+        ].filter(d => row[d.key]);
+        return docs.length > 0 ? (
+          <div className="flex gap-1 flex-wrap">
+            {docs.map(d => (
+              <a key={d.key} href={row[d.key]} target="_blank" rel="noopener noreferrer"
+                className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold rounded border border-blue-200 hover:bg-blue-200 transition-colors"
+                title={`Ver ${d.label}`}
+              >
+                {d.label}
+              </a>
+            ))}
+          </div>
+        ) : <span className="text-[10px] text-slate-400">Sin docs</span>;
+      }
+    }] : []),
     ...(activeTab === 'Censo' ? [
       { key: 'fecha_inicio', header: 'Fecha Inicio Actividad' },
       { key: 'operador', header: 'Operador', render: (row: any) => {
