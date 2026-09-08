@@ -8,7 +8,7 @@ export default function SolvenciaPage() {
     fecha: '06/07/2026',
     razonSocial: 'Ricardo Jose Nolasco Castillo',
     rif: 'V27140507',
-    telefono: '04126475475',
+    telefono: '+58 412-9030238',
     codigo: 'C-000254',
     inmueble: 'I-000252',
     patente: 'S/N',

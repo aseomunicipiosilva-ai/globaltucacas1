@@ -110,7 +110,7 @@ export default async function AdminHome() {
                 <Phone className="w-5 h-5 text-slate-400 mt-0.5" />
                 <div>
                   <div className="font-semibold text-sm text-slate-700 mb-1">Teléfonos:</div>
-                  <div className="text-sm text-slate-600">0424-9258559 / 0412-8495941</div>
+                  <div className="text-sm text-slate-600">+58 412-9030238</div>
                 </div>
               </div>
               <div className="flex items-start gap-3">
