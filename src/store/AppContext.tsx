@@ -130,15 +130,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const map = new Map();
         dbInmuebles.forEach((row: any) => {
           if (row.identidad && !map.has(row.identidad)) {
-            let clase = 'Residencial';
+            let clase = row.clasificacion;
             const act = row.actividad_principal || '';
-            if (ordenanzaData.actividadesIndustriales.some(a => a.label === act)) {
-              clase = 'Industrial';
-            } else if (ordenanzaData.actividadesComerciales.some(a => a.label === act)) {
-              clase = 'Comercial';
-            } else if (act && act !== 'No aplica') {
-              if (!act.toLowerCase().includes('condominio') && !act.toLowerCase().includes('residencial')) {
-                 clase = 'Comercial';
+            
+            if (!clase) {
+              clase = 'Residencial';
+              if (ordenanzaData.actividadesIndustriales.some(a => a.label === act)) {
+                clase = 'Industrial';
+              } else if (ordenanzaData.actividadesComerciales.some(a => a.label === act)) {
+                clase = 'Comercial';
+              } else if (act && act !== 'No aplica') {
+                if (!act.toLowerCase().includes('condominio') && !act.toLowerCase().includes('residencial')) {
+                   clase = 'Comercial';
+                }
               }
             }
 

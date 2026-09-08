@@ -22,12 +22,14 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
   const [nuevoTelefono, setNuevoTelefono] = useState('');
   const [nuevoCorreo, setNuevoCorreo] = useState('');
   const [nuevaFicha, setNuevaFicha] = useState('');
+  const [nuevaCedula, setNuevaCedula] = useState('');
   
   // Edit State
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState({
     numero_unidad: '',
     propietario: '',
+    cedula_rif: '',
     telefono: '',
     correo: '',
     ficha_catastral: '',
@@ -63,6 +65,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
         condominio_id: condominioId,
         numero_unidad: nuevaUnidad,
         propietario: nuevoPropietario || 'No asignado',
+        cedula_rif: nuevaCedula || '',
         telefono: nuevoTelefono || '',
         correo: nuevoCorreo || '',
         ficha_catastral: nuevaFicha || '',
@@ -75,6 +78,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
       setUnidades([...unidades, data[0]]);
       setNuevaUnidad('');
       setNuevoPropietario('');
+      setNuevaCedula('');
       setNuevoTelefono('');
       setNuevoCorreo('');
       setNuevaFicha('');
@@ -93,6 +97,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
     setEditForm({
       numero_unidad: u.numero_unidad || '',
       propietario: u.propietario || '',
+      cedula_rif: u.cedula_rif || '',
       telefono: u.telefono || '',
       correo: u.correo || '',
       ficha_catastral: u.ficha_catastral || '',
@@ -107,6 +112,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
       .update({
         numero_unidad: editForm.numero_unidad,
         propietario: editForm.propietario,
+        cedula_rif: editForm.cedula_rif,
         telefono: editForm.telefono,
         correo: editForm.correo,
         ficha_catastral: editForm.ficha_catastral,
@@ -339,6 +345,16 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-slate-500 mb-1">Cédula / RIF (Opcional)</label>
+                <input 
+                  type="text" 
+                  value={nuevaCedula}
+                  onChange={(e) => setNuevaCedula(e.target.value)}
+                  placeholder="Ej. V-12345678" 
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
             </div>
             
             <div className="flex gap-4">
@@ -421,8 +437,16 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                             <td className="px-4 py-2">
                               <input 
                                 type="text" 
+                                placeholder="Nombre"
                                 value={editForm.propietario} 
                                 onChange={(e) => setEditForm({...editForm, propietario: e.target.value})}
+                                className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500 mb-1 min-w-[100px]"
+                              />
+                              <input 
+                                type="text" 
+                                placeholder="Cédula/RIF"
+                                value={editForm.cedula_rif} 
+                                onChange={(e) => setEditForm({...editForm, cedula_rif: e.target.value})}
                                 className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:border-blue-500 min-w-[100px]"
                               />
                             </td>
@@ -485,7 +509,10 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                         ) : (
                           <>
                             <td className="px-4 py-3 font-medium text-slate-800">{u.numero_unidad}</td>
-                            <td className="px-4 py-3 text-slate-600">{u.propietario}</td>
+                            <td className="px-4 py-3">
+                              <div className="font-medium text-slate-700">{u.propietario}</div>
+                              {u.cedula_rif && <div className="text-[10px] text-slate-500">C.I/RIF: {u.cedula_rif}</div>}
+                            </td>
                             <td className="px-4 py-3 text-slate-500 text-xs">
                               <div>{u.telefono || 'Sin Telf.'}</div>
                               <div>{u.correo || 'Sin Correo'}</div>
