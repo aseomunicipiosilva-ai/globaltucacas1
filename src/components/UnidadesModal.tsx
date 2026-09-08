@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Edit2, Save, XCircle, FileText } from 'lucide-react';
+import { X, Plus, Trash2, Edit2, Save, XCircle, FileText, Power } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
@@ -34,7 +34,8 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
     correo: '',
     ficha_catastral: '',
     estado: 'Solvente',
-    ocupacion: 'Ocupada'
+    ocupacion: 'Ocupada',
+    activo: true
   });
 
   useEffect(() => {
@@ -92,6 +93,17 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
     }
   };
 
+  const toggleActivoUnidad = async (u: any) => {
+    const nuevoActivo = u.activo === false ? true : false; // toggle
+    const { error } = await supabase
+      .from('unidades_condominio')
+      .update({ activo: nuevoActivo })
+      .eq('id', u.id);
+    if (!error) {
+      setUnidades(unidades.map(x => x.id === u.id ? { ...x, activo: nuevoActivo } : x));
+    }
+  };
+
   const iniciarEdicion = (u: any) => {
     setEditingId(u.id);
     setEditForm({
@@ -102,7 +114,8 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
       correo: u.correo || '',
       ficha_catastral: u.ficha_catastral || '',
       estado: u.estado || 'Solvente',
-      ocupacion: u.ocupacion || 'Ocupada'
+      ocupacion: u.ocupacion || 'Ocupada',
+      activo: u.activo !== false
     });
   };
 
@@ -520,9 +533,9 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                             <td className="px-4 py-3 text-slate-500 text-xs">{u.ficha_catastral || 'N/A'}</td>
                             <td className="px-4 py-3 text-slate-600">
                               <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                                u.ocupacion === 'Ocupada' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
+                                u.activo === false ? 'bg-slate-200 text-slate-500' : u.ocupacion === 'Ocupada' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
                               }`}>
-                                {u.ocupacion || 'Ocupada'}
+                                {u.activo === false ? 'Inactivo' : (u.ocupacion || 'Ocupada')}
                               </span>
                             </td>
                             <td className="px-4 py-3">
@@ -542,6 +555,13 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                               </button>
                               <button onClick={() => iniciarEdicion(u)} className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors mr-1">
                                 <Edit2 size={16} />
+                              </button>
+                              <button
+                                onClick={() => toggleActivoUnidad(u)}
+                                className={`p-1.5 rounded-lg transition-colors mr-1 ${u.activo === false ? 'text-emerald-600 hover:bg-emerald-50' : 'text-amber-500 hover:bg-amber-50'}`}
+                                title={u.activo === false ? 'Reactivar Local' : 'Desactivar Local'}
+                              >
+                                <Power size={16} />
                               </button>
                               <button onClick={() => eliminarUnidad(u.id)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                                 <Trash2 size={16} />

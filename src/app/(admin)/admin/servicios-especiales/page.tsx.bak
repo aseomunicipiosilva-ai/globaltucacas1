@@ -1,7 +1,6 @@
-﻿'use client';
+'use client';
 import { useState, useEffect } from 'react';
-import { Wrench, Search, Plus, Trash2, CheckCircle2, AlertCircle, FlaskConical, ClipboardCheck, ShieldCheck, X, RefreshCw, BookOpen, FileSpreadsheet } from 'lucide-react';
-import { exportToExcelWithLogos } from '@/lib/excelExport';
+import { Wrench, Search, Plus, Trash2, CheckCircle2, AlertCircle, FlaskConical, ClipboardCheck, ShieldCheck, X, RefreshCw, BookOpen } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { ordenanzaData } from '@/data/ordenanza';
 
@@ -169,21 +168,6 @@ export default function ServiciosEspecialesPage() {
   );
 
   const iconMap: Record<TipoServicio, any> = { especial: Wrench, extraordinario: FlaskConical, inspeccion: ClipboardCheck, visto_bueno: ShieldCheck };
-
-  const exportarServicios = () => {
-    if (serviciosFiltrados.length === 0) return alert('No hay registros para exportar.');
-    const data = serviciosFiltrados.map(s => ({
-      'Referencia': s.referencia || '---',
-      'Tipo': TIPO_INFO[s.tipo].label,
-      'Contribuyente': s.contribuyente,
-      'Identidad': s.identidad,
-      'Descripcion': s.descripcion,
-      'Fecha': s.fecha,
-      'Monto (Bs)': Number(s.monto || 0).toFixed(2),
-      'Estado': s.estado,
-    }));
-    exportToExcelWithLogos(data, `Servicios_${tab}_${new Date().toISOString().split('T')[0]}.xlsx`, TIPO_INFO[tab].label);
-  };
 
   return (
     <div className="space-y-6">

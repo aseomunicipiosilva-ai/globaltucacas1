@@ -43,9 +43,30 @@ export default function CajaPage() {
   const [customBcvRate, setCustomBcvRate] = useState<string>('');
   const [justificacionBcv, setJustificacionBcv] = useState<string>('');
   const [selectedUcdDate, setSelectedUcdDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [useSaldoFavor, setUseSaldoFavor] = useState<boolean>(true); // Por defecto usar el saldo
+  const [useSaldoFavor, setUseSaldoFavor] = useState<boolean>(true);
   
   const [isNotaModalOpen, setIsNotaModalOpen] = useState(false);
+
+  // Notas de Crédito — carga directa desde Supabase
+  const [notasCredito, setNotasCredito] = useState<any[]>([]);
+  const [isLoadingNotas, setIsLoadingNotas] = useState(false);
+
+  const fetchNotasCredito = async () => {
+    setIsLoadingNotas(true);
+    try {
+      const { data, error } = await supabase
+        .from('documentos')
+        .select('*')
+        .eq('tipo', 'Nota de Credito')
+        .order('created_at', { ascending: false });
+      if (!error && data) setNotasCredito(data);
+    } catch(e) { console.error(e); }
+    setIsLoadingNotas(false);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'NotasCredito') fetchNotasCredito();
+  }, [activeTab]);
 
   // BCV Rate Override States
   const [showRateModal, setShowRateModal] = useState(false);
@@ -612,7 +633,11 @@ export default function CajaPage() {
                 </tr>
               </thead>
               <tbody>
-                {(documentos || []).filter(d => d.tipo === 'Nota de Credito').map(n => {
+                {isLoadingNotas ? (
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500"><div className="flex items-center justify-center gap-2"><div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>Cargando notas de crédito...</div></td></tr>
+                ) : notasCredito.length === 0 ? (
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">No hay notas de crédito registradas en el sistema.</td></tr>
+                ) : notasCredito.map(n => {
                   let details: any = {};
                   try { details = JSON.parse(n.detalles); } catch(e){}
                   return (
@@ -628,13 +653,6 @@ export default function CajaPage() {
                     </tr>
                   );
                 })}
-                {(documentos || []).filter(d => d.tipo === 'Nota de Credito').length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
-                      No hay notas de crédito registradas en el sistema.
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>
@@ -726,9 +744,45 @@ export default function CajaPage() {
             <div className="lg:col-span-2 space-y-6">
             
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-              <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-slate-600" />
-                <h3 className="font-bold text-slate-800">Recibos de Aseo Mensual</h3>
+              <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-slate-600" />
+                  <h3 className="font-bold text-slate-800">Recibos de Aseo Mensual</h3>
+                  <span className="text-xs text-slate-500 font-medium">({recibos.length} pendiente{recibos.length !== 1 ? 's' : ''})</span>
+                </div>
+                {recibos.length > 1 && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => setSelectedRecibos(recibos.map((r: any) => r.referencia))}
+                      className="text-[10px] font-bold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-2 py-1 rounded border border-emerald-200 transition-colors"
+                    >
+                      Seleccionar todos
+                    </button>
+                    <button
+                      onClick={() => setSelectedRecibos([])}
+                      className="text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 px-2 py-1 rounded border border-slate-200 transition-colors"
+                    >
+                      Limpiar
+                    </button>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-slate-500 font-semibold">Pagar</span>
+                      <select
+                        className="text-[10px] border border-slate-300 rounded px-1 py-0.5 focus:ring-1 focus:ring-emerald-500 outline-none"
+                        onChange={(e) => {
+                          const n = parseInt(e.target.value);
+                          if (!isNaN(n) && n > 0) setSelectedRecibos(recibos.slice(0, n).map((r: any) => r.referencia));
+                          else if (e.target.value === '') setSelectedRecibos([]);
+                        }}
+                        defaultValue=""
+                      >
+                        <option value="">N meses</option>
+                        {Array.from({ length: recibos.length }, (_, i) => i + 1).map(n => (
+                          <option key={n} value={n}>{n} {n === 1 ? 'mes' : 'meses'}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="p-4">
                 {recibos.length === 0 ? (
