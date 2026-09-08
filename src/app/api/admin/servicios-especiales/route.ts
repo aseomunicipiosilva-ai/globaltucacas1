@@ -27,7 +27,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { tipo, identidad, contribuyente, descripcion, monto, fecha, notas, estado, referencia } = body;
+    const { tipo, identidad, contribuyente, descripcion, monto, fecha, notas, estado, referencia, origen } = body;
 
     if (!identidad || !descripcion || !monto) {
       return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
@@ -44,7 +44,8 @@ export async function POST(request: Request) {
         fecha,
         notas: notas || '',
         estado: estado || 'Pendiente',
-        referencia: referencia || `SRV-${Date.now()}`
+        referencia: referencia || `SRV-${Date.now()}`,
+        origen: origen || 'funcionario'
       }])
       .select()
       .single();

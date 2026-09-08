@@ -214,6 +214,7 @@ export default function ServiciosEspecialesPage() {
                     <th className="px-4 py-3">Descripción</th>
                     <th className="px-4 py-3">Fecha</th>
                     <th className="px-4 py-3 text-right">Monto (Bs)</th>
+                    <th className="px-4 py-3">Origen</th>
                     <th className="px-4 py-3 text-center">Estado</th>
                     <th className="px-4 py-3 text-center w-12">Acción</th>
                   </tr>
@@ -230,6 +231,11 @@ export default function ServiciosEspecialesPage() {
                       <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{s.fecha}</td>
                       <td className="px-4 py-3 text-right font-bold text-slate-800">
                         Bs. {Number(s.monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${(s as any).origen === 'contribuyente' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+                          {(s as any).origen === 'contribuyente' ? '⬆ Contribuyente' : '⬇ Funcionario'}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
