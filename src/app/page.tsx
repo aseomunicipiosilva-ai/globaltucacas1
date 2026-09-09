@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { logos } from '@/lib/logosBase64';
@@ -11,12 +11,12 @@ export default function Home() {
 
   useEffect(() => {
     const host = window.location.hostname;
-    if (host.includes('aseosilvaad') || host.includes('admin')) {
-      setMode('workers-only');       // Solo Funcionario + Operador
-    } else if (host.includes('contribuyente') || host.includes('portal')) {
-      setMode('contribuyente-only'); // Solo Contribuyente
+    if (host === 'aseosilvaad.globalrecca.com') {
+      setMode('workers-only');        // Funcionario + Operador de Censo
+    } else if (host === 'aseosilva.globalrecca.com') {
+      setMode('contribuyente-only');  // Solo Contribuyente
     }
-    // else: default 'all' → 3 cards
+    // localhost / cualquier otro → 'all' (3 tarjetas, para desarrollo y pruebas)
   }, []);
 
   const showContribuyente = mode === 'all' || mode === 'contribuyente-only';
