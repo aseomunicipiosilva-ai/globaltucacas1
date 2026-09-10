@@ -1,16 +1,14 @@
 'use client';
-import { Power, Menu } from 'lucide-react';
+import { Power } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function Header() {
   const router = useRouter();
   
   return (
-    <header className="h-16 bg-[#1e293b] fixed top-0 right-0 left-64 flex items-center justify-between px-6 z-10 border-b border-slate-700 shadow-sm">
+    <header className="h-16 bg-[#1e293b] sticky top-0 left-0 right-0 flex items-center justify-between px-6 z-40 border-b border-slate-700 shadow-md">
       <div className="flex items-center gap-6">
-        <button className="text-slate-300 hover:text-white transition-colors mr-2">
-          <Menu className="w-6 h-6" />
-        </button>
+        <div className="text-slate-400 text-sm font-medium">Panel Administrativo</div>
       </div>
       <div className="flex items-center gap-4 text-sm">
         <div className="text-right">

@@ -318,12 +318,12 @@ export default function ServiciosEspecialesPage() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 flex-shrink-0">
               <h3 className="font-bold text-slate-800">Nuevo Servicio / Inspección</h3>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
               {/* Tipo */}
               <div>
                 <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Tipo de Servicio *</label>
