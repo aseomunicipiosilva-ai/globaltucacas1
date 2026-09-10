@@ -1,258 +1,184 @@
 'use client';
-import { Save, Plus, Edit2, Trash2, Lock, MessageSquare } from 'lucide-react';
+import { Save, Lock, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
 export default function DatosContribuyentePage() {
   const [userData, setUserData] = useState({
-    nombre: 'Cargando...',
-    codigo: 'Cargando...',
-    docType: 'V',
-    docNum: 'Cargando...',
-    email: '',
-    telefonoFijo: '',
-    telefonoMovil: '',
-    direccion: '',
-    nombreComercial: '',
-    esCondominio: false
+    nombre: '', codigo: '', docType: 'V', docNum: '',
+    email: '', telefonoMovil: '', telefonoFijo: '', direccion: '',
+    nombreComercial: '', esCondominio: false
   });
-  
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
+
+  // Cambio de clave
+  const [claveActual, setClaveActual] = useState('');
+  const [claveNueva, setClaveNueva] = useState('');
+  const [claveConfirm, setClaveConfirm] = useState('');
+  const [showClave, setShowClave] = useState(false);
+  const [isSavingClave, setIsSavingClave] = useState(false);
+  const [claveMsg, setClaveMsg] = useState<{type:'ok'|'err', txt:string}|null>(null);
 
   useEffect(() => {
     const fetchUserData = async () => {
       const nombre = localStorage.getItem('portal_user') || '';
       const codigo = localStorage.getItem('portal_codigo') || '';
       const fullDoc = localStorage.getItem('portal_doc') || '';
-      
-      setUserData(prev => ({
-        ...prev,
-        nombre,
-        codigo,
-        docType: fullDoc ? fullDoc.charAt(0) : 'V',
-        docNum: fullDoc ? fullDoc.substring(1) : ''
-      }));
-
+      setUserData(prev => ({ ...prev, nombre, codigo, docType: fullDoc ? fullDoc.charAt(0) : 'V', docNum: fullDoc ? fullDoc.substring(1) : '' }));
       if (fullDoc) {
         const idLimpio = fullDoc.replace(/-/g, '').toUpperCase();
-        const idFormateado = `${idLimpio.charAt(0)}-${idLimpio.slice(1)}`;
-        const soloNumeros = fullDoc.replace(/\D/g, '');
-
-        const { data, error } = await supabase
-          .from('inmuebles')
-          .select('id, correo_electronico, telefono, direccion, actividad_principal')
-          .or(`identidad.eq.${idFormateado},identidad.eq.${idLimpio},identidad.eq.${fullDoc.toUpperCase()},identidad.eq.${soloNumeros}`)
-          .order('id', { ascending: true })
-          .limit(1);
-          
-        if (data && data.length > 0 && !error) {
-          const firstRow = data[0];
-          setUserData(prev => ({
-            ...prev,
-            email: firstRow.correo_electronico || '',
-            telefonoMovil: firstRow.telefono || '',
-            direccion: firstRow.direccion || '',
-            nombreComercial: firstRow.actividad_principal || '',
-            esCondominio: !!(firstRow.actividad_principal?.toLowerCase().includes('condominio'))
-          }));
+        const idFormateado = idLimpio.charAt(0) + '-' + idLimpio.slice(1);
+        const soloNumeros = fullDoc.replace(/D/g, '');
+        const { data } = await supabase.from('inmuebles')
+          .select('correo_electronico, telefono, direccion, actividad_principal')
+          .or('identidad.eq.' + idFormateado + ',identidad.eq.' + idLimpio + ',identidad.eq.' + fullDoc.toUpperCase() + ',identidad.eq.' + soloNumeros)
+          .order('id', { ascending: true }).limit(1);
+        if (data && data.length > 0) {
+          const r = data[0];
+          setUserData(prev => ({ ...prev, email: r.correo_electronico || '', telefonoMovil: r.telefono || '', direccion: r.direccion || '', nombreComercial: r.actividad_principal || '', esCondominio: !!(r.actividad_principal?.toLowerCase().includes('condominio')) }));
         }
       }
     };
-    
     fetchUserData();
   }, []);
 
   const handleSave = async () => {
     const fullDoc = localStorage.getItem('portal_doc');
     if (!fullDoc) return;
-    
-    setIsSaving(true);
-    setMessage('');
-    
+    setIsSaving(true); setMessage('');
     try {
       const idLimpio = fullDoc.replace(/-/g, '').toUpperCase();
-      const idFormateado = `${idLimpio.charAt(0)}-${idLimpio.slice(1)}`;
-      const soloNumeros = fullDoc.replace(/\D/g, '');
-
-      const { error } = await supabase
-        .from('inmuebles')
-        .update({
-          correo_electronico: userData.email,
-          telefono: userData.telefonoMovil,
-          direccion: userData.direccion
-        })
-        .or(`identidad.eq.${idFormateado},identidad.eq.${idLimpio},identidad.eq.${fullDoc.toUpperCase()},identidad.eq.${soloNumeros}`);
-        
+      const idFormateado = idLimpio.charAt(0) + '-' + idLimpio.slice(1);
+      const soloNumeros = fullDoc.replace(/D/g, '');
+      const { error } = await supabase.from('inmuebles').update({ correo_electronico: userData.email, telefono: userData.telefonoMovil, direccion: userData.direccion })
+        .or('identidad.eq.' + idFormateado + ',identidad.eq.' + idLimpio + ',identidad.eq.' + fullDoc.toUpperCase() + ',identidad.eq.' + soloNumeros);
       if (error) throw error;
       setMessage('Datos actualizados correctamente');
       setTimeout(() => setMessage(''), 3000);
-    } catch (error) {
-      console.error('Error updating data:', error);
-      setMessage('Error al actualizar datos');
-    } finally {
-      setIsSaving(false);
-    }
+    } catch { setMessage('Error al actualizar datos'); }
+    setIsSaving(false);
   };
 
+  const handleCambioClave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setClaveMsg(null);
+    if (!claveActual) { setClaveMsg({ type: 'err', txt: 'Ingrese su clave actual.' }); return; }
+    if (claveNueva.length < 6) { setClaveMsg({ type: 'err', txt: 'La nueva clave debe tener al menos 6 caracteres.' }); return; }
+    if (claveNueva !== claveConfirm) { setClaveMsg({ type: 'err', txt: 'Las claves nuevas no coinciden.' }); return; }
+    setIsSavingClave(true);
+    try {
+      const fullDoc = localStorage.getItem('portal_doc') || '';
+      const idLimpio = fullDoc.replace(/-/g, '').toUpperCase();
+      const idFormateado = idLimpio.charAt(0) + '-' + idLimpio.slice(1);
+      // Verificar clave actual
+      const { data: check } = await supabase.from('inmuebles').select('clave_portal')
+        .or('identidad.eq.' + idFormateado + ',identidad.eq.' + idLimpio).limit(1).single();
+      if (!check || check.clave_portal !== claveActual) {
+        setClaveMsg({ type: 'err', txt: 'Clave actual incorrecta.' });
+        setIsSavingClave(false); return;
+      }
+      const { error } = await supabase.from('inmuebles').update({ clave_portal: claveNueva })
+        .or('identidad.eq.' + idFormateado + ',identidad.eq.' + idLimpio);
+      if (error) throw error;
+      setClaveMsg({ type: 'ok', txt: 'Clave actualizada exitosamente.' });
+      setClaveActual(''); setClaveNueva(''); setClaveConfirm('');
+    } catch { setClaveMsg({ type: 'err', txt: 'Error al cambiar la clave.' }); }
+    setIsSavingClave(false);
+  };
+
+  const inputCls = 'w-full text-sm border border-slate-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500';
+  const inputDisCls = 'w-full text-sm border border-slate-200 rounded px-3 py-2 bg-slate-50 text-slate-700 font-bold cursor-default';
+
   return (
-    <div className="space-y-6 relative pb-12">
-      {/* Botón Flotante Enviar Mensaje (Sticky Tab Derecho) */}
-      <div className="fixed right-0 top-1/2 -translate-y-1/2 z-50">
-        <button className="bg-[#ff5722] hover:bg-[#f4511e] text-white py-2 px-3 rounded-l-md shadow-lg flex flex-col items-center gap-2 transform transition-transform hover:-translate-x-1" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>
-          <span className="font-semibold text-sm tracking-widest pt-2">Enviar mensaje</span>
-          <MessageSquare className="w-5 h-5 -rotate-90" />
-        </button>
-      </div>
-
+    <div className="space-y-5 max-w-3xl mx-auto pb-16">
       {/* Datos Principales */}
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
-          <h2 className="font-semibold text-slate-700 uppercase text-sm">DATOS DEL CONTRIBUYENTE</h2>
-          {message && <span className={`text-xs font-medium ${message.includes('Error') ? 'text-red-500' : 'text-green-500'}`}>{message}</span>}
+          <h2 className="font-bold text-slate-700 uppercase text-sm tracking-wide">Datos del Contribuyente</h2>
+          {message && <span className={'text-xs font-semibold ' + (message.includes('Error') ? 'text-red-500' : 'text-emerald-600')}>{message}</span>}
         </div>
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Código</label>
-              <input type="text" value={userData.codigo} disabled className="w-full text-sm border border-slate-200 rounded px-3 py-2 bg-slate-50 text-slate-700 font-bold" />
+        <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Código</label>
+            <input type="text" value={userData.codigo} disabled className={inputDisCls} />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tipo / Nro. Identidad</label>
+            <div className="flex gap-2">
+              <input type="text" value={userData.docType} disabled className="w-14 text-sm border border-slate-200 rounded px-2 py-2 bg-slate-50 text-slate-700 font-bold text-center cursor-default" />
+              <input type="text" value={userData.docNum} disabled className={inputDisCls} />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Tipo Identidad</label>
-              <select value={userData.docType} disabled className="w-full text-sm border border-slate-200 rounded px-3 py-2 bg-slate-50 text-slate-700 font-bold">
-                <option value="V">V - Venezolano</option>
-                <option value="J">J - Jurídico</option>
-                <option value="G">G - Gubernamental</option>
-                <option value="E">E - Extranjero</option>
-                <option value="P">P - Pasaporte</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Nro. Identidad</label>
-              <input type="text" value={userData.docNum} disabled className="w-full text-sm border border-slate-200 rounded px-3 py-2 bg-slate-50 text-slate-700 font-bold" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Nombre o Razón Social</label>
-              <input type="text" value={userData.nombre} disabled className="w-full text-sm border border-slate-200 rounded px-3 py-2 bg-green-50 text-green-800 font-bold" />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Teléfono Móvil</label>
-              <input type="text" value={userData.telefonoMovil} onChange={e => setUserData({...userData, telefonoMovil: e.target.value})} className="w-full text-sm border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Teléfono Fijo</label>
-              <input type="text" value={userData.telefonoFijo} onChange={e => setUserData({...userData, telefonoFijo: e.target.value})} placeholder="Teléfono Fijo" className="w-full text-sm border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-slate-500 mb-1">Email</label>
-              <input type="email" value={userData.email} onChange={e => setUserData({...userData, email: e.target.value})} className="w-full text-sm border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
-              <p className="text-[10px] text-red-500 mt-1">Este será el correo de contacto para el sistema.</p>
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-slate-500 mb-1">Dirección Fiscal (como aparece en el RIF)</label>
-              <input type="text" value={userData.direccion} onChange={e => setUserData({...userData, direccion: e.target.value})} className="w-full text-sm border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-slate-500 mb-1">Nombre Comercial</label>
-              <input type="text" value={userData.nombreComercial} onChange={e => setUserData({...userData, nombreComercial: e.target.value})} placeholder="Nombre Comercial" className="w-full text-sm border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" />
-            </div>
-            
-            <div className="md:col-span-4 flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={userData.esCondominio} onChange={e => setUserData({...userData, esCondominio: e.target.checked})} className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-                <span className="text-sm text-slate-700">Es un Condominio</span>
-              </label>
-
-              <button onClick={handleSave} disabled={isSaving} className="px-4 py-2 bg-white border border-[#ff5722] text-[#ff5722] rounded hover:bg-orange-50 text-sm font-medium flex items-center gap-2 transition-colors disabled:opacity-50">
-                <Save className="w-4 h-4" />
-                {isSaving ? 'Guardando...' : 'Actualizar datos'}
-              </button>
-            </div>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nombre / Razón Social</label>
+            <input type="text" value={userData.nombre} disabled className="w-full text-sm border border-emerald-200 rounded px-3 py-2 bg-emerald-50 text-emerald-800 font-bold cursor-default" />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Teléfono Móvil</label>
+            <input type="text" value={userData.telefonoMovil} onChange={e => setUserData({...userData, telefonoMovil: e.target.value})} className={inputCls} placeholder="Ej. 0414-1234567" />
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Teléfono Fijo</label>
+            <input type="text" value={userData.telefonoFijo} onChange={e => setUserData({...userData, telefonoFijo: e.target.value})} className={inputCls} placeholder="Ej. 0261-1234567" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Correo Electrónico <span className="text-red-400">*</span></label>
+            <input type="email" value={userData.email} onChange={e => setUserData({...userData, email: e.target.value})} className={inputCls} placeholder="correo@ejemplo.com" />
+            <p className="text-[10px] text-slate-400 mt-1">Se usará para notificaciones y recuperación de clave.</p>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Dirección Fiscal</label>
+            <input type="text" value={userData.direccion} onChange={e => setUserData({...userData, direccion: e.target.value})} className={inputCls} placeholder="Dirección como aparece en el RIF" />
+          </div>
+          <div className="sm:col-span-2 flex justify-end">
+            <button onClick={handleSave} disabled={isSaving} className="px-5 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700 flex items-center gap-2 transition-colors disabled:opacity-50">
+              <Save className="w-4 h-4" />
+              {isSaving ? 'Guardando...' : 'Guardar Cambios'}
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Firmas Personales */}
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200">
-          <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
-            <h3 className="font-semibold text-slate-700 uppercase text-xs">Firmas Personales</h3>
-            <button className="text-xs text-[#ff5722] flex items-center gap-1 font-medium hover:underline">
-              <Plus className="w-3 h-3" /> Añadir
-            </button>
-          </div>
-          <div className="p-4 text-center py-8">
-            <span className="text-sm text-blue-500">Ningún dato disponible en esta tabla</span>
-          </div>
+      {/* Cambiar Clave */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center gap-2">
+          <Lock className="w-4 h-4 text-slate-500" />
+          <h3 className="font-bold text-slate-700 uppercase text-sm tracking-wide">Cambiar Contraseña</h3>
         </div>
-
-        {/* Vehículos */}
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200">
-          <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
-            <h3 className="font-semibold text-slate-700 uppercase text-xs">Vehículos</h3>
-            <button className="text-xs text-[#ff5722] flex items-center gap-1 font-medium hover:underline">
-              <Plus className="w-3 h-3" /> Añadir
-            </button>
-          </div>
-          <div className="p-4 text-center py-8">
-            <span className="text-sm text-blue-500">Ningún dato disponible en esta tabla</span>
-          </div>
-        </div>
-
-        {/* Datos de Contacto */}
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200">
-          <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
-            <h3 className="font-semibold text-slate-700 uppercase text-xs">Datos de Contacto</h3>
-            <button className="text-xs text-[#ff5722] flex items-center gap-1 font-medium hover:underline">
-              <Plus className="w-3 h-3" /> Añadir
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-slate-50 text-slate-500 border-b border-slate-200">
-                  <th className="px-4 py-2 font-medium">NOMBRE</th>
-                  <th className="px-4 py-2 font-medium">CARGO</th>
-                  <th className="px-4 py-2 font-medium">TELÉFONO</th>
-                  <th className="px-4 py-2 font-medium text-right">ACCIONES</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-sm text-blue-500">
-                    Ningún dato disponible en esta tabla
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Cambiar Clave */}
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200">
-          <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
-            <h3 className="font-semibold text-slate-700 uppercase text-xs">Cambiar Clave</h3>
-            <button className="text-xs text-white bg-[#ff5722] hover:bg-[#f4511e] px-2 py-1 rounded flex items-center gap-1 font-medium transition-colors">
-              <Lock className="w-3 h-3" /> Cambiar Clave
-            </button>
-          </div>
-          <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <form onSubmit={handleCambioClave} className="p-5 space-y-4">
+          {claveMsg && (
+            <div className={'flex items-center gap-2 px-4 py-3 rounded-lg text-sm border ' + (claveMsg.type === 'ok' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200')}>
+              {claveMsg.type === 'ok' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+              {claveMsg.txt}
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-[10px] font-medium text-slate-500 mb-1 uppercase">Clave Actual</label>
-              <input type="password" placeholder="Clave Actual" className="w-full text-sm border border-slate-300 rounded px-2 py-1.5 outline-none focus:border-blue-500" />
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Clave Actual</label>
+              <div className="relative">
+                <input type={showClave ? 'text' : 'password'} value={claveActual} onChange={e => setClaveActual(e.target.value)} className={inputCls + ' pr-10'} placeholder="••••••••" required />
+                <button type="button" onClick={() => setShowClave(!showClave)} className="absolute right-2 top-2.5 text-slate-400 hover:text-slate-600">
+                  {showClave ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
             <div>
-              <label className="block text-[10px] font-medium text-slate-500 mb-1 uppercase">Nueva Clave</label>
-              <input type="password" placeholder="Nueva Clave" className="w-full text-sm border border-slate-300 rounded px-2 py-1.5 outline-none focus:border-blue-500" />
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nueva Clave</label>
+              <input type={showClave ? 'text' : 'password'} value={claveNueva} onChange={e => setClaveNueva(e.target.value)} className={inputCls} placeholder="mínimo 6 caracteres" required />
             </div>
             <div>
-              <label className="block text-[10px] font-medium text-slate-500 mb-1 uppercase">Confirmar</label>
-              <input type="password" placeholder="Confirmar" className="w-full text-sm border border-slate-300 rounded px-2 py-1.5 outline-none focus:border-blue-500" />
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Confirmar Nueva</label>
+              <input type={showClave ? 'text' : 'password'} value={claveConfirm} onChange={e => setClaveConfirm(e.target.value)} className={inputCls} placeholder="repetir clave" required />
             </div>
           </div>
-        </div>
+          <div className="flex justify-end">
+            <button type="submit" disabled={isSavingClave} className="px-5 py-2 bg-slate-700 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 flex items-center gap-2 transition-colors disabled:opacity-50">
+              <Lock className="w-4 h-4" />
+              {isSavingClave ? 'Actualizando...' : 'Actualizar Contraseña'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
