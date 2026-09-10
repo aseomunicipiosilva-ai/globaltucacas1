@@ -1,144 +1,177 @@
 'use client';
-import { Award, Download, Printer, AlertTriangle } from 'lucide-react';
-import Image from 'next/image';
+import { useState, useEffect, useMemo } from 'react';
+import { Award, Printer, AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-react';
+import { useAppContext } from '@/store/AppContext';
 
 export default function SolvenciaPage() {
-  const solvencia = {
-    certificado: 'S-000062',
-    fecha: '06/07/2026',
-    razonSocial: 'Ricardo Jose Nolasco Castillo',
-    rif: 'V27140507',
-    telefono: '+58 412-9030238',
-    codigo: 'C-000254',
-    inmueble: 'I-000252',
-    patente: 'S/N',
-    direccion: 'Avenida Hugo Chavez Casa 05 El Calvario Municipio Silva, Falcón Zona Postal 2055',
-    periodoHasta: '07-2026',
-    validoHasta: '31/07/2026',
-    vencida: true // Cambiar a false para ver la versión solvente
-  };
+  const { facturas, inmuebles } = useAppContext();
+  const [portalDoc, setPortalDoc] = useState('');
+  const [contribuyenteNombre, setContribuyenteNombre] = useState('');
+
+  useEffect(() => {
+    const doc = localStorage.getItem('portal_doc') || '';
+    const nombre = localStorage.getItem('portal_nombre') || '';
+    setPortalDoc(doc);
+    setContribuyenteNombre(nombre);
+  }, []);
+
+  const docNorm = portalDoc.replace(/-/g, '').toUpperCase();
+  const soloNum = portalDoc.replace(/\D/g, '');
+
+  const misFact = useMemo(() => facturas.filter((f: any) => {
+    const contrib = (f.contribuyente || f.identidad || '').replace(/-/g, '').toUpperCase();
+    return portalDoc && (contrib === docNorm || (soloNum && contrib.includes(soloNum)));
+  }), [facturas, portalDoc, docNorm, soloNum]);
+
+  const pendientes = misFact.filter((f: any) => f.estado === 'Pendiente');
+  const isSolvente = pendientes.length === 0;
+
+  const misInmuebles = useMemo(() => inmuebles.filter((inm: any) => {
+    const id = (inm.identidad || '').replace(/-/g, '').toUpperCase();
+    return portalDoc && (id === docNorm || (soloNum && id.includes(soloNum)));
+  }), [inmuebles, portalDoc, docNorm, soloNum]);
+
+  const hoy = new Date();
+  const mesHoy = hoy.toLocaleDateString('es-VE', { month: 'long', year: 'numeric' }).toUpperCase();
+  const fechaLarga = hoy.toLocaleDateString('es-VE', { day: '2-digit', month: 'long', year: 'numeric' }).toUpperCase();
+
+  if (!portalDoc) {
+    return (
+      <div className="text-center py-16 text-slate-400">
+        <Award className="w-12 h-12 mx-auto mb-3 opacity-30" />
+        <p>Debe iniciar sesión para ver su solvencia.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border border-slate-200">
-        <div>
-          <h2 className="font-semibold text-slate-700 uppercase flex items-center gap-2 text-sm">
-            <Award className="w-5 h-5 text-blue-500" />
-            CERTIFICADO DE SOLVENCIA MUNICIPAL
-          </h2>
-          <p className="text-xs text-slate-500 mt-1">Consulte o descargue su certificado de solvencia de aseo urbano.</p>
-        </div>
-        <div className="flex gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 border border-slate-300 rounded hover:bg-slate-50 transition-colors text-sm font-medium">
-            <Printer className="w-4 h-4" /> Imprimir
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm font-medium">
-            <Download className="w-4 h-4" /> Descargar PDF
-          </button>
-        </div>
-      </div>
+    <div className="space-y-5 max-w-3xl mx-auto pb-12">
 
-      {solvencia.vencida && (
+      {/* Estado Banner */}
+      {!isSolvente ? (
         <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5" />
+          <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
           <div>
-            <h3 className="text-sm font-semibold text-red-800">Certificado Vencido</h3>
-            <p className="text-sm text-red-700 mt-1">Su certificado actual ha expirado. Por favor, diríjase a la sección de Estado de Cuenta para verificar sus pagos pendientes.</p>
+            <h3 className="text-sm font-bold text-red-800">No puede obtener Certificado de Solvencia</h3>
+            <p className="text-sm text-red-700 mt-1">
+              Tiene <strong>{pendientes.length} recibo(s) pendiente(s)</strong> por cancelar. 
+              Diríjase a la sección <strong>Estado de Cuenta</strong> para verificar sus pagos pendientes, 
+              o a las oficinas de Aseo Urbano para regularizar su situación.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r-lg flex items-center gap-3">
+          <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+          <div>
+            <h3 className="text-sm font-bold text-emerald-800">¡Contribuyente Solvente!</h3>
+            <p className="text-sm text-emerald-700 mt-0.5">No tiene recibos pendientes. Puede obtener su Certificado de Solvencia.</p>
           </div>
         </div>
       )}
 
-      {/* Visor del Certificado */}
-      <div className="bg-white rounded-lg shadow-lg border border-slate-200 max-w-4xl mx-auto overflow-hidden relative">
-        {solvencia.vencida && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none opacity-20 overflow-hidden">
-            <span className="text-[150px] font-bold text-red-600 -rotate-45 tracking-widest" style={{ textShadow: '2px 2px 0 #fff, -2px -2px 0 #fff, 2px -2px 0 #fff, -2px 2px 0 #fff' }}>
-              VENCIDA
+      {/* Certificado */}
+      <div className={"bg-white rounded-xl shadow-lg border overflow-hidden relative " + (!isSolvente ? "border-red-200 opacity-60 pointer-events-none" : "border-slate-200")}>
+        {!isSolvente && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none overflow-hidden">
+            <span className="text-[120px] font-black text-red-500 opacity-10 -rotate-45 tracking-widest select-none">
+              NO SOLVENTE
             </span>
           </div>
         )}
 
-        <div className="p-8 sm:p-12 relative z-0">
-          {/* Header del Certificado */}
+        <div className="p-8 sm:p-10 relative z-0">
+          {/* Header */}
           <div className="flex justify-between items-start border-b-2 border-slate-800 pb-6 mb-8">
             <div className="flex items-center gap-4">
-              {/* Logo Placeholder */}
-              <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-xl shadow-inner">
-                GG
+              <div className="w-14 h-14 bg-gradient-to-br from-emerald-600 to-blue-700 rounded-full flex items-center justify-center shadow-inner">
+                <Award className="w-7 h-7 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-black text-slate-800 tracking-tighter">GLOBAL REC</h1>
-                <p className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Un ambiente limpio para todos</p>
+                <h1 className="text-2xl font-black text-slate-800 tracking-tight">GLOBAL REC</h1>
+                <p className="text-[10px] uppercase tracking-widest text-slate-500">Aseo Urbano · Municipio Silva</p>
               </div>
             </div>
             <div className="text-right">
-              <h2 className="text-2xl font-bold text-slate-700 tracking-wide">CERTIFICADO DE SOLVENCIA</h2>
-              <p className="text-sm text-slate-600 mt-1">Certificado: <span className="font-mono font-semibold">{solvencia.certificado}</span></p>
-              <p className="text-sm text-slate-600">Fecha: <span className="font-semibold">{solvencia.fecha}</span></p>
+              <h2 className="text-lg font-bold text-slate-700 uppercase tracking-wide">Certificado de Solvencia</h2>
+              <p className="text-xs text-slate-500 mt-1">Fecha: {fechaLarga}</p>
             </div>
           </div>
 
-          {/* Datos */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 mb-8">
+          {/* Datos Contribuyente */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div>
-              <h3 className="text-xs font-bold text-slate-800 uppercase mb-3 border-b border-slate-200 pb-1">Datos del Contribuyente</h3>
+              <h3 className="text-[10px] font-bold text-slate-600 uppercase mb-3 border-b border-slate-200 pb-1">Datos del Contribuyente</h3>
               <div className="space-y-2 text-sm">
-                <div className="flex"><span className="w-24 text-slate-500">Razón Social:</span> <strong className="text-slate-800">{solvencia.razonSocial}</strong></div>
-                <div className="flex"><span className="w-24 text-slate-500">RIF / C.I.:</span> <strong className="text-slate-800">{solvencia.rif}</strong></div>
-                <div className="flex"><span className="w-24 text-slate-500">Teléfono:</span> <strong className="text-slate-800">{solvencia.telefono}</strong></div>
-                <div className="flex"><span className="w-24 text-slate-500">Código:</span> <strong className="text-slate-800">{solvencia.codigo}</strong></div>
+                <div className="flex gap-2"><span className="w-28 text-slate-500 flex-shrink-0">Razón Social:</span><strong className="text-slate-800">{contribuyenteNombre || 'N/A'}</strong></div>
+                <div className="flex gap-2"><span className="w-28 text-slate-500 flex-shrink-0">RIF / C.I.:</span><strong className="text-slate-800">{portalDoc}</strong></div>
+                {misInmuebles[0] && (
+                  <>
+                    <div className="flex gap-2"><span className="w-28 text-slate-500 flex-shrink-0">Dirección:</span><strong className="text-slate-800 leading-tight">{misInmuebles[0].direccion || 'N/A'}</strong></div>
+                    <div className="flex gap-2"><span className="w-28 text-slate-500 flex-shrink-0">Clasificación:</span><strong className="text-slate-800">{misInmuebles[0].clasificacion || misInmuebles[0].actividad_principal || 'N/A'}</strong></div>
+                  </>
+                )}
               </div>
             </div>
             <div>
-              <h3 className="text-xs font-bold text-slate-800 uppercase mb-3 border-b border-slate-200 pb-1">Detalles del Inmueble</h3>
+              <h3 className="text-[10px] font-bold text-slate-600 uppercase mb-3 border-b border-slate-200 pb-1">Estado de Cuenta</h3>
               <div className="space-y-2 text-sm">
-                <div className="flex"><span className="w-24 text-slate-500">Código:</span> <strong className="text-slate-800">{solvencia.inmueble}</strong></div>
-                <div className="flex"><span className="w-24 text-slate-500">Patente:</span> <strong className="text-slate-800">{solvencia.patente}</strong></div>
-                <div className="flex"><span className="w-24 text-slate-500">Dirección:</span> <strong className="text-slate-800 leading-tight">{solvencia.direccion}</strong></div>
+                <div className="flex gap-2"><span className="w-28 text-slate-500">Facturas Totales:</span><strong>{misFact.length}</strong></div>
+                <div className="flex gap-2"><span className="w-28 text-slate-500">Pendientes:</span>
+                  <strong className={pendientes.length > 0 ? 'text-red-600' : 'text-emerald-600'}>{pendientes.length}</strong>
+                </div>
+                <div className="flex gap-2"><span className="w-28 text-slate-500">Pagadas:</span>
+                  <strong className="text-emerald-600">{misFact.filter((f: any) => f.estado === 'Pagado' || f.estado === 'Pagada').length}</strong>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Periodo */}
           <div className="mb-8">
-            <h3 className="text-xs font-bold text-slate-800 uppercase mb-3 bg-slate-100 px-3 py-1.5">Período de Solvencia</h3>
-            <div className="bg-slate-50 border border-slate-200 p-6 text-center rounded">
-              <div className="text-2xl font-bold text-blue-600 tracking-wide uppercase">SOLVENTE HASTA: {solvencia.periodoHasta}</div>
-              <div className="text-sm font-semibold text-slate-600 mt-2">CERTIFICADO VÁLIDO HASTA: {solvencia.validoHasta}</div>
+            <h3 className="text-[10px] font-bold text-slate-600 uppercase mb-3 bg-slate-100 px-3 py-1.5">Período de Solvencia</h3>
+            <div className={"p-6 text-center rounded border " + (isSolvente ? "bg-emerald-50 border-emerald-200" : "bg-red-50 border-red-200")}>
+              <div className={"text-2xl font-bold tracking-wide uppercase " + (isSolvente ? "text-emerald-700" : "text-red-700")}>
+                {isSolvente ? "SOLVENTE · " + mesHoy : "NO SOLVENTE"}
+              </div>
+              {isSolvente && <div className="text-xs text-slate-500 mt-2">Válido para el mes en curso. Verifique periódicamente su estado de cuenta.</div>}
             </div>
           </div>
 
-          {/* Declaración */}
-          <div className="mb-12">
-            <h3 className="text-xs font-bold text-slate-800 uppercase mb-3 bg-slate-100 px-3 py-1.5">Declaración</h3>
-            <p className="text-sm text-slate-700 text-justify leading-relaxed">
-              Hacemos constar que el inmueble referenciado ha cumplido con las obligaciones de pago señaladas en la 
-              <strong> Ordenanza Municipal</strong> por concepto de <strong>ASEO URBANO</strong>, encontrándose solvente hasta el período 
-              indicado.
-            </p>
-          </div>
-
-          {/* Footer QR */}
-          <div className="flex justify-end items-end gap-4 border-t border-slate-200 pt-6">
-            <div className="text-right text-[10px] text-slate-500 max-w-xs">
-              <p>Escanee este código QR para validar la autenticidad de este certificado de solvencia.</p>
-              <p className="mt-1">La validación en línea estará disponible hasta: {solvencia.validoHasta}</p>
+          {/* Declaracion */}
+          {isSolvente && (
+            <div className="mb-10">
+              <h3 className="text-[10px] font-bold text-slate-600 uppercase mb-3 bg-slate-100 px-3 py-1.5">Declaración</h3>
+              <p className="text-sm text-slate-700 text-justify leading-relaxed">
+                Hacemos constar que el contribuyente referenciado ha cumplido con las obligaciones de pago establecidas en la
+                <strong> Ordenanza Municipal de Aseo Urbano</strong>, encontrándose <strong>SOLVENTE</strong> en el período indicado.
+                El presente certificado es válido únicamente para el mes en curso.
+              </p>
             </div>
-            {/* Fake QR */}
-            <div className="w-24 h-24 bg-slate-800 rounded p-1 flex flex-wrap gap-1 opacity-80">
-               {/* Pattern to look like a QR code */}
-               {Array.from({length: 64}).map((_, i) => (
-                 <div key={i} className={`w-2 h-2 ${Math.random() > 0.5 ? 'bg-white' : 'bg-transparent'}`}></div>
-               ))}
-            </div>
-          </div>
+          )}
 
-          {/* Nota */}
-          <div className="mt-8 text-center text-[10px] text-slate-400 italic">
-            Nota: Este documento es válido únicamente para los fines establecidos por la normativa municipal vigente y pierde su validez una vez vencida la fecha de expiración indicada. Cualquier alteración o modificación invalida el presente certificado.
+          {/* Footer */}
+          <div className="border-t border-slate-200 pt-6 flex justify-between items-end">
+            <div className="text-center">
+              <div className="w-32 border-t border-slate-400 mx-auto mb-1"></div>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wide">Director de Aseo Urbano</p>
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] text-slate-400">Generado el {fechaLarga}</p>
+              <p className="text-[10px] text-slate-400">Sistema Global Rec · Municipio Silva</p>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Botón imprimir solo si solvente */}
+      {isSolvente && (
+        <div className="flex justify-center">
+          <button onClick={() => window.print()} className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 text-white rounded-lg font-medium hover:bg-slate-700 transition-colors shadow text-sm">
+            <Printer className="w-4 h-4" /> Imprimir Certificado
+          </button>
+        </div>
+      )}
     </div>
   );
 }

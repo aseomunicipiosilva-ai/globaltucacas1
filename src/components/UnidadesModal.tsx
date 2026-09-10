@@ -154,13 +154,17 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
   const { facturas } = useAppContext();
   
   // Logic to check if the entire Condominio is solvent (no pending invoices)
+  // Searches by identidad AND by nombre because facturas may store either
   const hasCondominioDebt = React.useMemo(() => {
-    if (!condominioIdentidad) return true; // Default to having debt if we can't verify
-    const pendingFacturas = (facturas || []).filter(
-      (f: any) => f.contribuyente === condominioIdentidad && f.estado === 'Pendiente'
-    );
+    const pendingFacturas = (facturas || []).filter((f: any) => {
+      if (f.estado !== 'Pendiente') return false;
+      const contrib = (f.contribuyente || '').toLowerCase().trim();
+      const identMatch = condominioIdentidad && contrib === condominioIdentidad.toLowerCase().trim();
+      const nombreMatch = condominioNombre && contrib === condominioNombre.toLowerCase().trim();
+      return identMatch || nombreMatch;
+    });
     return pendingFacturas.length > 0;
-  }, [facturas, condominioIdentidad]);
+  }, [facturas, condominioIdentidad, condominioNombre]);
 
   // Helper to load image as base64
   const loadImage = async (src: string): Promise<string> => {
@@ -185,7 +189,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
   };
 
   const emitirSolvencia = async (unidad: any) => {
-    const isUnitSolvent = !hasCondominioDebt || unidad.estado === 'Solvente';
+    const isUnitSolvent = !hasCondominioDebt; // Real debt check — cannot emit solvencia with pending facturas
     if (!isUnitSolvent) {
       alert("No se puede emitir solvencia porque la unidad o el condominio presenta deudas pendientes.");
       return;
@@ -445,7 +449,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {unidades.map((u) => {
-                      const isUnitSolvent = !hasCondominioDebt || u.estado === 'Solvente';
+                      const isUnitSolvent = !hasCondominioDebt; // Real debt check — manual estado cannot override
                       return (
                       <React.Fragment key={u.id}>
                       <tr className="hover:bg-slate-50/50">
