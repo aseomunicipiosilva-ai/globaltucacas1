@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Column<T> {
   key: keyof T | string;
@@ -15,49 +15,52 @@ interface DataTableProps<T> {
   searchable?: boolean;
 }
 
-export function DataTable<T extends Record<string, any>>({ data, columns, itemsPerPage = 25, searchable = true }: DataTableProps<T>) {
+export function DataTable<T extends Record<string, any>>({ data, columns, itemsPerPage: defaultPerPage = 25, searchable = true }: DataTableProps<T>) {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [perPage, setPerPage] = useState(defaultPerPage);
 
-  // Debounce search term to fix performance issues with large datasets
   React.useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1);
     }, 300);
-
-    return () => {
-      clearTimeout(handler);
-    };
+    return () => clearTimeout(handler);
   }, [searchTerm]);
 
-  // Filter data using the debounced term
   const filteredData = React.useMemo(() => {
     return data.filter((item) => {
       if (!debouncedSearchTerm) return true;
-      return Object.values(item).some((val) => 
+      return Object.values(item).some((val) =>
         String(val).toLowerCase().includes(debouncedSearchTerm.toLowerCase())
       );
     });
   }, [data, debouncedSearchTerm]);
 
-  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentData = filteredData.slice(startIndex, startIndex + itemsPerPage);
+  const totalPages = Math.ceil(filteredData.length / perPage);
+  const startIndex = (currentPage - 1) * perPage;
+  const currentData = filteredData.slice(startIndex, startIndex + perPage);
+
+  const goToPage = (p: number) => setCurrentPage(Math.min(Math.max(1, p), totalPages || 1));
 
   return (
     <div className="bg-white rounded shadow flex flex-col w-full text-sm">
       {/* Header controls */}
-      <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-        <div className="flex items-center gap-2">
-          <span className="text-slate-600">Mostrar</span>
-          <select 
-            className="border border-slate-300 rounded px-2 py-1 text-slate-700 bg-white"
-            disabled // Placeholder as we use fixed itemsPerPage for now
+      <div className="px-4 py-3 border-b border-slate-200 flex flex-wrap justify-between items-center gap-2 bg-slate-50">
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <span>Mostrar</span>
+          <select
+            value={perPage}
+            onChange={(e) => { setPerPage(Number(e.target.value)); setCurrentPage(1); }}
+            className="border border-slate-300 rounded px-2 py-1 text-slate-700 bg-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
           >
-            <option>{itemsPerPage}</option>
+            {[10, 25, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
           </select>
-          <span className="text-slate-600">registros</span>
+          <span>registros</span>
+          {filteredData.length !== data.length && (
+            <span className="text-xs text-slate-400">(filtrados de {data.length})</span>
+          )}
         </div>
 
         {searchable && (
@@ -67,11 +70,9 @@ export function DataTable<T extends Record<string, any>>({ data, columns, itemsP
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="border border-slate-300 rounded pl-2 pr-8 py-1 outline-none focus:border-blue-500"
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="border border-slate-300 rounded pl-2 pr-8 py-1 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-400 text-sm"
+                placeholder="Buscar..."
               />
               <Search className="w-4 h-4 text-slate-400 absolute right-2 top-1.5" />
             </div>
@@ -105,7 +106,7 @@ export function DataTable<T extends Record<string, any>>({ data, columns, itemsP
             ) : (
               <tr>
                 <td colSpan={columns.length} className="px-4 py-8 text-center text-slate-500">
-                  Ningún dato disponible en esta tabla
+                  {searchTerm ? 'No se encontraron resultados.' : 'Ningún dato disponible en esta tabla'}
                 </td>
               </tr>
             )}
@@ -114,25 +115,45 @@ export function DataTable<T extends Record<string, any>>({ data, columns, itemsP
       </div>
 
       {/* Pagination */}
-      <div className="p-4 border-t border-slate-200 flex justify-end items-center">
-        <div className="flex rounded border border-slate-300 overflow-hidden">
-          <button 
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+      <div className="px-4 py-3 border-t border-slate-200 flex justify-between items-center flex-wrap gap-2">
+        <span className="text-xs text-slate-500">
+          {filteredData.length === 0 ? 'Sin registros' : `Mostrando ${startIndex + 1}–${Math.min(startIndex + perPage, filteredData.length)} de ${filteredData.length} registros`}
+        </span>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => goToPage(1)}
             disabled={currentPage === 1}
-            className="px-3 py-1 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 border-r border-slate-300"
-          >
-            Anterior
-          </button>
-          <div className="px-4 py-1 bg-blue-500 text-white font-medium">
-            {currentPage}
-          </div>
-          <button 
-            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages || totalPages === 0}
-            className="px-3 py-1 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 border-l border-slate-300"
-          >
-            Siguiente
-          </button>
+            className="px-2 py-1 text-xs rounded border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+          >«</button>
+          <button
+            onClick={() => goToPage(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="p-1 rounded border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+          ><ChevronLeft className="w-4 h-4" /></button>
+          {/* Page numbers */}
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            let pg = currentPage - 2 + i;
+            if (pg < 1) pg = i + 1;
+            if (pg > totalPages) pg = totalPages - (4 - i);
+            if (pg < 1 || pg > totalPages) return null;
+            return (
+              <button
+                key={pg}
+                onClick={() => goToPage(pg)}
+                className={`px-2.5 py-1 text-xs rounded border ${currentPage === pg ? 'bg-blue-500 text-white border-blue-500' : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'}`}
+              >{pg}</button>
+            );
+          })}
+          <button
+            onClick={() => goToPage(currentPage + 1)}
+            disabled={currentPage >= totalPages || totalPages === 0}
+            className="p-1 rounded border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+          ><ChevronRight className="w-4 h-4" /></button>
+          <button
+            onClick={() => goToPage(totalPages)}
+            disabled={currentPage >= totalPages || totalPages === 0}
+            className="px-2 py-1 text-xs rounded border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+          >»</button>
         </div>
       </div>
     </div>
