@@ -14,6 +14,25 @@ interface UnidadesModalProps {
   isInline?: boolean;
 }
 
+// Genera el siguiente codigo CH-XXXXXX unico en todo el sistema para unidades hijas
+async function generarCodigoHijo(): Promise<string> {
+  try {
+    // Buscar todos los codigos existentes CH-XXXXXX en todas las unidades
+    const { data } = await supabase.from('unidades_condominio').select('codigo_ch');
+    const existentes = (data || [])
+      .map((r: any) => r.codigo_ch || '')
+      .filter((c: string) => c.startsWith('CH-'));
+    const nums = existentes
+      .map((c: string) => parseInt(c.replace('CH-', ''), 10))
+      .filter((n: number) => !isNaN(n));
+    const maximo = nums.length > 0 ? Math.max(...nums) : 0;
+    const siguiente = maximo + 1;
+    return 'CH-' + String(siguiente).padStart(6, '0');
+  } catch {
+    return 'CH-000001';
+  }
+}
+
 export function UnidadesModal({ condominioId, condominioNombre, condominioIdentidad, onClose, isInline }: UnidadesModalProps) {
   const [unidades, setUnidades] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +41,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
   const [nuevoTelefono, setNuevoTelefono] = useState('');
   const [nuevoCorreo, setNuevoCorreo] = useState('');
   const [nuevaFicha, setNuevaFicha] = useState('');
+  const [codigoCH, setCodigoCH] = useState('');
   const [nuevaCedula, setNuevaCedula] = useState('');
   
   // Edit State
@@ -75,6 +95,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
       .insert([{
         condominio_id: condominioId,
         numero_unidad: nuevaUnidad,
+        codigo_ch: codigoCH || null,
         propietario: nuevoPropietario || 'No asignado',
         cedula_rif: nuevaCedula || '',
         telefono: nuevoTelefono || '',

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import React, { useState, useEffect } from 'react';
 import { exportToExcelWithLogos } from '@/lib/excelExport';
 import { Search, CreditCard, Landmark, CheckCircle, XCircle, FileText, Handshake, Calendar as CalendarIcon, Wrench, ShieldCheck, ClipboardCheck, FlaskConical } from 'lucide-react';
@@ -22,6 +22,8 @@ export default function CajaPage() {
   const [recibos, setRecibos] = useState<any[]>([]);
   const [cuotas, setCuotas] = useState<any[]>([]);
   const [serviciosEsp, setServiciosEsp] = useState<any[]>([]);
+  const [talaPoda, setTalaPoda] = useState<any[]>([]);
+  const [selectedTalaPoda, setSelectedTalaPoda] = useState<string[]>([]);
   
   // Selection State
   const [selectedRecibos, setSelectedRecibos] = useState<string[]>([]);
@@ -213,6 +215,15 @@ export default function CajaPage() {
         .eq('estado', 'Pendiente');
       setServiciosEsp(servEsp || []);
 
+      // Cargar servicios de tala y poda pendientes
+      const { data: talaData } = await supabase
+        .from('servicios_especiales')
+        .select('*')
+        .or(`identidad.eq.${user.Identidad},identidad.eq.${cleanFullDoc}`)
+        .eq('tipo', 'tala_poda')
+        .eq('estado', 'Pendiente');
+      setTalaPoda(talaData || []);
+
     } else {
       alert("Contribuyente no encontrado. Puede intentar buscar por Código de Usuario.");
     }
@@ -238,9 +249,14 @@ export default function CajaPage() {
       const s = serviciosEsp.find(ss => ss.referencia === ref);
       if (s) total += parseFloat(s.monto || '0');
     });
+
+    selectedTalaPoda.forEach(ref => {
+      const s = talaPoda.find(ss => ss.referencia === ref);
+      if (s) total += parseFloat(s.monto || '0');
+    });
     
     setTotalBs(total);
-  }, [selectedRecibos, selectedCuotas, selectedServicios, recibos, cuotas, serviciosEsp]);
+  }, [selectedRecibos, selectedCuotas, selectedServicios, selectedTalaPoda, recibos, cuotas, serviciosEsp, talaPoda]);
 
   const toggleRecibo = (ref: string) => {
     if (selectedRecibos.includes(ref)) {
@@ -264,6 +280,14 @@ export default function CajaPage() {
       setSelectedServicios(selectedServicios.filter(r => r !== ref));
     } else {
       setSelectedServicios([...selectedServicios, ref]);
+    }
+  };
+
+  const toggleTalaPoda = (ref: string) => {
+    if (selectedTalaPoda.includes(ref)) {
+      setSelectedTalaPoda(selectedTalaPoda.filter(r => r !== ref));
+    } else {
+      setSelectedTalaPoda([...selectedTalaPoda, ref]);
     }
   };
 
@@ -428,6 +452,10 @@ export default function CajaPage() {
           }
         }
         
+        // Tala y Poda debito: pagar completo
+        if (selectedTalaPoda.length > 0 && !esAbonoDebito) {
+          await supabase.from('servicios_especiales').update({ estado: 'Pagado' }).in('referencia', selectedTalaPoda);
+        }
         // Servicios especiales: solo se pagan completos (no hay abono parcial)
         if (selectedServicios.length > 0) {
           if (!esAbonoDebito) {
@@ -479,6 +507,7 @@ export default function CajaPage() {
             recibos: selectedRecibos,
             cuotas: selectedCuotas,
             servicios: selectedServicios,
+            tala_poda: selectedTalaPoda,
             cajero: cajero_id,
             es_abono: esAbonoDebito,
             monto_abonado: esAbonoDebito ? montoReal : undefined,
@@ -488,6 +517,11 @@ export default function CajaPage() {
           })
         });
 
+        if (esAbonoDebito) {
+          (window as any).__lastPaymentAbono = { esAbono: true, montoCancelado: montoReal, montoPendiente: Math.max(0, totalBs - montoReal) };
+        } else {
+          (window as any).__lastPaymentAbono = { esAbono: false };
+        }
         setSuccessMsg(esAbonoDebito
           ? `Abono de Bs. ${formatBs(montoReal)} procesado. La deuda restante quedó actualizada.`
           : `Pago procesado exitosamente por ${paymentMethod}. La deuda ha sido conciliada automáticamente.`
@@ -535,6 +569,7 @@ export default function CajaPage() {
             recibos: selectedRecibos, 
             cuotas: selectedCuotas,
             servicios: selectedServicios,
+            tala_poda: selectedTalaPoda,
             saldo_favor: saldoAFavorNuevo,
             es_abono: esAbono,
             total_seleccionado: totalBs,
@@ -576,6 +611,10 @@ export default function CajaPage() {
           }
         }
 
+        // Tala y Poda Transferencia -> Por Verificar
+        if (selectedTalaPoda.length > 0) {
+          await supabase.from('servicios_especiales').update({ estado: 'Por Verificar' }).in('referencia', selectedTalaPoda);
+        }
         // Servicios especiales Transferencia → Por Verificar (incluir en detalles)
         if (selectedServicios.length > 0) {
           await supabase.from('servicios_especiales').update({ estado: 'Por Verificar' }).in('referencia', selectedServicios);
@@ -952,6 +991,37 @@ export default function CajaPage() {
               </div>
             </div>
 
+            {/* Tala y Poda */}
+            {talaPoda.length > 0 && (
+              <div className={`bg-white rounded-lg shadow-sm border overflow-hidden ${selectedTalaPoda.length > 0 ? 'border-green-300' : 'border-slate-200'}`}>
+                <div className="bg-green-50 px-4 py-3 border-b border-green-200 flex items-center gap-2">
+                  <span className="text-lg">🌿</span>
+                  <h3 className="font-bold text-green-800">Servicio de Tala y Poda</h3>
+                  <span className="text-xs text-green-600 font-medium">({talaPoda.length})</span>
+                </div>
+                <div className="p-4 space-y-2">
+                  {talaPoda.map((s: any) => (
+                    <label key={s.referencia} className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${selectedTalaPoda.includes(s.referencia) ? 'bg-green-50 border-green-300' : 'hover:bg-slate-50 border-slate-200'}`}>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedTalaPoda.includes(s.referencia)}
+                          onChange={() => toggleTalaPoda(s.referencia)}
+                          className="w-4 h-4 text-green-600 rounded border-slate-300 focus:ring-green-500"
+                        />
+                        <span className="text-lg">🌿</span>
+                        <div>
+                          <p className="font-semibold text-sm text-slate-800">{s.descripcion || 'Servicio de Tala y Poda'}</p>
+                          <p className="text-xs text-slate-500">{s.referencia} • {s.fecha || 'Sin fecha'}</p>
+                        </div>
+                      </div>
+                      <span className="font-bold text-green-700">Bs. {formatBs(parseFloat(s.monto || '0'))}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Servicios Especiales Pendientes */}
             {serviciosEsp.length > 0 && (
               <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
@@ -1273,3 +1343,5 @@ export default function CajaPage() {
     </div>
   );
 }
+
+

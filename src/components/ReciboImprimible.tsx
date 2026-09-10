@@ -24,9 +24,23 @@ interface ReciboProps {
   formaPago: string;
   banco: string;
   referencia: string;
+  // Campos para pago fraccionado / abono
+  esAbono?: boolean;
+  montoCancelado?: number;
+  montoPendiente?: number;
+}
+
+function normalizarFormaPago(fp: string): 'PUNTO_VENTA' | 'TRANSFERENCIA' | 'EFECTIVO' | 'OTRO' {
+  const v = (fp || '').toLowerCase().trim();
+  if (v.includes('debito') || v.includes('punto') || v.includes('pago movil') || v.includes('pagomovil')) return 'PUNTO_VENTA';
+  if (v.includes('transfer') || v.includes('pago movil')) return 'TRANSFERENCIA';
+  if (v.includes('efectivo') || v.includes('cash')) return 'EFECTIVO';
+  return 'OTRO';
 }
 
 export function ReciboImprimible({ data }: { data: ReciboProps }) {
+  const fpNorm = normalizarFormaPago(data.formaPago);
+
   return (
     <div className="bg-white text-black p-8 max-w-4xl mx-auto border border-slate-200 shadow-sm print:shadow-none print:border-none">
       {/* Header */}
@@ -47,7 +61,7 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
       </div>
 
       <div className="text-center font-bold text-lg mb-6 tracking-widest">
-        RECIBO DE ASEO URBANO
+        {data.esAbono ? 'RECIBO DE ABONO / PAGO PARCIAL' : 'RECIBO DE ASEO URBANO'}
       </div>
 
       {/* Info Grid */}
@@ -112,7 +126,7 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
               <td className="p-2 text-right">Bs. {formatBs(c.total)}</td>
             </tr>
           ))}
-          {/* Pad with empty rows to match height if needed */}
+          {/* Pad with empty rows */}
           <tr className="h-16">
             <td className="p-2 border-r border-black"></td>
             <td className="p-2 border-r border-black"></td>
@@ -121,16 +135,55 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
         </tbody>
       </table>
 
+      {/* Abono / Pago parcial info */}
+      {data.esAbono && data.montoCancelado !== undefined && data.montoPendiente !== undefined && (
+        <div className="border border-black mb-4 text-sm">
+          <div className="bg-yellow-50 px-3 py-1 font-bold text-center border-b border-black uppercase tracking-wide">
+            Información de Pago Parcial
+          </div>
+          <div className="grid grid-cols-2">
+            <div className="p-2 border-r border-black">
+              <span className="font-bold">Monto Cancelado en este Abono:</span>
+            </div>
+            <div className="p-2 text-right font-bold text-green-800">
+              Bs. {formatBs(data.montoCancelado)}
+            </div>
+            <div className="p-2 border-r border-black border-t border-black">
+              <span className="font-bold">Saldo Pendiente por Cancelar:</span>
+            </div>
+            <div className="p-2 text-right font-bold text-red-700 border-t border-black">
+              Bs. {formatBs(data.montoPendiente)}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Totals & Payment */}
       <div className="grid grid-cols-4 border border-black text-sm">
         <div className="col-span-3 border-r border-black p-2 flex flex-col justify-end">
-          <div className="font-bold mb-1">Forma de Pago:</div>
-          <div className="flex gap-4 items-center mb-2">
-            <span>PUNTO DE VENTA <u className="font-bold">{data.formaPago === 'PUNTO DE VENTA' ? ' X ' : '___'}</u></span>
-            <span>TRANSFERENCIA <u className="font-bold">{data.formaPago === 'TRANSFERENCIA' ? ' X ' : '___'}</u></span>
+          <div className="font-bold mb-2">Forma de Pago:</div>
+          <div className="flex gap-6 items-center mb-3 flex-wrap">
+            <span className="flex items-center gap-1">
+              PUNTO DE VENTA{' '}
+              <strong className="inline-block w-6 text-center border border-black">
+                {fpNorm === 'PUNTO_VENTA' ? 'X' : ''}
+              </strong>
+            </span>
+            <span className="flex items-center gap-1">
+              TRANSFERENCIA{' '}
+              <strong className="inline-block w-6 text-center border border-black">
+                {fpNorm === 'TRANSFERENCIA' ? 'X' : ''}
+              </strong>
+            </span>
+            <span className="flex items-center gap-1">
+              EFECTIVO{' '}
+              <strong className="inline-block w-6 text-center border border-black">
+                {fpNorm === 'EFECTIVO' ? 'X' : ''}
+              </strong>
+            </span>
           </div>
           <div>
-            <strong>Banco:</strong> {data.banco} &nbsp;&nbsp; <strong>Referencia:</strong> {data.referencia} &nbsp;&nbsp; <strong>Monto:</strong> Bs. {formatBs(data.total)}
+            <strong>Banco:</strong> {data.banco} &nbsp;&nbsp; <strong>Referencia:</strong> {data.referencia} &nbsp;&nbsp; <strong>Monto:</strong> Bs. {formatBs(data.esAbono && data.montoCancelado !== undefined ? data.montoCancelado : data.total)}
           </div>
         </div>
         <div className="col-span-1">
@@ -150,6 +203,12 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
             <span className="font-bold">Total</span>
             <span className="font-bold">Bs. {formatBs(data.total)}</span>
           </div>
+          {data.esAbono && data.montoCancelado !== undefined && (
+            <div className="flex justify-between p-1 bg-green-50 border-t border-black">
+              <span className="font-bold text-green-800">Abonado</span>
+              <span className="font-bold text-green-800">Bs. {formatBs(data.montoCancelado)}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

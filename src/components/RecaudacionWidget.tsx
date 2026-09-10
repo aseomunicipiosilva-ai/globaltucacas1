@@ -9,26 +9,42 @@ import { useAppContext } from '@/store/AppContext';
 type Periodo = 'hoy' | 'semana' | 'mes' | 'mes_pasado' | 'personalizado';
 type Sector = 'Todos' | 'Residencial' | 'Comercial' | 'Industrial';
 
+// Parsea montos venezolanos: "1.234,50" -> 1234.50 y tambien "1234.50" -> 1234.50
+function parseMonto(val: string | number | undefined): number {
+  if (val === undefined || val === null) return 0;
+  let s = String(val).trim();
+  // Detectar si tiene formato venezolano (punto como separador de miles, coma como decimal)
+  // Ej: "1.234,50" -> remover puntos -> "1234,50" -> reemplazar coma -> "1234.50"
+  if (s.includes(',')) {
+    s = s.replace(/\./g, '').replace(',', '.');
+  }
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
 function getRange(periodo: Periodo, desde: string, hasta: string) {
+  // Ajustar a hora Venezuela UTC-4
   const now = new Date();
+  const vzOffsetMin = -4 * 60;
+  const localNow = new Date(now.getTime() + (vzOffsetMin - now.getTimezoneOffset()) * 60000);
   const pad = (n: number) => String(n).padStart(2, '0');
-  const toISO = (d: Date) => d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+  const toISO = (d: Date) => d.getUTCFullYear() + '-' + pad(d.getUTCMonth()+1) + '-' + pad(d.getUTCDate());
   switch (periodo) {
-    case 'hoy': { const t = toISO(now); return { desde: t, hasta: t }; }
+    case 'hoy': { const t = toISO(localNow); return { desde: t, hasta: t }; }
     case 'semana': {
-      const day = now.getDay() || 7;
-      const lunes = new Date(now);
-      lunes.setDate(now.getDate() - day + 1);
-      return { desde: toISO(lunes), hasta: toISO(now) };
+      const day = localNow.getUTCDay() || 7;
+      const lunes = new Date(localNow);
+      lunes.setUTCDate(localNow.getUTCDate() - day + 1);
+      return { desde: toISO(lunes), hasta: toISO(localNow) };
     }
-    case 'mes': return { desde: now.getFullYear() + '-' + pad(now.getMonth()+1) + '-01', hasta: toISO(now) };
+    case 'mes': return { desde: localNow.getUTCFullYear() + '-' + pad(localNow.getUTCMonth()+1) + '-01', hasta: toISO(localNow) };
     case 'mes_pasado': {
-      const first = new Date(now.getFullYear(), now.getMonth()-1, 1);
-      const last = new Date(now.getFullYear(), now.getMonth(), 0);
+      const first = new Date(Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth()-1, 1));
+      const last = new Date(Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth(), 0));
       return { desde: toISO(first), hasta: toISO(last) };
     }
     case 'personalizado': return { desde, hasta };
-    default: return { desde: toISO(now), hasta: toISO(now) };
+    default: return { desde: toISO(localNow), hasta: toISO(localNow) };
   }
 }
 
@@ -41,7 +57,7 @@ export default function RecaudacionWidget() {
   const [isLoading, setIsLoading] = useState(false);
   const [sectorFiltro, setSectorFiltro] = useState<Sector>('Todos');
 
-  // Normaliza clasificacion a sector estándar
+  // Normaliza clasificacion a sector estandar
   const normSector = (s: string) => {
     const l = (s || '').toLowerCase();
     if (l.includes('industrial')) return 'Industrial';
@@ -49,7 +65,7 @@ export default function RecaudacionWidget() {
     return 'Residencial';
   };
 
-  // Mapa identidad → sector normalizado
+  // Mapa identidad -> sector normalizado
   const sectorMap = useMemo(() => {
     const m = new Map<string, string>();
     inmuebles.forEach((inm: any) => {
@@ -89,14 +105,14 @@ export default function RecaudacionWidget() {
     sectorFiltro === 'Todos' ? pagosConSector : pagosConSector.filter(p => p.sector === sectorFiltro),
   [pagosConSector, sectorFiltro]);
 
-  const tot = pagosConSector.reduce((a, p) => a + parseFloat(p.monto || '0'), 0);
-  const totFilt = pagosFiltrados.reduce((a, p) => a + parseFloat(p.monto || '0'), 0);
-  const tra = pagosConSector.filter(p => p.tipo === 'Transferencia').reduce((a, p) => a + parseFloat(p.monto || '0'), 0);
+  const tot = pagosConSector.reduce((a, p) => a + parseMonto(p.monto), 0);
+  const totFilt = pagosFiltrados.reduce((a, p) => a + parseMonto(p.monto), 0);
+  const tra = pagosConSector.filter(p => p.tipo === 'Transferencia').reduce((a, p) => a + parseMonto(p.monto), 0);
 
   const contadores = useMemo(() => ({
-    Residencial: pagosConSector.filter(p => p.sector === 'Residencial').reduce((a, p) => a + parseFloat(p.monto || '0'), 0),
-    Comercial:   pagosConSector.filter(p => p.sector === 'Comercial').reduce((a, p) => a + parseFloat(p.monto || '0'), 0),
-    Industrial:  pagosConSector.filter(p => p.sector === 'Industrial').reduce((a, p) => a + parseFloat(p.monto || '0'), 0),
+    Residencial: pagosConSector.filter(p => p.sector === 'Residencial').reduce((a, p) => a + parseMonto(p.monto), 0),
+    Comercial:   pagosConSector.filter(p => p.sector === 'Comercial').reduce((a, p) => a + parseMonto(p.monto), 0),
+    Industrial:  pagosConSector.filter(p => p.sector === 'Industrial').reduce((a, p) => a + parseMonto(p.monto), 0),
   }), [pagosConSector]);
 
   const lbl: Record<Periodo, string> = { hoy: 'Hoy', semana: 'Esta semana', mes: 'Este mes', mes_pasado: 'Mes pasado', personalizado: 'Periodo' };
@@ -110,7 +126,7 @@ export default function RecaudacionWidget() {
       'Banco': p.banco || '--',
       'Tipo': p.tipo,
       'Referencia': p.referencia || '--',
-      'Monto (Bs)': Number(p.monto || 0).toFixed(2)
+      'Monto (Bs)': parseMonto(p.monto).toFixed(2)
     }));
     const fname = 'Recaudacion_' + (sectorFiltro !== 'Todos' ? sectorFiltro + '_' : '') + new Date().toISOString().split('T')[0] + '.xlsx';
     exportToExcelWithLogos(d, fname, 'Recaudacion');
@@ -236,7 +252,7 @@ export default function RecaudacionWidget() {
                       <span className={'px-2 py-0.5 rounded text-[10px] font-bold ' + (p.tipo === 'Debito' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700')}>{p.tipo}</span>
                     </td>
                     <td className="px-3 py-2 font-mono">{p.referencia || '--'}</td>
-                    <td className="px-3 py-2 text-right font-bold text-emerald-700">Bs. {formatBs(parseFloat(p.monto || '0'))}</td>
+                    <td className="px-3 py-2 text-right font-bold text-emerald-700">Bs. {formatBs(parseMonto(p.monto))}</td>
                   </tr>
                 ))}
               </tbody>

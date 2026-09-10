@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState, useEffect } from 'react';
 import { Users, Save, ArrowLeft, Plus, Shield, ShieldAlert, ShieldCheck, AlertCircle } from 'lucide-react';
 import { DataTable } from '@/components/DataTable';
@@ -79,6 +79,22 @@ export default function TrabajadoresPage() {
     setErrorMsg('');
 
     try {
+      // Validar que la letra no este duplicada en otro trabajador activo
+      if (formData.letra && formData.letra.trim()) {
+        const { data: letraExistente } = await supabase
+          .from('trabajadores')
+          .select('id, nombre, letra')
+          .eq('letra', formData.letra.trim().toUpperCase())
+          .neq('id', formData.id || '')
+          .eq('estado', 'Activo')
+          .maybeSingle();
+        if (letraExistente) {
+          setErrorMsg(`La letra '${formData.letra.toUpperCase()}' ya está asignada al trabajador: ${letraExistente.nombre}. Cada trabajador activo debe tener una letra única.`);
+          setIsSaving(false);
+          return;
+        }
+      }
+
       const payload = {
         nombre: formData.nombre,
         cedula: formData.cedula,
@@ -335,3 +351,4 @@ export default function TrabajadoresPage() {
     </div>
   );
 }
+

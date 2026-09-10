@@ -7,6 +7,28 @@ import { UnidadesModal } from '@/components/UnidadesModal';
 import { DebtAdjustmentModal } from '@/components/DebtAdjustmentModal';
 import Link from 'next/link';
 
+// Genera el siguiente codigo C-XXXXXX o CH-XXXXXX unico en el sistema
+async function generarCodigoCondominio(tipo: 'padre' | 'hijo'): Promise<string> {
+  try {
+    const { supabase } = await import('@/lib/supabase');
+    const prefijo = tipo === 'padre' ? 'C' : 'CH';
+    // Buscar todos los codigos existentes con ese prefijo
+    const { data } = await supabase.from('condominios').select('codigo');
+    const existentes = (data || [])
+      .map((r: any) => r.codigo || '')
+      .filter((c: string) => c.startsWith(prefijo + '-'));
+    // Extraer numeros
+    const nums = existentes
+      .map((c: string) => parseInt(c.replace(prefijo + '-', ''), 10))
+      .filter((n: number) => !isNaN(n));
+    const maximo = nums.length > 0 ? Math.max(...nums) : 0;
+    const siguiente = maximo + 1;
+    return prefijo + '-' + String(siguiente).padStart(6, '0');
+  } catch {
+    return tipo === 'padre' ? 'C-000001' : 'CH-000001';
+  }
+}
+
 export default function CondominiosCOBPage() {
   const { condominios, inmuebles, tcmmv, facturas, setFacturas, addAuditLog } = useAppContext();
   const [modalOpen, setModalOpen] = useState(false);
@@ -201,6 +223,29 @@ export default function CondominiosCOBPage() {
             
             <div className="p-6 space-y-4">
               <div>
+                <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">Código del Condominio</label>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="text"
+                    value={editingCondominio.codigo || ''}
+                    readOnly
+                    className="w-full border border-slate-200 bg-slate-50 rounded px-3 py-2 text-sm font-mono font-bold text-slate-600 cursor-not-allowed"
+                    placeholder="Auto-generado (ej: C-000001)"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const cod = await generarCodigoCondominio('padre');
+                      setEditingCondominio({...editingCondominio, codigo: cod});
+                    }}
+                    className="px-3 py-2 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700 whitespace-nowrap"
+                  >
+                    Generar
+                  </button>
+                </div>
+                <span className="text-[10px] text-slate-400 mt-1 block">Formato C-000001. Use el botón para asignar un código único.</span>
+              </div>
+              <div>
                 <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">RIF / Cédula</label>
                 <input 
                   type="text" 
@@ -253,7 +298,8 @@ export default function CondominiosCOBPage() {
                       nombre: editingCondominio.nombre,
                       identidad: editingCondominio.identidad,
                       representante: editingCondominio.representante,
-                      direccion: editingCondominio.direccion
+                      direccion: editingCondominio.direccion,
+                      codigo: editingCondominio.codigo || null
                     }).eq('id', editingCondominio.id);
                     
                     if (error) throw error;
