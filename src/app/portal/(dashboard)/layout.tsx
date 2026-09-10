@@ -21,16 +21,16 @@ export default function PortalDashboardLayout({ children }: { children: ReactNod
 
   return (
     <div className="min-h-screen bg-[#f1f5f9] flex">
-      {/* Sidebar Fijo a la Izquierda */}
+      {/* Sidebar Fijo a la Izquierda — solo desktop */}
       <PortalSidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
 
-      {/* Contenido Principal con margen en md: para el sidebar */}
-      <div className="flex-1 flex flex-col md:ml-64 w-full">
+      {/* Contenido Principal */}
+      <div className="flex-1 flex flex-col md:ml-60 w-full min-w-0">
         {/* Cabecera Superior Fija */}
         <PortalHeader onMenuClick={() => setIsSidebarOpen(true)} />
 
-        {/* Área de trabajo */}
-        <main className="flex-1 p-6">
+        {/* Área de trabajo — padding-bottom extra en mobile por bottom nav */}
+        <main className="flex-1 p-3 md:p-6 pb-20 md:pb-6 overflow-x-hidden">
           {children}
         </main>
       </div>

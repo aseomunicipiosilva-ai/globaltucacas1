@@ -1,10 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { CreditCard, FileText, Upload, Send, Building, CheckSquare, AlertCircle, Zap, CheckCircle2, Smartphone } from 'lucide-react';
+import { CreditCard, FileText, Upload, Send, Building, CheckSquare, AlertCircle, Smartphone, CheckCircle2, MapPin } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { formatBs } from '@/lib/formatCurrency';
 
-type Metodo = 'punto_de_venta' | 'transferencia' | '';
+type Metodo = 'transferencia' | '';
 
 export default function DondePagarPage() {
   const [metodo, setMetodo] = useState<Metodo>('');
@@ -280,71 +280,36 @@ export default function DondePagarPage() {
               {/* Selector de Método de Pago */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-2">Método de Pago <span className="text-red-500">*</span></label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    disabled={montoTotal === 0}
-                    onClick={() => setMetodo('punto_de_venta')}
-                    className={`p-4 rounded-lg border-2 text-left transition-all flex items-start gap-3 disabled:opacity-40 disabled:cursor-not-allowed ${
-                      metodo === 'punto_de_venta'
-                        ? 'border-emerald-500 bg-emerald-50'
-                        : 'border-slate-200 hover:border-slate-300 bg-white'
-                    }`}
-                  >
-                    <Zap className={`w-5 h-5 mt-0.5 flex-shrink-0 ${metodo === 'punto_de_venta' ? 'text-emerald-600' : 'text-slate-400'}`} />
-                    <div>
-                      <p className="font-bold text-sm text-slate-800">Punto de Venta</p>
-                      <p className="text-[10px] text-slate-500 mt-0.5">Aprobación automática inmediata</p>
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={montoTotal === 0}
-                    onClick={() => setMetodo('transferencia')}
-                    className={`p-4 rounded-lg border-2 text-left transition-all flex items-start gap-3 disabled:opacity-40 disabled:cursor-not-allowed ${
-                      metodo === 'transferencia'
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-slate-200 hover:border-slate-300 bg-white'
-                    }`}
-                  >
-                    <Smartphone className={`w-5 h-5 mt-0.5 flex-shrink-0 ${metodo === 'transferencia' ? 'text-blue-600' : 'text-slate-400'}`} />
-                    <div>
-                      <p className="font-bold text-sm text-slate-800">Transferencia / Débito</p>
-                      <p className="text-[10px] text-slate-500 mt-0.5">Requiere validación administrativa</p>
-                    </div>
-                  </button>
+
+                {/* Aviso: punto de venta solo en oficina */}
+                <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3 text-sm">
+                  <MapPin className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-amber-800">Pago con tarjeta de débito</p>
+                    <p className="text-amber-700 text-xs mt-0.5">El pago por <strong>Punto de Venta</strong> solo se realiza presencialmente en nuestras oficinas. Diríjase a la sede más cercana con su cédula de identidad.</p>
+                  </div>
                 </div>
+
+                {/* Solo transferencia disponible en línea */}
+                <button
+                  type="button"
+                  disabled={montoTotal === 0}
+                  onClick={() => setMetodo('transferencia')}
+                  className={`w-full p-4 rounded-lg border-2 text-left transition-all flex items-start gap-3 disabled:opacity-40 disabled:cursor-not-allowed ${
+                    metodo === 'transferencia'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}
+                >
+                  <Smartphone className={`w-5 h-5 mt-0.5 flex-shrink-0 ${metodo === 'transferencia' ? 'text-blue-600' : 'text-slate-400'}`} />
+                  <div>
+                    <p className="font-bold text-sm text-slate-800">Transferencia / Pago Móvil</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Requiere validación administrativa (24-48 hrs)</p>
+                  </div>
+                </button>
               </div>
 
-              {/* Punto de Venta: solo referencia opcional */}
-              {metodo === 'punto_de_venta' && (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 space-y-3">
-                  <p className="text-xs text-emerald-700 font-medium flex items-center gap-1">
-                    <Zap className="w-3.5 h-3.5" />
-                    El pago por Punto de Venta se aprueba de forma inmediata y automática.
-                  </p>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Nro. de Aprobación (opcional)</label>
-                    <input 
-                      type="text"
-                      placeholder="Ej. 123456"
-                      value={formData.referencia}
-                      onChange={(e) => setFormData({...formData, referencia: e.target.value.replace(/\D/g, '')})}
-                      className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-emerald-500 font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">Fecha del Pago</label>
-                    <input 
-                      type="date"
-                      value={formData.fecha}
-                      max={new Date().toISOString().split('T')[0]}
-                      onChange={(e) => setFormData({...formData, fecha: e.target.value})}
-                      className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-emerald-500"
-                    />
-                  </div>
-                </div>
-              )}
+
 
               {/* Transferencia: formulario completo */}
               {metodo === 'transferencia' && (
@@ -439,22 +404,13 @@ export default function DondePagarPage() {
                   <button 
                     type="submit"
                     disabled={isSubmitting || montoTotal === 0}
-                    className={`px-8 py-2.5 rounded text-sm font-semibold flex items-center gap-2 disabled:opacity-50 shadow-sm transition-colors text-white ${
-                      metodo === 'punto_de_venta'
-                        ? 'bg-emerald-600 hover:bg-emerald-700'
-                        : 'bg-blue-600 hover:bg-blue-700'
-                    }`}
+                    className="px-8 py-2.5 rounded text-sm font-semibold flex items-center gap-2 disabled:opacity-50 shadow-sm transition-colors text-white bg-blue-600 hover:bg-blue-700"
                   >
-                    {isSubmitting ? (
-                      'Procesando...'
-                    ) : metodo === 'punto_de_venta' ? (
-                      <><Zap className="w-4 h-4" /> Aplicar Pago</>
-                    ) : (
-                      <><Send className="w-4 h-4" /> Reportar Transferencia</>
-                    )}
+                    {isSubmitting ? 'Procesando...' : <><Send className="w-4 h-4" /> Reportar Transferencia</>}
                   </button>
                 </div>
               )}
+
             </form>
           </div>
         </div>
