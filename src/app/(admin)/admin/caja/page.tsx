@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { exportToExcelWithLogos } from '@/lib/excelExport';
-import { Search, CreditCard, Landmark, CheckCircle, XCircle, FileText, Handshake, Calendar as CalendarIcon } from 'lucide-react';
+import { Search, CreditCard, Landmark, CheckCircle, XCircle, FileText, Handshake, Calendar as CalendarIcon, Wrench, ShieldCheck, ClipboardCheck, FlaskConical } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
 import { formatBs } from '@/lib/formatCurrency';
@@ -21,10 +21,12 @@ export default function CajaPage() {
   // Debt State
   const [recibos, setRecibos] = useState<any[]>([]);
   const [cuotas, setCuotas] = useState<any[]>([]);
+  const [serviciosEsp, setServiciosEsp] = useState<any[]>([]);
   
   // Selection State
   const [selectedRecibos, setSelectedRecibos] = useState<string[]>([]);
   const [selectedCuotas, setSelectedCuotas] = useState<{convId: string, cuotaId: number}[]>([]);
+  const [selectedServicios, setSelectedServicios] = useState<string[]>([]);
   const [totalBs, setTotalBs] = useState(0);
 
   // Payment State
@@ -149,11 +151,13 @@ export default function CajaPage() {
     setIsAuthorizing(false);
   };
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     setIsSearching(true);
     setFoundUser(null);
     setSelectedRecibos([]);
     setSelectedCuotas([]);
+    setSelectedServicios([]);
+    setServiciosEsp([]);
     setTotalBs(0);
 
     const idLimpioSearch = docNumber.replace(/-/g, '').toUpperCase();
@@ -200,6 +204,15 @@ export default function CajaPage() {
         });
       });
       setCuotas(pendingCuotas);
+
+      // Cargar servicios especiales pendientes
+      const { data: servEsp } = await supabase
+        .from('servicios_especiales')
+        .select('*')
+        .or(`identidad.eq.${user.Identidad},identidad.eq.${cleanFullDoc}`)
+        .eq('estado', 'Pendiente');
+      setServiciosEsp(servEsp || []);
+
     } else {
       alert("Contribuyente no encontrado. Puede intentar buscar por Código de Usuario.");
     }
@@ -220,9 +233,14 @@ export default function CajaPage() {
       const c = cuotas.find(cq => cq.convId === sc.convId && cq.cuotaId === sc.cuotaId);
       if (c) total += parseFloat(c.monto || '0');
     });
+
+    selectedServicios.forEach(ref => {
+      const s = serviciosEsp.find(ss => ss.referencia === ref);
+      if (s) total += parseFloat(s.monto || '0');
+    });
     
     setTotalBs(total);
-  }, [selectedRecibos, selectedCuotas, recibos, cuotas]);
+  }, [selectedRecibos, selectedCuotas, selectedServicios, recibos, cuotas, serviciosEsp]);
 
   const toggleRecibo = (ref: string) => {
     if (selectedRecibos.includes(ref)) {
@@ -238,6 +256,14 @@ export default function CajaPage() {
       setSelectedCuotas(selectedCuotas.filter(c => !(c.convId === convId && c.cuotaId === cuotaId)));
     } else {
       setSelectedCuotas([...selectedCuotas, {convId, cuotaId}]);
+    }
+  };
+
+  const toggleServicio = (ref: string) => {
+    if (selectedServicios.includes(ref)) {
+      setSelectedServicios(selectedServicios.filter(r => r !== ref));
+    } else {
+      setSelectedServicios([...selectedServicios, ref]);
     }
   };
 
@@ -346,11 +372,27 @@ export default function CajaPage() {
 
       if (isAutoAprobado) {
         // Direct Payment (Pagado)
-        if (selectedRecibos.length > 0) {
+        // Fix bug pago parcial: si montoDebito < totalBs, solo marcar facturas que cubre el monto
+        let recibosCubiertos = [...selectedRecibos];
+        if (montoDebito && parseFloat(montoDebito) > 0 && parseFloat(montoDebito) < totalBs - 1) {
+          let acumulado = 0;
+          recibosCubiertos = [];
+          for (const ref of selectedRecibos) {
+            const f = recibos.find(r => r.referencia === ref);
+            if (!f) continue;
+            const monto = parseFloat(getReciboMonto(f) || '0');
+            if (acumulado + monto <= parseFloat(montoDebito) + 0.01) {
+              acumulado += monto;
+              recibosCubiertos.push(ref);
+            }
+          }
+        }
+
+        if (recibosCubiertos.length > 0) {
           const { error: fErr } = await supabase
             .from('facturas')
             .update({ estado: 'Pagado' })
-            .in('referencia', selectedRecibos);
+            .in('referencia', recibosCubiertos);
           if (fErr) throw fErr;
         }
         
@@ -377,6 +419,11 @@ export default function CajaPage() {
           }
         }
         
+        // Pagar servicios especiales seleccionados
+        if (selectedServicios.length > 0) {
+          await supabase.from('servicios_especiales').update({ estado: 'Pagado' }).in('referencia', selectedServicios);
+        }
+
         const cajero = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'Administrador';
         const letra = (typeof window !== 'undefined' ? localStorage.getItem('adminLetra') : null);
         const cajero_id = letra && cajero !== 'Administrador' ? `${letra}-${cajero}` : cajero;
@@ -473,6 +520,11 @@ export default function CajaPage() {
         }
 
         setSuccessMsg(`${paymentMethod} registrado(a). Ha sido enviado(a) al módulo de Facturación para su conciliación automática o manual.`);
+      }
+
+      // Pagar servicios especiales en transferencia
+      if (paymentMethod === 'Transferencia' && selectedServicios.length > 0) {
+        await supabase.from('servicios_especiales').update({ estado: 'Por Verificar' }).in('referencia', selectedServicios);
       }
 
       // Reset
@@ -842,6 +894,41 @@ export default function CajaPage() {
                 )}
               </div>
             </div>
+
+            {/* Servicios Especiales Pendientes */}
+            {serviciosEsp.length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+                <div className="bg-purple-50 px-4 py-3 border-b border-purple-200 flex items-center gap-2">
+                  <Wrench className="w-5 h-5 text-purple-600" />
+                  <h3 className="font-bold text-purple-800">Servicios Especiales / Extraordinarios Pendientes</h3>
+                  <span className="text-xs text-purple-600 font-medium">({serviciosEsp.length})</span>
+                </div>
+                <div className="p-4 space-y-2">
+                  {serviciosEsp.map((s) => {
+                    const iconMap: Record<string, any> = { especial: Wrench, extraordinario: FlaskConical, inspeccion: ClipboardCheck, visto_bueno: ShieldCheck };
+                    const Icon = iconMap[s.tipo] || Wrench;
+                    return (
+                      <label key={s.referencia} className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${selectedServicios.includes(s.referencia) ? 'bg-purple-50 border-purple-200' : 'hover:bg-slate-50 border-slate-200'}`}>
+                        <div className="flex items-center gap-3">
+                          <input 
+                            type="checkbox"
+                            checked={selectedServicios.includes(s.referencia)}
+                            onChange={() => toggleServicio(s.referencia)}
+                            className="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500"
+                          />
+                          <Icon className="w-4 h-4 text-purple-500 flex-shrink-0" />
+                          <div>
+                            <p className="font-semibold text-sm text-slate-800">{s.descripcion}</p>
+                            <p className="text-xs text-slate-500">{s.referencia} • {s.fecha}</p>
+                          </div>
+                        </div>
+                        <span className="font-bold text-purple-700">Bs. {formatBs(parseFloat(s.monto || '0'))}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
           </div>
 
