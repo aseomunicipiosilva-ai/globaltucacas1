@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Edit2, Save, XCircle, FileText, Power, Key, Eye, EyeOff, Copy } from 'lucide-react';
+import { X, Plus, Trash2, Edit2, Save, XCircle, FileText, Power, Key, Eye, EyeOff, Copy, Receipt, AlertTriangle, CheckCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
@@ -41,6 +41,12 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
   // Credenciales por unidad
   const [showCredencial, setShowCredencial] = useState<number | null>(null);
   const [showPassword, setShowPassword] = useState<Set<number>>(new Set());
+  const [editingClave, setEditingClave] = useState<number | null>(null);
+  const [nuevaClave, setNuevaClave] = useState('');
+  const [savingClave, setSavingClave] = useState(false);
+
+  // Estado de cuenta por unidad
+  const [showEstado, setShowEstado] = useState<number | null>(null);
 
   useEffect(() => {
     fetchUnidades();
@@ -427,9 +433,9 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                 <table className="w-full text-left text-sm">
                   <thead className="bg-slate-50 text-slate-600 text-xs uppercase font-semibold">
                     <tr>
-                      <th className="px-4 py-3">ID</th>
+                      <th className="px-4 py-3">Código</th>
                       <th className="px-4 py-3">Unidad</th>
-                      <th className="px-4 py-3">Propietario</th>
+                      <th className="px-4 py-3">Propietario / Cédula</th>
                       <th className="px-4 py-3">Contacto</th>
                       <th className="px-4 py-3">Ficha</th>
                       <th className="px-4 py-3">Ocupación</th>
@@ -528,7 +534,9 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                         ) : (
                           <>
                             <td className="px-3 py-3">
-                              <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold text-xs" title={`ID: ${u.id}`}>#{u.id}</span>
+                              <span className="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-700 font-mono text-xs font-bold" title={`ID BD: ${u.id}`}>
+                                {u.codigo || `C${String(condominioId).padStart(3,'0')}-${u.numero_unidad}`}
+                              </span>
                             </td>
                             <td className="px-4 py-3 font-medium text-slate-800">{u.numero_unidad}</td>
                             <td className="px-4 py-3">
@@ -562,13 +570,20 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                               >
                                 <FileText size={16} />
                               </button>
+                              <button
+                                onClick={() => { setShowEstado(showEstado === u.id ? null : u.id); setShowCredencial(null); }}
+                                className={`p-1.5 rounded-lg transition-colors mr-1 ${showEstado === u.id ? 'bg-orange-100 text-orange-700' : 'text-orange-500 hover:bg-orange-50'}`}
+                                title="Estado de Cuenta"
+                              >
+                                <Receipt size={16} />
+                              </button>
                               <button onClick={() => iniciarEdicion(u)} className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors mr-1">
                                 <Edit2 size={16} />
                               </button>
                               <button
-                                onClick={() => setShowCredencial(showCredencial === u.id ? null : u.id)}
+                                onClick={() => { setShowCredencial(showCredencial === u.id ? null : u.id); setShowEstado(null); setNuevaClave(''); setEditingClave(null); }}
                                 className={`p-1.5 rounded-lg transition-colors mr-1 ${showCredencial === u.id ? 'bg-violet-100 text-violet-700' : 'text-violet-500 hover:bg-violet-50'}`}
-                                title="Ver/Generar Credenciales de Acceso"
+                                title="Ver/Gestionar Credenciales de Acceso"
                               >
                                 <Key size={16} />
                               </button>
@@ -586,37 +601,165 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                           </>
                         )}
                       </tr>
+                      {/* Panel Credenciales */}
                       {showCredencial === u.id && (
                         <tr className="bg-violet-50 border-b border-violet-100">
-                          <td colSpan={8} className="px-4 py-3">
-                            <div className="flex items-center gap-6 flex-wrap">
+                          <td colSpan={8} className="px-4 py-4">
+                            <div className="flex flex-col gap-3">
                               <div className="flex items-center gap-2">
                                 <Key size={14} className="text-violet-600" />
-                                <span className="text-xs font-bold text-violet-700 uppercase">Credenciales de Acceso Portal</span>
+                                <span className="text-xs font-bold text-violet-700 uppercase">Credenciales de Acceso al Portal</span>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-slate-500">Usuario:</span>
-                                <code className="text-xs font-mono bg-white border border-violet-200 px-2 py-0.5 rounded text-violet-800 font-bold">
-                                  {u.cedula_rif || `COND-${condominioId}-${u.id}`}
-                                </code>
-                                <button onClick={() => navigator.clipboard.writeText(u.cedula_rif || `COND-${condominioId}-${u.id}`)} className="text-violet-500 hover:text-violet-700" title="Copiar">
-                                  <Copy size={13} />
-                                </button>
+                              <div className="flex items-center gap-4 flex-wrap">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-slate-500 font-medium">Usuario:</span>
+                                  <code className="text-xs font-mono bg-white border border-violet-200 px-2 py-1 rounded text-violet-800 font-bold">
+                                    {u.usuario_portal || u.cedula_rif || `COND-${condominioId}-${u.id}`}
+                                  </code>
+                                  <button onClick={() => navigator.clipboard.writeText(u.usuario_portal || u.cedula_rif || `COND-${condominioId}-${u.id}`)} className="text-violet-500 hover:text-violet-700" title="Copiar usuario">
+                                    <Copy size={13} />
+                                  </button>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-slate-500 font-medium">Contraseña:</span>
+                                  {u.clave_acceso ? (
+                                    <>
+                                      <code className="text-xs font-mono bg-white border border-violet-200 px-2 py-1 rounded text-violet-800 font-bold">
+                                        {showPassword.has(u.id) ? u.clave_acceso : '••••••••'}
+                                      </code>
+                                      <button onClick={() => setShowPassword(prev => { const s = new Set(prev); s.has(u.id) ? s.delete(u.id) : s.add(u.id); return s; })} className="text-violet-500 hover:text-violet-700">
+                                        {showPassword.has(u.id) ? <EyeOff size={13} /> : <Eye size={13} />}
+                                      </button>
+                                      <button onClick={() => navigator.clipboard.writeText(u.clave_acceso || '')} className="text-violet-500 hover:text-violet-700" title="Copiar">
+                                        <Copy size={13} />
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-200 flex items-center gap-1">
+                                      <AlertTriangle size={11} /> Sin clave configurada
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-slate-500">Contraseña:</span>
-                                <code className="text-xs font-mono bg-white border border-violet-200 px-2 py-0.5 rounded text-violet-800 font-bold">
-                                  {showPassword.has(u.id) ? `COND${u.id}${new Date().getFullYear()}` : '••••••••'}
-                                </code>
-                                <button onClick={() => setShowPassword(prev => { const s = new Set(prev); s.has(u.id) ? s.delete(u.id) : s.add(u.id); return s; })} className="text-violet-500 hover:text-violet-700" title="Mostrar/Ocultar">
-                                  {showPassword.has(u.id) ? <EyeOff size={13} /> : <Eye size={13} />}
+                              {/* Formulario para asignar/cambiar clave */}
+                              {editingClave === u.id ? (
+                                <div className="flex items-center gap-2 mt-1">
+                                  <input
+                                    type="text"
+                                    value={nuevaClave}
+                                    onChange={e => setNuevaClave(e.target.value)}
+                                    placeholder="Nueva contraseña para el propietario"
+                                    className="text-sm border border-violet-300 rounded px-3 py-1.5 outline-none focus:ring-2 focus:ring-violet-400 w-72"
+                                  />
+                                  <button
+                                    onClick={async () => {
+                                      if (!nuevaClave.trim()) return alert('Ingrese una contraseña');
+                                      setSavingClave(true);
+                                      const { error } = await supabase.from('unidades_condominio').update({ clave_acceso: nuevaClave.trim() }).eq('id', u.id);
+                                      if (!error) {
+                                        setUnidades(unidades.map(x => x.id === u.id ? { ...x, clave_acceso: nuevaClave.trim() } : x));
+                                        setEditingClave(null);
+                                        setNuevaClave('');
+                                        alert('Clave guardada exitosamente.');
+                                      } else {
+                                        alert('Error guardando clave: ' + error.message);
+                                      }
+                                      setSavingClave(false);
+                                    }}
+                                    disabled={savingClave}
+                                    className="px-3 py-1.5 bg-violet-600 text-white rounded text-xs font-semibold hover:bg-violet-700 disabled:opacity-50"
+                                  >
+                                    {savingClave ? 'Guardando...' : 'Guardar Clave'}
+                                  </button>
+                                  <button onClick={() => { setEditingClave(null); setNuevaClave(''); }} className="px-3 py-1.5 bg-slate-200 text-slate-600 rounded text-xs">
+                                    Cancelar
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => { setEditingClave(u.id); setNuevaClave(u.clave_acceso || ''); }}
+                                  className="text-xs text-violet-600 hover:text-violet-800 underline self-start"
+                                >
+                                  {u.clave_acceso ? '🔑 Cambiar contraseña' : '🔑 Asignar contraseña'}
                                 </button>
-                                <button onClick={() => navigator.clipboard.writeText(`COND${u.id}${new Date().getFullYear()}`)} className="text-violet-500 hover:text-violet-700" title="Copiar">
-                                  <Copy size={13} />
-                                </button>
-                              </div>
-                              <span className="text-[10px] text-slate-400">* Usuario = Cédula/RIF del propietario. Contraseña por defecto: COND + ID + Año</span>
+                              )}
+                              <p className="text-[10px] text-slate-400">El propietario puede acceder al portal con el Usuario y Contraseña asignados.</p>
                             </div>
+                          </td>
+                        </tr>
+                      )}
+                      {/* Panel Estado de Cuenta */}
+                      {showEstado === u.id && (
+                        <tr className="bg-orange-50/40 border-b border-orange-100">
+                          <td colSpan={8} className="px-4 py-4">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Receipt size={14} className="text-orange-600" />
+                              <span className="text-xs font-bold text-orange-700 uppercase">Estado de Cuenta — Unidad: {u.numero_unidad}</span>
+                              <span className="text-[10px] text-slate-500">({u.propietario || 'Sin propietario'})</span>
+                            </div>
+                            {(() => {
+                              const factCondominio = (facturas || []).filter((f: any) =>
+                                f.contribuyente === condominioIdentidad || f.contribuyente === condominioNombre
+                              );
+                              const pendientes = factCondominio.filter((f: any) => f.estado === 'Pendiente');
+                              const pagadas = factCondominio.filter((f: any) => f.estado === 'Pagado' || f.estado === 'Pagado Parcial');
+                              const totalDeuda = pendientes.reduce((a: number, f: any) => a + parseFloat(f.monto || '0'), 0);
+                              const totalPagado = pagadas.reduce((a: number, f: any) => a + parseFloat(f.monto || '0'), 0);
+                              return (
+                                <div>
+                                  <div className="grid grid-cols-3 gap-3 mb-3">
+                                    <div className="bg-white border border-orange-100 rounded p-2 text-center">
+                                      <p className="text-[10px] text-orange-600 font-bold uppercase">Deuda Pendiente</p>
+                                      <p className="text-sm font-black text-red-600">Bs. {totalDeuda.toLocaleString('es-VE', {minimumFractionDigits:2})}</p>
+                                    </div>
+                                    <div className="bg-white border border-emerald-100 rounded p-2 text-center">
+                                      <p className="text-[10px] text-emerald-600 font-bold uppercase">Total Pagado</p>
+                                      <p className="text-sm font-black text-emerald-600">Bs. {totalPagado.toLocaleString('es-VE', {minimumFractionDigits:2})}</p>
+                                    </div>
+                                    <div className="bg-white border border-slate-100 rounded p-2 text-center">
+                                      <p className="text-[10px] text-slate-500 font-bold uppercase">Estado</p>
+                                      <p className={`text-xs font-bold ${pendientes.length === 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                        {pendientes.length === 0 ? '✅ SOLVENTE' : `⚠️ ${pendientes.length} recibo(s) pendiente(s)`}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {factCondominio.length > 0 ? (
+                                    <div className="overflow-x-auto max-h-48 overflow-y-auto">
+                                      <table className="w-full text-xs">
+                                        <thead className="bg-orange-100 text-orange-800 uppercase">
+                                          <tr>
+                                            <th className="px-3 py-1.5 text-left">Referencia</th>
+                                            <th className="px-3 py-1.5 text-left">Emisión</th>
+                                            <th className="px-3 py-1.5 text-left">Vencimiento</th>
+                                            <th className="px-3 py-1.5 text-right">Monto (Bs)</th>
+                                            <th className="px-3 py-1.5 text-center">Estado</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {factCondominio.slice(0,20).map((f: any, i: number) => (
+                                            <tr key={i} className="border-b border-orange-50 hover:bg-white">
+                                              <td className="px-3 py-1.5 font-mono">{f.referencia}</td>
+                                              <td className="px-3 py-1.5">{f.emision}</td>
+                                              <td className="px-3 py-1.5">{f.vencimiento}</td>
+                                              <td className="px-3 py-1.5 text-right font-bold">{parseFloat(f.monto||'0').toLocaleString('es-VE', {minimumFractionDigits:2})}</td>
+                                              <td className="px-3 py-1.5 text-center">
+                                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                                  f.estado === 'Pagado' ? 'bg-emerald-100 text-emerald-700' :
+                                                  f.estado === 'Pendiente' ? 'bg-red-100 text-red-700' :
+                                                  'bg-slate-100 text-slate-600'
+                                                }`}>{f.estado}</span>
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-slate-400 text-center py-4">No hay facturas registradas para este condominio.</p>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </td>
                         </tr>
                       )}
