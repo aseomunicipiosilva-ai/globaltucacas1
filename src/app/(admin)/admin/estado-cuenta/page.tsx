@@ -112,6 +112,10 @@ export default function EstadoCuentaPage() {
               }
             }
           }
+          // Servicios especiales - pago completo
+          if ((detalles as any).servicios && (detalles as any).servicios.length > 0) {
+            await supabase.from('servicios_especiales').update({ estado: 'Pagado' }).in('referencia', (detalles as any).servicios);
+          }
         } else {
           // LÓGICA DE ABONO (Pago Parcial)
           let dineroDisponible = parseFloat(pago.monto);
@@ -189,6 +193,30 @@ export default function EstadoCuentaPage() {
 
               for (const [cId, parsed] of convUpdates.entries()) {
                 await supabase.from('convenios').update({ detalle_cuotas: JSON.stringify(parsed) }).eq('id', cId);
+              }
+            }
+          }
+
+          // 3. Process Servicios Especiales with remaining dineroDisponible
+          if ((detalles as any).servicios && (detalles as any).servicios.length > 0) {
+            const { data: servData } = await supabase
+              .from('servicios_especiales')
+              .select('*')
+              .in('referencia', (detalles as any).servicios);
+            if (servData) {
+              for (const s of servData) {
+                const montoS = parseFloat((s.monto || '0').toString().replace(/[^\d.]/g, ''));
+                if (dineroDisponible >= montoS - 0.01) {
+                  dineroDisponible = Math.max(0, dineroDisponible - montoS);
+                  await supabase.from('servicios_especiales').update({ estado: 'Pagado' }).eq('id', s.id);
+                } else if (dineroDisponible > 0.01) {
+                  const montoRestante = (montoS - dineroDisponible).toFixed(2);
+                  await supabase.from('servicios_especiales').update({ monto: montoRestante }).eq('id', s.id);
+                  dineroDisponible = 0;
+                } else {
+                  // No money left - revert to Pendiente
+                  await supabase.from('servicios_especiales').update({ estado: 'Pendiente' }).eq('id', s.id);
+                }
               }
             }
           }

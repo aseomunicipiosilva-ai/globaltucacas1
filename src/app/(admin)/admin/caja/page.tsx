@@ -428,9 +428,36 @@ export default function CajaPage() {
           }
         }
         
-        // Pagar servicios especiales seleccionados
+        // Servicios especiales: aplicar dineroDisponible restante (no marcar todos pagados automáticamente)
         if (selectedServicios.length > 0) {
-          await supabase.from('servicios_especiales').update({ estado: 'Pagado' }).in('referencia', selectedServicios);
+          if (!esAbonoDebito) {
+            // Pago completo - marcar todos como Pagado
+            await supabase.from('servicios_especiales').update({ estado: 'Pagado' }).in('referencia', selectedServicios);
+          } else {
+            // Abono - usar dineroDisponible restante de las facturas
+            // Necesitamos recalcular cuánto dinero queda después de pagar facturas
+            let dineroPagado = 0;
+            for (const ref of selectedRecibos) {
+              const f = recibos.find(r => r.referencia === ref);
+              if (f) dineroPagado += parseFloat(getReciboMonto(f) || '0');
+            }
+            let dineroRestanteParaServicios = Math.max(0, parseFloat(montoDebito) - dineroPagado);
+            
+            for (const ref of selectedServicios) {
+              const s = serviciosEsp.find(sv => sv.referencia === ref);
+              if (!s) continue;
+              const montoS = parseFloat(s.monto || '0');
+              if (dineroRestanteParaServicios >= montoS - 0.01) {
+                dineroRestanteParaServicios = Math.max(0, dineroRestanteParaServicios - montoS);
+                await supabase.from('servicios_especiales').update({ estado: 'Pagado' }).eq('referencia', ref);
+              } else if (dineroRestanteParaServicios > 0.01) {
+                const montoRestante = (montoS - dineroRestanteParaServicios).toFixed(2);
+                await supabase.from('servicios_especiales').update({ monto: montoRestante }).eq('referencia', ref);
+                dineroRestanteParaServicios = 0;
+              }
+              // Si no hay dinero, el servicio queda Pendiente sin cambios
+            }
+          }
         }
 
         const cajero = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'Administrador';
@@ -455,6 +482,7 @@ export default function CajaPage() {
           detalles: JSON.stringify({
             recibos: selectedRecibos,
             cuotas: selectedCuotas,
+            servicios: selectedServicios,
             cajero: cajero_id,
             es_abono: esAbonoDebito,
             monto_abonado: esAbonoDebito ? montoReal : undefined,
@@ -494,6 +522,7 @@ export default function CajaPage() {
           detalles: JSON.stringify({ 
             recibos: selectedRecibos, 
             cuotas: selectedCuotas,
+            servicios: selectedServicios,
             saldo_favor: saldoAFavorNuevo,
             es_abono: esAbono,
             total_seleccionado: totalBs,
@@ -534,12 +563,12 @@ export default function CajaPage() {
           }
         }
 
-        setSuccessMsg(`${paymentMethod} registrado(a). Ha sido enviado(a) al módulo de Facturación para su conciliación automática o manual.`);
-      }
+        // Servicios especiales Transferencia → Por Verificar (incluir en detalles)
+        if (selectedServicios.length > 0) {
+          await supabase.from('servicios_especiales').update({ estado: 'Por Verificar' }).in('referencia', selectedServicios);
+        }
 
-      // Pagar servicios especiales en transferencia
-      if (paymentMethod === 'Transferencia' && selectedServicios.length > 0) {
-        await supabase.from('servicios_especiales').update({ estado: 'Por Verificar' }).in('referencia', selectedServicios);
+        setSuccessMsg(`${paymentMethod} registrado(a). Ha sido enviado(a) al módulo de Facturación para su conciliación automática o manual.`);
       }
 
       // Reset

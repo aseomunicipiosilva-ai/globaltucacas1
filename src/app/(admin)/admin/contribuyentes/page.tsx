@@ -261,14 +261,13 @@ function ContribuyentesPageContent() {
       calculateFactorForRow(viewData).then(detalle => {
         if (detalle) setViewCalculo(detalle);
       });
-      // Load servicios especiales for this contributor
+      // Load ALL servicios especiales for this contributor (pending AND paid)
       const idLimpio = (viewData.Identidad || '').replace(/-/g, '').toUpperCase();
       const idFmt = idLimpio.charAt(0) + '-' + idLimpio.slice(1);
       supabase
         .from('servicios_especiales')
         .select('*')
         .or(`identidad.eq.${viewData.Identidad},identidad.eq.${idLimpio},identidad.eq.${idFmt}`)
-        .not('estado', 'eq', 'Pagado')
         .order('fecha', { ascending: false })
         .then(({ data }) => setViewServiciosEsp(data || []));
     } else {
@@ -1939,13 +1938,13 @@ function ContribuyentesPageContent() {
                 </div>
               </div>
 
-              {/* Servicios Especiales Asignados */}
-              {viewServiciosEsp.length > 0 && (
+              {/* Servicios Especiales Pendientes (no pagados) */}
+              {viewServiciosEsp.filter((s: any) => s.estado !== 'Pagado').length > 0 && (
                 <div className="mt-4 border border-purple-200 rounded-lg overflow-hidden">
                   <div className="bg-purple-50 px-4 py-3 border-b border-purple-100 flex items-center gap-2">
                     <span className="text-lg">🔧</span>
                     <h4 className="font-bold text-purple-800 text-sm">Servicios Especiales / Inspecciones Asignados</h4>
-                    <span className="ml-auto text-xs font-bold text-purple-600">({viewServiciosEsp.length}) pendientes</span>
+                    <span className="ml-auto text-xs font-bold text-purple-600">({viewServiciosEsp.filter((s: any) => s.estado !== 'Pagado').length}) pendientes</span>
                   </div>
                   <div className="bg-white">
                     <table className="w-full text-sm text-left">
@@ -1959,7 +1958,7 @@ function ContribuyentesPageContent() {
                         </tr>
                       </thead>
                       <tbody>
-                        {viewServiciosEsp.map((s: any, idx: number) => (
+                        {viewServiciosEsp.filter((s: any) => s.estado !== 'Pagado').map((s: any, idx: number) => (
                           <tr key={idx} className="border-b border-slate-100 last:border-0 hover:bg-purple-50/30">
                             <td className="px-4 py-2 text-xs text-purple-600 font-semibold capitalize">{s.tipo?.replace('_', ' ')}</td>
                             <td className="px-4 py-2 font-medium text-slate-700 text-xs">{s.descripcion}</td>
@@ -1979,6 +1978,39 @@ function ContribuyentesPageContent() {
                   </div>
                 </div>
               )}
+              <div className="mt-4 border border-emerald-200 rounded-lg overflow-hidden">
+                <div className="bg-emerald-50 px-4 py-3 border-b border-emerald-100 flex items-center gap-2">
+                  <span className="text-lg">🔧</span>
+                  <h4 className="font-bold text-emerald-800 text-sm">Historial de Servicios Especiales / Inspecciones</h4>
+                  <span className="ml-auto text-xs text-emerald-600">({viewServiciosEsp.filter((s: any) => s.estado === 'Pagado').length}) pagados</span>
+                </div>
+                {viewServiciosEsp.filter((s: any) => s.estado === 'Pagado').length === 0 ? (
+                  <p className="p-4 text-sm text-slate-500 text-center">No hay servicios especiales pagados.</p>
+                ) : (
+                  <div className="bg-white">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-emerald-50 text-emerald-700 font-medium text-[10px] uppercase">
+                        <tr>
+                          <th className="px-4 py-2">Tipo</th>
+                          <th className="px-4 py-2">Descripción</th>
+                          <th className="px-4 py-2">Fecha</th>
+                          <th className="px-4 py-2 text-right">Monto (Bs)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {viewServiciosEsp.filter((s: any) => s.estado === 'Pagado').map((s: any, idx: number) => (
+                          <tr key={idx} className="border-b border-slate-100 last:border-0 hover:bg-emerald-50/20">
+                            <td className="px-4 py-2 text-xs text-emerald-700 font-semibold capitalize">{s.tipo?.replace('_', ' ')}</td>
+                            <td className="px-4 py-2 text-slate-700 text-xs">{s.descripcion}</td>
+                            <td className="px-4 py-2 text-slate-500 text-xs">{s.fecha}</td>
+                            <td className="px-4 py-2 text-right font-bold text-emerald-600">Bs. {Number(s.monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
 
               {/* Historial de Recibos Procesados */}
               <div className="mt-6 border border-slate-200 rounded-lg overflow-hidden mb-6">
