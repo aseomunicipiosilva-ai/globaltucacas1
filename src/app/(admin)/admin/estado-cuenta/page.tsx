@@ -698,22 +698,30 @@ export default function EstadoCuentaPage() {
 
       {activeTab === 'PorVerificar' && (
         <div className="bg-white rounded-lg shadow-sm border border-slate-200">
-          <div className="bg-orange-50 px-4 py-3 border-b border-orange-200">
-            <h3 className="font-bold text-orange-800">Transferencias Pendientes de Verificación</h3>
+          <div className="bg-orange-50 px-4 py-3 border-b border-orange-200 flex items-center justify-between">
+            <h3 className="font-bold text-orange-800">Transferencias / Pagos Pendientes de Verificación</h3>
+            <button onClick={fetchPagos} className="text-orange-600 hover:text-orange-800 text-xs flex items-center gap-1 font-medium">
+              <RefreshCw size={12} /> Actualizar
+            </button>
           </div>
-          <div className="p-0">
+          <div className="p-0 overflow-x-auto">
             {loadingPagos ? (
               <div className="p-8 text-center text-slate-500">Cargando pagos...</div>
             ) : pagosVerificar.length === 0 ? (
-              <div className="p-8 text-center text-slate-500">No hay pagos por verificar.</div>
+              <div className="p-10 text-center">
+                <CheckCircle size={40} className="mx-auto text-emerald-300 mb-3" />
+                <p className="text-slate-400 font-medium">No hay pagos pendientes de verificación.</p>
+              </div>
             ) : (
               <table className="w-full text-sm text-left">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs uppercase">
                   <tr>
+                    <th className="px-4 py-3 font-semibold">Fecha</th>
                     <th className="px-4 py-3 font-semibold">Identidad</th>
-                    <th className="px-4 py-3 font-semibold">Banco</th>
+                    <th className="px-4 py-3 font-semibold">Banco / Tipo</th>
                     <th className="px-4 py-3 font-semibold">Referencia</th>
-                    <th className="px-4 py-3 font-semibold">Monto</th>
+                    <th className="px-4 py-3 font-semibold">Monto (Bs)</th>
+                    <th className="px-4 py-3 font-semibold">Recibos / Cuotas</th>
                     <th className="px-4 py-3 font-semibold text-center">Acciones</th>
                   </tr>
                 </thead>
@@ -721,33 +729,60 @@ export default function EstadoCuentaPage() {
                   {pagosVerificar.map((pago: any) => {
                     let detalles: any = {};
                     try { detalles = JSON.parse(pago.detalles); } catch(e){}
+                    const fechaStr = pago.created_at ? new Date(pago.created_at).toLocaleDateString('es-VE', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' }) : '--';
+                    const recibos: string[] = detalles.recibos || [];
+                    const cuotas: any[] = detalles.cuotas || [];
+                    const compNombre = detalles.comprobante_nombre || '';
+                    const fechaTrans = detalles.fecha_transaccion || '';
                     
                     return (
-                    <tr key={pago.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-medium text-slate-700">{pago.identidad}</td>
-                      <td className="px-4 py-3">{pago.banco}</td>
-                      <td className="px-4 py-3 font-mono">{pago.referencia}</td>
+                    <tr key={pago.id} className="hover:bg-orange-50/30 transition-colors">
+                      <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
+                        <div>{fechaStr}</div>
+                        {fechaTrans && <div className="text-[10px] text-orange-500 font-medium">Transac: {fechaTrans}</div>}
+                      </td>
+                      <td className="px-4 py-3 font-mono font-bold text-slate-800">{pago.identidad}</td>
                       <td className="px-4 py-3">
-                        <span className="font-bold text-emerald-600">{pago.monto} Bs</span>
+                        <div className="font-medium text-slate-700">{pago.banco || '--'}</div>
+                        <span className="text-[10px] text-slate-400">{pago.tipo}</span>
+                      </td>
+                      <td className="px-4 py-3 font-mono text-sm text-slate-600">{pago.referencia || '--'}</td>
+                      <td className="px-4 py-3">
+                        <span className="font-bold text-emerald-600 text-base">Bs. {parseFloat(pago.monto||'0').toLocaleString('es-VE',{minimumFractionDigits:2})}</span>
                         {detalles.saldo_favor > 0 && (
-                          <span className="block text-[10px] text-orange-600 font-semibold">
-                            + Saldo a favor: {detalles.saldo_favor} Bs
-                          </span>
+                          <div className="text-[10px] text-orange-600 font-semibold mt-0.5">+Saldo favor: {detalles.saldo_favor} Bs</div>
+                        )}
+                        {compNombre && (
+                          <div className="text-[10px] text-blue-500 mt-0.5">📎 {compNombre}</div>
                         )}
                       </td>
+                      <td className="px-4 py-3 max-w-[200px]">
+                        {recibos.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-1">
+                            {recibos.slice(0,4).map((r: string, i: number) => (
+                              <span key={i} className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-mono">{r}</span>
+                            ))}
+                            {recibos.length > 4 && <span className="text-[10px] text-slate-400">+{recibos.length-4} más</span>}
+                          </div>
+                        )}
+                        {cuotas.length > 0 && (
+                          <div className="text-[10px] text-orange-600 font-medium">{cuotas.length} cuota(s) de convenio</div>
+                        )}
+                        {recibos.length === 0 && cuotas.length === 0 && <span className="text-xs text-slate-400">—</span>}
+                      </td>
                       <td className="px-4 py-3">
-                        <div className="flex justify-center gap-2">
+                        <div className="flex justify-center gap-2 whitespace-nowrap">
                           <button 
                             onClick={() => procesarPago(pago, 'Aprobar')}
-                            className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 p-1.5 rounded flex items-center gap-1 text-xs font-semibold transition-colors"
+                            className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded flex items-center gap-1 text-xs font-bold transition-colors border border-emerald-200"
                           >
-                            <CheckCircle size={14} /> Aprobar
+                            <CheckCircle size={13} /> Aprobar
                           </button>
                           <button 
                             onClick={() => procesarPago(pago, 'Rechazar')}
-                            className="bg-red-100 text-red-700 hover:bg-red-200 p-1.5 rounded flex items-center gap-1 text-xs font-semibold transition-colors"
+                            className="bg-red-100 text-red-700 hover:bg-red-200 px-3 py-1.5 rounded flex items-center gap-1 text-xs font-bold transition-colors border border-red-200"
                           >
-                            <XCircle size={14} /> Rechazar
+                            <XCircle size={13} /> Rechazar
                           </button>
                         </div>
                       </td>
