@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import React, { useState, useEffect } from 'react';
 import { DataTable } from '@/components/DataTable';
 import { FileSpreadsheet, Download, Filter, RefreshCw, Zap, Printer, X, CheckCircle, XCircle } from 'lucide-react';
@@ -23,7 +23,13 @@ export default function EstadoCuentaPage() {
   const [filterStatus, setFilterStatus] = useState('Todos');
   const [actionModal, setActionModal] = useState<{ isOpen: boolean, action: 'Anular' | 'Reversar' | 'Condonar' | 'Eliminar Multa', factura: any, nota: string }>({ isOpen: false, action: 'Anular', factura: null, nota: '' });
   
-  const filteredFacturas = facturas.filter((f: any) => filterStatus === 'Todos' || f.estado === filterStatus);
+  const filteredFacturas = facturas
+    .filter((f: any) => filterStatus === 'Todos' || f.estado === filterStatus)
+    .sort((a: any, b: any) => {
+      const dA = new Date(a.emision || '1900-01-01').getTime();
+      const dB = new Date(b.emision || '1900-01-01').getTime();
+      return dB - dA; // mÃ¡s reciente primero
+    });
 
   const fetchPagos = async () => {
     setLoadingPagos(true);
@@ -36,7 +42,7 @@ export default function EstadoCuentaPage() {
       
       if (data) setPagosVerificar(data);
     } catch (e) {
-      console.log('Tabla pagos_reportados no existe aún o hubo un error');
+      console.log('Tabla pagos_reportados no existe aÃºn o hubo un error');
     }
     setLoadingPagos(false);
   };
@@ -54,21 +60,26 @@ export default function EstadoCuentaPage() {
     setLoadingPagos(false);
   };
 
+  // Handle both jsonb (already object) and text (string) detalles column
+  const parseDetalles = (raw: any): any => {
+    if (!raw) return {};
+    if (typeof raw === 'object') return raw;
+    try { return JSON.parse(raw); } catch(e) { return {}; }
+  };
+
   const fetchAbonos = async () => {
     try {
+      // Fetch all recent pagos and filter client-side (ilike on jsonb is unreliable)
       const { data } = await supabase
         .from('pagos_reportados')
         .select('*')
-        .ilike('detalles', '%es_abono%')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(500);
       if (data) {
-        // Filter client-side: only records where es_abono is truly true
-        const abonos = data.filter((p: any) => {
-          try { return JSON.parse(p.detalles || '{}').es_abono === true; } catch(e) { return false; }
-        });
+        const abonos = data.filter((p: any) => parseDetalles(p.detalles).es_abono === true);
         setAbonosAprobados(abonos);
       }
-    } catch(e) {}
+    } catch(e) { console.error('fetchAbonos error:', e); }
   };
 
   useEffect(() => {
@@ -81,15 +92,14 @@ export default function EstadoCuentaPage() {
   }, [activeTab]);
 
   const procesarPago = async (pago: any, accion: 'Aprobar' | 'Rechazar') => {
-    if (!confirm(`¿Estás seguro de ${accion.toUpperCase()} este pago por Bs. ${pago.monto}?`)) return;
+    if (!confirm(`Â¿EstÃ¡s seguro de ${accion.toUpperCase()} este pago por Bs. ${pago.monto}?`)) return;
 
     try {
       // 1. Update the pago record
       await supabase.from('pagos_reportados').update({ estado: accion === 'Aprobar' ? 'Aprobado' : 'Rechazado' }).eq('id', pago.id);
 
       // 2. Parse details
-      let detalles = { recibos: [], cuotas: [] };
-      try { detalles = JSON.parse(pago.detalles); } catch(e){}
+      const detalles = { ...{ recibos: [], cuotas: [] }, ...parseDetalles(pago.detalles) };
 
       // 3. Update related items
       if (accion === 'Rechazar') {
@@ -152,7 +162,7 @@ export default function EstadoCuentaPage() {
             await supabase.from('servicios_especiales').update({ estado: 'Pagado' }).in('referencia', (detalles as any).servicios);
           }
         } else {
-          // LÓGICA DE ABONO (Pago Parcial)
+          // LÃ“GICA DE ABONO (Pago Parcial)
           let dineroDisponible = parseFloat(pago.monto);
 
           // 1. Process Facturas first
@@ -280,7 +290,7 @@ export default function EstadoCuentaPage() {
     let saldoPendiente: number | null = null;
     let esAbono = false;
     
-    // Obtener mes y año
+    // Obtener mes y aÃ±o
     let mesTexto = '---';
     if (row.emision) {
       const date = new Date(row.emision);
@@ -317,8 +327,7 @@ export default function EstadoCuentaPage() {
           .single();
           
         if (pago) {
-          let det: any = {};
-          try { det = JSON.parse(pago.detalles || '{}'); } catch(e){}
+          const det = parseDetalles(pago.detalles);
           
           formaPagoStr = pago.tipo === 'Debito' || pago.tipo === 'Punto de Venta' ? 'PUNTO DE VENTA' : 'TRANSFERENCIA';
           bancoReal = pago.banco || '---';
@@ -444,7 +453,7 @@ export default function EstadoCuentaPage() {
       return;
     }
     
-    if (!confirm(`¿Generar facturación usando TCMMV de ${tcmmv} Bs? Esto facturará a los ${inmuebles.length} inmuebles.`)) {
+    if (!confirm(`Â¿Generar facturaciÃ³n usando TCMMV de ${tcmmv} Bs? Esto facturarÃ¡ a los ${inmuebles.length} inmuebles.`)) {
       return;
     }
 
@@ -486,7 +495,7 @@ export default function EstadoCuentaPage() {
     }
 
     if (noConfigurados.length > 0) {
-      alert(`Atención: Las siguientes actividades no están en la ordenanza y no se facturaron:\n${noConfigurados.join(', ')}`);
+      alert(`AtenciÃ³n: Las siguientes actividades no estÃ¡n en la ordenanza y no se facturaron:\n${noConfigurados.join(', ')}`);
     }
 
     // Insertar masivo (en lotes si es necesario, pero supabase acepta arrays grandes)
@@ -498,7 +507,7 @@ export default function EstadoCuentaPage() {
 
     alert(`Se han generado ${nuevasFacturas.length} facturas exitosamente.`);
     setIsGenerating(false);
-    // Idealmente haríamos un refetch del context aquí, o se actualiza en tiempo real
+    // Idealmente harÃ­amos un refetch del context aquÃ­, o se actualiza en tiempo real
     window.location.reload();
   };
 
@@ -536,7 +545,7 @@ export default function EstadoCuentaPage() {
         'bg-slate-100 text-slate-700'
       }`}>{row.estado}</span>
     ) },
-    { key: 'emision', header: 'F. Emisión' },
+    { key: 'emision', header: 'F. EmisiÃ³n' },
     { key: 'vencimiento', header: 'F. Vencimiento' },
     { key: 'actions', header: 'Acciones', render: (row: any) => (
       <div className="flex gap-2">
@@ -665,7 +674,7 @@ export default function EstadoCuentaPage() {
             className="bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
           >
             <Zap className="w-4 h-4" /> 
-            {isGenerating ? 'Generando...' : 'Generar Facturación'}
+            {isGenerating ? 'Generando...' : 'Generar FacturaciÃ³n'}
           </button>
           <button 
             onClick={exportarAExcel}
@@ -677,7 +686,7 @@ export default function EstadoCuentaPage() {
             onClick={enviarCorreosMasivos}
             className="bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded text-sm font-medium transition-colors shadow-sm flex items-center gap-2"
           >
-            Envío Masivo Correos
+            EnvÃ­o Masivo Correos
           </button>
           </div>
         </div>
@@ -712,7 +721,7 @@ export default function EstadoCuentaPage() {
                   value={actionModal.nota}
                   onChange={(e) => setActionModal(prev => ({ ...prev, nota: e.target.value }))}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] resize-none"
-                  placeholder={`Por favor describe por qué se está ${actionModal.action.toLowerCase()}ndo esta factura...`}
+                  placeholder={`Por favor describe por quÃ© se estÃ¡ ${actionModal.action.toLowerCase()}ndo esta factura...`}
                 />
               </div>
 
@@ -783,7 +792,7 @@ export default function EstadoCuentaPage() {
             <div className="bg-amber-50 px-4 py-3 border-b border-amber-100 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-amber-800 text-sm">Abonos Parciales Realizados</h3>
-                <p className="text-xs text-amber-600">Pagos fraccionados aprobados — haz clic en 🖨️ para generar el recibo del abono</p>
+                <p className="text-xs text-amber-600">Pagos fraccionados aprobados â€” haz clic en ðŸ–¨ï¸ para generar el recibo del abono</p>
               </div>
               <button onClick={fetchAbonos} className="text-amber-400 hover:text-amber-600 transition-colors" title="Refrescar">
                 <RefreshCw size={14} />
@@ -796,15 +805,14 @@ export default function EstadoCuentaPage() {
                     <th className="px-4 py-2">Fecha</th>
                     <th className="px-4 py-2">Contribuyente</th>
                     <th className="px-4 py-2">Monto Abonado (Bs)</th>
-                    <th className="px-4 py-2">Método</th>
+                    <th className="px-4 py-2">MÃ©todo</th>
                     <th className="px-4 py-2">Estado</th>
                     <th className="px-4 py-2">Recibo</th>
                   </tr>
                 </thead>
                 <tbody>
                   {abonosAprobados.map((abono: any, idx: number) => {
-                    let det: any = {};
-                    try { det = JSON.parse(abono.detalles || '{}'); } catch(e){}
+                    const det = parseDetalles(abono.detalles);
                     const metodo = abono.tipo === 'Debito' ? 'Punto de Venta' : abono.tipo || '---';
                     const recibosAfectados: string[] = det.recibos || [];
                     // Find the matching factura (first one in the list) to build receipt
@@ -847,7 +855,7 @@ export default function EstadoCuentaPage() {
       {activeTab === 'PorVerificar' && (
         <div className="bg-white rounded-lg shadow-sm border border-slate-200">
           <div className="bg-orange-50 px-4 py-3 border-b border-orange-200 flex items-center justify-between">
-            <h3 className="font-bold text-orange-800">Transferencias / Pagos Pendientes de Verificación</h3>
+            <h3 className="font-bold text-orange-800">Transferencias / Pagos Pendientes de VerificaciÃ³n</h3>
             <button onClick={fetchPagos} className="text-orange-600 hover:text-orange-800 text-xs flex items-center gap-1 font-medium">
               <RefreshCw size={12} /> Actualizar
             </button>
@@ -858,7 +866,7 @@ export default function EstadoCuentaPage() {
             ) : pagosVerificar.length === 0 ? (
               <div className="p-10 text-center">
                 <CheckCircle size={40} className="mx-auto text-emerald-300 mb-3" />
-                <p className="text-slate-400 font-medium">No hay pagos pendientes de verificación.</p>
+                <p className="text-slate-400 font-medium">No hay pagos pendientes de verificaciÃ³n.</p>
               </div>
             ) : (
               <table className="w-full text-sm text-left">
@@ -875,8 +883,7 @@ export default function EstadoCuentaPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {pagosVerificar.map((pago: any) => {
-                    let detalles: any = {};
-                    try { detalles = JSON.parse(pago.detalles); } catch(e){}
+                    const detalles = parseDetalles(pago.detalles);
                     const fechaStr = pago.created_at ? new Date(pago.created_at).toLocaleDateString('es-VE', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' }) : '--';
                     const recibos: string[] = detalles.recibos || [];
                     const cuotas: any[] = detalles.cuotas || [];
@@ -902,7 +909,7 @@ export default function EstadoCuentaPage() {
                           <div className="text-[10px] text-orange-600 font-semibold mt-0.5">+Saldo favor: {detalles.saldo_favor} Bs</div>
                         )}
                         {compNombre && (
-                          <div className="text-[10px] text-blue-500 mt-0.5">📎 {compNombre}</div>
+                          <div className="text-[10px] text-blue-500 mt-0.5">ðŸ“Ž {compNombre}</div>
                         )}
                       </td>
                       <td className="px-4 py-3 max-w-[200px]">
@@ -911,13 +918,13 @@ export default function EstadoCuentaPage() {
                             {recibos.slice(0,4).map((r: string, i: number) => (
                               <span key={i} className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-mono">{r}</span>
                             ))}
-                            {recibos.length > 4 && <span className="text-[10px] text-slate-400">+{recibos.length-4} más</span>}
+                            {recibos.length > 4 && <span className="text-[10px] text-slate-400">+{recibos.length-4} mÃ¡s</span>}
                           </div>
                         )}
                         {cuotas.length > 0 && (
                           <div className="text-[10px] text-orange-600 font-medium">{cuotas.length} cuota(s) de convenio</div>
                         )}
-                        {recibos.length === 0 && cuotas.length === 0 && <span className="text-xs text-slate-400">—</span>}
+                        {recibos.length === 0 && cuotas.length === 0 && <span className="text-xs text-slate-400">â€”</span>}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex justify-center gap-2 whitespace-nowrap">
@@ -941,7 +948,7 @@ export default function EstadoCuentaPage() {
                               className="bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1.5 rounded flex items-center gap-1 text-xs font-bold transition-colors border border-blue-200"
                               title="Ver comprobante de transferencia"
                             >
-                              📷 Comprobante
+                              ðŸ“· Comprobante
                             </a>
                           )}
                         </div>
@@ -980,7 +987,7 @@ export default function EstadoCuentaPage() {
                     <th className="px-4 py-3">Fecha</th>
                     <th className="px-4 py-3">Contribuyente</th>
                     <th className="px-4 py-3">Monto (Bs)</th>
-                    <th className="px-4 py-3">Método de Pago</th>
+                    <th className="px-4 py-3">MÃ©todo de Pago</th>
                     <th className="px-4 py-3">Tipo</th>
                     <th className="px-4 py-3">Estado</th>
                     <th className="px-4 py-3">Referencia</th>
@@ -988,8 +995,7 @@ export default function EstadoCuentaPage() {
                 </thead>
                 <tbody>
                   {pagosHistorial.map((pago: any, idx: number) => {
-                    let det: any = {};
-                    try { det = JSON.parse(pago.detalles || '{}'); } catch(e){}
+                    const det = parseDetalles(pago.detalles);
                     const esAbono = det.es_abono === true;
                     const metodo = pago.tipo === 'Debito' ? 'Punto de Venta' : pago.tipo || '---';
                     return (
