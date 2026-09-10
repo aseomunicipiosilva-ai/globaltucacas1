@@ -10,7 +10,7 @@ export default function TarifasPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('Todas');
-  const tabs = ['Todas', 'Residencial', 'Comercial/Institucional', 'Industrial', 'Calculadora de Trámites'];
+  const tabs = ['Todas', 'Residencial', 'Comercial/Institucional', 'Industrial', 'Permisos / Serv. Especiales', 'Calculadora de Trámites'];
 
   // Estados de la calculadora
   const [calcTipo, setCalcTipo] = useState('Servicios Extraordinarios');
@@ -256,6 +256,144 @@ export default function TarifasPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+        )}
+
+        {/* Permisos / Servicios Especiales */}
+        {(activeTab === 'Permisos / Serv. Especiales') && (
+        <div className="space-y-6 animate-in fade-in zoom-in duration-200">
+          {/* Servicios Especiales */}
+          <div className="bg-white rounded border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-emerald-50 px-4 py-3 border-b border-emerald-100 flex items-center gap-2">
+              <Coins className="w-4 h-4 text-emerald-600" />
+              <h2 className="font-bold text-emerald-800 uppercase text-sm tracking-wide">Servicios Especiales y Permisos Ambientales</h2>
+              <span className="ml-auto text-xs text-emerald-600 font-medium">Art. 43-50 Ordenanza de Aseo</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm text-slate-600">
+                <thead className="bg-emerald-50 border-b border-emerald-100">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Cód.</th>
+                    <th className="px-4 py-3 font-semibold">Servicio / Permiso</th>
+                    <th className="px-4 py-3 font-semibold text-center">Unidad</th>
+                    <th className="px-4 py-3 font-semibold text-center">Factor (TCMMV)</th>
+                    <th className="px-4 py-3 font-semibold text-right">Tarifa Base (Bs)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {ordenanzaData.serviciosEspeciales.map((s: any, idx: number) => (
+                    <tr key={idx} className={`hover:bg-emerald-50/40 transition-colors ${s.tcmvBase === 0 ? 'italic text-slate-400' : ''}`}>
+                      <td className="px-4 py-3"><span className="font-mono text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">{s.codigo}</span></td>
+                      <td className="px-4 py-3 font-medium text-slate-700">{s.label}</td>
+                      <td className="px-4 py-3 text-center text-xs text-slate-500">{s.unidad}</td>
+                      <td className="px-4 py-3 text-center">{s.tcmvBase > 0 ? s.tcmvBase : 'Libre'}</td>
+                      <td className="px-4 py-3 text-right font-bold text-emerald-700">{s.tcmvBase > 0 ? 'Bs. ' + (s.tcmvBase * rate).toFixed(2) : 'A convenir'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Inspecciones Técnicas */}
+          <div className="bg-white rounded border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-blue-50 px-4 py-3 border-b border-blue-100 flex items-center gap-2">
+              <Building className="w-4 h-4 text-blue-600" />
+              <h2 className="font-bold text-blue-800 uppercase text-sm tracking-wide">Inspecciones Técnicas Ambientales</h2>
+              <span className="ml-auto text-xs text-blue-600 font-medium">Tabla 5 — Ordenanza</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm text-slate-600">
+                <thead className="bg-blue-50 border-b border-blue-100">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Cód.</th>
+                    <th className="px-4 py-3 font-semibold">Tipo de Inspección</th>
+                    <th className="px-4 py-3 font-semibold text-center">Factor (TCMMV)</th>
+                    <th className="px-4 py-3 font-semibold text-right">Tarifa (Bs)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {ordenanzaData.inspeccionesTecnicas.map((s: any, idx: number) => (
+                    <tr key={idx} className="hover:bg-blue-50/40 transition-colors">
+                      <td className="px-4 py-3"><span className="font-mono text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">{s.codigo}</span></td>
+                      <td className="px-4 py-3 font-medium text-slate-700">{s.label}</td>
+                      <td className="px-4 py-3 text-center">{s.tcmv}</td>
+                      <td className="px-4 py-3 text-right font-bold text-blue-700">Bs. {(s.tcmv * rate).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Visto Bueno Ambiental */}
+          <div className="bg-white rounded border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-indigo-50 px-4 py-3 border-b border-indigo-100 flex items-center gap-2">
+              <Calculator className="w-4 h-4 text-indigo-600" />
+              <h2 className="font-bold text-indigo-800 uppercase text-sm tracking-wide">Visto Bueno Ambiental</h2>
+              <span className="ml-auto text-xs text-indigo-600 font-medium">Tabla 6 — Tarifa por m² del Inmueble</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm text-slate-600">
+                <thead className="bg-indigo-50 border-b border-indigo-100">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Cód.</th>
+                    <th className="px-4 py-3 font-semibold">Tipo de Visto Bueno</th>
+                    <th className="px-4 py-3 font-semibold text-center">TCMMV / m²</th>
+                    <th className="px-4 py-3 font-semibold text-center">Ej: 100 m²</th>
+                    <th className="px-4 py-3 font-semibold text-center">Ej: 200 m²</th>
+                    <th className="px-4 py-3 font-semibold text-center">Ej: 500 m²</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {ordenanzaData.vistoBueno.map((s: any, idx: number) => (
+                    <tr key={idx} className="hover:bg-indigo-50/40 transition-colors">
+                      <td className="px-4 py-3"><span className="font-mono text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">{s.codigo}</span></td>
+                      <td className="px-4 py-3 font-medium text-slate-700">{s.label}</td>
+                      <td className="px-4 py-3 text-center text-slate-600">{s.tcmvPorM2}</td>
+                      <td className="px-4 py-3 text-center font-bold text-indigo-700">Bs. {(s.tcmvPorM2 * 100 * rate).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-center font-bold text-indigo-700">Bs. {(s.tcmvPorM2 * 200 * rate).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-center font-bold text-indigo-700">Bs. {(s.tcmvPorM2 * 500 * rate).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-4 py-2 bg-indigo-50/50 border-t border-indigo-100 text-[10px] text-indigo-500">
+              * La tarifa final se calcula multiplicando: TCMMV/m² × Superficie del inmueble (m²) × Tasa BCV del día
+            </div>
+          </div>
+
+          {/* Servicios Extraordinarios */}
+          <div className="bg-white rounded border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-orange-50 px-4 py-3 border-b border-orange-100 flex items-center gap-2">
+              <Building className="w-4 h-4 text-orange-600" />
+              <h2 className="font-bold text-orange-800 uppercase text-sm tracking-wide">Servicios Extraordinarios (Recolección Especial)</h2>
+              <span className="ml-auto text-xs text-orange-600 font-medium">Tabla 3 — Camiones</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm text-slate-600">
+                <thead className="bg-orange-50 border-b border-orange-100">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Tipo de Camión</th>
+                    <th className="px-4 py-3 font-semibold text-center">Distancia</th>
+                    <th className="px-4 py-3 font-semibold text-center">Factor (TCMMV)</th>
+                    <th className="px-4 py-3 font-semibold text-right">Tarifa (Bs)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {ordenanzaData.serviciosExtraordinarios.map((s: any, idx: number) => (
+                    <tr key={idx} className="hover:bg-orange-50/40 transition-colors">
+                      <td className="px-4 py-3 font-medium text-slate-700">{s.label.split('(')[0].trim()}</td>
+                      <td className="px-4 py-3 text-center text-xs">{s.distancia === 'menor' ? '< 20 Km' : '> 20 Km'}</td>
+                      <td className="px-4 py-3 text-center">{s.tcmv}</td>
+                      <td className="px-4 py-3 text-right font-bold text-orange-700">Bs. {(s.tcmv * rate).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
         )}

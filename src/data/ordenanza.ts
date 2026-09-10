@@ -222,6 +222,10 @@ export const ordenanzaData = {
     { codigo: 'SE-05', label: 'Servicio de barrido especial de vías', tcmvBase: 30, unidad: 'jornada' },
     { codigo: 'SE-06', label: 'Desechos hospitalarios / biomédicos (mensual)', tcmvBase: 150, unidad: 'mes' },
     { codigo: 'SE-07', label: 'Recolección de residuos de poda y jardinería', tcmvBase: 25, unidad: 'viaje' },
+    { codigo: 'SE-09', label: 'Permiso de Tala de Árbol (por árbol)', tcmvBase: 5, unidad: 'árbol' },
+    { codigo: 'SE-10', label: 'Permiso de Poda de Árbol / Raíces (por árbol)', tcmvBase: 3, unidad: 'árbol' },
+    { codigo: 'SE-11', label: 'Limpieza de quebradas / cauces (por m lineal)', tcmvBase: 1, unidad: 'm lineal' },
+    { codigo: 'SE-12', label: 'Disposición especial de escombros (por m³)', tcmvBase: 8, unidad: 'm³' },
     { codigo: 'SE-08', label: 'Otro servicio especial (tarifa libre)', tcmvBase: 0, unidad: 'libre' }
   ],
   inspeccionesTecnicas: [
