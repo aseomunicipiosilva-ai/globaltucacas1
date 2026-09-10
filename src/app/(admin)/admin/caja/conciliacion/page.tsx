@@ -44,6 +44,7 @@ const BANCOS_DESTINO = [
 
 const FORMAS_PAGO = ['Todos', 'Transferencia', 'Punto de Venta', 'Debito', 'Efectivo'];
 const ESTATUS_LIST = ['Todos', 'Pendiente', 'Por Verificar', 'Aprobado', 'Rechazado'];
+const ESTATUS_CONCILIAR = ['Aprobado', 'Rechazado', 'Con Diferencia'];
 
 function fmt(val: string | number | undefined) {
   const n = parseFloat(String(val || '0').replace(/[^0-9.]/g, ''));
@@ -266,24 +267,34 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
 // ─── MODAL CONCILIACION ──────────────────────────────────
 function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: () => void; onSuccess: () => void }) {
   const det = parseDetalles(pago.detalles);
-  const [form, setForm] = useState({
-    formaPago: pago.tipo || 'Transferencia',
-    codInmueble: det.cod_inmueble || pago.cod_inmueble || '',
-    nombreContribuyente: pago.contribuyente || '',
-    bancoEmisor: pago.banco || '',
-    referenciaOrigen: pago.referencia || '',
-    bancoReceptor: pago.banco_destino || 'BANESCO - 0134 - 1715',
-    referenciaDestino: det.referencia_destino || '',
-    montoReportado: String(pago.monto || '0'),
-    estatus: pago.estado || 'Por Verificar',
-    montoConciliado: String(det.monto_conciliado || '0.00'),
-    correoResponsable: pago.correo || det.correo || '',
-    telefonoResponsable: pago.telefono || det.telefono || '',
-    fechaTransaccion: det.fecha_transaccion || new Date().toISOString().split('T')[0],
-    fechaBanco: det.fecha_banco || new Date().toISOString().split('T')[0],
-    enviarCorreo: true,
-    observaciones: det.observaciones || '',
-  });
+
+  // Información del contribuyente cargada desde Supabase (solo lectura)
+  const [contribInfo, setContribInfo] = useState<any>(null);
+  const [loadingContrib, setLoadingContrib] = useState(true);
+
+  // Normalizar monto reportado (quitar formato venezolano)
+  const montoReportadoNum = parseFloat(
+    String(pago.monto || '0').replace(/./g, '').replace(',', '.')
+  ) || parseFloat(String(pago.monto || '0').replace(/[^0-9.]/g, '')) || 0;
+
+  const [estatus, setEstatus] = useState<string>(
+    ['Aprobado','Rechazado','Con Diferencia'].includes(pago.estado || '')
+      ? (pago.estado || 'Aprobado')
+      : 'Aprobado'
+  );
+  // Monto conciliado: auto-fill segun estatus
+  const [montoConciliado, setMontoConciliado] = useState<string>(
+    String(det.monto_conciliado || montoReportadoNum.toFixed(2))
+  );
+  const [bancoEmisor, setBancoEmisor] = useState(pago.banco || '');
+  const [bancoReceptor, setBancoReceptor] = useState(pago.banco_destino || 'BANESCO - 0134 - 1715');
+  const [referenciaOrigen, setReferenciaOrigen] = useState(pago.referencia || '');
+  const [correoResponsable, setCorreoResponsable] = useState(det.correo || '');
+  const [telefonoResponsable, setTelefonoResponsable] = useState(det.telefono || '');
+  const [fechaTransaccion, setFechaTransaccion] = useState(det.fecha_transaccion || new Date().toISOString().split('T')[0]);
+  const [fechaBanco, setFechaBanco] = useState(det.fecha_banco || new Date().toISOString().split('T')[0]);
+  const [enviarCorreo, setEnviarCorreo] = useState(true);
+  const [observaciones, setObservaciones] = useState(det.observaciones || '');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showComp, setShowComp] = useState(false);
   const [showEdo, setShowEdo] = useState(false);
@@ -295,19 +306,119 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
     'Banco Provincial','Banco Sofitasa','Banesco','Banplus','Bancrecer','Mi Banco',
   ].sort();
 
+  // Cargar info del contribuyente desde inmuebles + contribuyentes
+  useEffect(() => {
+    (async () => {
+      setLoadingContrib(true);
+      try {
+        // Buscar en inmuebles por identidad
+        const { data: inm } = await supabase
+          .from('inmuebles')
+          .select('*')
+          .or(`identidad.eq.${pago.identidad},identidad.eq.${(pago.identidad || '').replace(/-/g,'')}`)
+          .maybeSingle();
+        if (inm) {
+          setContribInfo(inm);
+          // Auto-fill correo y teléfono si estaban vacios
+          if (!correoResponsable && inm.correo) setCorreoResponsable(inm.correo);
+          if (!telefonoResponsable && inm.telefono) setTelefonoResponsable(inm.telefono);
+        } else {
+          // Fallback: buscar en contribuyentes
+          const { data: cont } = await supabase
+            .from('contribuyentes')
+            .select('*')
+            .or(`Identidad.eq.${pago.identidad},Identidad.eq.${(pago.identidad || '').replace(/-/g,'')}`)
+            .maybeSingle();
+          if (cont) {
+            setContribInfo(cont);
+            if (!correoResponsable && cont.correo) setCorreoResponsable(cont.correo);
+            if (!telefonoResponsable && cont.telefono) setTelefonoResponsable(cont.telefono);
+          }
+        }
+      } catch { /* silencioso */ }
+      setLoadingContrib(false);
+    })();
+  }, [pago.identidad]);
+
+  // Auto-fill monto conciliado cuando cambia estatus
+  const handleEstatusChange = (val: string) => {
+    setEstatus(val);
+    if (val === 'Aprobado') {
+      // Auto-llenar con el monto reportado
+      setMontoConciliado(montoReportadoNum.toFixed(2));
+    } else if (val === 'Rechazado') {
+      setMontoConciliado('0.00');
+    }
+    // 'Con Diferencia' → el usuario ingresa manualmente el monto de diferencia
+  };
+
   const recibos: string[] = det.recibos || [];
   const periodos = det.periodos || (recibos.length > 0 ? recibos.join(' | ') : '---');
-  const totalDoc = parseFloat(form.montoReportado.replace(/[^0-9.]/g,'')) || 0;
 
   const handleConciliar = async () => {
     setIsProcessing(true);
     try {
-      const updatedDet = { ...det, correo: form.correoResponsable, telefono: form.telefonoResponsable, fecha_transaccion: form.fechaTransaccion, fecha_banco: form.fechaBanco, referencia_destino: form.referenciaDestino, monto_conciliado: form.montoConciliado, observaciones: form.observaciones, enviar_correo: form.enviarCorreo, cod_inmueble: form.codInmueble };
-      const { error } = await supabase.from('pagos_reportados').update({ estado: form.estatus, banco: form.bancoEmisor, banco_destino: form.bancoReceptor, tipo: form.formaPago, detalles: updatedDet }).eq('id', pago.id);
+      const montoConciliadoNum = parseFloat(montoConciliado) || 0;
+      const updatedDet = {
+        ...det,
+        correo: correoResponsable,
+        telefono: telefonoResponsable,
+        fecha_transaccion: fechaTransaccion,
+        fecha_banco: fechaBanco,
+        monto_conciliado: montoConciliado,
+        observaciones,
+        enviar_correo: enviarCorreo,
+        cod_inmueble: det.cod_inmueble || pago.cod_inmueble || contribInfo?.codigo,
+        analista: typeof window !== 'undefined' ? localStorage.getItem('adminUser') || 'Administrador' : 'Administrador',
+      };
+
+      // Actualizar el pago
+      const { error } = await supabase.from('pagos_reportados').update({
+        estado: estatus,
+        banco: bancoEmisor,
+        banco_destino: bancoReceptor,
+        tipo: pago.tipo,
+        detalles: updatedDet,
+      }).eq('id', pago.id);
       if (error) throw error;
-      if (form.estatus === 'Aprobado' && recibos.length > 0) {
+
+      // Aprobado: marcar facturas como Pagado
+      if (estatus === 'Aprobado' && recibos.length > 0) {
         await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', recibos);
       }
+
+      // Con Diferencia: agregar monto de diferencia como saldo a favor
+      if (estatus === 'Con Diferencia' && montoConciliadoNum > 0) {
+        // Buscar inmueble del contribuyente para actualizar saldo_favor_bs
+        const { data: inmList } = await supabase
+          .from('inmuebles')
+          .select('id, saldo_favor_bs')
+          .eq('identidad', pago.identidad);
+        if (inmList && inmList.length > 0) {
+          const inm = inmList[0];
+          const saldoActual = parseFloat(inm.saldo_favor_bs || '0') || 0;
+          const nuevoSaldo = saldoActual + montoConciliadoNum;
+          await supabase.from('inmuebles').update({ saldo_favor_bs: nuevoSaldo }).eq('id', inm.id);
+          // Registrar en documentos como Nota de Credito
+          await supabase.from('documentos').insert([{
+            identidad: pago.identidad,
+            contribuyente: pago.contribuyente || contribInfo?.Contribuyente || contribInfo?.nombre || '',
+            tipo: 'Nota de Credito',
+            estado: 'Vigente',
+            detalles: JSON.stringify({
+              monto: montoConciliadoNum.toFixed(2),
+              origen_referencia: `Conciliación con diferencia. Referencia: ${pago.referencia || pago.id}`,
+              fecha_emision: new Date().toISOString(),
+              analista: updatedDet.analista,
+            })
+          }]);
+        }
+        // Marcar facturas como Pagado también (el pago se concilia aunque con diferencia)
+        if (recibos.length > 0) {
+          await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', recibos);
+        }
+      }
+
       alert('Conciliacion guardada exitosamente.');
       onSuccess();
     } catch (e: any) { alert('Error al conciliar: ' + e.message); }
@@ -315,7 +426,20 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
   };
 
   const ic = "w-full border border-slate-300 rounded px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500";
+  const icRO = "w-full border border-slate-200 rounded px-3 py-1.5 text-sm bg-slate-50 text-slate-700 cursor-not-allowed font-medium";
   const lc = "block text-xs font-semibold text-blue-600 mb-1";
+
+  const nombreContrib = contribInfo?.Contribuyente || contribInfo?.nombre || pago.contribuyente || '---';
+  const codInmueble = det.cod_inmueble || pago.cod_inmueble || contribInfo?.codigo || contribInfo?.CodCont || '---';
+  const direccion = contribInfo?.Direccion || contribInfo?.direccion || '---';
+  const clasificacion = contribInfo?.Clasificacion || contribInfo?.clasificacion || '---';
+  const identidad = pago.identidad || '---';
+
+  const estatusColor: Record<string,string> = {
+    Aprobado: 'bg-green-100 border-green-400',
+    Rechazado: 'bg-red-100 border-red-400',
+    'Con Diferencia': 'bg-amber-100 border-amber-400',
+  };
 
   return (
     <>
@@ -325,38 +449,160 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
             <h2 className="text-xl font-bold text-slate-800 uppercase tracking-wider">Conciliacion de Pagos</h2>
           </div>
           <div className="p-6 space-y-4">
+
+            {/* INFO CONTRIBUYENTE — Solo lectura */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+                <Building2 size={14}/> Información del Contribuyente
+                {loadingContrib && <span className="text-[10px] text-blue-400 font-normal">(cargando...)</span>}
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className={lc}>RIF / Cédula</label>
+                  <input value={identidad} readOnly className={icRO}/>
+                </div>
+                <div>
+                  <label className={lc}>Nombre Contribuyente</label>
+                  <input value={nombreContrib} readOnly className={icRO}/>
+                </div>
+                <div>
+                  <label className={lc}>Código Inmueble</label>
+                  <input value={codInmueble} readOnly className={icRO}/>
+                </div>
+                <div>
+                  <label className={lc}>Clasificación</label>
+                  <input value={clasificacion} readOnly className={icRO}/>
+                </div>
+                <div className="col-span-2">
+                  <label className={lc}>Dirección</label>
+                  <input value={direccion} readOnly className={icRO}/>
+                </div>
+              </div>
+            </div>
+
+            {/* DATOS DEL PAGO */}
             <div className="grid grid-cols-3 gap-4">
-              <div><label className={lc}>Forma de Pago</label><select value={form.formaPago} onChange={e=>setForm(p=>({...p,formaPago:e.target.value}))} className={ic}>{FORMAS_PAGO.filter(f=>f!=='Todos').map(f=><option key={f}>{f}</option>)}</select></div>
-              <div><label className={lc}>Codigo Inmueble</label><input value={form.codInmueble} readOnly className={ic+' bg-slate-50'}/></div>
-              <div><label className={lc}>Nombre Contribuyente</label><input value={form.nombreContribuyente} readOnly className={ic+' bg-slate-50'}/></div>
+              <div><label className={lc}>Forma de Pago</label>
+                <input value={pago.tipo || '---'} readOnly className={icRO}/>
+              </div>
+              <div><label className={lc}>Banco Emisor</label>
+                <select value={bancoEmisor} onChange={e=>setBancoEmisor(e.target.value)} className={ic}>
+                  <option value="">-- Seleccionar --</option>
+                  {bancosVenezuela.map(b=><option key={b}>{b}</option>)}
+                </select>
+              </div>
+              <div><label className={lc}>Referencia Origen</label>
+                <input value={referenciaOrigen} onChange={e=>setReferenciaOrigen(e.target.value)} className={ic}/>
+              </div>
             </div>
             <div className="grid grid-cols-3 gap-4">
-              <div><label className={lc}>Banco Emisor</label><select value={form.bancoEmisor} onChange={e=>setForm(p=>({...p,bancoEmisor:e.target.value}))} className={ic}><option value="">-- Seleccionar --</option>{bancosVenezuela.map(b=><option key={b}>{b}</option>)}</select></div>
-              <div><label className={lc}>Referencia Origen</label><input value={form.referenciaOrigen} onChange={e=>setForm(p=>({...p,referenciaOrigen:e.target.value}))} className={ic}/></div>
-              <div><label className={lc}>Banco Receptor</label><select value={form.bancoReceptor} onChange={e=>setForm(p=>({...p,bancoReceptor:e.target.value}))} className={ic}>{BANCOS_DESTINO.filter(b=>b!=='Todos').map(b=><option key={b}>{b}</option>)}</select></div>
+              <div><label className={lc}>Banco Receptor</label>
+                <select value={bancoReceptor} onChange={e=>setBancoReceptor(e.target.value)} className={ic}>
+                  {BANCOS_DESTINO.filter(b=>b!=='Todos').map(b=><option key={b}>{b}</option>)}
+                </select>
+              </div>
+              <div><label className={lc}>Fecha Transacción</label>
+                <input type="date" value={fechaTransaccion} onChange={e=>setFechaTransaccion(e.target.value)} className={ic}/>
+              </div>
+              <div><label className={lc}>Fecha en Banco</label>
+                <input type="date" value={fechaBanco} onChange={e=>setFechaBanco(e.target.value)} className={ic}/>
+              </div>
             </div>
-            <div className="grid grid-cols-4 gap-4">
-              <div><label className={lc}>Monto Reportado</label><input value={form.montoReportado} readOnly className={ic+' bg-slate-50 font-bold'}/></div>
-              <div><label className={lc}>Estatus</label><select value={form.estatus} onChange={e=>setForm(p=>({...p,estatus:e.target.value}))} className={ic}>{ESTATUS_LIST.filter(s=>s!=='Todos').map(s=><option key={s}>{s}</option>)}</select></div>
-              <div><label className={lc}>Monto Conciliado</label><input value={form.montoConciliado} onChange={e=>setForm(p=>({...p,montoConciliado:e.target.value}))} className={ic} type="number" step="0.01"/></div>
-              <div><label className={lc}>Correo Responsable</label><div className="flex gap-1"><input value={form.correoResponsable} onChange={e=>setForm(p=>({...p,correoResponsable:e.target.value}))} className={ic}/><span className="text-blue-500 px-1 flex items-center"><Mail size={16}/></span></div></div>
-            </div>
+
+            {/* CONCILIACIÓN */}
             <div className="grid grid-cols-3 gap-4">
-              <div><label className={lc}>Telefono Responsable</label><input value={form.telefonoResponsable} onChange={e=>setForm(p=>({...p,telefonoResponsable:e.target.value}))} className={ic}/></div>
-              <div><label className={lc}>Fecha Transaccion</label><input type="date" value={form.fechaTransaccion} onChange={e=>setForm(p=>({...p,fechaTransaccion:e.target.value}))} className={ic}/></div>
-              <div><label className={lc}>Fecha en Banco</label><input type="date" value={form.fechaBanco} onChange={e=>setForm(p=>({...p,fechaBanco:e.target.value}))} className={ic}/></div>
+              <div>
+                <label className={lc}>Monto Reportado</label>
+                <input value={fmt(montoReportadoNum)} readOnly className={icRO + ' font-bold text-slate-800'}/>
+              </div>
+              <div>
+                <label className={lc}>Estatus de Conciliación</label>
+                <select
+                  value={estatus}
+                  onChange={e => handleEstatusChange(e.target.value)}
+                  className={`${ic} font-semibold ${estatus === 'Aprobado' ? 'text-green-700 bg-green-50 border-green-400' : estatus === 'Rechazado' ? 'text-red-700 bg-red-50 border-red-400' : 'text-amber-700 bg-amber-50 border-amber-400'}`}
+                >
+                  {ESTATUS_CONCILIAR.map(s=><option key={s}>{s}</option>)}
+                </select>
+                {estatus === 'Con Diferencia' && (
+                  <p className="text-[10px] text-amber-600 mt-1 font-medium">
+                    ⚠️ El monto ingresado se agregará como saldo a favor del contribuyente.
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className={lc}>
+                  {estatus === 'Con Diferencia' ? 'Monto de Diferencia (→ Saldo a Favor)' : 'Monto Conciliado'}
+                </label>
+                <input
+                  value={montoConciliado}
+                  onChange={e => setMontoConciliado(e.target.value)}
+                  readOnly={estatus === 'Aprobado'}
+                  className={`${estatus === 'Aprobado' ? icRO + ' font-bold text-green-800' : ic} ${estatus === 'Con Diferencia' ? 'border-amber-400 bg-amber-50' : ''}`}
+                  type="number"
+                  step="0.01"
+                  min="0"
+                />
+              </div>
             </div>
+
+            {/* RESPONSABLE */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={lc}>Correo Responsable</label>
+                <div className="flex gap-1">
+                  <input value={correoResponsable} onChange={e=>setCorreoResponsable(e.target.value)} className={ic}/>
+                  <span className="text-blue-500 px-1 flex items-center"><Mail size={16}/></span>
+                </div>
+              </div>
+              <div>
+                <label className={lc}>Teléfono Responsable</label>
+                <input value={telefonoResponsable} onChange={e=>setTelefonoResponsable(e.target.value)} className={ic}/>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-6">
-              <div><p className="text-sm font-semibold text-slate-600 mb-2">Notificar al Usuario?</p><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.enviarCorreo} onChange={e=>setForm(p=>({...p,enviarCorreo:e.target.checked}))} className="w-4 h-4 accent-blue-600"/><span className="text-sm font-medium text-slate-700">Enviar Correo</span></label></div>
-              <div><textarea value={form.observaciones} onChange={e=>setForm(p=>({...p,observaciones:e.target.value}))} rows={3} placeholder="Observaciones (se copian al correo del usuario)" className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"/></div>
+              <div>
+                <p className="text-sm font-semibold text-slate-600 mb-2">Notificar al Usuario?</p>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={enviarCorreo} onChange={e=>setEnviarCorreo(e.target.checked)} className="w-4 h-4 accent-blue-600"/>
+                  <span className="text-sm font-medium text-slate-700">Enviar Correo</span>
+                </label>
+              </div>
+              <div>
+                <textarea value={observaciones} onChange={e=>setObservaciones(e.target.value)} rows={3}
+                  placeholder="Observaciones (se copian al correo del usuario)"
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"/>
+              </div>
             </div>
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-              <div className="flex justify-between text-sm mb-1"><span className="text-slate-500">Periodo(s)</span><span className="font-mono text-slate-700 text-xs">{periodos}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-blue-600 font-semibold">Total Documento</span><span className="text-blue-600 font-bold">{fmt(totalDoc)}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-green-600 font-semibold">Total Retenciones</span><span className="text-green-600 font-bold">0,00</span></div>
-              <div className="flex justify-between text-sm border-t pt-1 mt-1"><span className="font-bold text-slate-800">Total a Pagar</span><span className="font-bold text-slate-800">{fmt(totalDoc)}</span></div>
+
+            {/* RESUMEN */}
+            <div className={`border rounded-lg p-4 ${estatusColor[estatus] || 'bg-slate-50 border-slate-200'}`}>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-slate-500">Periodo(s)</span>
+                <span className="font-mono text-slate-700 text-xs">{periodos}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-blue-600 font-semibold">Total Documento</span>
+                <span className="text-blue-600 font-bold">{fmt(montoReportadoNum)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-green-600 font-semibold">Total Retenciones</span>
+                <span className="text-green-600 font-bold">0,00</span>
+              </div>
+              <div className="flex justify-between text-sm border-t pt-1 mt-1">
+                <span className="font-bold text-slate-800">Total a Pagar</span>
+                <span className="font-bold text-slate-800">{fmt(montoReportadoNum)}</span>
+              </div>
+              {estatus === 'Con Diferencia' && parseFloat(montoConciliado) > 0 && (
+                <div className="flex justify-between text-sm border-t pt-1 mt-1 text-amber-700 font-bold">
+                  <span>Saldo a Favor a Acreditar</span>
+                  <span>+ {fmt(parseFloat(montoConciliado))}</span>
+                </div>
+              )}
             </div>
           </div>
+
           <div className="flex justify-between items-center px-6 pb-5">
             <div className="flex gap-2">
               <button onClick={()=>setShowComp(true)} className="px-4 py-2 border border-red-500 text-red-600 hover:bg-red-50 rounded font-semibold text-sm">Ver Comprobante</button>
