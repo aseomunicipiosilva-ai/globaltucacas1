@@ -100,12 +100,29 @@ function ContribuyentesPageContent() {
         
       if (error) throw error;
       
+      // Si es Reversar: devolver el monto como saldo a favor en inmuebles
+      if (actionModal.type === 'Reversar') {
+        const montoPagado = parseFloat((actionModal.factura.monto || '0').toString().replace(/[^\d.]/g, ''));
+        if (montoPagado > 0) {
+          const { data: inmuebleData } = await supabase
+            .from('inmuebles')
+            .select('id, saldo_favor_bs')
+            .eq('identidad', actionModal.factura.contribuyente)
+            .limit(1)
+            .single();
+          if (inmuebleData) {
+            const nuevoSaldo = parseFloat(inmuebleData.saldo_favor_bs || '0') + montoPagado;
+            await supabase.from('inmuebles').update({ saldo_favor_bs: nuevoSaldo }).eq('id', inmuebleData.id);
+          }
+        }
+      }
+      
       // Update local state
       setFacturas(prev => prev.map(f => f.referencia === actionModal.factura.referencia ? { ...f, estado: nuevoEstado, nota: actionNota.trim() } : f));
       
       setActionModal(null);
       setActionNota('');
-      alert(`Factura ${actionModal.factura.referencia} ha sido ${nuevoEstado.toLowerCase()} exitosamente.`);
+      alert(`Factura ${actionModal.factura.referencia} ha sido ${nuevoEstado.toLowerCase()} exitosamente.${actionModal.type === 'Reversar' ? ' El monto fue acreditado como Saldo a Favor.' : ''}`);
     } catch (e: any) {
       alert("Error procesando acción: " + e.message);
     }
