@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { CreditCard, FileText, Upload, Send, Building, CheckSquare, AlertCircle, Smartphone, CheckCircle2, MapPin } from 'lucide-react';
+import { CreditCard, FileText, Upload, Send, Building, CheckSquare, AlertCircle, CheckCircle2, MapPin, ArrowRightLeft } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { formatBs } from '@/lib/formatCurrency';
 
@@ -301,9 +301,9 @@ export default function DondePagarPage() {
                       : 'border-slate-200 hover:border-slate-300 bg-white'
                   }`}
                 >
-                  <Smartphone className={`w-5 h-5 mt-0.5 flex-shrink-0 ${metodo === 'transferencia' ? 'text-blue-600' : 'text-slate-400'}`} />
+                  <ArrowRightLeft className={`w-5 h-5 mt-0.5 flex-shrink-0 ${metodo === 'transferencia' ? 'text-blue-600' : 'text-slate-400'}`} />
                   <div>
-                    <p className="font-bold text-sm text-slate-800">Transferencia / Pago Móvil</p>
+                    <p className="font-bold text-sm text-slate-800">Transferencia Bancaria</p>
                     <p className="text-[10px] text-slate-500 mt-0.5">Requiere validación administrativa (24-48 hrs)</p>
                   </div>
                 </button>
