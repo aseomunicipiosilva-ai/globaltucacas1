@@ -152,11 +152,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
               Telefono: row.telefono || 'No registrado',
               Correo: row.correo_electronico || row.correo || 'No registrado',
               CodCont: row.cod_cont,
+              cod_cont: row.cod_cont,
               Direccion: row.direccion,
               Actividad: act || 'No aplica',
               Clasificacion: clase,
               SaldoFavor: parseFloat(row.saldo_favor_bs || '0'),
-              Estado: row.estado || 'Activo'
+              Estado: row.estado || 'Activo',
+              FechaRegistro: row.created_at || null
             });
           } else if (row.identidad && map.has(row.identidad)) {
             // Si ya existe, sumar saldo a favor

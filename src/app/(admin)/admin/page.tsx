@@ -2,6 +2,7 @@ import { MapPin, Phone, Mail, FileText, Download } from 'lucide-react';
 import MapWrapper from '@/components/MapWrapper';
 import { supabase } from '@/lib/supabase';
 import ManualBCVRateEditor from '@/components/ManualBCVRateEditor';
+import RecaudacionWidget from '@/components/RecaudacionWidget';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,6 +48,9 @@ export default async function AdminHome() {
       </div>
 
       <div className="grid grid-cols-1 gap-6">
+        {/* Widget Recaudación */}
+        <RecaudacionWidget />
+
         {/* Tasa de Cambio */}
         <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
           <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
