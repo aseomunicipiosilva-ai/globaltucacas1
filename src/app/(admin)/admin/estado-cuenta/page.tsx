@@ -254,7 +254,9 @@ export default function EstadoCuentaPage() {
   };
 
   const handleOpenRecibo = async (row: any) => {
-    const montoNumerico = parseFloat((row.monto || "0").replace(/[^\d.]/g, '')) || 0;
+    let montoNumerico = parseFloat((row.monto || "0").replace(/[^\d.]/g, '')) || 0;
+    let saldoPendiente: number | null = null;
+    let esAbono = false;
     
     // Obtener mes y año
     let mesTexto = '---';
@@ -277,33 +279,51 @@ export default function EstadoCuentaPage() {
       return 'ADMINISTRADOR';
     })();
 
-    let formaPagoStr = row.estado === 'Pagado' ? 'TRANSFERENCIA' : 'POR PAGAR';
-    let bancoReal = row.estado === 'Pagado' ? 'BANCO CONFIRMADO' : '---';
-    let referenciaReal = row.estado === 'Pagado' ? Math.floor(Math.random() * 90000000 + 10000000).toString() : '---';
+    let formaPagoStr = 'POR PAGAR';
+    let bancoReal = '---';
+    let referenciaReal = '---';
     
-    if (row.estado === 'Pagado' && row.referencia) {
+    // Buscar el pago asociado (Pagado O Pendiente con abono)
+    if (row.referencia) {
       try {
         const { data: pago } = await supabase
           .from('pagos_reportados')
-          .select('tipo, banco, referencia')
+          .select('*')
           .ilike('detalles', `%${row.referencia}%`)
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
           
         if (pago) {
+          let det: any = {};
+          try { det = JSON.parse(pago.detalles || '{}'); } catch(e){}
+          
           formaPagoStr = pago.tipo === 'Debito' || pago.tipo === 'Punto de Venta' ? 'PUNTO DE VENTA' : 'TRANSFERENCIA';
-          bancoReal = pago.banco || bancoReal;
-          referenciaReal = pago.referencia || referenciaReal;
+          bancoReal = pago.banco || '---';
+          referenciaReal = pago.referencia || '---';
+
+          if (det.es_abono === true) {
+            esAbono = true;
+            saldoPendiente = montoNumerico; // saldo restante (row.monto actual)
+            montoNumerico = parseFloat(pago.monto) || 0; // lo que realmente cancelo
+          }
         }
       } catch (e) {
-        // Fallback or not found
+        if (row.estado === 'Pagado') {
+          formaPagoStr = 'TRANSFERENCIA';
+          bancoReal = 'BANCO CONFIRMADO';
+          referenciaReal = Math.floor(Math.random() * 90000000 + 10000000).toString();
+        }
       }
     }
 
+    const descripcionConcepto = esAbono
+      ? `ABONO PARCIAL - Aseo Residencial/Comercial. Mes: ${mesTexto}. Saldo pendiente: Bs. ${saldoPendiente?.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}`
+      : `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${mesTexto}`;
+
     setSelectedRecibo({
       reciboNo: row.referencia ? row.referencia.split('-').pop()?.padStart(7, '0') : '0000001',
-      controlWeb: row.estado === 'Pagado' ? 'WEB-0000001' : '',
+      controlWeb: (row.estado === 'Pagado' || esAbono) ? 'WEB-0000001' : '',
       fechaEmision: row.emision || new Date().toISOString().split('T')[0],
       codContribuyente: row.identidad || '---',
       razonSocial: row.contribuyente || '---',
@@ -312,7 +332,7 @@ export default function EstadoCuentaPage() {
       caja: cajeroActivo,
       conceptos: [
         { 
-          descripcion: `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${mesTexto}`, 
+          descripcion: descripcionConcepto,
           precioUnit: montoNumerico, 
           total: montoNumerico 
         }
