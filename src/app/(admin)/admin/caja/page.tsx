@@ -367,33 +367,42 @@ export default function CajaPage() {
           await supabase.from('inmuebles').update({ saldo_favor_bs: newSaldo }).eq('id', firstInmueble.id);
         }
       }
-      
+
       const isAutoAprobado = ['Debito'].includes(paymentMethod);
+      // Detect abono: montoDebito provided and < totalBs
+      const esAbonoDebito = !!(montoDebito && parseFloat(montoDebito) > 0 && parseFloat(montoDebito) < totalBs - 0.01);
 
       if (isAutoAprobado) {
-        // Direct Payment (Pagado)
-        // Fix bug pago parcial: si montoDebito < totalBs, solo marcar facturas que cubre el monto
-        let recibosCubiertos = [...selectedRecibos];
-        if (montoDebito && parseFloat(montoDebito) > 0 && parseFloat(montoDebito) < totalBs - 1) {
-          let acumulado = 0;
-          recibosCubiertos = [];
+        if (!esAbonoDebito) {
+          // === PAGO COMPLETO: marcar todas las facturas como Pagado ===
+          if (selectedRecibos.length > 0) {
+            const { error: fErr } = await supabase
+              .from('facturas')
+              .update({ estado: 'Pagado' })
+              .in('referencia', selectedRecibos);
+            if (fErr) throw fErr;
+          }
+        } else {
+          // === ABONO DÉBITO PARCIAL: descontar monto de las facturas ===
+          let dineroDisponible = parseFloat(montoDebito);
           for (const ref of selectedRecibos) {
             const f = recibos.find(r => r.referencia === ref);
             if (!f) continue;
-            const monto = parseFloat(getReciboMonto(f) || '0');
-            if (acumulado + monto <= parseFloat(montoDebito) + 0.01) {
-              acumulado += monto;
-              recibosCubiertos.push(ref);
+            const montoFac = parseFloat(getReciboMonto(f) || '0');
+            if (dineroDisponible >= montoFac - 0.01) {
+              // Factura cubierta completamente
+              dineroDisponible = Math.max(0, dineroDisponible - montoFac);
+              const { error: fErr } = await supabase.from('facturas').update({ estado: 'Pagado' }).eq('referencia', ref);
+              if (fErr) throw fErr;
+            } else if (dineroDisponible > 0.01) {
+              // Abono parcial: actualizar monto restante (mantener Pendiente)
+              const montoRestante = (montoFac - dineroDisponible).toFixed(2);
+              const { error: fErr } = await supabase.from('facturas').update({ monto: montoRestante }).eq('referencia', ref);
+              if (fErr) throw fErr;
+              dineroDisponible = 0;
             }
+            // Si dineroDisponible <= 0, la factura queda Pendiente sin cambios
           }
-        }
-
-        if (recibosCubiertos.length > 0) {
-          const { error: fErr } = await supabase
-            .from('facturas')
-            .update({ estado: 'Pagado' })
-            .in('referencia', recibosCubiertos);
-          if (fErr) throw fErr;
         }
         
         if (selectedCuotas.length > 0) {
@@ -447,13 +456,19 @@ export default function CajaPage() {
             recibos: selectedRecibos,
             cuotas: selectedCuotas,
             cajero: cajero_id,
+            es_abono: esAbonoDebito,
+            monto_abonado: esAbonoDebito ? montoReal : undefined,
             fecha_transaccion: fechaTransaccion,
             tasa_bcv_aplicada: customBcvRate ? customBcvRate : undefined,
             nota_cambio_tasa: justificacionBcv ? justificacionBcv : undefined
           })
         });
 
-        setSuccessMsg(`Pago procesado exitosamente por ${paymentMethod}. La deuda ha sido conciliada automáticamente.`);
+        setSuccessMsg(esAbonoDebito
+          ? `Abono de Bs. ${formatBs(montoReal)} procesado. La deuda restante quedó actualizada.`
+          : `Pago procesado exitosamente por ${paymentMethod}. La deuda ha sido conciliada automáticamente.`
+        );
+
         
       } else {
         const cajero = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'Administrador';
