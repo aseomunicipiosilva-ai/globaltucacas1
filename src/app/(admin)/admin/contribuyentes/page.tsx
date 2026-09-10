@@ -337,6 +337,18 @@ function ContribuyentesPageContent() {
     const deudas = (facturas || [])
       .filter((f: any) => f.contribuyente === viewData.Contribuyente || f.contribuyente === viewData.Identidad)
       .filter((f: any) => f.estado === 'Pendiente');
+
+    // Fetch pagos realizados (abonos + pagos completos)
+    let pagosRealizados: any[] = [];
+    try {
+      const idLimpio = (viewData.Identidad || '').replace(/-/g, '');
+      const { data: pagosData } = await supabase
+        .from('pagos_reportados')
+        .select('*')
+        .or(`identidad.eq.${viewData.Identidad},identidad.eq.${idLimpio}`)
+        .order('created_at', { ascending: false });
+      if (pagosData) pagosRealizados = pagosData;
+    } catch(e) {}
       
     const inmueblesContribuyente = (inmuebles || []).filter((i: any) => i.identidad === viewData.Identidad);
     
@@ -423,16 +435,52 @@ function ContribuyentesPageContent() {
         head: [['Referencia', 'Período', 'Vencimiento', 'Monto']],
         body: tableData,
         theme: 'striped',
-        headStyles: { fillColor: [220, 38, 38] }, // Red for debt
+        headStyles: { fillColor: [220, 38, 38] },
         styles: { fontSize: 9 },
         columnStyles: { 3: { halign: 'right', fontStyle: 'bold' } }
       });
-
-      doc.save(`Estado_Cuenta_${viewData.Identidad}_${new Date().getTime()}.pdf`);
+      currentY = (doc as any).lastAutoTable.finalY + 12;
     } catch (e: any) {
       alert("Error al exportar PDF: " + e.message);
       console.error(e);
+      return;
     }
+
+    // ===== PAGOS REALIZADOS / ABONOS =====
+    if (pagosRealizados.length > 0) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text("HISTORIAL DE PAGOS REALIZADOS", 14, currentY);
+
+      const pagosTableData = pagosRealizados.map((p: any) => {
+        let det: any = {};
+        try { det = JSON.parse(p.detalles || '{}'); } catch(e) {}
+        const esAbono = det.es_abono === true;
+        const metodo = p.tipo === 'Debito' ? 'Punto de Venta' : p.tipo || '---';
+        const fecha = p.created_at ? new Date(p.created_at).toLocaleDateString('es-VE') : '---';
+        return [
+          fecha,
+          `${Number(p.monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})} Bs.`,
+          metodo,
+          esAbono ? 'ABONO PARCIAL' : 'PAGO COMPLETO',
+          p.estado || '---'
+        ];
+      });
+
+      try {
+        autoTable(doc, {
+          startY: currentY + 3,
+          head: [['Fecha', 'Monto Pagado', 'Método', 'Tipo', 'Estado']],
+          body: pagosTableData,
+          theme: 'striped',
+          headStyles: { fillColor: [79, 70, 229] },
+          styles: { fontSize: 9 },
+          columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } }
+        });
+      } catch (e) {}
+    }
+
+    doc.save(`Estado_Cuenta_${viewData.Identidad}_${new Date().getTime()}.pdf`);
   };
 
   const exportarExcelContribuyentes = () => {
