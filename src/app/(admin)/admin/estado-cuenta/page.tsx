@@ -197,7 +197,7 @@ export default function EstadoCuentaPage() {
             }
           }
 
-          // 3. Process Servicios Especiales with remaining dineroDisponible
+          // 3. Servicios Especiales: solo se pagan completos, no hay abono parcial
           if ((detalles as any).servicios && (detalles as any).servicios.length > 0) {
             const { data: servData } = await supabase
               .from('servicios_especiales')
@@ -207,16 +207,11 @@ export default function EstadoCuentaPage() {
               for (const s of servData) {
                 const montoS = parseFloat((s.monto || '0').toString().replace(/[^\d.]/g, ''));
                 if (dineroDisponible >= montoS - 0.01) {
+                  // Alcanza para cubrir el servicio completo
                   dineroDisponible = Math.max(0, dineroDisponible - montoS);
                   await supabase.from('servicios_especiales').update({ estado: 'Pagado' }).eq('id', s.id);
-                } else if (dineroDisponible > 0.01) {
-                  const montoRestante = (montoS - dineroDisponible).toFixed(2);
-                  await supabase.from('servicios_especiales').update({ monto: montoRestante }).eq('id', s.id);
-                  dineroDisponible = 0;
-                } else {
-                  // No money left - revert to Pendiente
-                  await supabase.from('servicios_especiales').update({ estado: 'Pendiente' }).eq('id', s.id);
                 }
+                // Si no alcanza: servicio queda Pendiente INTACTO
               }
             }
           }

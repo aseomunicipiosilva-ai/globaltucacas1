@@ -428,14 +428,13 @@ export default function CajaPage() {
           }
         }
         
-        // Servicios especiales: aplicar dineroDisponible restante (no marcar todos pagados automáticamente)
+        // Servicios especiales: solo se pagan completos (no hay abono parcial)
         if (selectedServicios.length > 0) {
           if (!esAbonoDebito) {
             // Pago completo - marcar todos como Pagado
             await supabase.from('servicios_especiales').update({ estado: 'Pagado' }).in('referencia', selectedServicios);
           } else {
-            // Abono - usar dineroDisponible restante de las facturas
-            // Necesitamos recalcular cuánto dinero queda después de pagar facturas
+            // Abono: calcular dinero restante despues de cubrir facturas
             let dineroPagado = 0;
             for (const ref of selectedRecibos) {
               const f = recibos.find(r => r.referencia === ref);
@@ -448,14 +447,11 @@ export default function CajaPage() {
               if (!s) continue;
               const montoS = parseFloat(s.monto || '0');
               if (dineroRestanteParaServicios >= montoS - 0.01) {
+                // Alcanza para cubrir el servicio completo
                 dineroRestanteParaServicios = Math.max(0, dineroRestanteParaServicios - montoS);
                 await supabase.from('servicios_especiales').update({ estado: 'Pagado' }).eq('referencia', ref);
-              } else if (dineroRestanteParaServicios > 0.01) {
-                const montoRestante = (montoS - dineroRestanteParaServicios).toFixed(2);
-                await supabase.from('servicios_especiales').update({ monto: montoRestante }).eq('referencia', ref);
-                dineroRestanteParaServicios = 0;
               }
-              // Si no hay dinero, el servicio queda Pendiente sin cambios
+              // Si no alcanza: el servicio queda Pendiente INTACTO (sin modificar el monto)
             }
           }
         }
