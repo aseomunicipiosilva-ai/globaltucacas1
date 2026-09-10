@@ -1,11 +1,13 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
-import { TrendingUp, FileSpreadsheet, Calendar, RefreshCw, Filter } from 'lucide-react';
+import { TrendingUp, FileSpreadsheet, Calendar, RefreshCw, Filter, Building, Home, Briefcase } from 'lucide-react';
 import { formatBs } from '@/lib/formatCurrency';
 import { exportToExcelWithLogos } from '@/lib/excelExport';
+import { useAppContext } from '@/store/AppContext';
 
 type Periodo = 'hoy' | 'semana' | 'mes' | 'mes_pasado' | 'personalizado';
+type Sector = 'Todos' | 'Residencial' | 'Comercial' | 'Industrial';
 
 function getRange(periodo: Periodo, desde: string, hasta: string) {
   const now = new Date();
@@ -31,11 +33,23 @@ function getRange(periodo: Periodo, desde: string, hasta: string) {
 }
 
 export default function RecaudacionWidget() {
+  const { inmuebles } = useAppContext();
   const [periodo, setPeriodo] = useState<Periodo>('mes');
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
   const [pagos, setPagos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [sectorFiltro, setSectorFiltro] = useState<Sector>('Todos');
+
+  // Mapa identidad → clasificacion
+  const sectorMap = useMemo(() => {
+    const m = new Map<string, string>();
+    inmuebles.forEach((inm: any) => {
+      const id = (inm.identidad || '').replace(/-/g, '').toUpperCase();
+      if (id && !m.has(id)) m.set(id, inm.Clasificacion || inm.clasificacion || 'Residencial');
+    });
+    return m;
+  }, [inmuebles]);
 
   const fetchPagos = async () => {
     setIsLoading(true);
@@ -56,25 +70,41 @@ export default function RecaudacionWidget() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchPagos(); }, [periodo, desde, hasta]);
 
-  const tot = pagos.reduce((a, p) => a + parseFloat(p.monto || '0'), 0);
-  const deb = pagos.filter(p => p.tipo === 'Debito').reduce((a, p) => a + parseFloat(p.monto || '0'), 0);
-  const tra = pagos.filter(p => p.tipo === 'Transferencia').reduce((a, p) => a + parseFloat(p.monto || '0'), 0);
-  const lbl: Record<Periodo, string> = {
-    hoy: 'Hoy', semana: 'Esta semana', mes: 'Este mes',
-    mes_pasado: 'Mes pasado', personalizado: 'Periodo'
-  };
+  // Enriquecer con sector
+  const pagosConSector = useMemo(() => pagos.map(p => {
+    const idNorm = (p.identidad || '').replace(/-/g, '').toUpperCase();
+    return { ...p, sector: sectorMap.get(idNorm) || 'Residencial' };
+  }), [pagos, sectorMap]);
+
+  // Filtrar por sector
+  const pagosFiltrados = useMemo(() =>
+    sectorFiltro === 'Todos' ? pagosConSector : pagosConSector.filter(p => p.sector === sectorFiltro),
+  [pagosConSector, sectorFiltro]);
+
+  const tot = pagosConSector.reduce((a, p) => a + parseFloat(p.monto || '0'), 0);
+  const totFilt = pagosFiltrados.reduce((a, p) => a + parseFloat(p.monto || '0'), 0);
+  const tra = pagosConSector.filter(p => p.tipo === 'Transferencia').reduce((a, p) => a + parseFloat(p.monto || '0'), 0);
+
+  const contadores = useMemo(() => ({
+    Residencial: pagosConSector.filter(p => p.sector === 'Residencial').reduce((a, p) => a + parseFloat(p.monto || '0'), 0),
+    Comercial:   pagosConSector.filter(p => p.sector === 'Comercial').reduce((a, p) => a + parseFloat(p.monto || '0'), 0),
+    Industrial:  pagosConSector.filter(p => p.sector === 'Industrial').reduce((a, p) => a + parseFloat(p.monto || '0'), 0),
+  }), [pagosConSector]);
+
+  const lbl: Record<Periodo, string> = { hoy: 'Hoy', semana: 'Esta semana', mes: 'Este mes', mes_pasado: 'Mes pasado', personalizado: 'Periodo' };
 
   const exportar = () => {
-    if (!pagos.length) return alert('No hay registros.');
-    const d = pagos.map(p => ({
+    if (!pagosFiltrados.length) return alert('No hay registros.');
+    const d = pagosFiltrados.map(p => ({
       'Fecha': new Date(p.created_at).toLocaleDateString('es-VE'),
       'Identidad': p.identidad,
+      'Sector': p.sector,
       'Banco': p.banco || '--',
       'Tipo': p.tipo,
       'Referencia': p.referencia || '--',
       'Monto (Bs)': Number(p.monto || 0).toFixed(2)
     }));
-    const fname = 'Recaudacion_' + new Date().toISOString().split('T')[0] + '.xlsx';
+    const fname = 'Recaudacion_' + (sectorFiltro !== 'Todos' ? sectorFiltro + '_' : '') + new Date().toISOString().split('T')[0] + '.xlsx';
     exportToExcelWithLogos(d, fname, 'Recaudacion');
   };
 
@@ -82,21 +112,27 @@ export default function RecaudacionWidget() {
     'px-3 py-1.5 rounded text-xs font-semibold transition-colors ' +
     (active ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200');
 
+  const sectorColors: Record<Sector, string> = {
+    Todos: 'bg-slate-700 text-white',
+    Residencial: 'bg-blue-600 text-white',
+    Comercial: 'bg-amber-500 text-white',
+    Industrial: 'bg-indigo-600 text-white'
+  };
+  const sectorIcons: Record<Sector, any> = { Todos: Filter, Residencial: Home, Comercial: Building, Industrial: Briefcase };
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+      {/* Header: periodo */}
       <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
           <TrendingUp className="w-5 h-5 text-emerald-600" />
-          <h2 className="font-semibold text-slate-700">Recaudacion por Periodo</h2>
+          <h2 className="font-semibold text-slate-700">Recaudación por Periodo</h2>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {(['hoy', 'semana', 'mes', 'mes_pasado'] as Periodo[]).map(p => (
             <button key={p} onClick={() => setPeriodo(p)} className={btnCls(periodo === p)}>{lbl[p]}</button>
           ))}
-          <button
-            onClick={() => setPeriodo('personalizado')}
-            className={btnCls(periodo === 'personalizado') + ' flex items-center gap-1'}
-          >
+          <button onClick={() => setPeriodo('personalizado')} className={btnCls(periodo === 'personalizado') + ' flex items-center gap-1'}>
             <Filter className="w-3 h-3" />Personalizado
           </button>
           <button onClick={fetchPagos} className="p-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600">
@@ -107,6 +143,8 @@ export default function RecaudacionWidget() {
           </button>
         </div>
       </div>
+
+      {/* Rango personalizado */}
       {periodo === 'personalizado' && (
         <div className="px-6 py-3 border-b flex items-center gap-3 flex-wrap bg-slate-50">
           <Calendar className="w-4 h-4 text-slate-500" />
@@ -116,26 +154,55 @@ export default function RecaudacionWidget() {
           <input type="date" value={hasta} onChange={e => setHasta(e.target.value)} className="border border-slate-300 rounded px-2 py-1 text-xs outline-none" />
         </div>
       )}
+
+      {/* Filtro Sector */}
+      <div className="px-6 py-2.5 border-b flex items-center gap-2 flex-wrap bg-white">
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Filtrar sector:</span>
+        {(['Todos', 'Residencial', 'Comercial', 'Industrial'] as Sector[]).map(s => {
+          const Icon = sectorIcons[s];
+          return (
+            <button key={s} onClick={() => setSectorFiltro(s)}
+              className={'px-2.5 py-1 rounded text-xs font-semibold flex items-center gap-1 transition-colors ' + (sectorFiltro === s ? sectorColors[s] : 'bg-slate-100 text-slate-600 hover:bg-slate-200')}>
+              <Icon className="w-3 h-3" />{s}
+            </button>
+          );
+        })}
+        {sectorFiltro !== 'Todos' && (
+          <span className="ml-auto text-xs text-slate-500 font-medium">{pagosFiltrados.length} pagos · Bs. {formatBs(totFilt)}</span>
+        )}
+      </div>
+
       <div className="p-6">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-center">
-            <p className="text-xs text-emerald-600 font-semibold uppercase mb-1">Total Recaudado</p>
-            <p className="text-2xl font-black text-emerald-700">Bs. {formatBs(tot)}</p>
-            <p className="text-xs text-emerald-500 mt-1">{pagos.length} transacciones</p>
+        {/* Tarjetas resumen */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
+          <div className="col-span-2 sm:col-span-1 bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-center">
+            <p className="text-[10px] text-emerald-600 font-semibold uppercase mb-1">Total {lbl[periodo]}</p>
+            <p className="text-xl font-black text-emerald-700">Bs. {formatBs(tot)}</p>
+            <p className="text-[10px] text-emerald-500 mt-1">{pagosConSector.length} transacciones</p>
           </div>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-            <p className="text-xs text-blue-600 font-semibold uppercase mb-1">Punto de Venta</p>
-            <p className="text-xl font-bold text-blue-700">Bs. {formatBs(deb)}</p>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+            <p className="text-[10px] text-blue-500 font-semibold uppercase mb-1 flex items-center justify-center gap-1"><Home className="w-3 h-3" /> Residencial</p>
+            <p className="text-sm font-bold text-blue-700">Bs. {formatBs(contadores.Residencial)}</p>
           </div>
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center">
-            <p className="text-xs text-purple-600 font-semibold uppercase mb-1">Transferencia</p>
-            <p className="text-xl font-bold text-purple-700">Bs. {formatBs(tra)}</p>
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+            <p className="text-[10px] text-amber-500 font-semibold uppercase mb-1 flex items-center justify-center gap-1"><Building className="w-3 h-3" /> Comercial</p>
+            <p className="text-sm font-bold text-amber-700">Bs. {formatBs(contadores.Comercial)}</p>
+          </div>
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-center">
+            <p className="text-[10px] text-indigo-500 font-semibold uppercase mb-1 flex items-center justify-center gap-1"><Briefcase className="w-3 h-3" /> Industrial</p>
+            <p className="text-sm font-bold text-indigo-700">Bs. {formatBs(contadores.Industrial)}</p>
+          </div>
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-center">
+            <p className="text-[10px] text-purple-500 font-semibold uppercase mb-1">Transferencias</p>
+            <p className="text-sm font-bold text-purple-700">Bs. {formatBs(tra)}</p>
           </div>
         </div>
+
+        {/* Tabla */}
         {isLoading ? (
           <div className="text-center py-8 text-slate-500 text-sm">Cargando...</div>
-        ) : pagos.length === 0 ? (
-          <div className="text-center py-8 text-slate-400 text-sm">No hay pagos aprobados en este periodo.</div>
+        ) : pagosFiltrados.length === 0 ? (
+          <div className="text-center py-8 text-slate-400 text-sm">No hay pagos aprobados en este periodo{sectorFiltro !== 'Todos' ? ' para el sector ' + sectorFiltro : ''}.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
@@ -143,16 +210,20 @@ export default function RecaudacionWidget() {
                 <tr>
                   <th className="px-3 py-2">Fecha</th>
                   <th className="px-3 py-2">Identidad</th>
+                  <th className="px-3 py-2">Sector</th>
                   <th className="px-3 py-2">Tipo</th>
                   <th className="px-3 py-2">Referencia</th>
                   <th className="px-3 py-2 text-right">Monto (Bs)</th>
                 </tr>
               </thead>
               <tbody>
-                {pagos.slice(0, 50).map(p => (
+                {pagosFiltrados.slice(0, 50).map(p => (
                   <tr key={p.id} className="border-b hover:bg-slate-50">
                     <td className="px-3 py-2">{new Date(p.created_at).toLocaleDateString('es-VE')}</td>
                     <td className="px-3 py-2 font-medium">{p.identidad}</td>
+                    <td className="px-3 py-2">
+                      <span className={'px-1.5 py-0.5 rounded text-[10px] font-bold ' + (p.sector === 'Comercial' ? 'bg-amber-100 text-amber-700' : p.sector === 'Industrial' ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700')}>{p.sector}</span>
+                    </td>
                     <td className="px-3 py-2">
                       <span className={'px-2 py-0.5 rounded text-[10px] font-bold ' + (p.tipo === 'Debito' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700')}>{p.tipo}</span>
                     </td>
@@ -162,7 +233,7 @@ export default function RecaudacionWidget() {
                 ))}
               </tbody>
             </table>
-            {pagos.length > 50 && <p className="text-center text-xs text-slate-400 mt-2">Mostrando 50 de {pagos.length}. Exporta Excel para todos.</p>}
+            {pagosFiltrados.length > 50 && <p className="text-center text-xs text-slate-400 mt-2">Mostrando 50 de {pagosFiltrados.length}. Exporta Excel para todos.</p>}
           </div>
         )}
       </div>
