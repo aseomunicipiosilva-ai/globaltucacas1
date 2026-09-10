@@ -14,8 +14,9 @@ export default function EstadoCuentaPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedRecibo, setSelectedRecibo] = useState<any>(null);
   
-  const [activeTab, setActiveTab] = useState<'General' | 'PorVerificar'>('General');
+  const [activeTab, setActiveTab] = useState<'General' | 'PorVerificar' | 'Historial'>('General');
   const [pagosVerificar, setPagosVerificar] = useState<any[]>([]);
+  const [pagosHistorial, setPagosHistorial] = useState<any[]>([]);
   const [loadingPagos, setLoadingPagos] = useState(false);
 
   const [filterStatus, setFilterStatus] = useState('Todos');
@@ -39,10 +40,22 @@ export default function EstadoCuentaPage() {
     setLoadingPagos(false);
   };
 
+  const fetchHistorial = async () => {
+    setLoadingPagos(true);
+    try {
+      const { data } = await supabase
+        .from('pagos_reportados')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(300);
+      if (data) setPagosHistorial(data);
+    } catch (e) {}
+    setLoadingPagos(false);
+  };
+
   useEffect(() => {
-    if (activeTab === 'PorVerificar') {
-      fetchPagos();
-    }
+    if (activeTab === 'PorVerificar') fetchPagos();
+    if (activeTab === 'Historial') fetchHistorial();
   }, [activeTab]);
 
   const procesarPago = async (pago: any, accion: 'Aprobar' | 'Rechazar') => {
@@ -550,6 +563,12 @@ export default function EstadoCuentaPage() {
             <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full">{pagosVerificar.length}</span>
           )}
         </button>
+        <button 
+          onClick={() => setActiveTab('Historial')}
+          className={`px-6 py-3 font-semibold text-sm transition-colors ${activeTab === 'Historial' ? 'border-b-2 border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-700'} flex items-center gap-2`}
+        >
+          Historial de Pagos
+        </button>
       </div>
 
       {activeTab === 'General' && (
@@ -816,6 +835,79 @@ export default function EstadoCuentaPage() {
               </table>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ===== HISTORIAL DE PAGOS ===== */}
+      {activeTab === 'Historial' && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-indigo-50 px-6 py-4 border-b border-indigo-100 flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-indigo-800">Historial de Pagos Realizados</h2>
+              <p className="text-xs text-indigo-600 mt-0.5">Incluye pagos completos, abonos fraccionados y pagos por verificar</p>
+            </div>
+            <button onClick={fetchHistorial} className="text-indigo-400 hover:text-indigo-600 transition-colors" title="Refrescar">
+              <RefreshCw size={16} className={loadingPagos ? 'animate-spin' : ''} />
+            </button>
+          </div>
+          {loadingPagos ? (
+            <p className="p-8 text-center text-slate-400 text-sm">Cargando historial...</p>
+          ) : pagosHistorial.length === 0 ? (
+            <p className="p-8 text-center text-slate-400 text-sm">No hay pagos registrados.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-indigo-50 text-indigo-700 font-medium text-[11px] uppercase">
+                  <tr>
+                    <th className="px-4 py-3">Fecha</th>
+                    <th className="px-4 py-3">Contribuyente</th>
+                    <th className="px-4 py-3">Monto (Bs)</th>
+                    <th className="px-4 py-3">Método de Pago</th>
+                    <th className="px-4 py-3">Tipo</th>
+                    <th className="px-4 py-3">Estado</th>
+                    <th className="px-4 py-3">Referencia</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagosHistorial.map((pago: any, idx: number) => {
+                    let det: any = {};
+                    try { det = JSON.parse(pago.detalles || '{}'); } catch(e){}
+                    const esAbono = det.es_abono === true;
+                    const metodo = pago.tipo === 'Debito' ? 'Punto de Venta' : pago.tipo || '---';
+                    return (
+                      <tr key={idx} className={`border-b border-slate-100 last:border-0 hover:bg-indigo-50/30 ${esAbono ? 'bg-amber-50/30' : ''}`}>
+                        <td className="px-4 py-3 text-slate-500 text-xs">{pago.created_at ? new Date(pago.created_at).toLocaleDateString('es-VE') : '---'}</td>
+                        <td className="px-4 py-3 font-medium text-slate-700">{pago.identidad}</td>
+                        <td className="px-4 py-3 font-bold text-slate-800">Bs. {Number(pago.monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 rounded text-[11px] font-semibold ${
+                            metodo === 'Punto de Venta' ? 'bg-blue-100 text-blue-700' :
+                            metodo === 'Transferencia' ? 'bg-purple-100 text-purple-700' :
+                            'bg-slate-100 text-slate-600'
+                          }`}>{metodo}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {esAbono ? (
+                            <span className="px-2 py-1 rounded text-[11px] font-bold bg-amber-100 text-amber-700">ABONO PARCIAL</span>
+                          ) : (
+                            <span className="px-2 py-1 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-700">PAGO COMPLETO</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-1 rounded text-[11px] font-bold ${
+                            pago.estado === 'Aprobado' ? 'bg-emerald-100 text-emerald-800' :
+                            pago.estado === 'Por Verificar' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>{pago.estado}</span>
+                        </td>
+                        <td className="px-4 py-3 text-slate-500 text-xs font-mono">{pago.referencia || '---'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

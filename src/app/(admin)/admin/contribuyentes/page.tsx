@@ -41,6 +41,7 @@ function ContribuyentesPageContent() {
   const [viewCalculo, setViewCalculo] = useState<any>(null);
   const [selectedCondominioModal, setSelectedCondominioModal] = useState<{ id: number, nombre: string, identidad: string } | null>(null);
   const [viewServiciosEsp, setViewServiciosEsp] = useState<any[]>([]);
+  const [viewPagos, setViewPagos] = useState<any[]>([]);
 
   const [debtModalOpen, setDebtModalOpen] = useState(false);
   const [selectedDebtRow, setSelectedDebtRow] = useState<any>(null);
@@ -270,9 +271,17 @@ function ContribuyentesPageContent() {
         .or(`identidad.eq.${viewData.Identidad},identidad.eq.${idLimpio},identidad.eq.${idFmt}`)
         .order('fecha', { ascending: false })
         .then(({ data }) => setViewServiciosEsp(data || []));
+      // Load pagos_reportados para historial de pagos
+      supabase
+        .from('pagos_reportados')
+        .select('*')
+        .or(`identidad.eq.${viewData.Identidad},identidad.eq.${(viewData.Identidad || '').replace(/-/g, '')}`)
+        .order('created_at', { ascending: false })
+        .then(({ data }) => setViewPagos(data || []));
     } else {
       setViewCalculo(null);
       setViewServiciosEsp([]);
+      setViewPagos([]);
     }
   }, [isViewModalOpen, viewData, inmuebles]);
 
@@ -2081,6 +2090,67 @@ function ContribuyentesPageContent() {
                     );
                   })()}
                 </div>
+              </div>
+
+              {/* Historial de Pagos Realizados */}
+              <div className="mt-4 border border-indigo-200 rounded-lg overflow-hidden">
+                <div className="bg-indigo-50 px-4 py-3 border-b border-indigo-100 flex items-center gap-2">
+                  <span className="text-lg">💳</span>
+                  <h4 className="font-bold text-indigo-800 text-sm">Historial de Pagos Realizados</h4>
+                  <span className="ml-auto text-xs text-indigo-600">({viewPagos.length}) registros</span>
+                </div>
+                {viewPagos.length === 0 ? (
+                  <p className="p-4 text-sm text-slate-500 text-center">No hay pagos registrados para este contribuyente.</p>
+                ) : (
+                  <div className="bg-white overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-indigo-50 text-indigo-700 font-medium text-[10px] uppercase">
+                        <tr>
+                          <th className="px-3 py-2">Fecha</th>
+                          <th className="px-3 py-2">Monto (Bs)</th>
+                          <th className="px-3 py-2">Método</th>
+                          <th className="px-3 py-2">Tipo</th>
+                          <th className="px-3 py-2">Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {viewPagos.map((p: any, idx: number) => {
+                          let det: any = {};
+                          try { det = JSON.parse(p.detalles || '{}'); } catch(e){}
+                          const esAbono = det.es_abono === true;
+                          const metodo = p.tipo === 'Debito' ? 'Punto de Venta' : p.tipo || '---';
+                          return (
+                            <tr key={idx} className={`border-b border-slate-100 last:border-0 hover:bg-indigo-50/20 ${esAbono ? 'bg-amber-50/20' : ''}`}>
+                              <td className="px-3 py-2 text-slate-500 text-xs">{p.created_at ? new Date(p.created_at).toLocaleDateString('es-VE') : '---'}</td>
+                              <td className="px-3 py-2 font-bold text-slate-800">Bs. {Number(p.monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                              <td className="px-3 py-2">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                  metodo === 'Punto de Venta' ? 'bg-blue-100 text-blue-700' :
+                                  metodo === 'Transferencia' ? 'bg-purple-100 text-purple-700' :
+                                  'bg-slate-100 text-slate-600'
+                                }`}>{metodo}</span>
+                              </td>
+                              <td className="px-3 py-2">
+                                {esAbono ? (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700">ABONO</span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-700">COMPLETO</span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                  p.estado === 'Aprobado' ? 'bg-emerald-100 text-emerald-800' :
+                                  p.estado === 'Por Verificar' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-red-100 text-red-800'
+                                }`}>{p.estado}</span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
 
               {/* Convenios de Pago */}
