@@ -41,12 +41,20 @@ export default function RecaudacionWidget() {
   const [isLoading, setIsLoading] = useState(false);
   const [sectorFiltro, setSectorFiltro] = useState<Sector>('Todos');
 
-  // Mapa identidad → clasificacion
+  // Normaliza clasificacion a sector estándar
+  const normSector = (s: string) => {
+    const l = (s || '').toLowerCase();
+    if (l.includes('industrial')) return 'Industrial';
+    if (l.includes('comercial') || l.includes('institucional')) return 'Comercial';
+    return 'Residencial';
+  };
+
+  // Mapa identidad → sector normalizado
   const sectorMap = useMemo(() => {
     const m = new Map<string, string>();
     inmuebles.forEach((inm: any) => {
       const id = (inm.identidad || '').replace(/-/g, '').toUpperCase();
-      if (id && !m.has(id)) m.set(id, inm.Clasificacion || inm.clasificacion || 'Residencial');
+      if (id && !m.has(id)) m.set(id, normSector(inm.Clasificacion || inm.clasificacion || ''));
     });
     return m;
   }, [inmuebles]);

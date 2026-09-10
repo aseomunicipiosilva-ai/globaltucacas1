@@ -508,6 +508,22 @@ export default function CajaPage() {
         }
 
         // Transferencia / PagoMovil -> Enviar a Verificación
+        // Upload comprobante to Supabase Storage if present
+        let comprobanteUrl = '';
+        if (comprobante) {
+          try {
+            const ext = comprobante.name.split('.').pop() || 'jpg';
+            const filePath = `comprobantes/${(foundUser.Identidad || 'x').replace(/[^a-zA-Z0-9]/g,'_')}_${Date.now()}.${ext}`;
+            const { data: upData, error: upErr } = await supabase.storage
+              .from('comprobantes')
+              .upload(filePath, comprobante, { upsert: true, contentType: comprobante.type });
+            if (!upErr && upData) {
+              const { data: pubData } = supabase.storage.from('comprobantes').getPublicUrl(filePath);
+              comprobanteUrl = pubData?.publicUrl || '';
+            }
+          } catch(e) { console.warn('No se pudo subir comprobante:', e); }
+        }
+
         const { error: pErr } = await supabase.from('pagos_reportados').insert({
           identidad: foundUser.Identidad,
           monto: montoReal,
@@ -524,6 +540,7 @@ export default function CajaPage() {
             total_seleccionado: totalBs,
             saldo_usado: descuentoSaldoFavor,
             comprobante_nombre: comprobante?.name || '',
+            comprobante_url: comprobanteUrl,
             fecha_transaccion: fechaTransaccion,
             tasa_bcv_aplicada: customBcvRate ? customBcvRate : undefined,
             nota_cambio_tasa: justificacionBcv ? justificacionBcv : undefined

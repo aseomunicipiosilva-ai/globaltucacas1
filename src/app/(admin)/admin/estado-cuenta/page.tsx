@@ -59,9 +59,15 @@ export default function EstadoCuentaPage() {
       const { data } = await supabase
         .from('pagos_reportados')
         .select('*')
-        .ilike('detalles', '%"es_abono":true%')
+        .ilike('detalles', '%es_abono%')
         .order('created_at', { ascending: false });
-      if (data) setAbonosAprobados(data);
+      if (data) {
+        // Filter client-side: only records where es_abono is truly true
+        const abonos = data.filter((p: any) => {
+          try { return JSON.parse(p.detalles || '{}').es_abono === true; } catch(e) { return false; }
+        });
+        setAbonosAprobados(abonos);
+      }
     } catch(e) {}
   };
 
@@ -875,6 +881,7 @@ export default function EstadoCuentaPage() {
                     const recibos: string[] = detalles.recibos || [];
                     const cuotas: any[] = detalles.cuotas || [];
                     const compNombre = detalles.comprobante_nombre || '';
+                    const compUrl = detalles.comprobante_url || '';
                     const fechaTrans = detalles.fecha_transaccion || '';
                     
                     return (
@@ -926,6 +933,17 @@ export default function EstadoCuentaPage() {
                           >
                             <XCircle size={13} /> Rechazar
                           </button>
+                          {compUrl && (
+                            <a 
+                              href={compUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1.5 rounded flex items-center gap-1 text-xs font-bold transition-colors border border-blue-200"
+                              title="Ver comprobante de transferencia"
+                            >
+                              📷 Comprobante
+                            </a>
+                          )}
                         </div>
                       </td>
                     </tr>
