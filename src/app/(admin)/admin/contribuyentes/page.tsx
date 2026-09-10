@@ -1982,10 +1982,10 @@ function ContribuyentesPageContent() {
                 <div className="bg-emerald-50 px-4 py-3 border-b border-emerald-100 flex items-center gap-2">
                   <span className="text-lg">🔧</span>
                   <h4 className="font-bold text-emerald-800 text-sm">Historial de Servicios Especiales / Inspecciones</h4>
-                  <span className="ml-auto text-xs text-emerald-600">({viewServiciosEsp.filter((s: any) => s.estado === 'Pagado').length}) pagados</span>
+                  <span className="ml-auto text-xs text-emerald-600">({viewServiciosEsp.filter((s: any) => s.estado === 'Pagado' || s.estado === 'Por Verificar').length}) procesados</span>
                 </div>
-                {viewServiciosEsp.filter((s: any) => s.estado === 'Pagado').length === 0 ? (
-                  <p className="p-4 text-sm text-slate-500 text-center">No hay servicios especiales pagados.</p>
+                {viewServiciosEsp.filter((s: any) => s.estado === 'Pagado' || s.estado === 'Por Verificar').length === 0 ? (
+                  <p className="p-4 text-sm text-slate-500 text-center">No hay servicios especiales pagados o en verificación.</p>
                 ) : (
                   <div className="bg-white">
                     <table className="w-full text-sm text-left">
@@ -1993,16 +1993,20 @@ function ContribuyentesPageContent() {
                         <tr>
                           <th className="px-4 py-2">Tipo</th>
                           <th className="px-4 py-2">Descripción</th>
-                          <th className="px-4 py-2">Fecha</th>
+                          <th className="px-4 py-2">Estado</th>
                           <th className="px-4 py-2 text-right">Monto (Bs)</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {viewServiciosEsp.filter((s: any) => s.estado === 'Pagado').map((s: any, idx: number) => (
+                        {viewServiciosEsp.filter((s: any) => s.estado === 'Pagado' || s.estado === 'Por Verificar').map((s: any, idx: number) => (
                           <tr key={idx} className="border-b border-slate-100 last:border-0 hover:bg-emerald-50/20">
                             <td className="px-4 py-2 text-xs text-emerald-700 font-semibold capitalize">{s.tipo?.replace('_', ' ')}</td>
                             <td className="px-4 py-2 text-slate-700 text-xs">{s.descripcion}</td>
-                            <td className="px-4 py-2 text-slate-500 text-xs">{s.fecha}</td>
+                            <td className="px-4 py-2">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                s.estado === 'Pagado' ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'
+                              }`}>{s.estado}</span>
+                            </td>
                             <td className="px-4 py-2 text-right font-bold text-emerald-600">Bs. {Number(s.monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
                           </tr>
                         ))}
