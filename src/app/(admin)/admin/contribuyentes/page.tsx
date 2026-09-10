@@ -40,6 +40,7 @@ function ContribuyentesPageContent() {
   const [selectedSolvenciaInmueble, setSelectedSolvenciaInmueble] = useState<string>('');
   const [viewCalculo, setViewCalculo] = useState<any>(null);
   const [selectedCondominioModal, setSelectedCondominioModal] = useState<{ id: number, nombre: string, identidad: string } | null>(null);
+  const [viewServiciosEsp, setViewServiciosEsp] = useState<any[]>([]);
 
   const [debtModalOpen, setDebtModalOpen] = useState(false);
   const [selectedDebtRow, setSelectedDebtRow] = useState<any>(null);
@@ -260,8 +261,19 @@ function ContribuyentesPageContent() {
       calculateFactorForRow(viewData).then(detalle => {
         if (detalle) setViewCalculo(detalle);
       });
+      // Load servicios especiales for this contributor
+      const idLimpio = (viewData.Identidad || '').replace(/-/g, '').toUpperCase();
+      const idFmt = idLimpio.charAt(0) + '-' + idLimpio.slice(1);
+      supabase
+        .from('servicios_especiales')
+        .select('*')
+        .or(`identidad.eq.${viewData.Identidad},identidad.eq.${idLimpio},identidad.eq.${idFmt}`)
+        .not('estado', 'eq', 'Pagado')
+        .order('fecha', { ascending: false })
+        .then(({ data }) => setViewServiciosEsp(data || []));
     } else {
       setViewCalculo(null);
+      setViewServiciosEsp([]);
     }
   }, [isViewModalOpen, viewData, inmuebles]);
 
@@ -1926,6 +1938,47 @@ function ContribuyentesPageContent() {
                   })()}
                 </div>
               </div>
+
+              {/* Servicios Especiales Asignados */}
+              {viewServiciosEsp.length > 0 && (
+                <div className="mt-4 border border-purple-200 rounded-lg overflow-hidden">
+                  <div className="bg-purple-50 px-4 py-3 border-b border-purple-100 flex items-center gap-2">
+                    <span className="text-lg">🔧</span>
+                    <h4 className="font-bold text-purple-800 text-sm">Servicios Especiales / Inspecciones Asignados</h4>
+                    <span className="ml-auto text-xs font-bold text-purple-600">({viewServiciosEsp.length}) pendientes</span>
+                  </div>
+                  <div className="bg-white">
+                    <table className="w-full text-sm text-left">
+                      <thead className="bg-purple-50 text-purple-700 font-medium text-[10px] uppercase">
+                        <tr>
+                          <th className="px-4 py-2">Tipo</th>
+                          <th className="px-4 py-2">Descripción</th>
+                          <th className="px-4 py-2">Fecha</th>
+                          <th className="px-4 py-2 text-center">Estado</th>
+                          <th className="px-4 py-2 text-right">Monto (Bs)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {viewServiciosEsp.map((s: any, idx: number) => (
+                          <tr key={idx} className="border-b border-slate-100 last:border-0 hover:bg-purple-50/30">
+                            <td className="px-4 py-2 text-xs text-purple-600 font-semibold capitalize">{s.tipo?.replace('_', ' ')}</td>
+                            <td className="px-4 py-2 font-medium text-slate-700 text-xs">{s.descripcion}</td>
+                            <td className="px-4 py-2 text-slate-500 text-xs">{s.fecha}</td>
+                            <td className="px-4 py-2 text-center">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                s.estado === 'Pendiente' ? 'bg-red-100 text-red-700' :
+                                s.estado === 'Por Verificar' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-slate-100 text-slate-600'
+                              }`}>{s.estado}</span>
+                            </td>
+                            <td className="px-4 py-2 text-right font-bold text-purple-700">Bs. {Number(s.monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               {/* Historial de Recibos Procesados */}
               <div className="mt-6 border border-slate-200 rounded-lg overflow-hidden mb-6">
