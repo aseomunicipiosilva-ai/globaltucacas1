@@ -941,6 +941,7 @@ function ContribuyentesPageContent() {
                         e.preventDefault();
                       }
                     }}
+                    maxLength={7}
                     placeholder="1234567"
                     className="w-2/3 border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" 
                     required
