@@ -72,6 +72,47 @@ function ContribuyentesPageContent() {
   const [filteredContribuyentes, setFilteredContribuyentes] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Documentos / Expediente digitalizado
+  const [uploadDocs, setUploadDocs] = useState<{
+    cedula: { url: string; uploading: boolean; name: string };
+    ficha: { url: string; uploading: boolean; name: string };
+    registro: { url: string; uploading: boolean; name: string };
+  }>({
+    cedula:   { url: '', uploading: false, name: '' },
+    ficha:    { url: '', uploading: false, name: '' },
+    registro: { url: '', uploading: false, name: '' },
+  });
+
+  const handleUploadDoc = async (e: React.ChangeEvent<HTMLInputElement>, tipo: 'cedula' | 'ficha' | 'registro') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const maxMB = 10;
+    if (file.size > maxMB * 1024 * 1024) {
+      alert(`El archivo supera los ${maxMB} MB permitidos.`);
+      return;
+    }
+    setUploadDocs(prev => ({ ...prev, [tipo]: { ...prev[tipo], uploading: true, name: file.name } }));
+    try {
+      const identidad = formData?.Identidad || 'sin_id';
+      const ext = file.name.split('.').pop();
+      const path = `expedientes/${identidad.replace(/[^a-zA-Z0-9]/g,'_')}/${tipo}_${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('documentos').upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: urlData } = supabase.storage.from('documentos').getPublicUrl(path);
+      const publicUrl = urlData?.publicUrl || '';
+      setUploadDocs(prev => ({ ...prev, [tipo]: { url: publicUrl, uploading: false, name: file.name } }));
+      // Guardar URL en inmuebles
+      const campo = tipo === 'cedula' ? 'doc_cedula_url' : tipo === 'ficha' ? 'doc_ficha_url' : 'doc_registro_url';
+      if (identidad && identidad !== 'sin_id') {
+        await supabase.from('inmuebles').update({ [campo]: publicUrl }).eq('identidad', identidad);
+      }
+    } catch (err: any) {
+      alert('Error al subir archivo: ' + (err.message || err));
+      setUploadDocs(prev => ({ ...prev, [tipo]: { ...prev[tipo], uploading: false } }));
+    }
+    e.target.value = '';
+  };
+
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -911,27 +952,60 @@ function ContribuyentesPageContent() {
               </h2>
             </div>
             
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Cédula / RIF */}
               <div>
                 <label className="block text-[10px] font-semibold text-slate-600 mb-1">Copia de Cédula / RIF</label>
-                <div className="border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-slate-50">
-                  <span className="text-xs text-slate-500">Click para subir archivo</span>
-                  <input type="file" className="hidden" accept=".pdf,image/*" />
-                </div>
+                <label className="block border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-colors">
+                  {uploadDocs.cedula.uploading ? (
+                    <span className="text-xs text-blue-500 animate-pulse">⏳ Subiendo...</span>
+                  ) : uploadDocs.cedula.url ? (
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-green-600 font-bold block">✅ {uploadDocs.cedula.name}</span>
+                      <a href={uploadDocs.cedula.url} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 underline" onClick={e => e.stopPropagation()}>Ver documento</a>
+                      <span className="block text-[10px] text-slate-400">Click para cambiar</span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-500">📎 Click para subir archivo<br/><span className="text-[10px] text-slate-400">PDF o imagen, máx. 10 MB</span></span>
+                  )}
+                  <input type="file" className="hidden" accept=".pdf,image/*" onChange={e => handleUploadDoc(e, 'cedula')} disabled={uploadDocs.cedula.uploading}/>
+                </label>
               </div>
+              {/* Ficha Catastral */}
               <div>
                 <label className="block text-[10px] font-semibold text-slate-600 mb-1">Ficha Catastral Digitalizada</label>
-                <div className="border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-slate-50">
-                  <span className="text-xs text-slate-500">Click para subir archivo</span>
-                  <input type="file" className="hidden" accept=".pdf,image/*" />
-                </div>
+                <label className="block border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-colors">
+                  {uploadDocs.ficha.uploading ? (
+                    <span className="text-xs text-blue-500 animate-pulse">⏳ Subiendo...</span>
+                  ) : uploadDocs.ficha.url ? (
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-green-600 font-bold block">✅ {uploadDocs.ficha.name}</span>
+                      <a href={uploadDocs.ficha.url} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 underline" onClick={e => e.stopPropagation()}>Ver documento</a>
+                      <span className="block text-[10px] text-slate-400">Click para cambiar</span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-500">📎 Click para subir archivo<br/><span className="text-[10px] text-slate-400">PDF o imagen, máx. 10 MB</span></span>
+                  )}
+                  <input type="file" className="hidden" accept=".pdf,image/*" onChange={e => handleUploadDoc(e, 'ficha')} disabled={uploadDocs.ficha.uploading}/>
+                </label>
               </div>
+              {/* Registro Mercantil */}
               <div>
                 <label className="block text-[10px] font-semibold text-slate-600 mb-1">Registro Mercantil / Otros</label>
-                <div className="border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-slate-50">
-                  <span className="text-xs text-slate-500">Click para subir archivo</span>
-                  <input type="file" className="hidden" accept=".pdf,image/*" />
-                </div>
+                <label className="block border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-colors">
+                  {uploadDocs.registro.uploading ? (
+                    <span className="text-xs text-blue-500 animate-pulse">⏳ Subiendo...</span>
+                  ) : uploadDocs.registro.url ? (
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-green-600 font-bold block">✅ {uploadDocs.registro.name}</span>
+                      <a href={uploadDocs.registro.url} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 underline" onClick={e => e.stopPropagation()}>Ver documento</a>
+                      <span className="block text-[10px] text-slate-400">Click para cambiar</span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-500">📎 Click para subir archivo<br/><span className="text-[10px] text-slate-400">PDF o imagen, máx. 10 MB</span></span>
+                  )}
+                  <input type="file" className="hidden" accept=".pdf,image/*" onChange={e => handleUploadDoc(e, 'registro')} disabled={uploadDocs.registro.uploading}/>
+                </label>
               </div>
             </div>
 
