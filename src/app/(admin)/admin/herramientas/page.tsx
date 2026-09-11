@@ -54,18 +54,28 @@ export default function HerramientasPage() {
         .order('contribuyente');
       if (e1) throw e1;
 
-      // 2. Cargar facturas CM- pendientes (ya generadas desde el Excel)
-      const { data: facts, error: e2 } = await supabase
-        .from('facturas')
-        .select('referencia, identidad, monto, emision, estado')
-        .like('referencia', 'CM-%')
-        .eq('estado', 'Pendiente')
-        .order('emision');
-      if (e2) throw e2;
+      // 2. Cargar TODAS las facturas CM- pendientes con paginacion (limite 1000 filas de Supabase)
+      let allFacts: any[] = [];
+      let page = 0;
+      const PAGE_SIZE = 1000;
+      while (true) {
+        const { data: pageFacts, error: e2 } = await supabase
+          .from('facturas')
+          .select('referencia, identidad, monto, emision, estado')
+          .like('referencia', 'CM-%')
+          .eq('estado', 'Pendiente')
+          .order('emision')
+          .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+        if (e2) throw e2;
+        if (!pageFacts || pageFacts.length === 0) break;
+        allFacts = allFacts.concat(pageFacts);
+        if (pageFacts.length < PAGE_SIZE) break;
+        page++;
+      }
 
       // Agrupar facturas por identidad
       const factsByIdent: Record<string, any[]> = {};
-      for (const f of (facts || [])) {
+      for (const f of allFacts) {
         const k = (f.identidad || '').trim();
         if (!factsByIdent[k]) factsByIdent[k] = [];
         factsByIdent[k].push(f);
@@ -290,3 +300,4 @@ export default function HerramientasPage() {
     </div>
   );
 }
+
