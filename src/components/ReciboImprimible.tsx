@@ -28,6 +28,7 @@ interface ReciboProps {
   esAbono?: boolean;
   montoCancelado?: number;
   montoPendiente?: number;
+  tasaBcv?: number;
 }
 
 function normalizarFormaPago(fp: string): 'PUNTO_VENTA' | 'TRANSFERENCIA' | 'EFECTIVO' | 'OTRO' {
@@ -68,7 +69,7 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
       <div className="grid grid-cols-4 border border-black text-sm mb-6">
         <div className="col-span-3 border-r border-black p-2 space-y-2">
           <div className="flex gap-2">
-            <span className="font-bold">Fecha de Emisión:</span> {data.fechaEmision}
+            <span className="font-bold">Fecha de Emisión:</span> {data.fechaEmision} {data.tasaBcv ? `| Tasa BCV: Bs. ${data.tasaBcv}` : ''}
           </div>
           <div className="flex gap-2">
             <span className="font-bold">Cod. Contribuyente:</span> {data.codContribuyente}

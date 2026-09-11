@@ -400,7 +400,7 @@ export default function CajaPage() {
       const transferido = parseFloat(montoTransferido);
       if (isNaN(transferido) || transferido <= 0) return alert("Debe ingresar un monto transferido válido.");
       
-      if (transferido < finalTotal) {
+      if (transferido < finalTotal || isPagoMultiple) {
         esAbono = true;
         montoReal = transferido;
       } else if (transferido > finalTotal) {
@@ -583,6 +583,8 @@ export default function CajaPage() {
             cajero: cajero_id,
             es_abono: esAbonoDebito,
             monto_abonado: esAbonoDebito ? montoReal : undefined,
+            tasa_bcv: currentBcvRate,
+            deuda_total_sistema: foundUser.DeudaTotal,
             fecha_transaccion: fechaTransaccion,
             tasa_bcv_aplicada: customBcvRate ? customBcvRate : undefined,
             nota_cambio_tasa: justificacionBcv ? justificacionBcv : undefined
@@ -590,9 +592,14 @@ export default function CajaPage() {
         });
 
         if (esAbonoDebito) {
-          (window as any).__lastPaymentAbono = { esAbono: true, montoCancelado: montoReal, montoPendiente: Math.max(0, totalBs - montoReal) };
+          (window as any).__lastPaymentAbono = { 
+            esAbono: true, 
+            montoCancelado: montoReal, 
+            montoPendiente: Math.max(0, (foundUser.DeudaTotal || finalTotal) - montoReal),
+            tasaBcv: currentBcvRate
+          };
         } else {
-          (window as any).__lastPaymentAbono = { esAbono: false };
+          (window as any).__lastPaymentAbono = { esAbono: false, tasaBcv: currentBcvRate };
         }
         setSuccessMsg(esAbonoDebito
           ? `Abono de Bs. ${formatBs(montoReal)} procesado. La deuda restante quedó actualizada.`
@@ -644,8 +651,11 @@ export default function CajaPage() {
             tala_poda: selectedTalaPoda,
             saldo_favor: saldoAFavorNuevo,
             es_abono: esAbono,
+            monto_abonado: esAbono ? montoReal : undefined,
             total_seleccionado: totalBs,
             saldo_usado: descuentoSaldoFavor,
+            tasa_bcv: currentBcvRate,
+            deuda_total_sistema: foundUser.DeudaTotal,
             comprobante_nombre: comprobante?.name || '',
             comprobante_url: comprobanteUrl,
             fecha_transaccion: fechaTransaccion,

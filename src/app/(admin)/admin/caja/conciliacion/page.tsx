@@ -482,9 +482,37 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
       }).eq('id', pago.id);
       if (error) throw error;
 
-      // Aprobado: marcar facturas como Pagado
+      // Aprobado: marcar facturas como Pagado o aplicar abono
       if (estatus === 'Aprobado' && recibos.length > 0) {
-        await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', recibos);
+        if (det.es_abono && montoConciliadoNum > 0) {
+          // Es un abono parcial (Pago Múltiple)
+          const { data: facs } = await supabase.from('facturas').select('*').in('referencia', recibos);
+          if (facs && facs.length > 0) {
+            // Ordenar por fecha (las más antiguas primero)
+            facs.sort((a, b) => new Date(a.fecha_emision || 0).getTime() - new Date(b.fecha_emision || 0).getTime());
+            let dineroDisponible = montoConciliadoNum;
+            
+            for (const fac of facs) {
+              const montoFac = parseFloat(fac.monto || '0');
+              if (dineroDisponible >= montoFac - 0.01) {
+                // Se paga completa
+                dineroDisponible = Math.max(0, dineroDisponible - montoFac);
+                await supabase.from('facturas').update({ estado: 'Pagado' }).eq('referencia', fac.referencia);
+              } else if (dineroDisponible > 0.01) {
+                // Abono parcial
+                const montoRestante = (montoFac - dineroDisponible).toFixed(2);
+                await supabase.from('facturas').update({ monto: montoRestante, estado: 'Pendiente' }).eq('referencia', fac.referencia);
+                dineroDisponible = 0;
+              } else {
+                // No queda dinero, regresarla a Pendiente
+                await supabase.from('facturas').update({ estado: 'Pendiente' }).eq('referencia', fac.referencia);
+              }
+            }
+          }
+        } else {
+          // Pago completo normal
+          await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', recibos);
+        }
       }
 
       // Con Diferencia: agregar monto de diferencia como saldo a favor
