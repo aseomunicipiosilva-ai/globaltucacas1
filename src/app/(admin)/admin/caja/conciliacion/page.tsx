@@ -408,9 +408,18 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
 
         if (inm) {
           // Calcular deuda total de todos sus inmuebles
-          const deudaTotal = (inms || []).reduce((acc: number, i: any) => {
-            return acc + (parseFloat(i.deuda_congelada_bs || '0') || 0) + (parseFloat(i.deuda_mmv || '0') || 0);
-          }, 0);
+          // Sumar las facturas pendientes
+          let deudaTotal = 0;
+          try {
+            const { data: facs } = await supabase
+              .from('facturas')
+              .select('monto')
+              .or(`identidad.eq.${pago.identidad},identidad.eq.${idLimpio}`)
+              .in('estado', ['Pendiente', 'Por Verificar']);
+            if (facs) {
+              deudaTotal = facs.reduce((a, f) => a + (parseFloat(String(f.monto || '0').replace(/[^0-9.]/g,'')) || 0), 0);
+            }
+          } catch(e) {}
           const saldoFavor = (inms || []).reduce((acc: number, i: any) => {
             return acc + (parseFloat(i.saldo_favor_bs || '0') || 0);
           }, 0);
