@@ -18,10 +18,12 @@ const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO'
 
 function calcularFactorMensual(inm: any): number {
   const cl = (inm.clasificacion || '').toLowerCase();
+  // Para Residencial: actividad_principal guarda el tipo de residencia (Tipo I, Tipo II, etc.)
   if (cl === 'residencial') {
-    const t = ordenanzaData.tiposResidenciales.find((t: any) => t.label === inm.tipo_residencia);
+    const t = ordenanzaData.tiposResidenciales.find((t: any) => t.label === inm.actividad_principal);
     return t ? (t as any).factor : 0;
   }
+  // Para Comercial/Industrial: actividad_principal = actividad, nivel_metraje = nivel
   const act = todasLasActividades.find((a: any) => a.label === inm.actividad_principal);
   const ni = ordenanzaData.nivelesMetraje.indexOf(inm.nivel_metraje || '');
   if (act && ni !== -1) return (act as any).factores[ni];
@@ -67,7 +69,7 @@ export default function HerramientasPage() {
     try {
       const { data, error } = await supabase
         .from('inmuebles')
-        .select('id, identidad, contribuyente, clasificacion, actividad_principal, tipo_residencia, nivel_metraje, deuda_mmv, deuda_congelada_bs, estado')
+        .select('id, identidad, contribuyente, clasificacion, actividad_principal, nivel_metraje, deuda_mmv, deuda_congelada_bs, estado')
         .neq('estado', 'Eliminado')
         .order('contribuyente');
       if (error) throw error;
@@ -344,3 +346,5 @@ export default function HerramientasPage() {
     </div>
   );
 }
+
+
