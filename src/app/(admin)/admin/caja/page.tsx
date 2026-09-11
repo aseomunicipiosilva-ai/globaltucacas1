@@ -1156,8 +1156,24 @@ export default function CajaPage() {
             </div>
 
             <div className="space-y-4 mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-semibold text-slate-700">Método de Pago</span>
+                <label className="flex items-center gap-2 cursor-pointer bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-200 transition-colors">
+                  <input type="checkbox" checked={isPagoMultiple} onChange={e => setIsPagoMultiple(e.target.checked)} className="w-4 h-4 accent-emerald-600" />
+                  <span className="text-xs font-bold text-slate-700 uppercase">Pago Múltiple</span>
+                </label>
+              </div>
+              
+              {isPagoMultiple && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs text-blue-800 font-medium">
+                    <strong>Pago Múltiple activado:</strong> Registre la transferencia primero. 
+                    El recibo quedará bloqueado hasta que la transferencia sea conciliada (verificada). 
+                    Una vez aprobada, el contribuyente podrá cancelar el monto restante con Débito u otro método.
+                  </p>
+                </div>
+              )}
               <label className="block">
-                <span className="text-sm font-semibold text-slate-700 mb-1 block">Método de Pago</span>
                 <select 
                   value={paymentMethod}
                   onChange={(e: any) => setPaymentMethod(e.target.value)}
