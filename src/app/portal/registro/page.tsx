@@ -161,7 +161,7 @@ export default function RegistroPublico() {
                     <option value="E">E</option>
                     <option value="P">P</option>
                   </select>
-                  <input type="text" name="identidadNumero" required placeholder="Ej: 123456789" value={formData.identidadNumero} onChange={(e) => setFormData({ ...formData, identidadNumero: e.target.value.replace(/\D/g, '') })} className="w-3/4 border-2 border-slate-200 rounded-lg px-4 py-3 text-sm font-semibold text-slate-700 outline-none focus:border-emerald-500" />
+                  <input type="text" name="identidadNumero" required placeholder="Ej: 123456789" value={formData.identidadNumero} onChange={(e) => setFormData({ ...formData, identidadNumero: e.target.value.replace(/\D/g, '') })} maxLength={9} className="w-3/4 border-2 border-slate-200 rounded-lg px-4 py-3 text-sm font-semibold text-slate-700 outline-none focus:border-emerald-500" />
                 </div>
               </div>
               <div>

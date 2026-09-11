@@ -25,16 +25,16 @@ export default function Sidebar() {
     { icon: Map, name: 'Jornadas de Campo', href: '/admin/jornadas' },
     { icon: Building2, name: 'Inmuebles', href: '/admin/inmuebles' },
     { icon: BarChart3, name: 'Análisis de Deudas', href: '/admin/herramientas' },
-    { icon: Calculator, name: 'CÃ¡lculo y ProyecciÃ³n', href: '/admin/calculo' },
+    { icon: Calculator, name: 'Cálculo y Proyección', href: '/admin/calculo' },
     { icon: Briefcase, name: 'Caja / Pagos', href: '/admin/caja' },
     { icon: Landmark, name: 'Conciliacion Bancaria', href: '/admin/caja/conciliacion' },
-    { icon: FileSpreadsheet, name: 'FacturaciÃ³n / Edo Cuenta', href: '/admin/estado-cuenta' },
+    { icon: FileSpreadsheet, name: 'Facturación / Edo Cuenta', href: '/admin/estado-cuenta' },
     { icon: Clock, name: 'Cuentas Por Facturar', href: '/admin/por-facturar' },
     { icon: Handshake, name: 'Convenios de Pago', href: '/admin/convenios-pago' },
     { icon: Award, name: 'Certificados Emitidos', href: '/admin/certificados' },
     { icon: History, name: 'Historial Documentos', href: '/admin/historial-documentos' },
-    { icon: Inbox, name: 'BuzÃ³n de Solicitudes', href: '/admin/buzon' },
-    { icon: AlertTriangle, name: 'Reclamos / AtenciÃ³n', href: '/admin/reclamos' },
+    { icon: Inbox, name: 'Buzón de Solicitudes', href: '/admin/buzon' },
+    { icon: AlertTriangle, name: 'Reclamos / Atención', href: '/admin/reclamos' },
     { icon: AlertTriangle, name: 'Denuncias Ciudadanas', href: '/admin/denuncias' },
     { icon: Truck, name: 'Rutas Camiones', href: '/admin/rutas' },
     { icon: Wrench, name: 'Servicios Especiales', href: '/admin/servicios-especiales' },
@@ -45,28 +45,28 @@ export default function Sidebar() {
 
   const menuRecaudacion = [
     { icon: Landmark, name: 'Dashboard Hacienda', href: '/admin/recaudacion' },
-    { icon: Briefcase, name: 'Actividades EconÃ³micas', href: '/admin/recaudacion/actividades-economicas' },
+    { icon: Briefcase, name: 'Actividades Económicas', href: '/admin/recaudacion/actividades-economicas' },
     { icon: Building2, name: 'Catastro y Propiedad', href: '/admin/recaudacion/catastro' },
-    { icon: Car, name: 'VehÃ­culos y Patentes', href: '/admin/recaudacion/vehiculos' },
+    { icon: Car, name: 'Vehículos y Patentes', href: '/admin/recaudacion/vehiculos' },
     { icon: Map, name: 'Ordenamiento Territorial', href: '/admin/recaudacion/ordenamiento' },
-    { icon: Truck, name: 'Vialidad y TrÃ¡nsito', href: '/admin/recaudacion/vialidad' },
+    { icon: Truck, name: 'Vialidad y Tránsito', href: '/admin/recaudacion/vialidad' },
     { icon: Bus, name: 'Terminal de Pasajeros', href: '/admin/recaudacion/terminal' },
-    { icon: Users, name: 'Servicios PÃºblicos', href: '/admin/recaudacion/servicios' },
+    { icon: Users, name: 'Servicios Públicos', href: '/admin/recaudacion/servicios' },
     { icon: TreePine, name: 'Ambiente', href: '/admin/recaudacion/ambiente' },
-    { icon: ShieldAlert, name: 'PolicÃ­a Municipal', href: '/admin/recaudacion/policia' },
+    { icon: ShieldAlert, name: 'Policía Municipal', href: '/admin/recaudacion/policia' },
     { icon: Handshake, name: 'Convenios y Exoneraciones', href: '/admin/recaudacion/convenios' },
-    { icon: Search, name: 'FiscalizaciÃ³n / AuditorÃ­a', href: '/admin/recaudacion/fiscalizacion' },
+    { icon: Search, name: 'Fiscalización / Auditoría', href: '/admin/recaudacion/fiscalizacion' },
     { icon: FileSpreadsheet, name: 'Pasarela de Pagos', href: '/admin/recaudacion/pagos' }
   ];
 
   const menuAdministracion = [
     { icon: LayoutDashboard, name: 'Dashboard Admin', href: '/admin/administracion' },
-    { icon: Calculator, name: 'Presupuesto PÃºblico', href: '/admin/administracion/presupuesto' },
+    { icon: Calculator, name: 'Presupuesto Público', href: '/admin/administracion/presupuesto' },
     { icon: Wallet, name: 'Finanzas y Pagos', href: '/admin/administracion/finanzas' },
-    { icon: Users, name: 'RRHH y NÃ³mina', href: '/admin/administracion/rrhh' },
+    { icon: Users, name: 'RRHH y Nómina', href: '/admin/administracion/rrhh' },
     { icon: ShoppingCart, name: 'Compras y Servicios', href: '/admin/administracion/compras' },
     { icon: FileCheck, name: 'Contrataciones', href: '/admin/administracion/contrataciones' },
-    { icon: Package, name: 'AlmacÃ©n e Inventario', href: '/admin/administracion/almacen' },
+    { icon: Package, name: 'Almacén e Inventario', href: '/admin/administracion/almacen' },
     { icon: Building2, name: 'Bienes Nacionales', href: '/admin/administracion/bienes' },
     { icon: Target, name: 'Plan Operativo Anual', href: '/admin/administracion/poa' }
   ];
@@ -79,7 +79,7 @@ export default function Sidebar() {
     title = 'Hacienda Municipal';
   } else if (isAdministracion) {
     activeMenu = menuAdministracion;
-    title = 'AdministraciÃ³n Interna';
+    title = 'Administración Interna';
   }
 
   return (

@@ -54,7 +54,7 @@ export default function SolvenciaPage() {
           <div>
             <h3 className="text-sm font-bold text-red-800">No puede obtener Certificado de Solvencia</h3>
             <p className="text-sm text-red-700 mt-1">
-              Tiene <strong>{pendientes.length} recibo(s) pendiente(s)</strong> por cancelar. 
+              Tiene <strong>{pendientes.length} recibo(s) pendiente(s)</strong> por pagar. 
               Diríjase a la sección <strong>Estado de Cuenta</strong> para verificar sus pagos pendientes, 
               o a las oficinas de Aseo Urbano para regularizar su situación.
             </p>

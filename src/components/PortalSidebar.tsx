@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import { 
   Home, Building2, FileText, CreditCard, History,
   Award, CalendarDays, MessageSquareWarning, Wrench,
-  ShieldCheck, SearchCheck, User as UserIcon, LogOut, Menu, X
+  ShieldCheck, SearchCheck, User as UserIcon, LogOut, Menu, X, TreePine
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -42,6 +42,7 @@ const menuSections = [
       { name: 'Horarios de Rutas', icon: CalendarDays, href: '/portal/rutas' },
       { name: 'Reclamos', icon: MessageSquareWarning, href: '/portal/denuncias' },
       { name: 'Servicios Ext.', icon: Wrench, href: '/portal/servicios-extraordinarios' },
+      { name: 'Permiso Tala/Poda', icon: TreePine, href: '/portal/tala-y-poda' },
       { name: 'Visto Bueno', icon: ShieldCheck, href: '/portal/visto-bueno' },
       { name: 'Inspección', icon: SearchCheck, href: '/portal/inspeccion' },
     ]

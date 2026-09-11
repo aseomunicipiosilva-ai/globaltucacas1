@@ -149,7 +149,7 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
               Bs. {formatBs(data.montoCancelado)}
             </div>
             <div className="p-2 border-r border-black border-t border-black">
-              <span className="font-bold">Saldo Pendiente por Cancelar:</span>
+              <span className="font-bold">Saldo Pendiente por Pagar:</span>
             </div>
             <div className="p-2 text-right font-bold text-red-700 border-t border-black">
               Bs. {formatBs(data.montoPendiente)}
