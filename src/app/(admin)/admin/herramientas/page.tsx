@@ -98,7 +98,8 @@ export default function HerramientasPage() {
       // Calcular meses y tipo para cada grupo
       const result: ContribGroup[] = Object.values(mapa).map(g => {
         const unidades = g.rows.reduce((s: number, r: any) => s + parseFloat(r.cant_inmuebles || 1), 0);
-        const isCondominio = unidades > 1;
+        // Es condominio si: tiene multiples rows (COB) O si cant_inmuebles > 1 en alguna fila (no COB)
+        const isCondominio = g.rows.length > 1 || unidades > 1;
         const meses = g.totalMmvMes > 0 ? Math.round(g.totalDeudaMMV / g.totalMmvMes) : 0;
         return {
           ...g,
@@ -397,5 +398,6 @@ export default function HerramientasPage() {
     </div>
   );
 }
+
 
 
