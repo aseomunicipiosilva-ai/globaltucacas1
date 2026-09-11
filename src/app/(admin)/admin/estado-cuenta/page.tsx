@@ -284,18 +284,18 @@ export default function EstadoCuentaPage() {
     }
   };
 
-  const handleOpenRecibo = async (row: any) => {
-    let montoNumerico = parseFloat((row.monto || "0").replace(/[^\d.]/g, '')) || 0;
-    let saldoPendiente: number | null = null;
+  const handleOpenRecibo = async (row: any, abonoOverride?: any) => {
+    let montoNumerico = parseFloat(String(row.monto || '0').replace(/[^\d.]/g, '')) || 0;
+    let montoCancelado: number | undefined = undefined;
+    let montoPendiente: number | undefined = undefined;
     let esAbono = false;
-    
-    // Obtener mes y a├▒o
+
+    // Obtener mes y año
     let mesTexto = '---';
     if (row.emision) {
-      const date = new Date(row.emision);
       const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
       const parts = row.emision.split('-');
-      if(parts.length >= 2) {
+      if (parts.length >= 2) {
         mesTexto = `${meses[parseInt(parts[1]) - 1]} ${parts[0]}`;
       }
     }
@@ -310,12 +310,23 @@ export default function EstadoCuentaPage() {
       return 'ADMINISTRADOR';
     })();
 
-    let formaPagoStr = 'POR PAGAR';
+    // SOLO Punto de Venta y Transferencia (sin Efectivo)
+    let formaPagoStr = 'TRANSFERENCIA';
     let bancoReal = '---';
     let referenciaReal = '---';
-    
-    // Buscar el pago asociado (Pagado O Pendiente con abono)
-    if (row.referencia) {
+
+    // Si viene de abono parcial, usar los datos del abono directamente
+    if (abonoOverride) {
+      const tipoAbono = abonoOverride.tipo || '';
+      formaPagoStr = (tipoAbono === 'Debito' || tipoAbono.toLowerCase().includes('punto')) ? 'PUNTO DE VENTA' : 'TRANSFERENCIA';
+      bancoReal = abonoOverride.banco || '---';
+      referenciaReal = abonoOverride.referencia || '---';
+      // montoCancelado = monto del abono (lo que pagó); montoPendiente = monto factura actual (saldo que queda)
+      montoCancelado = parseFloat(String(abonoOverride.monto || '0').replace(/[^\d.]/g, '')) || 0;
+      montoPendiente = montoNumerico; // row.monto = saldo pendiente en la factura
+      montoNumerico = montoCancelado; // el recibo muestra lo que SE CANCELÓ
+      esAbono = true;
+    } else if (row.referencia) {
       try {
         const { data: pago } = await supabase
           .from('pagos_reportados')
@@ -324,21 +335,23 @@ export default function EstadoCuentaPage() {
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
-          
+
         if (pago) {
           const det = parseDetalles(pago.detalles);
-          
-          formaPagoStr = pago.tipo === 'Debito' || pago.tipo === 'Punto de Venta' ? 'PUNTO DE VENTA' : 'TRANSFERENCIA';
+          const tipoP = pago.tipo || '';
+          formaPagoStr = (tipoP === 'Debito' || tipoP.toLowerCase().includes('punto')) ? 'PUNTO DE VENTA' : 'TRANSFERENCIA';
           bancoReal = pago.banco || '---';
           referenciaReal = pago.referencia || '---';
 
           if (det.es_abono === true) {
             esAbono = true;
-            saldoPendiente = montoNumerico; // saldo restante (row.monto actual)
-            montoNumerico = parseFloat(pago.monto) || 0; // lo que realmente cancelo
+            // pago.monto = lo que se canceló; row.monto = saldo pendiente restante
+            montoCancelado = parseFloat(String(pago.monto || '0').replace(/[^\d.]/g, '')) || 0;
+            montoPendiente = montoNumerico; // saldo que quedó pendiente
+            montoNumerico = montoCancelado;
           }
         }
-      } catch (e) {
+      } catch {
         if (row.estado === 'Pagado') {
           formaPagoStr = 'TRANSFERENCIA';
           bancoReal = 'BANCO CONFIRMADO';
@@ -347,33 +360,54 @@ export default function EstadoCuentaPage() {
       }
     }
 
+    // Cargar datos completos del contribuyente desde inmuebles
+    let codContrib = row.identidad || '---';
+    let direccionFiscal = 'TUCACAS MUNICIPIO SILVA, FALCÓN';
+    let razonSocial = row.contribuyente || '---';
+    let rifCiReal = row.identidad || '---';
+    try {
+      const idLimpio = (row.identidad || '').replace(/-/g, '');
+      const { data: inms } = await supabase
+        .from('inmuebles')
+        .select('contribuyente, cod_cont, direccion, clasificacion, identidad')
+        .or(`identidad.eq.${row.identidad},identidad.eq.${idLimpio}`);
+      if (inms && inms.length > 0) {
+        const inm = inms[0];
+        if (inm.contribuyente) razonSocial = inm.contribuyente;
+        if (inm.cod_cont) codContrib = inm.cod_cont;
+        if (inm.direccion) direccionFiscal = inm.direccion.toUpperCase();
+        rifCiReal = inm.identidad || row.identidad || '---';
+      }
+    } catch { /* usar fallback */ }
+
     const descripcionConcepto = esAbono
-      ? `ABONO PARCIAL - Aseo Residencial/Comercial. Mes: ${mesTexto}. Saldo pendiente: Bs. ${saldoPendiente?.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}`
+      ? `ABONO PARCIAL - Aseo Residencial/Comercial. Mes: ${mesTexto}`
       : `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${mesTexto}`;
 
     setSelectedRecibo({
       reciboNo: row.referencia ? row.referencia.split('-').pop()?.padStart(7, '0') : '0000001',
       controlWeb: (row.estado === 'Pagado' || esAbono) ? 'WEB-0000001' : '',
       fechaEmision: row.emision || new Date().toISOString().split('T')[0],
-      codContribuyente: row.identidad || '---',
-      razonSocial: row.contribuyente || '---',
-      domicilioFiscal: "ZONA TUCACAS (SECTOR NO ESPECIFICADO)",
-      rifCi: row.identidad || '---',
+      codContribuyente: codContrib,
+      razonSocial,
+      domicilioFiscal: direccionFiscal,
+      rifCi: rifCiReal,
       caja: cajeroActivo,
-      conceptos: [
-        { 
-          descripcion: descripcionConcepto,
-          precioUnit: montoNumerico, 
-          total: montoNumerico 
-        }
-      ],
+      conceptos: [{
+        descripcion: descripcionConcepto,
+        precioUnit: montoNumerico,
+        total: montoNumerico
+      }],
       subTotal: montoNumerico,
       exento: montoNumerico,
       iva: 0,
       total: montoNumerico,
       formaPago: formaPagoStr,
       banco: bancoReal,
-      referencia: referenciaReal
+      referencia: referenciaReal,
+      esAbono,
+      montoCancelado,
+      montoPendiente,
     });
   };
 
@@ -831,7 +865,7 @@ export default function EstadoCuentaPage() {
                         <td className="px-4 py-2">
                           {facturaRow && (
                             <button
-                              onClick={() => handleOpenRecibo(facturaRow)}
+                              onClick={() => handleOpenRecibo(facturaRow, abono)}
                               className="bg-blue-50 text-blue-600 hover:bg-blue-100 px-2 py-1 rounded text-xs flex items-center gap-1 border border-blue-200 transition-colors"
                               title="Generar recibo del abono"
                             >

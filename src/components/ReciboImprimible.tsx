@@ -175,12 +175,6 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
                 {fpNorm === 'TRANSFERENCIA' ? 'X' : ''}
               </strong>
             </span>
-            <span className="flex items-center gap-1">
-              EFECTIVO{' '}
-              <strong className="inline-block w-6 text-center border border-black">
-                {fpNorm === 'EFECTIVO' ? 'X' : ''}
-              </strong>
-            </span>
           </div>
           <div>
             <strong>Banco:</strong> {data.banco} &nbsp;&nbsp; <strong>Referencia:</strong> {data.referencia} &nbsp;&nbsp; <strong>Monto:</strong> Bs. {formatBs(data.esAbono && data.montoCancelado !== undefined ? data.montoCancelado : data.total)}
