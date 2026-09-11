@@ -50,34 +50,54 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const loadAllData = async () => {
     try {
       setIsLoading(true);
+      
+      // Fetch facturas con paginación para superar el límite de 1000
+      let allFacturas: any[] = [];
+      let fetchMore = true;
+      let from = 0;
+      let step = 999;
+      while (fetchMore) {
+        const { data: chunk } = await supabase.from('facturas').select('*').range(from, from + step);
+        if (chunk && chunk.length > 0) {
+          allFacturas = [...allFacturas, ...chunk];
+          from += step + 1;
+        } else {
+          fetchMore = false;
+        }
+      }
+
       const [
         { data: dbInmuebles },
         { data: dbPreRegistros },
-        { data: dbFacturas },
         { data: dbDocumentos },
         { data: dbCertificados },
         { data: dbCondominios },
         { data: dbReclamos },
         { data: dbConvenios },
         { data: dbPreLiquidaciones },
+        { data: dbAuditLogs },
         { data: dbConfig },
         apiBcv
       ] = await Promise.all([
-        supabase.from('inmuebles').select('*'),
+        supabase.from('inmuebles').select('*').limit(10000),
         supabase.from('pre_registros').select('*'),
-        supabase.from('facturas').select('*'),
         supabase.from('documentos').select('*'),
         supabase.from('certificados').select('*'),
         supabase.from('condominios').select('*'),
         supabase.from('reclamos').select('*'),
         supabase.from('convenios').select('*'),
         supabase.from('pre_liquidaciones').select('*'),
-        supabase.from('audit_logs').select('*').order('created_at', { ascending: false }),
+        supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(200),
         supabase.from('sistema_config').select('*'),
         fetch(`/api/bcv?t=${Date.now()}`, { cache: 'no-store' }).then(res => res.json()).catch(() => ({ tcmmv: 0 }))
       ]);
 
       let manualTcmmv = 0;
+      if (dbConfig && dbConfig.length > 0) {
+        manualTcmmv = parseFloat(dbConfig[0].tcmmv || '0');
+      }
+
+      const dbFacturas = allFacturas;
       let semanalTcmmv = 0;
       if (dbConfig) {
         const ordenanza = dbConfig.find(c => c.id === 'tarifas_ordenanza');
