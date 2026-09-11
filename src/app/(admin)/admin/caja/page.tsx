@@ -21,6 +21,7 @@ export default function CajaPage() {
   // Debt State
   const [recibos, setRecibos] = useState<any[]>([]);
   const [cuotas, setCuotas] = useState<any[]>([]);
+  const [pagosPendientes, setPagosPendientes] = useState<any[]>([]); // Pagos multiples en verificacion
   const [serviciosEsp, setServiciosEsp] = useState<any[]>([]);
   const [talaPoda, setTalaPoda] = useState<any[]>([]);
   const [selectedTalaPoda, setSelectedTalaPoda] = useState<string[]>([]);
@@ -50,6 +51,7 @@ export default function CajaPage() {
   const [useSaldoFavor, setUseSaldoFavor] = useState<boolean>(true);
   
   const [isNotaModalOpen, setIsNotaModalOpen] = useState(false);
+  const [isPagoMultiple, setIsPagoMultiple] = useState(false);
 
   // Notas de Crédito â€” carga directa desde Supabase
   const [notasCredito, setNotasCredito] = useState<any[]>([]);
@@ -83,6 +85,15 @@ export default function CajaPage() {
   const [notaManualRef, setNotaManualRef] = useState('');
   
   const currentBcvRate = customBcvRate && !isNaN(parseFloat(customBcvRate)) ? parseFloat(customBcvRate) : tcmmv;
+
+  const isItemPending = (ref: string) => {
+    return pagosPendientes.some(p => {
+      try {
+        const det = JSON.parse(p.detalles || '{}');
+        return (det.recibos?.includes(ref) || det.cuotas?.some((c:any) => c.cuotaId === ref) || det.servicios?.includes(ref) || det.tala_poda?.includes(ref));
+      } catch(e) { return false; }
+    });
+  };
 
   const getReciboMonto = (r: any) => {
     if (customBcvRate && !isNaN(parseFloat(customBcvRate)) && foundUser) {
@@ -160,6 +171,7 @@ export default function CajaPage() {
     setSelectedCuotas([]);
     setSelectedServicios([]);
     setServiciosEsp([]);
+    setPagosPendientes([]);
     setTotalBs(0);
 
     const idLimpioSearch = docNumber.replace(/-/g, '').toUpperCase();
@@ -249,6 +261,14 @@ export default function CajaPage() {
         .eq('estado', 'Pendiente');
       setTalaPoda(talaData || []);
 
+      // Cargar pagos pendientes de verificar para bloquear seleccion
+      const { data: pagosPendData } = await supabase
+        .from('pagos_reportados')
+        .select('*')
+        .or('identidad.eq.' + user.Identidad + ',identidad.eq.' + cleanFullDoc)
+        .in('estado', ['Por Verificar', 'Pendiente']);
+      setPagosPendientes(pagosPendData || []);
+
     } else {
       alert("Contribuyente no encontrado. Puede intentar buscar por Código de Usuario.");
     }
@@ -295,6 +315,10 @@ export default function CajaPage() {
     
     const currentIndex = sortedRecibos.findIndex(r => r.referencia === ref);
     if (currentIndex === -1) return;
+    if (isItemPending(ref)) {
+      alert('Este recibo tiene un pago por transferencia asociado que está Por Verificar. Espere su aprobación (Conciliación) para pagar el restante (Pago Múltiple).');
+      return;
+    }
 
     if (selectedRecibos.includes(ref)) {
       // Deselecting: deselect this one and all subsequent ones to maintain order
@@ -992,12 +1016,9 @@ export default function CajaPage() {
                 ) : (
                   <div className="space-y-2">
                     {recibos.map(r => (
-                      <label key={r.referencia} className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${selectedRecibos.includes(r.referencia) ? 'bg-emerald-50 border-emerald-200' : 'hover:bg-slate-50 border-slate-200'}`}>
+                      <label key={r.referencia} className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${selectedRecibos.includes(r.referencia) ? 'bg-emerald-50 border-emerald-200' : isItemPending(r.referencia) ? 'bg-slate-100 border-slate-300 opacity-75 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 border-slate-200'}`}>
                         <div className="flex items-center gap-3">
-                          <input 
-                            type="checkbox" 
-                            checked={selectedRecibos.includes(r.referencia)}
-                            onChange={() => toggleRecibo(r.referencia)}
+                          <input type="checkbox" checked={selectedRecibos.includes(r.referencia)} disabled={isItemPending(r.referencia)} onChange={() => toggleRecibo(r.referencia)}
                             className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
                           />
                           <div>

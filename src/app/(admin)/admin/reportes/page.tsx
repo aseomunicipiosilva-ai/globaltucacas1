@@ -1,14 +1,17 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
 import { useAppContext } from '@/store/AppContext';
 import { FileText, FileSpreadsheet, Download, Filter, Calendar } from 'lucide-react';
 import * as xlsx from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
 export default function ReportesPage() {
-  const supabase = createClientComponentClient();
   const { facturas, contribuyentes, condominios } = useAppContext();
   const [pagos, setPagos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);

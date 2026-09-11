@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Edit2, Save, XCircle, FileText, Power, Key, Eye, EyeOff, Copy, Receipt, AlertTriangle, CheckCircle } from 'lucide-react';
+import { X, Save, Edit, Trash2, ShieldCheck, CreditCard, Building2, Download, Plus, XCircle, FileText, Receipt, Edit2, Key, Power, Copy, EyeOff, Eye, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
@@ -250,7 +250,6 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
     }
   };
 
-  const { facturas } = useAppContext();
   
   // Logic to check if the entire Condominio is solvent (no pending invoices)
   // Searches by identidad AND by nombre because facturas may store either
@@ -423,10 +422,11 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
   };
 
   const modalContent = (
-    <div className={`bg-white w-full flex flex-col overflow-hidden ${isInline ? 'mt-4 border border-slate-200 rounded-lg shadow-sm' : 'rounded-xl shadow-xl max-w-5xl max-h-[90vh]'}`}>
-      {/* Header */}
-      {!isInline && (
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+    <>
+      <div className={`bg-white w-full flex flex-col overflow-hidden ${isInline ? 'mt-4 border border-slate-200 rounded-lg shadow-sm' : 'rounded-xl shadow-xl max-w-5xl max-h-[90vh]'}`}>
+        {/* Header */}
+        {!isInline && (
+          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
           <div>
             <h2 className="text-xl font-bold text-slate-800">Unidades del Condominio</h2>
             <p className="text-sm text-slate-500 mt-1">{condominioNombre} • RIF: {condominioIdentidad || 'N/A'}</p>
@@ -984,7 +984,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
         </div>
       )}
 
-    </div>
+    </>
   );
 
   if (isInline) {

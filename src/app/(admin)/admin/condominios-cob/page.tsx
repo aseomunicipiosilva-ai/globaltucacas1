@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import { DataTable } from '@/components/DataTable';
-import { Building2, Settings, DollarSign, Handshake, Calculator, Download, Edit2, X, Save } from 'lucide-react';
+import { Building2, Settings, DollarSign, Handshake, Calculator, Download, Edit2, X, Save, Receipt } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { UnidadesModal } from '@/components/UnidadesModal';
 import { DebtAdjustmentModal } from '@/components/DebtAdjustmentModal';
