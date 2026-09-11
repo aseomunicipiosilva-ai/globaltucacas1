@@ -63,7 +63,7 @@ export default function HerramientasPage() {
     try {
       const { data, error } = await supabase
         .from('inmuebles')
-        .select('id, identidad, contribuyente, cod_cont, clasificacion, actividad_principal, mmv_mes, deuda_mmv, deuda_congelada_bs, estado, inmueble')
+        .select('id, identidad, contribuyente, cod_cont, clasificacion, actividad_principal, mmv_mes, cant_inmuebles, deuda_mmv, deuda_congelada_bs, estado, inmueble')
         .neq('estado', 'Eliminado')
         .order('contribuyente');
       if (error) throw error;
@@ -88,14 +88,16 @@ export default function HerramientasPage() {
           };
         }
         mapa[key].rows.push(row);
-        // Tarifa mensual = mmv_mes de CADA unidad (ya considera el factor × nivel)
-        mapa[key].totalMmvMes += parseFloat(row.mmv_mes || 0);
+        // Tarifa mensual = cant_inmuebles * mmv_mes (igual que formula de Caja)
+        const cantUnidades = parseFloat(row.cant_inmuebles || 1);
+        const mmvRow = parseFloat(row.mmv_mes || 0);
+        mapa[key].totalMmvMes += (cantUnidades * mmvRow);
         mapa[key].totalDeudaMMV += parseFloat(row.deuda_mmv || 0);
       }
 
       // Calcular meses y tipo para cada grupo
       const result: ContribGroup[] = Object.values(mapa).map(g => {
-        const unidades = g.rows.length;
+        const unidades = g.rows.reduce((s: number, r: any) => s + parseFloat(r.cant_inmuebles || 1), 0);
         const isCondominio = unidades > 1;
         const meses = g.totalMmvMes > 0 ? Math.round(g.totalDeudaMMV / g.totalMmvMes) : 0;
         return {
@@ -395,3 +397,5 @@ export default function HerramientasPage() {
     </div>
   );
 }
+
+
