@@ -361,22 +361,34 @@ export default function EstadoCuentaPage() {
     }
 
     // Cargar datos completos del contribuyente desde inmuebles
-    let codContrib = row.identidad || '---';
+    // Fuente de identidad: primero el abono, luego la factura
+    const identidadBusqueda = (abonoOverride?.identidad || row.identidad || '').trim();
+    const idLimpio = identidadBusqueda.replace(/-/g, '');
+
+    let codContrib = '---';
     let direccionFiscal = 'TUCACAS MUNICIPIO SILVA, FALCÓN';
-    let razonSocial = row.contribuyente || '---';
-    let rifCiReal = row.identidad || '---';
+    let razonSocial = abonoOverride?.contribuyente || row.contribuyente || '---';
+    let rifCiReal = identidadBusqueda || '---';
     try {
-      const idLimpio = (row.identidad || '').replace(/-/g, '');
-      const { data: inms } = await supabase
-        .from('inmuebles')
-        .select('contribuyente, cod_cont, direccion, clasificacion, identidad')
-        .or(`identidad.eq.${row.identidad},identidad.eq.${idLimpio}`);
-      if (inms && inms.length > 0) {
-        const inm = inms[0];
-        if (inm.contribuyente) razonSocial = inm.contribuyente;
-        if (inm.cod_cont) codContrib = inm.cod_cont;
-        if (inm.direccion) direccionFiscal = inm.direccion.toUpperCase();
-        rifCiReal = inm.identidad || row.identidad || '---';
+      // Construir filtro OR solo con valores no vacíos
+      const filtros: string[] = [];
+      if (identidadBusqueda) filtros.push(`identidad.eq.${identidadBusqueda}`);
+      if (idLimpio && idLimpio !== identidadBusqueda) filtros.push(`identidad.eq.${idLimpio}`);
+
+      if (filtros.length > 0) {
+        const { data: inms } = await supabase
+          .from('inmuebles')
+          .select('contribuyente, cod_cont, direccion, clasificacion, identidad')
+          .or(filtros.join(','));
+        if (inms && inms.length > 0) {
+          const inm = inms[0];
+          if (inm.contribuyente) razonSocial = inm.contribuyente;
+          // cod_cont puede ser null si el inmueble no tiene codigo asignado aún
+          codContrib = inm.cod_cont || identidadBusqueda || '---';
+          if (inm.direccion) direccionFiscal = inm.direccion.toUpperCase();
+          // RIF siempre debe mostrarse
+          rifCiReal = identidadBusqueda || inm.identidad || '---';
+        }
       }
     } catch { /* usar fallback */ }
 
