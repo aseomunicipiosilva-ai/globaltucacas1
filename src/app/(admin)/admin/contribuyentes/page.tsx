@@ -896,7 +896,7 @@ function ContribuyentesPageContent() {
               </div>
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Nro Identidad</label>
-                <input type="text" value={formData.Identidad} onChange={e => setFormData({...formData, Identidad: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" required />
+                <input type="text" maxLength={9} value={formData.Identidad} onChange={e => setFormData({...formData, Identidad: e.target.value.replace(/[^0-9]/g, '')})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" required />
               </div>
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Nombre o Razón Social</label>
