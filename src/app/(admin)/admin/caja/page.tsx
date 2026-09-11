@@ -985,9 +985,9 @@ export default function CajaPage() {
                     <label className="flex items-center gap-1 cursor-pointer text-[10px] font-bold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-2 py-1 rounded border border-emerald-200 transition-colors">
                       <input 
                         type="checkbox" 
-                        checked={selectedRecibos.length === recibos.length} 
+                        checked={selectedRecibos.length > 0 && selectedRecibos.length === recibos.filter((r: any) => !isItemPending(r.referencia)).length} 
                         onChange={(e) => {
-                          if (e.target.checked) setSelectedRecibos(recibos.map((r: any) => r.referencia));
+                          if (e.target.checked) setSelectedRecibos(recibos.filter((r: any) => !isItemPending(r.referencia)).map((r: any) => r.referencia));
                           else setSelectedRecibos([]);
                         }} 
                         className="w-3 h-3 text-emerald-600 rounded border-emerald-300 focus:ring-emerald-500"
@@ -1006,13 +1006,14 @@ export default function CajaPage() {
                         className="text-[10px] border border-slate-300 rounded px-1 py-0.5 focus:ring-1 focus:ring-emerald-500 outline-none"
                         onChange={(e) => {
                           const n = parseInt(e.target.value);
-                          if (!isNaN(n) && n > 0) setSelectedRecibos(recibos.slice(0, n).map((r: any) => r.referencia));
+                          const available = recibos.filter((r: any) => !isItemPending(r.referencia));
+                          if (!isNaN(n) && n > 0) setSelectedRecibos(available.slice(0, n).map((r: any) => r.referencia));
                           else if (e.target.value === '') setSelectedRecibos([]);
                         }}
                         defaultValue=""
                       >
                         <option value="">N meses</option>
-                        {Array.from({ length: recibos.length }, (_, i) => i + 1).map(n => (
+                        {Array.from({ length: recibos.filter((r: any) => !isItemPending(r.referencia)).length }, (_, i) => i + 1).map(n => (
                           <option key={n} value={n}>{n} {n === 1 ? 'mes' : 'meses'}</option>
                         ))}
                       </select>
