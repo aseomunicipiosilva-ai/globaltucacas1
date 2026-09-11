@@ -1149,6 +1149,7 @@ export default function CajaPage() {
                           className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:bg-white transition-all font-medium text-slate-700"
                         />
                         <span className="text-[10px] text-slate-400">{referenciaDebito.length}/8 dígitos</span>
+                      </label>
                     </div>
                   )}
 
