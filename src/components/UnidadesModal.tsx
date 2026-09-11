@@ -10,30 +10,52 @@ interface UnidadesModalProps {
   condominioId: number;
   condominioNombre: string;
   condominioIdentidad?: string;
+  condominioCodigoPadre?: string;
   onClose?: () => void;
   isInline?: boolean;
 }
 
-// Genera el siguiente codigo CH-XXXXXX unico en todo el sistema para unidades hijas
-async function generarCodigoHijo(): Promise<string> {
+// Genera el siguiente codigo CH-{numCondo}{numUnidad_4digits}
+// Ejemplo: Condominio C-000008 (num=8) -> unidades: CH-80001, CH-80002, ...
+async function generarCodigoHijo(condominioId: number, codigoPadre: string): Promise<string> {
   try {
-    // Buscar todos los codigos existentes CH-XXXXXX en todas las unidades
-    const { data } = await supabase.from('unidades_condominio').select('codigo_ch');
+    // Extraer el numero del condominio padre desde su codigo C-000008 -> 8
+    let numCondo: number | string = condominioId;
+    if (codigoPadre) {
+      const match = codigoPadre.replace('C-', '').replace(/^0+/, '');
+      const parsed = parseInt(match, 10);
+      if (!isNaN(parsed) && parsed > 0) numCondo = parsed;
+    }
+
+    // Buscar unidades existentes de ESTE condominio para determinar el siguiente numero
+    const { data } = await supabase
+      .from('unidades_condominio')
+      .select('codigo_ch, id')
+      .eq('condominio_id', condominioId);
+
+    // El prefijo de los hijos de este condominio es CH-{numCondo}
+    const prefix = `CH-${numCondo}`;
+
+    // Encontrar el mayor numero de unidad ya usado para este condominio
     const existentes = (data || [])
       .map((r: any) => r.codigo_ch || '')
-      .filter((c: string) => c.startsWith('CH-'));
+      .filter((c: string) => c.startsWith(prefix));
+
     const nums = existentes
-      .map((c: string) => parseInt(c.replace('CH-', ''), 10))
+      .map((c: string) => parseInt(c.replace(prefix, ''), 10))
       .filter((n: number) => !isNaN(n));
+
     const maximo = nums.length > 0 ? Math.max(...nums) : 0;
     const siguiente = maximo + 1;
-    return 'CH-' + String(siguiente).padStart(6, '0');
+
+    // Formato: CH-{numCondo}{unidad 4 digitos} ej: CH-80001
+    return `${prefix}${String(siguiente).padStart(4, '0')}`;
   } catch {
-    return 'CH-000001';
+    return `CH-${condominioId}0001`;
   }
 }
 
-export function UnidadesModal({ condominioId, condominioNombre, condominioIdentidad, onClose, isInline }: UnidadesModalProps) {
+export function UnidadesModal({ condominioId, condominioNombre, condominioIdentidad, condominioCodigoPadre, onClose, isInline }: UnidadesModalProps) {
   const [unidades, setUnidades] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [nuevaUnidad, setNuevaUnidad] = useState('');
@@ -42,6 +64,11 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
   const [nuevoCorreo, setNuevoCorreo] = useState('');
   const [nuevaFicha, setNuevaFicha] = useState('');
   const [codigoCH, setCodigoCH] = useState('');
+
+  // Auto-generar codigo CH al montar el modal
+  useEffect(() => {
+    generarCodigoHijo(condominioId, condominioCodigoPadre || '').then(cod => setCodigoCH(cod));
+  }, [condominioId, condominioCodigoPadre]);
   const [nuevaCedula, setNuevaCedula] = useState('');
   
   // Edit State
@@ -114,6 +141,8 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
       setNuevoTelefono('');
       setNuevoCorreo('');
       setNuevaFicha('');
+      // Regenerar codigo para la siguiente unidad
+      generarCodigoHijo(condominioId, condominioCodigoPadre || '').then(cod => setCodigoCH(cod));
     }
   };
 

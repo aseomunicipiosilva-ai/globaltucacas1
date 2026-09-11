@@ -32,7 +32,7 @@ async function generarCodigoCondominio(tipo: 'padre' | 'hijo'): Promise<string> 
 export default function CondominiosCOBPage() {
   const { condominios, inmuebles, tcmmv, facturas, setFacturas, addAuditLog } = useAppContext();
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedCondominio, setSelectedCondominio] = useState<{ id: number, nombre: string, identidad: string } | null>(null);
+  const [selectedCondominio, setSelectedCondominio] = useState<{ id: number, nombre: string, identidad: string, codigo?: string } | null>(null);
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingCondominio, setEditingCondominio] = useState<any>(null);
@@ -41,7 +41,7 @@ export default function CondominiosCOBPage() {
   const [selectedDebtRow, setSelectedDebtRow] = useState<any>(null);
 
   const handleOpenModal = (row: any) => {
-    setSelectedCondominio({ id: row.id, nombre: row.nombre, identidad: row.identidad });
+    setSelectedCondominio({ id: row.id, nombre: row.nombre, identidad: row.identidad, codigo: row.codigo || '' });
     setModalOpen(true);
   };
 
@@ -187,7 +187,8 @@ export default function CondominiosCOBPage() {
       
       {modalOpen && selectedCondominio && (
         <UnidadesModal 
-          condominioId={selectedCondominio.id} 
+          condominioId={selectedCondominio.id}
+          condominioCodigoPadre={selectedCondominio.codigo || ''} 
           condominioNombre={selectedCondominio.nombre} 
           condominioIdentidad={selectedCondominio.identidad}
           onClose={() => setModalOpen(false)} 
