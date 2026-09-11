@@ -6,6 +6,8 @@ import { FileText, FileSpreadsheet, Download, Filter, Calendar } from 'lucide-re
 import * as xlsx from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { generarLibroVentas as generarLibroVentasExcel } from './generators/LibroVentas';
+import { generarCorteCajaPDF, generarIngresoBancarioPDF } from './generators/PdfReports';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -37,7 +39,6 @@ export default function ReportesPage() {
 
   const generarLibroVentas = (tipo: 'Diario' | 'Semanal' | 'Mensual') => {
     let pagosFiltrados = pagos;
-    
     if (fechaInicio && fechaFin) {
       const start = new Date(fechaInicio + 'T00:00:00');
       const end = new Date(fechaFin + 'T23:59:59');
@@ -46,32 +47,7 @@ export default function ReportesPage() {
         return d >= start && d <= end;
       });
     }
-
-    if (pagosFiltrados.length === 0) {
-      alert("No hay pagos en el rango de fechas seleccionado.");
-      return;
-    }
-
-    const data = pagosFiltrados.map((p: any, idx: number) => {
-      const contribuyenteInfo = contribuyentes.find((c: any) => c.Identidad === p.identidad);
-      let monto = parseFloat(p.monto || '0');
-      
-      return {
-        "N°": idx + 1,
-        "Fecha": new Date(p.created_at).toLocaleDateString('es-VE'),
-        "Nombre / Razón Social": contribuyenteInfo ? contribuyenteInfo.Contribuyente : 'N/A',
-        "Identidad": p.identidad,
-        "Recibo": p.referencia || 'N/A',
-        "Total (Bs)": monto.toFixed(2),
-        "Ventas Internas Exentas": "0.00",
-        "Base Imponible": monto.toFixed(2),
-        "IVA (16%)": "0.00",
-        "Retención IVA": "0.00",
-        "Método de Pago": p.tipo === 'Debito' ? 'Punto de Venta' : p.tipo
-      };
-    });
-
-    exportarExcel(data, `Libro_Ventas_${tipo}`);
+    generarLibroVentasExcel(pagosFiltrados, contribuyentes, tipo, fechaInicio, fechaFin);
   };
 
   const generarSaldosFavor = () => {
@@ -88,7 +64,6 @@ export default function ReportesPage() {
     exportarExcel(data, 'Saldo_A_Favor');
   };
 
-  // Funciones de PDF
   const generarCorteCaja = () => {
     let pagosFiltrados = pagos;
     
@@ -101,43 +76,22 @@ export default function ReportesPage() {
       return d >= start && d <= end;
     });
 
-    if (pagosFiltrados.length === 0) {
-      alert("No hay pagos en el rango de fechas seleccionado.");
-      return;
+    generarCorteCajaPDF(pagosFiltrados, contribuyentes, fechaInicio, fechaFin);
+  };
+
+  const generarIngresoBancario = (tipo: 'Diario' | 'Semanal' | 'Mensual') => {
+    let pagosFiltrados = pagos;
+    
+    if (fechaInicio && fechaFin) {
+      const start = new Date(fechaInicio + 'T00:00:00');
+      const end = new Date(fechaFin + 'T23:59:59');
+      pagosFiltrados = pagos.filter((p: any) => {
+        const d = new Date(p.created_at);
+        return d >= start && d <= end;
+      });
     }
 
-    const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text("REPORTE DE CORTE DE CAJA", 105, 20, { align: "center" });
-    
-    doc.setFontSize(10);
-    doc.text(`Generado el: ${new Date().toLocaleString('es-VE')}`, 14, 30);
-    
-    const tableData = pagosFiltrados.map((p: any) => {
-      const contribuyenteInfo = contribuyentes.find((c: any) => c.Identidad === p.identidad);
-      return [
-        new Date(p.created_at).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }),
-        p.referencia,
-        p.identidad,
-        contribuyenteInfo ? contribuyenteInfo.Contribuyente : 'N/A',
-        p.tipo === 'Debito' ? 'Punto' : p.tipo,
-        parseFloat(p.monto).toFixed(2)
-      ];
-    });
-
-    const total = pagosFiltrados.reduce((acc: number, p: any) => acc + parseFloat(p.monto || '0'), 0);
-    tableData.push(['', '', '', '', 'TOTAL', total.toFixed(2)]);
-
-    autoTable(doc, {
-      startY: 35,
-      head: [['Hora', 'Recibo', 'Identidad', 'Contribuyente', 'Método', 'Monto (Bs)']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [30, 58, 138] }, // tailwind blue-900
-      footStyles: { fillColor: [241, 245, 249] } // tailwind slate-100
-    });
-
-    doc.save(`Corte_Caja_${new Date().getTime()}.pdf`);
+    generarIngresoBancarioPDF(pagosFiltrados, contribuyentes, tipo, fechaInicio, fechaFin);
   };
 
   return (
@@ -182,6 +136,16 @@ export default function ReportesPage() {
             <hr className="my-2" />
             <button onClick={generarCorteCaja} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-red-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
               Corte de Caja a las 12 (PDF) <FileText className="w-4 h-4 text-red-500" />
+            </button>
+            <hr className="my-2" />
+            <button onClick={() => generarIngresoBancario('Diario')} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-red-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
+              Ingreso Bancario Diario (PDF) <FileText className="w-4 h-4 text-red-500" />
+            </button>
+            <button onClick={() => generarIngresoBancario('Semanal')} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-red-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
+              Ingreso Bancario Semanal (PDF) <FileText className="w-4 h-4 text-red-500" />
+            </button>
+            <button onClick={() => generarIngresoBancario('Mensual')} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-red-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
+              Ingreso Bancario Mensual (PDF) <FileText className="w-4 h-4 text-red-500" />
             </button>
           </div>
         </div>
