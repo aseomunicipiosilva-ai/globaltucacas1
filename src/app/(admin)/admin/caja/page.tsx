@@ -694,11 +694,11 @@ export default function CajaPage() {
         }
 
         // Tala y Poda Transferencia -> Por Verificar
-        if (selectedTalaPoda.length > 0 && !esAbono) {
+        if (selectedTalaPoda.length > 0) {
           await supabase.from('servicios_especiales').update({ estado: 'Por Verificar' }).in('referencia', selectedTalaPoda);
         }
         // Servicios especiales Transferencia â†’ Por Verificar (incluir en detalles)
-        if (selectedServicios.length > 0 && !esAbono) {
+        if (selectedServicios.length > 0) {
           await supabase.from('servicios_especiales').update({ estado: 'Por Verificar' }).in('referencia', selectedServicios);
         }
 
@@ -708,18 +708,7 @@ export default function CajaPage() {
       // Reset
       setTimeout(() => {
         setSuccessMsg('');
-        const esAbonoDebito = !!(montoDebito && parseFloat(montoDebito) > 0 && parseFloat(montoDebito) < totalBs - 0.01);
-        if (esAbonoDebito || isPagoMultiple) {
-          // Stay on the same user, just refresh data
-          setMontoDebito('');
-          setReferenciaDebito('');
-          setMontoTransferido('');
-          setReferencia('');
-          setComprobante(null);
-          handleSearch();
-        } else {
-          window.location.reload(); // Refresh entire context
-        }
+        window.location.reload(); // Refresh entire context
       }, 3000);
       
     } catch (err: any) {
@@ -794,26 +783,260 @@ export default function CajaPage() {
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto p-6">
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div className="flex items-center gap-3">
+          <Landmark className="w-8 h-8 text-emerald-600" />
+          <h1 className="text-2xl font-bold text-slate-800 uppercase tracking-wide">Módulo de Caja</h1>
+        </div>
         
-                        <div className="flex flex-col w-full">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <input type="checkbox" checked={selectedRecibos.includes(r.referencia)} disabled={isItemPending(r.referencia)} onChange={() => toggleRecibo(r.referencia)}
-                                className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 disabled:opacity-50"
-                              />
-                              <div>
-                                <p className="font-semibold text-sm text-slate-800">{r.referencia}</p>
-                                <p className="text-xs text-slate-500">Emisión: {r.emision}</p>
-                              </div>
-                            </div>
-                            <span className="font-bold text-emerald-700">{getReciboMonto(r)}</span>
+        <div className="flex items-center gap-4">
+          <div className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-lg text-sm font-semibold border border-emerald-200 flex flex-col justify-center">
+            <div className="flex items-center gap-2 mb-1">
+              <span>Tasa BCV Aplicada:</span>
+              <input 
+                type="text"
+                readOnly
+                value={customBcvRate || tcmmv.toFixed(2)}
+                onClick={() => {
+                  setTempBcvRate(customBcvRate || tcmmv.toFixed(2));
+                  setShowRateModal(true);
+                }}
+                className="w-24 px-2 py-0.5 rounded border border-emerald-300 bg-white text-emerald-900 font-bold outline-none cursor-pointer hover:bg-emerald-100 transition-colors"
+                title="Tasa BCV Manual (Requiere Autorización)"
+              />
+            </div>
+            {customBcvRate && (
+              <div className="text-xs px-2 py-1 bg-emerald-100 border border-emerald-300 rounded text-emerald-800 break-words">
+                <span className="font-bold block mb-0.5">Motivo del ajuste:</span>
+                {justificacionBcv}
+              </div>
+            )}
+            <div className="flex items-center gap-1 mt-1 border-t border-emerald-200 pt-1">
+              <CalendarIcon size={12} />
+              <input 
+                type="date" 
+                value={selectedUcdDate}
+                onChange={e => setSelectedUcdDate(e.target.value)}
+                className="bg-transparent border-none text-[10px] outline-none text-emerald-700 font-bold"
+              />
+              <button onClick={fetchTasaHistorica} className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded ml-auto">Fijar Día</button>
+            </div>
+          </div>
+          <div className="flex bg-slate-100 rounded-lg p-1">
+            <button
+              onClick={() => setActiveTab('Pagos')}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                activeTab === 'Pagos' ? 'bg-white text-emerald-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Procesar Pagos
+            </button>
+            <button
+              onClick={() => setActiveTab('NotasCredito')}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                activeTab === 'NotasCredito' ? 'bg-white text-emerald-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Notas de Crédito
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {activeTab === 'NotasCredito' ? (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-semibold text-slate-800">Control de Saldos a Favor (Notas de Crédito)</h2>
+            <button onClick={generarExcelNotasCredito} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
+              <FileText className="w-4 h-4" /> Exportar a Excel
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs text-slate-600 uppercase bg-slate-50 border-b">
+                <tr>
+                  <th className="px-4 py-3">Fecha</th>
+                  <th className="px-4 py-3">Cédula / RIF</th>
+                  <th className="px-4 py-3">Contribuyente</th>
+                  <th className="px-4 py-3 text-right">Monto (Bs)</th>
+                  <th className="px-4 py-3 text-center">Ref. Origen</th>
+                  <th className="px-4 py-3 text-center">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isLoadingNotas ? (
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500"><div className="flex items-center justify-center gap-2"><div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>Cargando notas de crédito...</div></td></tr>
+                ) : notasCredito.length === 0 ? (
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">No hay notas de crédito registradas en el sistema.</td></tr>
+                ) : notasCredito.map(n => {
+                  let details: any = {};
+                  try { details = JSON.parse(n.detalles); } catch(e){}
+                  return (
+                    <tr key={n.id} className="border-b hover:bg-slate-50">
+                      <td className="px-4 py-3">{new Date(n.created_at).toLocaleDateString()}</td>
+                      <td className="px-4 py-3 font-medium">{n.identidad}</td>
+                      <td className="px-4 py-3">{n.contribuyente}</td>
+                      <td className="px-4 py-3 text-right font-bold text-emerald-600">Bs. {details.monto}</td>
+                      <td className="px-4 py-3 text-center">{details.origen_referencia}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-1 rounded text-xs font-semibold">{n.estado}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+      <div className="space-y-6">
+        {successMsg && (
+        <div className="bg-emerald-50 text-emerald-800 p-4 rounded-lg border border-emerald-200 flex items-center gap-2 font-medium">
+          <CheckCircle className="w-5 h-5 text-emerald-600" />
+          {successMsg}
+        </div>
+      )}
+
+      {/* Buscador */}
+      <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+        <label className="block text-sm font-semibold text-slate-700 mb-2">Buscar Contribuyente</label>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <select 
+            value={docType}
+            onChange={(e) => setDocType(e.target.value)}
+            className="w-full sm:w-24 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+          >
+            <option value="V">V -</option>
+            <option value="J">J -</option>
+            <option value="E">E -</option>
+            <option value="G">G -</option>
+            <option value="P">P -</option>
+          </select>
+          <input 
+            type="text" 
+            placeholder="Número de documento o Código Usuario (Ej. N-12345)..."
+            value={docNumber}
+            onChange={(e) => setDocNumber(e.target.value)}
+            className="flex-1 border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-emerald-500 outline-none"
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+          />
+          <button 
+            onClick={handleSearch}
+            disabled={isSearching || !docNumber}
+            className="bg-emerald-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2 transition-colors"
+          >
+            <Search className="w-4 h-4" /> Buscar
+          </button>
+        </div>
+      </div>
+
+      {foundUser && (
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-4">
+                <h2 className="text-xl font-bold text-slate-800">{foundUser.Contribuyente}</h2>
+                <button onClick={() => setIsNotaModalOpen(true)} className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-full border border-slate-300 transition-colors">
+                  + Agregar Saldo a Favor / Nota Manual
+                </button>
+              </div>
+              <p className="text-sm text-slate-500">{foundUser.Identidad} | Cód: {foundUser.cod_cont}</p>
+              <div className="mt-2 text-xs bg-slate-100 text-slate-600 px-3 py-2 rounded border border-slate-200 inline-block">
+                <span className="font-bold">Fórmula Aplicada:</span>{' '}
+                {(() => {
+                  const userInms = inmuebles.filter((i: any) => i.identidad === foundUser.Identidad);
+                  const totalMMV = userInms.reduce((acc: number, inm: any) => acc + (parseFloat(inm.cant_inmuebles || 1) * parseFloat(inm.mmv_mes || 0)), 0);
+                  if (totalMMV > 0) {
+                    return (
+                      <>
+                        {totalMMV.toFixed(2)} MMV (Tarifa) Ã— {currentBcvRate.toFixed(2)} Bs/MMV (Tasa BCV) = {(totalMMV * currentBcvRate).toFixed(2)} Bs Mensuales.
+                        <span className="block text-[9px] text-slate-400 mt-0.5">* Las facturas previas se están recalculando con la tasa manual asignada.</span>
+                      </>
+                    );
+                  }
+                  return 'El cálculo se realizó multiplicando el Factor MMV por la Tasa BCV vigente en la emisión.';
+                })()}
+              </div>
+            </div>
+            {foundUser.SaldoFavor > 0 && (
+              <div className="bg-emerald-100 border-2 border-emerald-500 p-4 rounded-xl flex flex-col items-center justify-center min-w-[200px]">
+                <span className="text-emerald-700 font-bold text-sm uppercase">Saldo a Favor</span>
+                <span className="text-2xl font-black text-emerald-600">Bs. {formatBs(foundUser.SaldoFavor)}</span>
+                <label className="text-[10px] flex items-center gap-1 mt-2 text-emerald-800 cursor-pointer">
+                  <input type="checkbox" checked={useSaldoFavor} onChange={e => setUseSaldoFavor(e.target.checked)} />
+                  Aplicar en este pago
+                </label>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Listado de Deudas */}
+            <div className="lg:col-span-2 space-y-6">
+            
+            <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+              <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-slate-600" />
+                  <h3 className="font-bold text-slate-800">Recibos de Aseo Mensual</h3>
+                  <span className="text-xs text-slate-500 font-medium">({recibos.length} pendiente{recibos.length !== 1 ? 's' : ''})</span>
+                </div>
+                {recibos.length > 1 && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <label className="flex items-center gap-1 cursor-pointer text-[10px] font-bold bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-2 py-1 rounded border border-emerald-200 transition-colors">
+                      <input 
+                        type="checkbox" 
+                        checked={selectedRecibos.length === recibos.length} 
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedRecibos(recibos.map((r: any) => r.referencia));
+                          else setSelectedRecibos([]);
+                        }} 
+                        className="w-3 h-3 text-emerald-600 rounded border-emerald-300 focus:ring-emerald-500"
+                      />
+                      Seleccionar deuda completa
+                    </label>
+                    <button
+                      onClick={() => setSelectedRecibos([])}
+                      className="text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 px-2 py-1 rounded border border-slate-200 transition-colors"
+                    >
+                      Limpiar
+                    </button>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] text-slate-500 font-semibold">Pagar</span>
+                      <select
+                        className="text-[10px] border border-slate-300 rounded px-1 py-0.5 focus:ring-1 focus:ring-emerald-500 outline-none"
+                        onChange={(e) => {
+                          const n = parseInt(e.target.value);
+                          if (!isNaN(n) && n > 0) setSelectedRecibos(recibos.slice(0, n).map((r: any) => r.referencia));
+                          else if (e.target.value === '') setSelectedRecibos([]);
+                        }}
+                        defaultValue=""
+                      >
+                        <option value="">N meses</option>
+                        {Array.from({ length: recibos.length }, (_, i) => i + 1).map(n => (
+                          <option key={n} value={n}>{n} {n === 1 ? 'mes' : 'meses'}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="p-4">
+                {recibos.length === 0 ? (
+                  <p className="text-sm text-slate-500">No hay recibos pendientes.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {recibos.map(r => (
+                      <label key={r.referencia} className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${selectedRecibos.includes(r.referencia) ? 'bg-emerald-50 border-emerald-200' : isItemPending(r.referencia) ? 'bg-slate-100 border-slate-300 opacity-75 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 border-slate-200'}`}>
+                        <div className="flex items-center gap-3">
+                          <input type="checkbox" checked={selectedRecibos.includes(r.referencia)} disabled={isItemPending(r.referencia)} onChange={() => toggleRecibo(r.referencia)}
+                            className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
+                          />
+                          <div>
+                            <p className="font-semibold text-sm text-slate-800">{r.referencia}</p>
+                            <p className="text-xs text-slate-500">Emisión: {r.emision}</p>
                           </div>
-                          {isItemPending(r.referencia) && (
-                            <div className="mt-2 text-[10px] text-red-600 font-bold bg-red-50 p-1 rounded">
-                              âš ï¸  Transferencia Parcial Por Verificar. Concilie en caja antes de pagar la diferencia.
-                            </div>
-                          )}
                         </div>
+                        <span className="font-bold text-emerald-700">{getReciboMonto(r)}</span>
                       </label>
                     ))}
                   </div>
