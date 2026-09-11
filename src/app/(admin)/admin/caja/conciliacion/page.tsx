@@ -167,20 +167,40 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const codInm = det.cod_inmueble || pago.cod_inmueble;
-      if (codInm) {
-        const { data: inm } = await supabase.from('inmuebles').select('*').eq('codigo', codInm).maybeSingle();
-        setInmueble(inm);
-      }
-      const { data: facs } = await supabase.from('facturas').select('*')
-        .eq('identidad', pago.identidad).order('emision', { ascending: true });
-      setFacturas(facs || []);
+      try {
+        const idLimpio = (pago.identidad || '').replace(/-/g, '');
+        // Buscar por identidad en inmuebles (campo real: identidad minúscula)
+        const { data: inms } = await supabase
+          .from('inmuebles')
+          .select('*')
+          .or(`identidad.eq.${pago.identidad},identidad.eq.${idLimpio}`);
+
+        if (inms && inms.length > 0) {
+          // Calcular totales
+          const deudaTotal = inms.reduce((a: number, i: any) =>
+            a + (parseFloat(i.deuda_congelada_bs || '0') || 0) + (parseFloat(i.deuda_mmv || '0') || 0), 0);
+          const saldoFavor = inms.reduce((a: number, i: any) =>
+            a + (parseFloat(i.saldo_favor_bs || '0') || 0), 0);
+          const codInmDet = det.cod_inmueble || pago.cod_inmueble;
+          const inmPrincipal = codInmDet
+            ? (inms.find((i: any) => i.cod_cont === codInmDet || i.cod_cont === codInmDet.replace(/-/g,'')) || inms[0])
+            : inms[0];
+          setInmueble({ ...inmPrincipal, _deudaTotal: deudaTotal, _saldoFavor: saldoFavor, _todos: inms });
+        }
+        const { data: facs } = await supabase.from('facturas').select('*')
+          .or(`identidad.eq.${pago.identidad},identidad.eq.${idLimpio}`)
+          .order('emision', { ascending: true });
+        setFacturas(facs || []);
+      } catch(e) { console.error(e); }
       setLoading(false);
     })();
   }, [pago.identidad]);
 
   const pendientes = facturas.filter(f => f.estado === 'Pendiente');
-  const totalDoc = parseFloat(String(pago.monto || '0').replace(/[^0-9.]/g, '')) || 0;
+  const pagadas = facturas.filter(f => f.estado === 'Pagado');
+  const totalDoc = parseFloat(String(pago.monto || '0').replace(/[^0-9.]/g, '').replace(',','.')) || 0;
+  const totalPendiente = pendientes.reduce((a, f) => a + (parseFloat(String(f.monto||'0').replace(/[^0-9.]/g,''))||0), 0);
+  const totalPagado = pagadas.reduce((a, f) => a + (parseFloat(String(f.monto||'0').replace(/[^0-9.]/g,''))||0), 0);
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
@@ -198,13 +218,68 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
         <div className="p-6 space-y-4">
           {loading ? <div className="text-center py-12 text-slate-400">Cargando estado de cuenta...</div> : (
             <>
-              <div className="grid grid-cols-2 gap-2 text-sm border border-slate-200 rounded-lg p-3">
-                <div><span className="font-semibold text-slate-600">Codigo:</span> {det.cod_inmueble || pago.cod_inmueble || '---'}</div>
-                <div><span className="font-semibold text-slate-600">Uso:</span> {inmueble?.clasificacion || '---'}</div>
-                <div><span className="font-semibold text-slate-600">Area Operativa:</span> {inmueble?.area_m2 ? inmueble.area_m2 + ' Mt2' : '---'}</div>
-                <div><span className="font-semibold text-slate-600">Identidad:</span> {pago.identidad}</div>
-                <div className="col-span-2"><span className="font-semibold text-slate-600">Nombre o Razon Social:</span> <strong>{pago.contribuyente || '---'}</strong></div>
-                <div className="col-span-2"><span className="font-semibold text-slate-600">Direccion Inmueble:</span> <span className="text-slate-600">{inmueble?.direccion || 'Tucacas Municipio Silva, Falcon'}</span></div>
+              {/* DATOS COMPLETOS DEL CONTRIBUYENTE */}
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <div className="bg-slate-800 px-4 py-2">
+                  <p className="text-xs font-bold text-white uppercase tracking-wide">Datos del Contribuyente</p>
+                </div>
+                <div className="grid grid-cols-2 gap-0 text-sm">
+                  <div className="border-b border-r border-slate-100 px-3 py-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">RIF / Cédula</span>
+                    <span className="font-semibold text-slate-800">{pago.identidad || '---'}</span>
+                  </div>
+                  <div className="border-b border-slate-100 px-3 py-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Código Inmueble</span>
+                    <span className="font-semibold text-slate-800">{inmueble?.cod_cont || det.cod_inmueble || pago.cod_inmueble || '---'}</span>
+                  </div>
+                  <div className="border-b border-r border-slate-100 px-3 py-2 col-span-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Nombre / Razón Social</span>
+                    <span className="font-bold text-slate-900 text-base">{inmueble?.contribuyente || pago.contribuyente || '---'}</span>
+                  </div>
+                  <div className="border-b border-r border-slate-100 px-3 py-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Clasificación / Uso</span>
+                    <span className="text-slate-700">{inmueble?.clasificacion || '---'}</span>
+                  </div>
+                  <div className="border-b border-slate-100 px-3 py-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Actividad Principal</span>
+                    <span className="text-slate-700">{inmueble?.actividad_principal || '---'}</span>
+                  </div>
+                  <div className="border-b border-r border-slate-100 px-3 py-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Teléfono</span>
+                    <span className="text-slate-700">{inmueble?.telefono || '---'}</span>
+                  </div>
+                  <div className="border-b border-slate-100 px-3 py-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Correo Electrónico</span>
+                    <span className="text-slate-700 text-xs">{inmueble?.correo_electronico || inmueble?.correo || '---'}</span>
+                  </div>
+                  <div className="border-b border-slate-100 px-3 py-2 col-span-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Dirección del Inmueble</span>
+                    <span className="text-slate-700">{inmueble?.direccion || 'Tucacas Municipio Silva, Falcón'}</span>
+                  </div>
+                  <div className="border-r border-slate-100 px-3 py-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Estado</span>
+                    <span className={`font-bold ${inmueble?.estado === 'Activo' ? 'text-green-700' : 'text-red-600'}`}>{inmueble?.estado || 'Activo'}</span>
+                  </div>
+                  <div className="px-3 py-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Área (Mt²)</span>
+                    <span className="text-slate-700">{inmueble?.area_m2 ? inmueble.area_m2 + ' Mt²' : '---'}</span>
+                  </div>
+                </div>
+                {/* Resumen financiero total del contribuyente */}
+                <div className="grid grid-cols-3 gap-0 border-t border-slate-200">
+                  <div className="bg-red-50 px-3 py-2 text-center border-r border-slate-200">
+                    <p className="text-[9px] font-bold text-red-500 uppercase">Deuda Total en Sistema</p>
+                    <p className="text-sm font-black text-red-700">Bs. {fmt(inmueble?._deudaTotal || 0)}</p>
+                  </div>
+                  <div className="bg-green-50 px-3 py-2 text-center border-r border-slate-200">
+                    <p className="text-[9px] font-bold text-green-500 uppercase">Saldo a Favor</p>
+                    <p className="text-sm font-black text-green-700">Bs. {fmt(inmueble?._saldoFavor || 0)}</p>
+                  </div>
+                  <div className="bg-blue-50 px-3 py-2 text-center">
+                    <p className="text-[9px] font-bold text-blue-500 uppercase">Inmuebles Registrados</p>
+                    <p className="text-sm font-black text-blue-700">{inmueble?._todos?.length || 1}</p>
+                  </div>
+                </div>
               </div>
               <div>
                 <div className="bg-slate-200 px-3 py-1.5 font-bold text-sm text-slate-700 text-center uppercase mb-2 rounded">Estado de Cuenta Resumido</div>
@@ -213,7 +288,9 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
                     <span className="text-blue-600 font-semibold">Periodos Calculados ({pendientes.length}):</span>
                     <span className="font-bold">{pendientes.map(f => { const p = (f.emision||'').split('-'); return p.length>=2 ? mesesNombre[parseInt(p[1])-1]+'-'+p[0] : f.emision; }).join(', ') || '---'}</span>
                   </div>
-                  <div className="flex justify-between"><span className="text-blue-600">Monto Recoleccion Aseo Urbano Bs.:</span><span>{fmt(totalDoc)}</span></div>
+                  <div className="flex justify-between"><span className="text-blue-600">Monto del Pago Reportado Bs.:</span><span className="font-bold">{fmt(totalDoc)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-600">Total Facturas Pendientes:</span><span className="text-red-600 font-semibold">{fmt(totalPendiente)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-600">Total Facturas Pagadas:</span><span className="text-green-600 font-semibold">{fmt(totalPagado)}</span></div>
                   <div className="flex justify-between"><span className="text-blue-600">Total Exento Bs.:</span><span>{fmt(totalDoc)}</span></div>
                   <div className="flex justify-between"><span>Base Imponible Bs.:</span><span>0,00</span></div>
                   <div className="flex justify-between"><span>IVA (16.00%) Bs.:</span><span>0,00</span></div>
@@ -306,36 +383,59 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
     'Banco Provincial','Banco Sofitasa','Banesco','Banplus','Bancrecer','Mi Banco',
   ].sort();
 
-  // Cargar info del contribuyente desde inmuebles + contribuyentes
+  // Cargar TODA la info del contribuyente desde inmuebles
   useEffect(() => {
     (async () => {
       setLoadingContrib(true);
       try {
-        // Buscar en inmuebles por identidad
-        const { data: inm } = await supabase
+        const idLimpio = (pago.identidad || '').replace(/-/g, '');
+        // Buscar en inmuebles - puede haber múltiples registros (varios inmuebles)
+        const { data: inms } = await supabase
           .from('inmuebles')
           .select('*')
-          .or(`identidad.eq.${pago.identidad},identidad.eq.${(pago.identidad || '').replace(/-/g,'')}`)
-          .maybeSingle();
-        if (inm) {
-          setContribInfo(inm);
-          // Auto-fill correo y teléfono si estaban vacios
-          if (!correoResponsable && inm.correo) setCorreoResponsable(inm.correo);
-          if (!telefonoResponsable && inm.telefono) setTelefonoResponsable(inm.telefono);
-        } else {
-          // Fallback: buscar en contribuyentes
-          const { data: cont } = await supabase
-            .from('contribuyentes')
-            .select('*')
-            .or(`Identidad.eq.${pago.identidad},Identidad.eq.${(pago.identidad || '').replace(/-/g,'')}`)
-            .maybeSingle();
-          if (cont) {
-            setContribInfo(cont);
-            if (!correoResponsable && cont.correo) setCorreoResponsable(cont.correo);
-            if (!telefonoResponsable && cont.telefono) setTelefonoResponsable(cont.telefono);
+          .or(`identidad.eq.${pago.identidad},identidad.eq.${idLimpio}`);
+
+        // Buscar el inmueble que coincide con el cod_inmueble del pago si existe
+        const detCod = det.cod_inmueble || pago.cod_inmueble;
+        let inm = null;
+        if (inms && inms.length > 0) {
+          if (detCod) {
+            inm = inms.find((i: any) => i.cod_cont === detCod || i.cod_cont === detCod.replace(/-/g,'')) || inms[0];
+          } else {
+            inm = inms[0];
           }
         }
-      } catch { /* silencioso */ }
+
+        if (inm) {
+          // Calcular deuda total de todos sus inmuebles
+          const deudaTotal = (inms || []).reduce((acc: number, i: any) => {
+            return acc + (parseFloat(i.deuda_congelada_bs || '0') || 0) + (parseFloat(i.deuda_mmv || '0') || 0);
+          }, 0);
+          const saldoFavor = (inms || []).reduce((acc: number, i: any) => {
+            return acc + (parseFloat(i.saldo_favor_bs || '0') || 0);
+          }, 0);
+          setContribInfo({
+            ...inm,
+            _deudaTotal: deudaTotal,
+            _saldoFavor: saldoFavor,
+            _totalInmuebles: (inms || []).length,
+            _todosInmuebles: inms || [],
+          });
+          if (!correoResponsable && (inm.correo_electronico || inm.correo)) {
+            setCorreoResponsable(inm.correo_electronico || inm.correo);
+          }
+          if (!telefonoResponsable && inm.telefono) setTelefonoResponsable(inm.telefono);
+        } else {
+          // Fallback: buscar factura por identidad para obtener nombre
+          const { data: fac } = await supabase
+            .from('facturas')
+            .select('contribuyente, identidad')
+            .eq('identidad', pago.identidad)
+            .limit(1)
+            .maybeSingle();
+          if (fac) setContribInfo({ contribuyente: fac.contribuyente, identidad: fac.identidad, _fallback: true });
+        }
+      } catch(e) { console.error('[Conciliacion] Error cargando contribuyente:', e); }
       setLoadingContrib(false);
     })();
   }, [pago.identidad]);
@@ -429,11 +529,19 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
   const icRO = "w-full border border-slate-200 rounded px-3 py-1.5 text-sm bg-slate-50 text-slate-700 cursor-not-allowed font-medium";
   const lc = "block text-xs font-semibold text-blue-600 mb-1";
 
-  const nombreContrib = contribInfo?.Contribuyente || contribInfo?.nombre || pago.contribuyente || '---';
-  const codInmueble = det.cod_inmueble || pago.cod_inmueble || contribInfo?.codigo || contribInfo?.CodCont || '---';
-  const direccion = contribInfo?.Direccion || contribInfo?.direccion || '---';
-  const clasificacion = contribInfo?.Clasificacion || contribInfo?.clasificacion || '---';
+  // Campos reales en la tabla inmuebles: contribuyente (min), cod_cont, direccion, clasificacion, etc.
+  const nombreContrib = contribInfo?.contribuyente || contribInfo?.Contribuyente || pago.contribuyente || '---';
+  const codInmueble = det.cod_inmueble || pago.cod_inmueble || contribInfo?.cod_cont || contribInfo?.CodCont || '---';
+  const direccion = contribInfo?.direccion || contribInfo?.Direccion || '---';
+  const clasificacion = contribInfo?.clasificacion || contribInfo?.Clasificacion || '---';
   const identidad = pago.identidad || '---';
+  const telefono = contribInfo?.telefono || '---';
+  const correo = contribInfo?.correo_electronico || contribInfo?.correo || '---';
+  const actividadPrincipal = contribInfo?.actividad_principal || contribInfo?.Actividad || '---';
+  const saldoFavor = (contribInfo?._saldoFavor || 0).toFixed(2);
+  const deudaTotal = (contribInfo?._deudaTotal || 0).toFixed(2);
+  const totalInmuebles = contribInfo?._totalInmuebles || 1;
+  const estadoCont = contribInfo?.estado || 'Activo';
 
   const estatusColor: Record<string,string> = {
     Aprobado: 'bg-green-100 border-green-400',
@@ -450,19 +558,25 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
           </div>
           <div className="p-6 space-y-4">
 
-            {/* INFO CONTRIBUYENTE — Solo lectura */}
+            {/* INFO CONTRIBUYENTE — Solo lectura - TODOS los datos */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-3 flex items-center gap-2">
-                <Building2 size={14}/> Información del Contribuyente
-                {loadingContrib && <span className="text-[10px] text-blue-400 font-normal">(cargando...)</span>}
-              </p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-bold text-blue-700 uppercase tracking-wide flex items-center gap-2">
+                  <Building2 size={14}/> Información del Contribuyente
+                  {loadingContrib && <span className="text-[10px] text-blue-400 font-normal animate-pulse">(cargando...)</span>}
+                </p>
+                <div className="flex gap-2 text-[10px]">
+                  <span className={`px-2 py-0.5 rounded-full font-bold ${estadoCont === 'Activo' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{estadoCont}</span>
+                  <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-bold">{totalInmuebles} inmueble{totalInmuebles !== 1 ? 's' : ''}</span>
+                </div>
+              </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className={lc}>RIF / Cédula</label>
                   <input value={identidad} readOnly className={icRO}/>
                 </div>
                 <div>
-                  <label className={lc}>Nombre Contribuyente</label>
+                  <label className={lc}>Nombre / Razón Social</label>
                   <input value={nombreContrib} readOnly className={icRO}/>
                 </div>
                 <div>
@@ -473,9 +587,36 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                   <label className={lc}>Clasificación</label>
                   <input value={clasificacion} readOnly className={icRO}/>
                 </div>
+                <div>
+                  <label className={lc}>Actividad Principal</label>
+                  <input value={actividadPrincipal} readOnly className={icRO}/>
+                </div>
+                <div>
+                  <label className={lc}>Estado</label>
+                  <input value={estadoCont} readOnly className={`${icRO} ${estadoCont === 'Activo' ? 'text-green-700' : 'text-red-700'} font-bold`}/>
+                </div>
                 <div className="col-span-2">
                   <label className={lc}>Dirección</label>
                   <input value={direccion} readOnly className={icRO}/>
+                </div>
+                <div>
+                  <label className={lc}>Teléfono</label>
+                  <input value={telefono} readOnly className={icRO}/>
+                </div>
+                <div className="col-span-2">
+                  <label className={lc}>Correo Electrónico</label>
+                  <input value={correo} readOnly className={icRO}/>
+                </div>
+              </div>
+              {/* Resumen financiero */}
+              <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-blue-200">
+                <div className="bg-red-50 border border-red-200 rounded p-2 text-center">
+                  <p className="text-[10px] text-red-500 font-bold uppercase">Deuda Total en Sistema</p>
+                  <p className="text-sm font-black text-red-700">Bs. {fmt(parseFloat(deudaTotal))}</p>
+                </div>
+                <div className="bg-green-50 border border-green-200 rounded p-2 text-center">
+                  <p className="text-[10px] text-green-500 font-bold uppercase">Saldo a Favor</p>
+                  <p className="text-sm font-black text-green-700">Bs. {fmt(parseFloat(saldoFavor))}</p>
                 </div>
               </div>
             </div>
