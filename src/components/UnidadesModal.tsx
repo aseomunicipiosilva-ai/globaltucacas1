@@ -475,7 +475,34 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
 
           {/* List */}
           <div>
-            <h3 className="text-sm font-semibold text-slate-700 mb-3">Unidades Registradas ({unidades.length})</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-slate-700">Unidades Registradas ({unidades.length})</h3>
+              {unidades.some(u => !u.codigo_ch) && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!confirm('¿Asignar códigos CH a todas las unidades sin código? Esta acción guardará los códigos en la base de datos.')) return;
+                    const numCondo = condominioCodigoPadre
+                      ? (parseInt(condominioCodigoPadre.replace('C-','').replace(/^0+/,''), 10) || condominioId)
+                      : condominioId;
+                    let contador = 0;
+                    for (let i = 0; i < unidades.length; i++) {
+                      const u = unidades[i];
+                      if (!u.codigo_ch) {
+                        const cod = `CH-${numCondo}${String(i + 1).padStart(4, '0')}`;
+                        await supabase.from('unidades_condominio').update({ codigo_ch: cod }).eq('id', u.id);
+                        contador++;
+                      }
+                    }
+                    alert(`✅ Se asignaron ${contador} códigos CH correctamente.`);
+                    fetchUnidades();
+                  }}
+                  className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded hover:bg-blue-700"
+                >
+                  🔢 Asignar Códigos CH a Todas
+                </button>
+              )}
+            </div>
             {loading ? (
               <div className="text-center py-8 text-slate-400 text-sm">Cargando unidades...</div>
             ) : unidades.length === 0 ? (
@@ -589,7 +616,14 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                           <>
                             <td className="px-3 py-3">
                               <span className="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-700 font-mono text-xs font-bold" title={`ID BD: ${u.id}`}>
-                                {u.codigo || `C${String(condominioId).padStart(3,'0')}-${u.numero_unidad}`}
+                                {u.codigo_ch || (() => {
+                                  // Generar codigo CH temporal si no tiene codigo_ch guardado
+                                  const numCondo = condominioCodigoPadre
+                                    ? (parseInt(condominioCodigoPadre.replace('C-','').replace(/^0+/,''),10) || condominioId)
+                                    : condominioId;
+                                  const idx = unidades.findIndex(x => x.id === u.id) + 1;
+                                  return `CH-${numCondo}${String(idx).padStart(4,'0')}`;
+                                })()}
                               </span>
                             </td>
                             <td className="px-4 py-3 font-medium text-slate-800">{u.numero_unidad}</td>
