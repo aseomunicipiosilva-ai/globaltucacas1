@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
@@ -1506,7 +1506,7 @@ function ContribuyentesPageContent() {
                     <p className="text-[10px] text-slate-400 italic mb-1">Fuente: {calculoDetalle.fuente} al {new Date().toLocaleDateString()}</p>
                   </div>
                   <div className="md:col-span-2 pt-2 border-t border-slate-100 flex justify-between items-center">
-                    <p className="text-xs font-medium">Fórmula: {calculoDetalle.factor} Ã— {bcvRate} Bs</p>
+                    <p className="text-xs font-medium">Fórmula: {calculoDetalle.factor} × {bcvRate} Bs</p>
                     <div className="flex items-center gap-4">
                       <p className="text-lg font-bold text-green-700">Total Mensual: Bs. {calculoDetalle.totalBs}</p>
                       {!isNew && (
@@ -1927,7 +1927,7 @@ function ContribuyentesPageContent() {
                       <p className="mb-1"><span className="font-semibold text-slate-700">Tasa de Cambio Oficial:</span> {Number(viewCalculo.tasaBcv || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:4})} Bs</p>
                     </div>
                     <div className="md:col-span-2 pt-2 border-t border-slate-100 flex justify-between items-center">
-                      <p className="text-xs font-medium">Fórmula: {viewCalculo.factor} Ã— {Number(viewCalculo.tasaBcv || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:4})} Bs</p>
+                      <p className="text-xs font-medium">Fórmula: {viewCalculo.factor} × {Number(viewCalculo.tasaBcv || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:4})} Bs</p>
                       <p className="text-lg font-bold text-green-700">Total Mensual: Bs. {Number(viewCalculo.totalBs || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</p>
                     </div>
                   </div>
@@ -1980,7 +1980,7 @@ function ContribuyentesPageContent() {
                 <div className="p-0">
                   {(() => {
                     const deudas = (facturas || [])
-                      .filter((f: any) => f.contribuyente === viewData.Contribuyente || f.contribuyente === viewData.Identidad)
+                      .filter((f: any) => f.identidad === viewData.Identidad || f.contribuyente === viewData.Contribuyente || f.contribuyente === viewData.Identidad)
                       .filter((f: any) => f.estado === 'Pendiente');
                     const totalBs = deudas.reduce((acc: number, f: any) => acc + parseFloat(f.monto || '0'), 0);
                     
@@ -2074,7 +2074,7 @@ function ContribuyentesPageContent() {
               {viewServiciosEsp.filter((s: any) => s.estado !== 'Pagado').length > 0 && (
                 <div className="mt-4 border border-purple-200 rounded-lg overflow-hidden">
                   <div className="bg-purple-50 px-4 py-3 border-b border-purple-100 flex items-center gap-2">
-                    <span className="text-lg">ðŸ”§</span>
+                    <span className="text-lg">📄</span>
                     <h4 className="font-bold text-purple-800 text-sm">Servicios Especiales / Inspecciones Asignados</h4>
                     <span className="ml-auto text-xs font-bold text-purple-600">({viewServiciosEsp.filter((s: any) => s.estado !== 'Pagado').length}) pendientes</span>
                   </div>
@@ -2112,7 +2112,7 @@ function ContribuyentesPageContent() {
               )}
               <div className="mt-4 border border-emerald-200 rounded-lg overflow-hidden">
                 <div className="bg-emerald-50 px-4 py-3 border-b border-emerald-100 flex items-center gap-2">
-                  <span className="text-lg">ðŸ”§</span>
+                  <span className="text-lg">🔧</span>
                   <h4 className="font-bold text-emerald-800 text-sm">Historial de Servicios Especiales / Inspecciones</h4>
                   <span className="ml-auto text-xs text-emerald-600">({viewServiciosEsp.filter((s: any) => s.estado === 'Pagado' || s.estado === 'Por Verificar').length}) procesados</span>
                 </div>
@@ -2157,7 +2157,7 @@ function ContribuyentesPageContent() {
                 <div className="p-0 bg-white">
                   {(() => {
                     const procesadas = (facturas || [])
-                      .filter((f: any) => f.contribuyente === viewData.Contribuyente || f.contribuyente === viewData.Identidad)
+                      .filter((f: any) => f.identidad === viewData.Identidad || f.contribuyente === viewData.Contribuyente || f.contribuyente === viewData.Identidad)
                       .filter((f: any) => f.estado !== 'Pendiente');
                       
                     if (procesadas.length === 0) {
@@ -2218,7 +2218,7 @@ function ContribuyentesPageContent() {
               {/* Historial de Pagos Realizados */}
               <div className="mt-4 border border-indigo-200 rounded-lg overflow-hidden">
                 <div className="bg-indigo-50 px-4 py-3 border-b border-indigo-100 flex items-center gap-2">
-                  <span className="text-lg">ðŸ’³</span>
+                  <span className="text-lg">💳</span>
                   <h4 className="font-bold text-indigo-800 text-sm">Historial de Pagos Realizados</h4>
                   <span className="ml-auto text-xs text-indigo-600">({viewPagos.length}) registros</span>
                 </div>
