@@ -1,11 +1,11 @@
 ﻿'use client';
 import { useState, useEffect } from 'react';
-import { Wrench, Search, Plus, Trash2, CheckCircle2, AlertCircle, FlaskConical, ClipboardCheck, ShieldCheck, X, RefreshCw, BookOpen, FileSpreadsheet } from 'lucide-react';
+import { Wrench, Search, Plus, Trash2, CheckCircle2, AlertCircle, FlaskConical, ClipboardCheck, ShieldCheck, X, RefreshCw, BookOpen, FileSpreadsheet, TreePine } from 'lucide-react';
 import { exportToExcelWithLogos } from '@/lib/excelExport';
 import { useAppContext } from '@/store/AppContext';
 import { ordenanzaData } from '@/data/ordenanza';
 
-type TipoServicio = 'especial' | 'extraordinario' | 'inspeccion' | 'visto_bueno';
+type TipoServicio = 'especial' | 'extraordinario' | 'inspeccion' | 'visto_bueno' | 'tala_poda';
 
 type Servicio = {
   id?: number;
@@ -24,7 +24,8 @@ const TIPO_INFO = {
   especial: { label: 'Servicio Especial', color: 'bg-purple-100 text-purple-800 border-purple-200', icon: Wrench, accent: 'purple' },
   extraordinario: { label: 'Servicio Extraordinario', color: 'bg-orange-100 text-orange-800 border-orange-200', icon: FlaskConical, accent: 'orange' },
   inspeccion: { label: 'Inspección', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: ClipboardCheck, accent: 'blue' },
-  visto_bueno: { label: 'Visto Bueno Ambiental', color: 'bg-green-100 text-green-800 border-green-200', icon: ShieldCheck, accent: 'green' }
+  visto_bueno: { label: 'Visto Bueno Ambiental', color: 'bg-green-100 text-green-800 border-green-200', icon: ShieldCheck, accent: 'green' },
+  tala_poda: { label: 'Tala y Poda', color: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: TreePine, accent: 'emerald' }
 };
 
 export default function ServiciosEspecialesPage() {
