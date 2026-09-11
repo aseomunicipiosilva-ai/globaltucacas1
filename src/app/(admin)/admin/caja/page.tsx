@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import React, { useState, useEffect } from 'react';
 import { exportToExcelWithLogos } from '@/lib/excelExport';
 import { Search, CreditCard, Landmark, CheckCircle, XCircle, FileText, Handshake, Calendar as CalendarIcon, Wrench, ShieldCheck, ClipboardCheck, FlaskConical } from 'lucide-react';
@@ -51,7 +51,7 @@ export default function CajaPage() {
   
   const [isNotaModalOpen, setIsNotaModalOpen] = useState(false);
 
-  // Notas de Crédito — carga directa desde Supabase
+  // Notas de CrÃ©dito â€” carga directa desde Supabase
   const [notasCredito, setNotasCredito] = useState<any[]>([]);
   const [isLoadingNotas, setIsLoadingNotas] = useState(false);
 
@@ -111,12 +111,12 @@ export default function CajaPage() {
 
 
   const bancosVenezuela = [
-    '100% Banco', 'Bancamiga', 'Bancaribe', 'Banco Activo', 'Banco Agrícola de Venezuela',
-    'Banco Bicentenario', 'Banco Caroní', 'Banco de Venezuela', 'Banco del Tesoro', 
-    'Banco Exterior', 'Banco Mercantil', 'Banco Nacional de Crédito (BNC)', 'Banco Plaza',
+    '100% Banco', 'Bancamiga', 'Bancaribe', 'Banco Activo', 'Banco AgrÃ­cola de Venezuela',
+    'Banco Bicentenario', 'Banco CaronÃ­', 'Banco de Venezuela', 'Banco del Tesoro', 
+    'Banco Exterior', 'Banco Mercantil', 'Banco Nacional de CrÃ©dito (BNC)', 'Banco Plaza',
     'Banco Provincial', 'Banco Sofitasa', 'Banesco', 'Banplus', 'Bancrecer',
-    'Mi Banco', 'Banco Internacional (BIB)', 'Banco Venezolano de Crédito (BVC)',
-    'BanFanb', 'Bancovi', 'Instituto Municipal de Crédito Popular (IMCP)',
+    'Mi Banco', 'Banco Internacional (BIB)', 'Banco Venezolano de CrÃ©dito (BVC)',
+    'BanFanb', 'Bancovi', 'Instituto Municipal de CrÃ©dito Popular (IMCP)',
     'Fondemi', 'Microfinanzas', 'Pagomovil BDV'
   ].sort();
 
@@ -134,7 +134,7 @@ export default function CajaPage() {
         .maybeSingle();
         
       if (error || !data) {
-        setRateAuthError('Contraseña incorrecta o el usuario no es Administrador');
+        setRateAuthError('ContraseÃ±a incorrecta o el usuario no es Administrador');
         setIsAuthorizing(false);
         return;
       }
@@ -178,7 +178,7 @@ export default function CajaPage() {
       setFoundUser(user);
       
       // Consulta directa a Supabase para obtener TODAS las facturas pendientes
-      // (el contexto tiene límite de 1000 filas y puede no incluir las CM- mensuales)
+      // (el contexto tiene lÃ­mite de 1000 filas y puede no incluir las CM- mensuales)
       const { data: allUserFacturas } = await supabase
         .from('facturas')
         .select('*')
@@ -211,7 +211,7 @@ export default function CajaPage() {
       // Load Convenios Cuotas
       const userConvenios = convenios.filter((c: any) => {
         const idCleanConv = (c.identidad || '').replace(/-/g, '').toUpperCase();
-        return idCleanConv === cleanFullDoc && c.estado === 'Al Día';
+        return idCleanConv === cleanFullDoc && c.estado === 'Al DÃ­a';
       });
       const pendingCuotas: any[] = [];
       userConvenios.forEach((conv: any) => {
@@ -250,7 +250,7 @@ export default function CajaPage() {
       setTalaPoda(talaData || []);
 
     } else {
-      alert("Contribuyente no encontrado. Puede intentar buscar por Código de Usuario.");
+      alert("Contribuyente no encontrado. Puede intentar buscar por CÃ³digo de Usuario.");
     }
     
     setIsSearching(false);
@@ -318,8 +318,8 @@ export default function CajaPage() {
 
   const fetchTasaHistorica = async () => {
     if (!selectedUcdDate) return;
-    // Lógica para obtener tasa de días anteriores (simulada por ahora)
-    alert(`Se buscará la tasa BCV del día ${selectedUcdDate}`);
+    // LÃ³gica para obtener tasa de dÃ­as anteriores (simulada por ahora)
+    alert(`Se buscarÃ¡ la tasa BCV del dÃ­a ${selectedUcdDate}`);
   };
 
   const handlePayment = async () => {
@@ -337,8 +337,8 @@ export default function CajaPage() {
 
     if (reqRef) {
       if (!banco) return alert("Debe seleccionar el banco emisor.");
-      if (referencia.length < 4) return alert("Debe ingresar la referencia de la transacción.");
-      if (!fechaTransaccion) return alert("La fecha de transacción es obligatoria.");
+      if (referencia.length < 4) return alert("Debe ingresar la referencia de la transacciÃ³n.");
+      if (!fechaTransaccion) return alert("La fecha de transacciÃ³n es obligatoria.");
       
       // Verificar referencia duplicada
       const { data: dupCheck } = await supabase
@@ -347,11 +347,11 @@ export default function CajaPage() {
         .eq('referencia', referencia)
         .limit(1);
       if (dupCheck && dupCheck.length > 0) {
-        return alert(`⚠️ ADVERTENCIA: El número de referencia "${referencia}" ya fue registrado previamente en el sistema. Verifique antes de continuar.`);
+        return alert(`âš ï¸ ADVERTENCIA: El nÃºmero de referencia "${referencia}" ya fue registrado previamente en el sistema. Verifique antes de continuar.`);
       }
 
       const transferido = parseFloat(montoTransferido);
-      if (isNaN(transferido) || transferido <= 0) return alert("Debe ingresar un monto transferido válido.");
+      if (isNaN(transferido) || transferido <= 0) return alert("Debe ingresar un monto transferido vÃ¡lido.");
       
       if (transferido < finalTotal) {
         esAbono = true;
@@ -363,10 +363,10 @@ export default function CajaPage() {
         montoReal = transferido;
       }
     } else if (paymentMethod === 'Debito') {
-      if (!referenciaDebito.trim()) return alert("Debe ingresar el número de comprobante o referencia del pago por punto.");
-      if (referenciaDebito.trim().length > 8) return alert("El número de referencia para Punto de Venta no puede superar los 8 dígitos.");
+      if (!referenciaDebito.trim()) return alert("Debe ingresar el nÃºmero de comprobante o referencia del pago por punto.");
+      if (referenciaDebito.trim().length > 8) return alert("El nÃºmero de referencia para Punto de Venta no puede superar los 8 dÃ­gitos.");
       if (montoDebito && (parseFloat(montoDebito) <= 0 || isNaN(parseFloat(montoDebito)))) {
-        return alert("Si ingresa un monto manual, debe ser un valor válido mayor a 0.");
+        return alert("Si ingresa un monto manual, debe ser un valor vÃ¡lido mayor a 0.");
       }
       // Use manual debit amount if provided
       if (montoDebito && parseFloat(montoDebito) > 0) {
@@ -375,15 +375,15 @@ export default function CajaPage() {
     }
     
     if (customBcvRate && !justificacionBcv.trim()) {
-      return alert("Al modificar la Tasa BCV manualmente, debe ingresar una justificación obligatoria.");
+      return alert("Al modificar la Tasa BCV manualmente, debe ingresar una justificaciÃ³n obligatoria.");
     }
     
-    if (!confirm(`¿Confirmar pago por Bs. ${formatBs(montoReal)}${saldoAFavorNuevo > 0 ? ` (Generará un Saldo a Favor de Bs. ${formatBs(saldoAFavorNuevo)})` : ''}${esAbono ? ` (Es un ABONO. Quedará un saldo pendiente de Bs. ${formatBs(finalTotal - montoReal)})` : ''} mediante ${paymentMethod}?`)) return;
+    if (!confirm(`Â¿Confirmar pago por Bs. ${formatBs(montoReal)}${saldoAFavorNuevo > 0 ? ` (GenerarÃ¡ un Saldo a Favor de Bs. ${formatBs(saldoAFavorNuevo)})` : ''}${esAbono ? ` (Es un ABONO. QuedarÃ¡ un saldo pendiente de Bs. ${formatBs(finalTotal - montoReal)})` : ''} mediante ${paymentMethod}?`)) return;
 
     setIsProcessing(true);
     
     try {
-      // Si hay saldo a favor nuevo, generar Nota de Crédito
+      // Si hay saldo a favor nuevo, generar Nota de CrÃ©dito
       if (saldoAFavorNuevo > 0) {
         await supabase.from('documentos').insert([{
           identidad: foundUser.Identidad,
@@ -432,7 +432,7 @@ export default function CajaPage() {
             if (fErr) throw fErr;
           }
         } else {
-          // === ABONO DÉBITO PARCIAL: descontar monto de las facturas ===
+          // === ABONO DÃ‰BITO PARCIAL: descontar monto de las facturas ===
           let dineroDisponible = parseFloat(montoDebito);
           for (const ref of selectedRecibos) {
             const f = recibos.find(r => r.referencia === ref);
@@ -517,7 +517,7 @@ export default function CajaPage() {
           await supabase.from('audit_logs').insert({
             usuario: cajero_id,
             accion: 'CAMBIO_TASA_CAJA',
-            detalles: `Se aplicó tasa manual BCV: ${customBcvRate} para contribuyente ${foundUser.Identidad}. Motivo: ${justificacionBcv}`
+            detalles: `Se aplicÃ³ tasa manual BCV: ${customBcvRate} para contribuyente ${foundUser.Identidad}. Motivo: ${justificacionBcv}`
           });
         }
 
@@ -548,8 +548,8 @@ export default function CajaPage() {
           (window as any).__lastPaymentAbono = { esAbono: false };
         }
         setSuccessMsg(esAbonoDebito
-          ? `Abono de Bs. ${formatBs(montoReal)} procesado. La deuda restante quedó actualizada.`
-          : `Pago procesado exitosamente por ${paymentMethod}. La deuda ha sido conciliada automáticamente.`
+          ? `Abono de Bs. ${formatBs(montoReal)} procesado. La deuda restante quedÃ³ actualizada.`
+          : `Pago procesado exitosamente por ${paymentMethod}. La deuda ha sido conciliada automÃ¡ticamente.`
         );
 
         
@@ -562,11 +562,11 @@ export default function CajaPage() {
           await supabase.from('audit_logs').insert({
             usuario: cajero_id,
             accion: 'CAMBIO_TASA_CAJA',
-            detalles: `Se aplicó tasa manual BCV: ${customBcvRate} para contribuyente ${foundUser.Identidad} (En Verificación). Motivo: ${justificacionBcv}`
+            detalles: `Se aplicÃ³ tasa manual BCV: ${customBcvRate} para contribuyente ${foundUser.Identidad} (En VerificaciÃ³n). Motivo: ${justificacionBcv}`
           });
         }
 
-        // Transferencia / PagoMovil -> Enviar a Verificación
+        // Transferencia / PagoMovil -> Enviar a VerificaciÃ³n
         // Upload comprobante to Supabase Storage if present
         let comprobanteUrl = '';
         if (comprobante) {
@@ -640,12 +640,12 @@ export default function CajaPage() {
         if (selectedTalaPoda.length > 0) {
           await supabase.from('servicios_especiales').update({ estado: 'Por Verificar' }).in('referencia', selectedTalaPoda);
         }
-        // Servicios especiales Transferencia → Por Verificar (incluir en detalles)
+        // Servicios especiales Transferencia â†’ Por Verificar (incluir en detalles)
         if (selectedServicios.length > 0) {
           await supabase.from('servicios_especiales').update({ estado: 'Por Verificar' }).in('referencia', selectedServicios);
         }
 
-        setSuccessMsg(`${paymentMethod} registrado(a). Ha sido enviado(a) al módulo de Facturación para su conciliación automática o manual.`);
+        setSuccessMsg(`${paymentMethod} registrado(a). Ha sido enviado(a) al mÃ³dulo de FacturaciÃ³n para su conciliaciÃ³n automÃ¡tica o manual.`);
       }
 
       // Reset
@@ -662,7 +662,7 @@ export default function CajaPage() {
   };
 
   const handleCrearNotaManual = async () => {
-    if (!notaManualMonto || parseFloat(notaManualMonto) <= 0) return alert('Ingrese un monto válido');
+    if (!notaManualMonto || parseFloat(notaManualMonto) <= 0) return alert('Ingrese un monto vÃ¡lido');
     if (!notaManualRef) return alert('Ingrese la referencia origen');
     if (!foundUser) return;
     
@@ -686,7 +686,7 @@ export default function CajaPage() {
         await supabase.from('inmuebles').update({ saldo_favor_bs: currentSaldo + parseFloat(notaManualMonto) }).eq('id', firstInmueble.id);
       }
       
-      setSuccessMsg('Nota de crédito manual generada exitosamente.');
+      setSuccessMsg('Nota de crÃ©dito manual generada exitosamente.');
       setIsNotaModalOpen(false);
       setNotaManualMonto('');
       setNotaManualRef('');
@@ -707,7 +707,7 @@ export default function CajaPage() {
         try { details = JSON.parse(n.detalles); } catch(e){}
         return {
           "Fecha": n.created_at ? new Date(n.created_at).toLocaleDateString() : '',
-          "Cédula/RIF": n.identidad,
+          "CÃ©dula/RIF": n.identidad,
           "Contribuyente": n.contribuyente,
           "Monto (Bs)": details.monto || 0,
           "Origen Ref": details.origen_referencia || '',
@@ -715,7 +715,7 @@ export default function CajaPage() {
         };
       });
       
-      const worksheet = exportToExcelWithLogos(excelData, `Notas_Credito_${new Date().getTime()}.xlsx`, "Notas de Crédito");
+      const worksheet = exportToExcelWithLogos(excelData, `Notas_Credito_${new Date().getTime()}.xlsx`, "Notas de CrÃ©dito");
     } catch (e) {
       alert("Error exportando Excel");
     }
@@ -728,7 +728,7 @@ export default function CajaPage() {
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div className="flex items-center gap-3">
           <Landmark className="w-8 h-8 text-emerald-600" />
-          <h1 className="text-2xl font-bold text-slate-800 uppercase tracking-wide">Módulo de Caja</h1>
+          <h1 className="text-2xl font-bold text-slate-800 uppercase tracking-wide">MÃ³dulo de Caja</h1>
         </div>
         
         <div className="flex items-center gap-4">
@@ -744,7 +744,7 @@ export default function CajaPage() {
                   setShowRateModal(true);
                 }}
                 className="w-24 px-2 py-0.5 rounded border border-emerald-300 bg-white text-emerald-900 font-bold outline-none cursor-pointer hover:bg-emerald-100 transition-colors"
-                title="Tasa BCV Manual (Requiere Autorización)"
+                title="Tasa BCV Manual (Requiere AutorizaciÃ³n)"
               />
             </div>
             {customBcvRate && (
@@ -761,7 +761,7 @@ export default function CajaPage() {
                 onChange={e => setSelectedUcdDate(e.target.value)}
                 className="bg-transparent border-none text-[10px] outline-none text-emerald-700 font-bold"
               />
-              <button onClick={fetchTasaHistorica} className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded ml-auto">Fijar Día</button>
+              <button onClick={fetchTasaHistorica} className="text-[10px] bg-emerald-600 text-white px-1.5 py-0.5 rounded ml-auto">Fijar DÃ­a</button>
             </div>
           </div>
           <div className="flex bg-slate-100 rounded-lg p-1">
@@ -779,7 +779,7 @@ export default function CajaPage() {
                 activeTab === 'NotasCredito' ? 'bg-white text-emerald-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Notas de Crédito
+              Notas de CrÃ©dito
             </button>
           </div>
         </div>
@@ -788,7 +788,7 @@ export default function CajaPage() {
       {activeTab === 'NotasCredito' ? (
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-semibold text-slate-800">Control de Saldos a Favor (Notas de Crédito)</h2>
+            <h2 className="text-lg font-semibold text-slate-800">Control de Saldos a Favor (Notas de CrÃ©dito)</h2>
             <button onClick={generarExcelNotasCredito} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2">
               <FileText className="w-4 h-4" /> Exportar a Excel
             </button>
@@ -798,7 +798,7 @@ export default function CajaPage() {
               <thead className="text-xs text-slate-600 uppercase bg-slate-50 border-b">
                 <tr>
                   <th className="px-4 py-3">Fecha</th>
-                  <th className="px-4 py-3">Cédula / RIF</th>
+                  <th className="px-4 py-3">CÃ©dula / RIF</th>
                   <th className="px-4 py-3">Contribuyente</th>
                   <th className="px-4 py-3 text-right">Monto (Bs)</th>
                   <th className="px-4 py-3 text-center">Ref. Origen</th>
@@ -807,9 +807,9 @@ export default function CajaPage() {
               </thead>
               <tbody>
                 {isLoadingNotas ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500"><div className="flex items-center justify-center gap-2"><div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>Cargando notas de crédito...</div></td></tr>
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500"><div className="flex items-center justify-center gap-2"><div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>Cargando notas de crÃ©dito...</div></td></tr>
                 ) : notasCredito.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">No hay notas de crédito registradas en el sistema.</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">No hay notas de crÃ©dito registradas en el sistema.</td></tr>
                 ) : notasCredito.map(n => {
                   let details: any = {};
                   try { details = JSON.parse(n.detalles); } catch(e){}
@@ -856,7 +856,7 @@ export default function CajaPage() {
           </select>
           <input 
             type="text" 
-            placeholder="Número de documento o Código Usuario (Ej. N-12345)..."
+            placeholder="NÃºmero de documento o CÃ³digo Usuario (Ej. N-12345)..."
             value={docNumber}
             onChange={(e) => setDocNumber(e.target.value)}
             className="flex-1 border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-emerald-500 outline-none"
@@ -882,21 +882,21 @@ export default function CajaPage() {
                   + Agregar Saldo a Favor / Nota Manual
                 </button>
               </div>
-              <p className="text-sm text-slate-500">{foundUser.Identidad} | Cód: {foundUser.cod_cont}</p>
+              <p className="text-sm text-slate-500">{foundUser.Identidad} | CÃ³d: {foundUser.cod_cont}</p>
               <div className="mt-2 text-xs bg-slate-100 text-slate-600 px-3 py-2 rounded border border-slate-200 inline-block">
-                <span className="font-bold">Fórmula Aplicada:</span>{' '}
+                <span className="font-bold">FÃ³rmula Aplicada:</span>{' '}
                 {(() => {
                   const userInms = inmuebles.filter((i: any) => i.identidad === foundUser.Identidad);
                   const totalMMV = userInms.reduce((acc: number, inm: any) => acc + (parseFloat(inm.cant_inmuebles || 1) * parseFloat(inm.mmv_mes || 0)), 0);
                   if (totalMMV > 0) {
                     return (
                       <>
-                        {totalMMV.toFixed(2)} MMV (Tarifa) × {currentBcvRate.toFixed(2)} Bs/MMV (Tasa BCV) = {(totalMMV * currentBcvRate).toFixed(2)} Bs Mensuales.
-                        <span className="block text-[9px] text-slate-400 mt-0.5">* Las facturas previas se están recalculando con la tasa manual asignada.</span>
+                        {totalMMV.toFixed(2)} MMV (Tarifa) Ã— {currentBcvRate.toFixed(2)} Bs/MMV (Tasa BCV) = {(totalMMV * currentBcvRate).toFixed(2)} Bs Mensuales.
+                        <span className="block text-[9px] text-slate-400 mt-0.5">* Las facturas previas se estÃ¡n recalculando con la tasa manual asignada.</span>
                       </>
                     );
                   }
-                  return 'El cálculo se realizó multiplicando el Factor MMV por la Tasa BCV vigente en la emisión.';
+                  return 'El cÃ¡lculo se realizÃ³ multiplicando el Factor MMV por la Tasa BCV vigente en la emisiÃ³n.';
                 })()}
               </div>
             </div>
@@ -973,7 +973,7 @@ export default function CajaPage() {
                           />
                           <div>
                             <p className="font-semibold text-sm text-slate-800">{r.referencia}</p>
-                            <p className="text-xs text-slate-500">Emisión: {r.emision}</p>
+                            <p className="text-xs text-slate-500">EmisiÃ³n: {r.emision}</p>
                           </div>
                         </div>
                         <span className="font-bold text-emerald-700">{getReciboMonto(r)}</span>
@@ -1020,7 +1020,7 @@ export default function CajaPage() {
             {talaPoda.length > 0 && (
               <div className={`bg-white rounded-lg shadow-sm border overflow-hidden ${selectedTalaPoda.length > 0 ? 'border-green-300' : 'border-slate-200'}`}>
                 <div className="bg-green-50 px-4 py-3 border-b border-green-200 flex items-center gap-2">
-                  <span className="text-lg">🌿</span>
+                  <span className="text-lg">ðŸŒ¿</span>
                   <h3 className="font-bold text-green-800">Servicio de Tala y Poda</h3>
                   <span className="text-xs text-green-600 font-medium">({talaPoda.length})</span>
                 </div>
@@ -1034,10 +1034,10 @@ export default function CajaPage() {
                           onChange={() => toggleTalaPoda(s.referencia)}
                           className="w-4 h-4 text-green-600 rounded border-slate-300 focus:ring-green-500"
                         />
-                        <span className="text-lg">🌿</span>
+                        <span className="text-lg">ðŸŒ¿</span>
                         <div>
                           <p className="font-semibold text-sm text-slate-800">{s.descripcion || 'Servicio de Tala y Poda'}</p>
-                          <p className="text-xs text-slate-500">{s.referencia} • {s.fecha || 'Sin fecha'}</p>
+                          <p className="text-xs text-slate-500">{s.referencia} â€¢ {s.fecha || 'Sin fecha'}</p>
                         </div>
                       </div>
                       <span className="font-bold text-green-700">Bs. {formatBs(parseFloat(s.monto || '0'))}</span>
@@ -1071,7 +1071,7 @@ export default function CajaPage() {
                           <Icon className="w-4 h-4 text-purple-500 flex-shrink-0" />
                           <div>
                             <p className="font-semibold text-sm text-slate-800">{s.descripcion}</p>
-                            <p className="text-xs text-slate-500">{s.referencia} • {s.fecha}</p>
+                            <p className="text-xs text-slate-500">{s.referencia} â€¢ {s.fecha}</p>
                           </div>
                         </div>
                         <span className="font-bold text-purple-700">Bs. {formatBs(parseFloat(s.monto || '0'))}</span>
@@ -1107,7 +1107,7 @@ export default function CajaPage() {
 
             <div className="space-y-4 mb-6">
               <label className="block">
-                <span className="text-sm font-semibold text-slate-700 mb-1 block">Método de Pago</span>
+                <span className="text-sm font-semibold text-slate-700 mb-1 block">MÃ©todo de Pago</span>
                 <select 
                   value={paymentMethod}
                   onChange={(e: any) => setPaymentMethod(e.target.value)}
@@ -1121,7 +1121,7 @@ export default function CajaPage() {
                   {['Debito'].includes(paymentMethod) && (
                     <div className="mt-4 space-y-3">
                       <label className="block">
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 block">Fecha de Transacción <span className="text-red-500">*</span></span>
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 block">Fecha de TransacciÃ³n <span className="text-red-500">*</span></span>
                         <input
                           type="date"
                           value={fechaTransaccion}
@@ -1130,7 +1130,7 @@ export default function CajaPage() {
                         />
                       </label>
                       <label className="block">
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 block">Número de Comprobante / Referencia <span className="text-red-500">*</span> (máx. 8 dígitos)</span>
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 block">NÃºmero de Comprobante / Referencia <span className="text-red-500">*</span> (mÃ¡x. 8 dÃ­gitos)</span>
                         <input 
                           type="text" 
                           value={referenciaDebito} 
@@ -1142,10 +1142,10 @@ export default function CajaPage() {
                           placeholder="Ej. 00012345" 
                           className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:bg-white transition-all font-medium text-slate-700"
                         />
-                        <span className="text-[10px] text-slate-400">{referenciaDebito.length}/8 dígitos</span>
+                        <span className="text-[10px] text-slate-400">{referenciaDebito.length}/8 dÃ­gitos</span>
                       </label>
                       <label className="block">
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 block">Monto del Punto de Venta (Bs) <span className="text-slate-400 font-normal">(opcional — si difiere del total)</span></span>
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 block">Monto del Punto de Venta (Bs) <span className="text-slate-400 font-normal">(opcional â€” si difiere del total)</span></span>
                         <input 
                           type="number"
                           step="0.01"
@@ -1155,7 +1155,7 @@ export default function CajaPage() {
                           className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:border-indigo-500 focus:bg-white transition-all font-medium text-slate-700"
                         />
                         {montoDebito && parseFloat(montoDebito) > 0 && (
-                          <p className="text-[10px] text-blue-600 mt-1 font-bold">* Se registrará el monto manual: Bs. {formatBs(parseFloat(montoDebito))}</p>
+                          <p className="text-[10px] text-blue-600 mt-1 font-bold">* Se registrarÃ¡ el monto manual: Bs. {formatBs(parseFloat(montoDebito))}</p>
                         )}
                       </label>
                     </div>
@@ -1164,7 +1164,7 @@ export default function CajaPage() {
                   {['Transferencia'].includes(paymentMethod) && (
                 <div className="space-y-3 bg-white p-3 rounded border border-slate-200">
                   <label className="block">
-                    <span className="text-xs font-semibold text-slate-600 mb-1 block">Fecha de Transacción</span>
+                    <span className="text-xs font-semibold text-slate-600 mb-1 block">Fecha de TransacciÃ³n</span>
                     <input
                       type="date"
                       value={fechaTransaccion}
@@ -1186,7 +1186,7 @@ export default function CajaPage() {
                     </select>
                   </label>
                   <label className="block">
-                    <span className="text-xs font-semibold text-slate-600 mb-1 block">Referencia de Transferencia (máx. 8 dígitos)</span>
+                    <span className="text-xs font-semibold text-slate-600 mb-1 block">Referencia de Transferencia (mÃ¡x. 8 dÃ­gitos)</span>
                     <input 
                       type="text" 
                       placeholder="12345678"
@@ -1197,14 +1197,14 @@ export default function CajaPage() {
                         setDupRefWarning('');
                         if (val.length >= 4) {
                           const { data } = await supabase.from('pagos_reportados').select('id').eq('referencia', val).limit(1);
-                          if (data && data.length > 0) setDupRefWarning(`⚠️ Esta referencia "${val}" ya fue registrada antes.`);
+                          if (data && data.length > 0) setDupRefWarning(`âš ï¸ Esta referencia "${val}" ya fue registrada antes.`);
                         }
                       }}
                       maxLength={8}
                       className={`w-full border rounded px-3 py-2 text-sm focus:ring-2 outline-none ${dupRefWarning ? 'border-red-400 focus:ring-red-400 bg-red-50' : 'border-slate-300 focus:ring-emerald-500'}`}
                     />
                     {dupRefWarning && <p className="text-[10px] text-red-600 font-bold mt-1">{dupRefWarning}</p>}
-                    <span className="text-[10px] text-slate-400">{referencia.length}/8 dígitos</span>
+                    <span className="text-[10px] text-slate-400">{referencia.length}/8 dÃ­gitos</span>
                   </label>
                   <label className="block">
                     <span className="text-xs font-semibold text-slate-600 mb-1 block">Monto Total Pagado (Bs)</span>
@@ -1218,12 +1218,12 @@ export default function CajaPage() {
                     />
                     {parseFloat(montoTransferido) > Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0)) && (
                       <p className="text-[10px] text-emerald-600 mt-1 font-bold">
-                        * Se generará un saldo a favor de Bs. {formatBs(parseFloat(montoTransferido) - Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0)))}
+                        * Se generarÃ¡ un saldo a favor de Bs. {formatBs(parseFloat(montoTransferido) - Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0)))}
                       </p>
                     )}
                     {(parseFloat(montoTransferido) > 0 && parseFloat(montoTransferido) < Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0))) && (
                       <p className="text-[10px] text-orange-600 mt-1 font-bold">
-                        * Es un ABONO. Quedará un saldo pendiente de Bs. {formatBs(Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0)) - parseFloat(montoTransferido))}
+                        * Es un ABONO. QuedarÃ¡ un saldo pendiente de Bs. {formatBs(Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0)) - parseFloat(montoTransferido))}
                       </p>
                     )}
                   </label>
@@ -1277,7 +1277,7 @@ export default function CajaPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
             <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 rounded-t-lg">
-              <h3 className="font-bold text-slate-800">Generar Nota de Crédito Manual</h3>
+              <h3 className="font-bold text-slate-800">Generar Nota de CrÃ©dito Manual</h3>
               <button onClick={() => setIsNotaModalOpen(false)} className="text-slate-500 hover:text-slate-700 font-bold">&times;</button>
             </div>
             <div className="p-6 space-y-4">
@@ -1313,11 +1313,11 @@ export default function CajaPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 overflow-hidden">
             <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-              <h3 className="font-bold text-slate-800">Modificar Tasa BCV (Autorización)</h3>
+              <h3 className="font-bold text-slate-800">Modificar Tasa BCV (AutorizaciÃ³n)</h3>
               <button onClick={() => setShowRateModal(false)} className="text-slate-500 hover:text-slate-700 font-bold">&times;</button>
             </div>
             <form onSubmit={handleAuthorizeRateChange} className="p-6 space-y-4">
-              <p className="text-sm text-slate-600 mb-2">Por favor ingresa tu contraseña de administrador, agrega una nota. Si no posees contraseña comunícate con el administrador.</p>
+              <p className="text-sm text-slate-600 mb-2">Por favor ingresa tu contraseÃ±a de administrador, agrega una nota. Si no posees contraseÃ±a comunÃ­cate con el administrador.</p>
               {rateAuthError && (
                 <div className="p-2 bg-red-50 text-red-600 text-xs font-semibold rounded border border-red-200 text-center">
                   {rateAuthError}
@@ -1334,7 +1334,7 @@ export default function CajaPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Contraseña de Administrador</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">ContraseÃ±a de Administrador</label>
                 <input 
                   type="password" 
                   value={adminPassword} 
@@ -1368,5 +1368,6 @@ export default function CajaPage() {
     </div>
   );
 }
+
 
 
