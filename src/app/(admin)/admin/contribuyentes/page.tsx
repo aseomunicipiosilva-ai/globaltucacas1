@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
@@ -39,6 +39,7 @@ function ContribuyentesPageContent() {
   const [viewData, setViewData] = useState<any>(null);
   const [selectedSolvenciaInmueble, setSelectedSolvenciaInmueble] = useState<string>('');
   const [viewCalculo, setViewCalculo] = useState<any>(null);
+  const [viewFacturasCM, setViewFacturasCM] = useState<any[]>([]);
   const [selectedCondominioModal, setSelectedCondominioModal] = useState<{ id: number, nombre: string, identidad: string } | null>(null);
   const [viewServiciosEsp, setViewServiciosEsp] = useState<any[]>([]);
   const [viewPagos, setViewPagos] = useState<any[]>([]);
@@ -167,7 +168,7 @@ function ContribuyentesPageContent() {
       setActionNota('');
       alert(`Factura ${actionModal.factura.referencia} ha sido ${nuevoEstado.toLowerCase()} exitosamente.${actionModal.type === 'Reversar' ? ' El monto fue acreditado como Saldo a Favor.' : ''}`);
     } catch (e: any) {
-      alert("Error procesando acción: " + e.message);
+      alert("Error procesando acciÃ³n: " + e.message);
     }
     setIsProcessingAction(false);
   };
@@ -205,7 +206,7 @@ function ContribuyentesPageContent() {
       alert(`Contribuyente ${type === 'Eliminar' ? 'eliminado' : 'desactivado'} exitosamente.`);
       window.location.reload();
     } catch (err: any) {
-      alert(`Error procesando acción: ${err.message}`);
+      alert(`Error procesando acciÃ³n: ${err.message}`);
     } finally {
       setIsProcessingStatus(false);
     }
@@ -233,7 +234,7 @@ function ContribuyentesPageContent() {
           const actividad = inm.actividad_principal || 'No especificada';
           const tipoVivienda = inm.tipo || 'Inmueble';
           
-          const conceptoTexto = `${actividad} | Nivel: ${metraje} m² | ${tipoVivienda}`;
+          const conceptoTexto = `${actividad} | Nivel: ${metraje} mÂ² | ${tipoVivienda}`;
           
           factorTotal += (localFactor * cant);
           
@@ -327,7 +328,7 @@ function ContribuyentesPageContent() {
   }, [isViewModalOpen, viewData, inmuebles]);
 
   const handleDeleteFactura = async (factura: any) => {
-    const isConfirmed = window.confirm(`¿Estás seguro de eliminar la deuda ${factura.referencia}?`);
+    const isConfirmed = window.confirm(`Â¿EstÃ¡s seguro de eliminar la deuda ${factura.referencia}?`);
     if (!isConfirmed) return;
 
     // Validation: cannot delete if subsequent months are paid
@@ -408,11 +409,11 @@ function ContribuyentesPageContent() {
     
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(`Razón Social: ${viewData.Contribuyente}`, 14, 40);
+    doc.text(`RazÃ³n Social: ${viewData.Contribuyente}`, 14, 40);
     doc.text(`R.I.F / C.I: ${viewData.Identidad}`, 14, 46);
-    doc.text(`Teléfono: ${viewData.Telefono || 'N/A'}`, 14, 52);
+    doc.text(`TelÃ©fono: ${viewData.Telefono || 'N/A'}`, 14, 52);
     
-    const splitDireccion = doc.splitTextToSize(`Dirección: ${viewData.Direccion || 'N/A'}`, 180);
+    const splitDireccion = doc.splitTextToSize(`DirecciÃ³n: ${viewData.Direccion || 'N/A'}`, 180);
     doc.text(splitDireccion, 14, 58);
     
     let currentY = 58 + (splitDireccion.length * 5) + 5;
@@ -433,7 +434,7 @@ function ContribuyentesPageContent() {
       try {
         autoTable(doc, {
           startY: currentY + 3,
-          head: [['Inmueble', 'Cant.', 'Clasif.', 'Actividad', 'Dirección']],
+          head: [['Inmueble', 'Cant.', 'Clasif.', 'Actividad', 'DirecciÃ³n']],
           body: inmueblesData,
           theme: 'grid',
           headStyles: { fillColor: [51, 65, 85] }, // Slate-700
@@ -473,7 +474,7 @@ function ContribuyentesPageContent() {
     try {
       autoTable(doc, {
         startY: currentY + 3,
-        head: [['Referencia', 'Período', 'Vencimiento', 'Monto']],
+        head: [['Referencia', 'PerÃ­odo', 'Vencimiento', 'Monto']],
         body: tableData,
         theme: 'striped',
         headStyles: { fillColor: [220, 38, 38] },
@@ -511,7 +512,7 @@ function ContribuyentesPageContent() {
       try {
         autoTable(doc, {
           startY: currentY + 3,
-          head: [['Fecha', 'Monto Pagado', 'Método', 'Tipo', 'Estado']],
+          head: [['Fecha', 'Monto Pagado', 'MÃ©todo', 'Tipo', 'Estado']],
           body: pagosTableData,
           theme: 'striped',
           headStyles: { fillColor: [79, 70, 229] },
@@ -532,14 +533,14 @@ function ContribuyentesPageContent() {
       const totalBs = deudas.reduce((acc: number, f: any) => acc + parseFloat(f.monto || '0'), 0);
       
       return {
-        "CÓDIGO": c.CodCont || 'N/A',
+        "CÃ“DIGO": c.CodCont || 'N/A',
         "R.I.F / C.I": c.Identidad,
-        "RAZÓN SOCIAL": c.Contribuyente,
-        "CLASIFICACIÓN": c.Clasificacion || 'Residencial',
+        "RAZÃ“N SOCIAL": c.Contribuyente,
+        "CLASIFICACIÃ“N": c.Clasificacion || 'Residencial',
         "DETALLE ACTIVIDAD/TIPO": c.ActividadComercial || c.TipoResidencia || c.Actividad || 'N/A',
-        "TELÉFONO": c.Telefono || 'N/A',
+        "TELÃ‰FONO": c.Telefono || 'N/A',
         "CORREO": c.Correo || 'N/A',
-        "DIRECCIÓN": c.Direccion || 'N/A',
+        "DIRECCIÃ“N": c.Direccion || 'N/A',
         "DEUDA TOTAL (Bs)": totalBs.toFixed(2),
         "MESES PENDIENTES": deudas.length
       };
@@ -583,7 +584,7 @@ function ContribuyentesPageContent() {
 
     let autoClasificacion = row.Clasificacion || 'A';
     
-    // Auto-detectar condominio si viene de una importación con clasificación 'A'
+    // Auto-detectar condominio si viene de una importaciÃ³n con clasificaciÃ³n 'A'
     if (autoClasificacion !== 'Condominio') {
       const nombreLC = (row.Contribuyente || '').toLowerCase();
       const cant = parseInt(row.Cant_Inmuebles) || 1;
@@ -693,7 +694,7 @@ function ContribuyentesPageContent() {
             const nivelIndex = ordenanzaData.nivelesMetraje.indexOf(local.nivel || ordenanzaData.nivelesMetraje[0]);
             
             if (local.estatus === 'Desocupado') {
-              const actVacio = todasLasActividades.find(a => a.label === 'Inmueble desocupado (vacío)');
+              const actVacio = todasLasActividades.find(a => a.label === 'Inmueble desocupado (vacÃ­o)');
               if (actVacio && nivelIndex !== -1) {
                 localFactor = actVacio.factores[nivelIndex];
                 localLeyenda = `Comercial Desocupado (${local.nivel})`;
@@ -808,14 +809,14 @@ function ContribuyentesPageContent() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validar Notas si cambió tarifa/actividad
+    // Validar Notas si cambiÃ³ tarifa/actividad
     if (!isNew && originalData) {
       const changedActividad = formData.ActividadComercial !== originalData.ActividadComercial;
       const changedResidencia = formData.TipoResidencia !== originalData.TipoResidencia;
       const changedClasificacion = formData.Clasificacion !== originalData.Clasificacion;
       
       if ((changedActividad || changedResidencia || changedClasificacion) && !formData.Notas_Adicionales?.trim()) {
-        alert("Es OBLIGATORIO ingresar una Nota Adicional explicando el cambio de Actividad Comercial, Tipo de Residencia o Clasificación.");
+        alert("Es OBLIGATORIO ingresar una Nota Adicional explicando el cambio de Actividad Comercial, Tipo de Residencia o ClasificaciÃ³n.");
         return;
       }
     }
@@ -843,7 +844,7 @@ function ContribuyentesPageContent() {
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (err) {
       console.error(err);
-      alert('Ocurrió un error guardando en Supabase. Verifique la conexión.');
+      alert('OcurriÃ³ un error guardando en Supabase. Verifique la conexiÃ³n.');
     } finally {
       setIsSaving(false);
     }
@@ -866,7 +867,7 @@ function ContribuyentesPageContent() {
 
         {showSuccess && (
           <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded relative" role="alert">
-            <span className="block sm:inline">Los datos han sido guardados correctamente en la sesión actual.</span>
+            <span className="block sm:inline">Los datos han sido guardados correctamente en la sesiÃ³n actual.</span>
           </div>
         )}
 
@@ -881,15 +882,15 @@ function ContribuyentesPageContent() {
           <div className="p-6 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <label className="block text-[10px] font-semibold text-blue-600 mb-1">Código</label>
-                <input type="text" value={formData.CodCont || 'Generación Automática'} disabled className="w-full border border-slate-300 bg-slate-100 rounded px-3 py-2 text-sm text-slate-500 cursor-not-allowed" />
+                <label className="block text-[10px] font-semibold text-blue-600 mb-1">CÃ³digo</label>
+                <input type="text" value={formData.CodCont || 'GeneraciÃ³n AutomÃ¡tica'} disabled className="w-full border border-slate-300 bg-slate-100 rounded px-3 py-2 text-sm text-slate-500 cursor-not-allowed" />
               </div>
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Tipo Identidad</label>
                 <select className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500">
                   <option value="V">Venezolano (V)</option>
                   <option value="E">Extranjero (E)</option>
-                  <option value="J">Jurídico (J)</option>
+                  <option value="J">JurÃ­dico (J)</option>
                   <option value="G">Gubernamental (G)</option>
                 </select>
               </div>
@@ -898,14 +899,14 @@ function ContribuyentesPageContent() {
                 <input type="text" value={formData.Identidad} onChange={e => setFormData({...formData, Identidad: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" required />
               </div>
               <div>
-                <label className="block text-[10px] font-medium text-slate-500 mb-1">Nombre o Razón Social</label>
+                <label className="block text-[10px] font-medium text-slate-500 mb-1">Nombre o RazÃ³n Social</label>
                 <input type="text" value={formData.Contribuyente} onChange={e => setFormData({...formData, Contribuyente: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" required />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div>
-                <label className="block text-[10px] font-medium text-slate-500 mb-1">Número de Patente (Si aplica)</label>
+                <label className="block text-[10px] font-medium text-slate-500 mb-1">NÃºmero de Patente (Si aplica)</label>
                 <input type="text" value={formData.Patente || ''} onChange={e => setFormData({...formData, Patente: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" placeholder="Ej: P-12345" />
               </div>
               <div>
@@ -916,7 +917,7 @@ function ContribuyentesPageContent() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
               <div>
-                <label className="block text-[10px] font-medium text-slate-500 mb-1">Teléfono Móvil <span className="text-red-500">*</span></label>
+                <label className="block text-[10px] font-medium text-slate-500 mb-1">TelÃ©fono MÃ³vil <span className="text-red-500">*</span></label>
                 <div className="flex gap-2">
                   <select 
                     value={formData.telefonoPrefijo}
@@ -953,20 +954,20 @@ function ContribuyentesPageContent() {
             </div>
             
             <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Cédula / RIF */}
+              {/* CÃ©dula / RIF */}
               <div>
-                <label className="block text-[10px] font-semibold text-slate-600 mb-1">Copia de Cédula / RIF</label>
+                <label className="block text-[10px] font-semibold text-slate-600 mb-1">Copia de CÃ©dula / RIF</label>
                 <label className="block border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-colors">
                   {uploadDocs.cedula.uploading ? (
-                    <span className="text-xs text-blue-500 animate-pulse">⏳ Subiendo...</span>
+                    <span className="text-xs text-blue-500 animate-pulse">â³ Subiendo...</span>
                   ) : uploadDocs.cedula.url ? (
                     <div className="space-y-1">
-                      <span className="text-[10px] text-green-600 font-bold block">✅ {uploadDocs.cedula.name}</span>
+                      <span className="text-[10px] text-green-600 font-bold block">âœ… {uploadDocs.cedula.name}</span>
                       <a href={uploadDocs.cedula.url} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 underline" onClick={e => e.stopPropagation()}>Ver documento</a>
                       <span className="block text-[10px] text-slate-400">Click para cambiar</span>
                     </div>
                   ) : (
-                    <span className="text-xs text-slate-500">📎 Click para subir archivo<br/><span className="text-[10px] text-slate-400">PDF o imagen, máx. 10 MB</span></span>
+                    <span className="text-xs text-slate-500">ðŸ“Ž Click para subir archivo<br/><span className="text-[10px] text-slate-400">PDF o imagen, mÃ¡x. 10 MB</span></span>
                   )}
                   <input type="file" className="hidden" accept=".pdf,image/*" onChange={e => handleUploadDoc(e, 'cedula')} disabled={uploadDocs.cedula.uploading}/>
                 </label>
@@ -976,15 +977,15 @@ function ContribuyentesPageContent() {
                 <label className="block text-[10px] font-semibold text-slate-600 mb-1">Ficha Catastral Digitalizada</label>
                 <label className="block border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-colors">
                   {uploadDocs.ficha.uploading ? (
-                    <span className="text-xs text-blue-500 animate-pulse">⏳ Subiendo...</span>
+                    <span className="text-xs text-blue-500 animate-pulse">â³ Subiendo...</span>
                   ) : uploadDocs.ficha.url ? (
                     <div className="space-y-1">
-                      <span className="text-[10px] text-green-600 font-bold block">✅ {uploadDocs.ficha.name}</span>
+                      <span className="text-[10px] text-green-600 font-bold block">âœ… {uploadDocs.ficha.name}</span>
                       <a href={uploadDocs.ficha.url} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 underline" onClick={e => e.stopPropagation()}>Ver documento</a>
                       <span className="block text-[10px] text-slate-400">Click para cambiar</span>
                     </div>
                   ) : (
-                    <span className="text-xs text-slate-500">📎 Click para subir archivo<br/><span className="text-[10px] text-slate-400">PDF o imagen, máx. 10 MB</span></span>
+                    <span className="text-xs text-slate-500">ðŸ“Ž Click para subir archivo<br/><span className="text-[10px] text-slate-400">PDF o imagen, mÃ¡x. 10 MB</span></span>
                   )}
                   <input type="file" className="hidden" accept=".pdf,image/*" onChange={e => handleUploadDoc(e, 'ficha')} disabled={uploadDocs.ficha.uploading}/>
                 </label>
@@ -994,15 +995,15 @@ function ContribuyentesPageContent() {
                 <label className="block text-[10px] font-semibold text-slate-600 mb-1">Registro Mercantil / Otros</label>
                 <label className="block border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-colors">
                   {uploadDocs.registro.uploading ? (
-                    <span className="text-xs text-blue-500 animate-pulse">⏳ Subiendo...</span>
+                    <span className="text-xs text-blue-500 animate-pulse">â³ Subiendo...</span>
                   ) : uploadDocs.registro.url ? (
                     <div className="space-y-1">
-                      <span className="text-[10px] text-green-600 font-bold block">✅ {uploadDocs.registro.name}</span>
+                      <span className="text-[10px] text-green-600 font-bold block">âœ… {uploadDocs.registro.name}</span>
                       <a href={uploadDocs.registro.url} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 underline" onClick={e => e.stopPropagation()}>Ver documento</a>
                       <span className="block text-[10px] text-slate-400">Click para cambiar</span>
                     </div>
                   ) : (
-                    <span className="text-xs text-slate-500">📎 Click para subir archivo<br/><span className="text-[10px] text-slate-400">PDF o imagen, máx. 10 MB</span></span>
+                    <span className="text-xs text-slate-500">ðŸ“Ž Click para subir archivo<br/><span className="text-[10px] text-slate-400">PDF o imagen, mÃ¡x. 10 MB</span></span>
                   )}
                   <input type="file" className="hidden" accept=".pdf,image/*" onChange={e => handleUploadDoc(e, 'registro')} disabled={uploadDocs.registro.uploading}/>
                 </label>
@@ -1011,7 +1012,7 @@ function ContribuyentesPageContent() {
 
               </div>
               <div>
-                <label className="block text-[10px] font-medium text-slate-500 mb-1">Teléfono Fijo</label>
+                <label className="block text-[10px] font-medium text-slate-500 mb-1">TelÃ©fono Fijo</label>
                 <input type="text" className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
               </div>
               <div>
@@ -1051,7 +1052,7 @@ function ContribuyentesPageContent() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-[10px] font-medium text-slate-500 mb-1">Dirección Exacta <span className="text-red-500">*</span></label>
+              <label className="block text-[10px] font-medium text-slate-500 mb-1">DirecciÃ³n Exacta <span className="text-red-500">*</span></label>
               <textarea 
                 value={formData.Direccion} 
                 onChange={e => setFormData({...formData, Direccion: e.target.value})}
@@ -1063,20 +1064,20 @@ function ContribuyentesPageContent() {
             
             <div className="md:col-span-2">
               <div className="flex justify-between items-center mb-1">
-                <label className="block text-[10px] font-medium text-slate-500">Ubicación en el Mapa</label>
+                <label className="block text-[10px] font-medium text-slate-500">UbicaciÃ³n en el Mapa</label>
                 {formData.coordenadas && (
                   <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-200 flex items-center gap-1">
                     <MapPin size={10} />
-                    Ubicación fijada
+                    UbicaciÃ³n fijada
                   </span>
                 )}
               </div>
-              <p className="text-[10px] text-slate-400 mb-2">Haz clic en el mapa para marcar la ubicación exacta del inmueble. (Auto-completará la dirección)</p>
+              <p className="text-[10px] text-slate-400 mb-2">Haz clic en el mapa para marcar la ubicaciÃ³n exacta del inmueble. (Auto-completarÃ¡ la direcciÃ³n)</p>
               <MapPicker 
                 position={formData.coordenadas} 
                 onLocationSelect={async (loc) => {
                   setFormData({...formData, coordenadas: loc});
-                  // Geocodificación inversa
+                  // GeocodificaciÃ³n inversa
                   try {
                     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.lat}&lon=${loc.lng}`);
                     const data = await res.json();
@@ -1096,7 +1097,7 @@ function ContribuyentesPageContent() {
                 <input type="text" value={formData.Direccion || ''} onChange={e => setFormData({...formData, Direccion: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
               </div>
               <div>
-                <label className="block text-[10px] font-medium text-slate-500 mb-1">Dirección Exacta (Punto en el Mapa)</label>
+                <label className="block text-[10px] font-medium text-slate-500 mb-1">DirecciÃ³n Exacta (Punto en el Mapa)</label>
                 <input type="text" value={formData.DireccionExacta || ''} onChange={e => setFormData({...formData, DireccionExacta: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
               </div>
               <div>
@@ -1108,19 +1109,19 @@ function ContribuyentesPageContent() {
                 <textarea 
                   value={formData.Nota || ''}
                   onChange={e => setFormData({...formData, Nota: e.target.value})}
-                  placeholder="Ingrese una nota sencilla, ej: Trajo documentación completa..."
+                  placeholder="Ingrese una nota sencilla, ej: Trajo documentaciÃ³n completa..."
                   className="w-full border border-blue-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-blue-50/30"
                   rows={2}
                 />
               </div>
             </div>
 
-            {/* Clasificación de Ordenanza */}
+            {/* ClasificaciÃ³n de Ordenanza */}
             <div className="mt-6 border-t border-slate-200 pt-6">
-              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-4">Clasificación (Según Ordenanza)</h3>
+              <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-4">ClasificaciÃ³n (SegÃºn Ordenanza)</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-[10px] font-semibold text-blue-600 mb-1">Clasificación Principal</label>
+                  <label className="block text-[10px] font-semibold text-blue-600 mb-1">ClasificaciÃ³n Principal</label>
                   <select 
                     value={formData.Clasificacion} 
                     onChange={e => {
@@ -1160,7 +1161,7 @@ function ContribuyentesPageContent() {
                 {(formData.Clasificacion?.includes('Comercial') || formData.Clasificacion === 'Industrial' || formData.Clasificacion === 'Mixto') && !formData.isCondominio && (
                   <>
                     <div>
-                      <label className="block text-[10px] font-medium text-slate-500 mb-1">Actividad Económica (Buscador y Lista)</label>
+                      <label className="block text-[10px] font-medium text-slate-500 mb-1">Actividad EconÃ³mica (Buscador y Lista)</label>
                       <Select
                         options={todasLasActividades.map(a => ({ value: a.label, label: a.label }))}
                         value={{ value: formData.ActividadComercial, label: formData.ActividadComercial }}
@@ -1206,7 +1207,7 @@ function ContribuyentesPageContent() {
                 })}
                 className="w-4 h-4 text-blue-600 rounded border-slate-300" 
               />
-              <label htmlFor="isCondominio" className="text-xs font-medium text-slate-700">Es un Condominio (Contiene múltiples inmuebles)</label>
+              <label htmlFor="isCondominio" className="text-xs font-medium text-slate-700">Es un Condominio (Contiene mÃºltiples inmuebles)</label>
             </div>
 
             {formData.isCondominio && (
@@ -1236,7 +1237,7 @@ function ContribuyentesPageContent() {
                       className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 cursor-pointer"
                     />
                     <label htmlFor="uniformConfig" className="text-[10px] font-medium text-slate-600 cursor-pointer uppercase tracking-wide">
-                      Asignación Masiva
+                      AsignaciÃ³n Masiva
                     </label>
                   </div>
                 </div>
@@ -1263,7 +1264,7 @@ function ContribuyentesPageContent() {
                     </div>
                     {formData.Clasificacion !== 'Residencial' && (
                       <div className="flex-1 min-w-[200px]">
-                        <label className="block text-[10px] font-bold text-blue-800 mb-1">Unificar Tamaño (Metraje Comercial)</label>
+                        <label className="block text-[10px] font-bold text-blue-800 mb-1">Unificar TamaÃ±o (Metraje Comercial)</label>
                         <select 
                           onChange={e => {
                             const val = e.target.value;
@@ -1288,7 +1289,7 @@ function ContribuyentesPageContent() {
                   {formData.locales?.map((local: any, index: number) => (
                     <div key={local.id || index} className="grid grid-cols-1 md:grid-cols-4 gap-3 p-3 border border-slate-100 bg-slate-50 rounded items-end">
                        <div>
-                         <label className="block text-[10px] font-medium text-slate-500 mb-1">Numeración / Identificador</label>
+                         <label className="block text-[10px] font-medium text-slate-500 mb-1">NumeraciÃ³n / Identificador</label>
                          <input type="text" value={local.numeracion} onChange={e => {
                             const newLocales = [...formData.locales];
                             newLocales[index].numeracion = e.target.value;
@@ -1351,7 +1352,7 @@ function ContribuyentesPageContent() {
                                <div className="mb-2">
                                  <label className="block text-[10px] font-medium text-slate-500 mb-1">Actividad Comercial</label>
                                  <div className="h-[30px] flex items-center px-2 text-[10px] bg-slate-100 text-slate-500 rounded border border-slate-200">
-                                   Inmueble desocupado (vacío)
+                                   Inmueble desocupado (vacÃ­o)
                                  </div>
                                </div>
                              )}
@@ -1394,7 +1395,7 @@ function ContribuyentesPageContent() {
             )}
           </div>
 
-          {/* Section: Notas (Solo Edición) */}
+          {/* Section: Notas (Solo EdiciÃ³n) */}
           {!isNew && (
             <>
               <div className="bg-yellow-50 border-y border-yellow-200 px-4 py-2 mt-4">
@@ -1410,7 +1411,7 @@ function ContribuyentesPageContent() {
                   value={formData.Notas_Adicionales || ''}
                   onChange={e => setFormData({ ...formData, Notas_Adicionales: e.target.value })}
                   rows={3}
-                  placeholder="Ingrese cualquier observación o motivo de modificación..."
+                  placeholder="Ingrese cualquier observaciÃ³n o motivo de modificaciÃ³n..."
                   className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-yellow-500"
                 />
               </div>
@@ -1441,8 +1442,8 @@ function ContribuyentesPageContent() {
                 <button 
                   type="button"
                   onClick={() => {
-                    if (window.confirm('¿Está seguro que desea DESACTIVAR este usuario? No podrá ingresar al portal.')) {
-                      alert('Usuario desactivado exitosamente (Simulación).');
+                    if (window.confirm('Â¿EstÃ¡ seguro que desea DESACTIVAR este usuario? No podrÃ¡ ingresar al portal.')) {
+                      alert('Usuario desactivado exitosamente (SimulaciÃ³n).');
                     }
                   }}
                   className="bg-amber-100 text-amber-700 hover:bg-amber-200 px-4 py-2 rounded text-xs font-bold transition-colors"
@@ -1452,8 +1453,8 @@ function ContribuyentesPageContent() {
                 <button 
                   type="button"
                   onClick={() => {
-                    if (window.confirm('ALERTA CRÍTICA: ¿Está absolutamente seguro de ELIMINAR este usuario y todo su historial de forma permanente?')) {
-                      alert('Función de eliminación bloqueada por seguridad. Requiere permisos de Super Administrador.');
+                    if (window.confirm('ALERTA CRÃTICA: Â¿EstÃ¡ absolutamente seguro de ELIMINAR este usuario y todo su historial de forma permanente?')) {
+                      alert('FunciÃ³n de eliminaciÃ³n bloqueada por seguridad. Requiere permisos de Super Administrador.');
                     }
                   }}
                   className="bg-red-100 text-red-700 hover:bg-red-200 px-4 py-2 rounded text-xs font-bold transition-colors"
@@ -1493,11 +1494,11 @@ function ContribuyentesPageContent() {
             {showCalculation && calculoDetalle && (
               <div className="mt-6 bg-slate-50 border border-slate-200 rounded p-4 animate-in fade-in slide-in-from-bottom-2">
                 <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-2">
-                  <Building className="w-4 h-4 text-slate-500" /> Detalle de Cálculo de Aseo Urbano
+                  <Building className="w-4 h-4 text-slate-500" /> Detalle de CÃ¡lculo de Aseo Urbano
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-600 bg-white p-3 border border-slate-100 rounded">
                   <div>
-                    <p className="mb-1"><span className="font-semibold text-slate-700">Clasificación:</span> {calculoDetalle.leyenda}</p>
+                    <p className="mb-1"><span className="font-semibold text-slate-700">ClasificaciÃ³n:</span> {calculoDetalle.leyenda}</p>
                     <p className="mb-1"><span className="font-semibold text-slate-700">Factor Multiplicador (Ordenanza):</span> {calculoDetalle.factor} TCMMV-BCV</p>
                   </div>
                   <div>
@@ -1505,7 +1506,7 @@ function ContribuyentesPageContent() {
                     <p className="text-[10px] text-slate-400 italic mb-1">Fuente: {calculoDetalle.fuente} al {new Date().toLocaleDateString()}</p>
                   </div>
                   <div className="md:col-span-2 pt-2 border-t border-slate-100 flex justify-between items-center">
-                    <p className="text-xs font-medium">Fórmula: {calculoDetalle.factor} × {bcvRate} Bs</p>
+                    <p className="text-xs font-medium">FÃ³rmula: {calculoDetalle.factor} Ã— {bcvRate} Bs</p>
                     <div className="flex items-center gap-4">
                       <p className="text-lg font-bold text-green-700">Total Mensual: Bs. {calculoDetalle.totalBs}</p>
                       {!isNew && (
@@ -1532,7 +1533,7 @@ function ContribuyentesPageContent() {
                         <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10 shadow-sm">
                           <tr>
                             <th className="px-3 py-2 font-semibold border-r border-slate-100">Identificador</th>
-                            <th className="px-3 py-2 font-semibold border-r border-slate-100">Concepto / Clasificación</th>
+                            <th className="px-3 py-2 font-semibold border-r border-slate-100">Concepto / ClasificaciÃ³n</th>
                             <th className="px-3 py-2 font-semibold text-right border-r border-slate-100 w-24">Factor (EUR)</th>
                             <th className="px-3 py-2 font-semibold text-right text-green-700 w-24">Monto (Bs)</th>
                           </tr>
@@ -1573,7 +1574,7 @@ function ContribuyentesPageContent() {
               <div className="p-6 space-y-6">
                 <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 space-y-2">
                   <p className="text-sm"><span className="font-semibold text-slate-700">Contribuyente:</span> {formData.Contribuyente} ({formData.Identidad})</p>
-                  <p className="text-sm"><span className="font-semibold text-slate-700">Clasificación:</span> {calculoDetalle.leyenda}</p>
+                  <p className="text-sm"><span className="font-semibold text-slate-700">ClasificaciÃ³n:</span> {calculoDetalle.leyenda}</p>
                 </div>
 
                 <div className="space-y-4">
@@ -1599,7 +1600,7 @@ function ContribuyentesPageContent() {
                     <span className="font-bold text-orange-800">Nueva Deuda Total:</span>
                     <div className="text-right">
                       <span className="block font-black text-orange-600 text-2xl">{(calculoDetalle.factor * debtMonths).toFixed(2)} MMV</span>
-                      <span className="block text-xs font-semibold text-orange-700 mt-1">≈ Bs. {(calculoDetalle.factor * debtMonths * (bcvRate ? parseFloat(bcvRate.replace(',', '.')) : 1)).toFixed(2)}</span>
+                      <span className="block text-xs font-semibold text-orange-700 mt-1">â‰ˆ Bs. {(calculoDetalle.factor * debtMonths * (bcvRate ? parseFloat(bcvRate.replace(',', '.')) : 1)).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -1607,7 +1608,7 @@ function ContribuyentesPageContent() {
                 <div className="flex items-start gap-2 bg-amber-50 p-3 rounded border border-amber-200">
                   <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-700 leading-relaxed font-medium">
-                    Al confirmar, se **borrarán todos los recibos (facturas) pendientes** actuales de este usuario y se generará un **único recibo nuevo** con el monto total ajustado.
+                    Al confirmar, se **borrarÃ¡n todos los recibos (facturas) pendientes** actuales de este usuario y se generarÃ¡ un **Ãºnico recibo nuevo** con el monto total ajustado.
                   </p>
                 </div>
 
@@ -1637,11 +1638,11 @@ function ContribuyentesPageContent() {
   const columns = [
     { 
       key: 'cod_cont', 
-      header: 'Código',
+      header: 'CÃ³digo',
       render: (row: any) => <span className="font-bold text-slate-700">{row.cod_cont || row.CodCont || 'N/A'}</span>
     },
-    { key: 'Identidad', header: 'R.I.F. / Cédula' },
-    { key: 'Contribuyente', header: 'Nombre / Razón Social' },
+    { key: 'Identidad', header: 'R.I.F. / CÃ©dula' },
+    { key: 'Contribuyente', header: 'Nombre / RazÃ³n Social' },
     {
       key: 'FechaRegistro',
       header: 'Registro',
@@ -1661,7 +1662,7 @@ function ContribuyentesPageContent() {
     },
     {
       key: 'Clasificacion',
-      header: 'Clasificación',
+      header: 'ClasificaciÃ³n',
       render: (row: any) => {
         const clase = row.Clasificacion || 'Residencial';
         const detalle = clase.includes('Comercial') ? row.ActividadComercial : (row.TipoResidencia || 'No asignado');
@@ -1675,7 +1676,7 @@ function ContribuyentesPageContent() {
     },
     {
       key: 'Direccion',
-      header: 'Dirección',
+      header: 'DirecciÃ³n',
       render: (row: any) => (
         <div>
           <p className="text-[10px] text-slate-600 line-clamp-2 max-w-[200px]">{row.Direccion}</p>
@@ -1688,8 +1689,8 @@ function ContribuyentesPageContent() {
         </div>
       )
     },
-    { key: 'Telefono', header: 'Teléfono' },
-    { key: 'Correo', header: 'Correo Electrónico' },
+    { key: 'Telefono', header: 'TelÃ©fono' },
+    { key: 'Correo', header: 'Correo ElectrÃ³nico' },
     {
       key: 'actions',
       header: 'Acciones / Estatus',
@@ -1779,11 +1780,11 @@ function ContribuyentesPageContent() {
   const inactiveColumns = [
     { 
       key: 'cod_cont', 
-      header: 'Código',
+      header: 'CÃ³digo',
       render: (row: any) => <span className="font-bold text-slate-700">{row.cod_cont || row.CodCont || 'N/A'}</span>
     },
-    { key: 'Identidad', header: 'R.I.F. / Cédula' },
-    { key: 'Contribuyente', header: 'Nombre / Razón Social' },
+    { key: 'Identidad', header: 'R.I.F. / CÃ©dula' },
+    { key: 'Contribuyente', header: 'Nombre / RazÃ³n Social' },
     {
       key: 'Estado',
       header: 'Estatus',
@@ -1883,27 +1884,27 @@ function ContribuyentesPageContent() {
             <div className="p-6 overflow-y-auto space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">R.I.F. / Cédula</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">R.I.F. / CÃ©dula</span>
                   <p className="text-sm font-semibold text-slate-700">{viewData.Identidad}</p>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Razón Social</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">RazÃ³n Social</span>
                   <p className="text-sm font-semibold text-slate-700">{viewData.Contribuyente}</p>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Teléfono</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">TelÃ©fono</span>
                   <p className="text-sm font-semibold text-slate-700">{viewData.Telefono || 'N/A'}</p>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Correo Electrónico</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Correo ElectrÃ³nico</span>
                   <p className="text-sm font-semibold text-slate-700">{viewData.Correo || 'N/A'}</p>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 col-span-2">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Dirección</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">DirecciÃ³n</span>
                   <p className="text-sm font-medium text-slate-700">{viewData.Direccion || 'N/A'}</p>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 col-span-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Actividad Económica / Clasificación</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Actividad EconÃ³mica / ClasificaciÃ³n</span>
                   <p className="text-sm font-semibold text-slate-700">{viewData.Actividad || 'N/A'}</p>
                 </div>
                 <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100 col-span-1">
@@ -1915,18 +1916,18 @@ function ContribuyentesPageContent() {
               {viewCalculo && (
                 <div className="mt-6 bg-slate-50 border border-slate-200 rounded p-4">
                   <h4 className="font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-2 text-xs">
-                    <Building className="w-4 h-4 text-slate-500" /> Cálculo Mensual de Aseo Urbano
+                    <Building className="w-4 h-4 text-slate-500" /> CÃ¡lculo Mensual de Aseo Urbano
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-600 bg-white p-3 border border-slate-100 rounded">
                     <div>
-                      <p className="mb-1"><span className="font-semibold text-slate-700">Clasificación:</span> {viewCalculo.leyenda}</p>
+                      <p className="mb-1"><span className="font-semibold text-slate-700">ClasificaciÃ³n:</span> {viewCalculo.leyenda}</p>
                       <p className="mb-1"><span className="font-semibold text-slate-700">Factor Multiplicador:</span> {viewCalculo.factor} TCMMV</p>
                     </div>
                     <div>
                       <p className="mb-1"><span className="font-semibold text-slate-700">Tasa de Cambio Oficial:</span> {Number(viewCalculo.tasaBcv || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:4})} Bs</p>
                     </div>
                     <div className="md:col-span-2 pt-2 border-t border-slate-100 flex justify-between items-center">
-                      <p className="text-xs font-medium">Fórmula: {viewCalculo.factor} × {Number(viewCalculo.tasaBcv || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:4})} Bs</p>
+                      <p className="text-xs font-medium">FÃ³rmula: {viewCalculo.factor} Ã— {Number(viewCalculo.tasaBcv || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:4})} Bs</p>
                       <p className="text-lg font-bold text-green-700">Total Mensual: Bs. {Number(viewCalculo.totalBs || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</p>
                     </div>
                   </div>
@@ -1987,7 +1988,7 @@ function ContribuyentesPageContent() {
                       return (
                         <div className="p-6 text-center">
                           <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-2" />
-                          <p className="text-slate-600 font-medium mb-4">El contribuyente está solvente.</p>
+                          <p className="text-slate-600 font-medium mb-4">El contribuyente estÃ¡ solvente.</p>
                           
                           <div className="max-w-xs mx-auto bg-green-50 p-4 rounded-lg border border-green-100">
                             {viewData.isCondominio ? (
@@ -2040,7 +2041,7 @@ function ContribuyentesPageContent() {
                                 <th className="px-4 py-2">Referencia</th>
                                 <th className="px-4 py-2">Fecha</th>
                                 <th className="px-4 py-2 text-right">Monto (Bs)</th>
-                                <th className="px-4 py-2 text-center w-10">Acción</th>
+                                <th className="px-4 py-2 text-center w-10">AcciÃ³n</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -2073,7 +2074,7 @@ function ContribuyentesPageContent() {
               {viewServiciosEsp.filter((s: any) => s.estado !== 'Pagado').length > 0 && (
                 <div className="mt-4 border border-purple-200 rounded-lg overflow-hidden">
                   <div className="bg-purple-50 px-4 py-3 border-b border-purple-100 flex items-center gap-2">
-                    <span className="text-lg">🔧</span>
+                    <span className="text-lg">ðŸ”§</span>
                     <h4 className="font-bold text-purple-800 text-sm">Servicios Especiales / Inspecciones Asignados</h4>
                     <span className="ml-auto text-xs font-bold text-purple-600">({viewServiciosEsp.filter((s: any) => s.estado !== 'Pagado').length}) pendientes</span>
                   </div>
@@ -2082,7 +2083,7 @@ function ContribuyentesPageContent() {
                       <thead className="bg-purple-50 text-purple-700 font-medium text-[10px] uppercase">
                         <tr>
                           <th className="px-4 py-2">Tipo</th>
-                          <th className="px-4 py-2">Descripción</th>
+                          <th className="px-4 py-2">DescripciÃ³n</th>
                           <th className="px-4 py-2">Fecha</th>
                           <th className="px-4 py-2 text-center">Estado</th>
                           <th className="px-4 py-2 text-right">Monto (Bs)</th>
@@ -2111,19 +2112,19 @@ function ContribuyentesPageContent() {
               )}
               <div className="mt-4 border border-emerald-200 rounded-lg overflow-hidden">
                 <div className="bg-emerald-50 px-4 py-3 border-b border-emerald-100 flex items-center gap-2">
-                  <span className="text-lg">🔧</span>
+                  <span className="text-lg">ðŸ”§</span>
                   <h4 className="font-bold text-emerald-800 text-sm">Historial de Servicios Especiales / Inspecciones</h4>
                   <span className="ml-auto text-xs text-emerald-600">({viewServiciosEsp.filter((s: any) => s.estado === 'Pagado' || s.estado === 'Por Verificar').length}) procesados</span>
                 </div>
                 {viewServiciosEsp.filter((s: any) => s.estado === 'Pagado' || s.estado === 'Por Verificar').length === 0 ? (
-                  <p className="p-4 text-sm text-slate-500 text-center">No hay servicios especiales pagados o en verificación.</p>
+                  <p className="p-4 text-sm text-slate-500 text-center">No hay servicios especiales pagados o en verificaciÃ³n.</p>
                 ) : (
                   <div className="bg-white">
                     <table className="w-full text-sm text-left">
                       <thead className="bg-emerald-50 text-emerald-700 font-medium text-[10px] uppercase">
                         <tr>
                           <th className="px-4 py-2">Tipo</th>
-                          <th className="px-4 py-2">Descripción</th>
+                          <th className="px-4 py-2">DescripciÃ³n</th>
                           <th className="px-4 py-2">Estado</th>
                           <th className="px-4 py-2 text-right">Monto (Bs)</th>
                         </tr>
@@ -2217,7 +2218,7 @@ function ContribuyentesPageContent() {
               {/* Historial de Pagos Realizados */}
               <div className="mt-4 border border-indigo-200 rounded-lg overflow-hidden">
                 <div className="bg-indigo-50 px-4 py-3 border-b border-indigo-100 flex items-center gap-2">
-                  <span className="text-lg">💳</span>
+                  <span className="text-lg">ðŸ’³</span>
                   <h4 className="font-bold text-indigo-800 text-sm">Historial de Pagos Realizados</h4>
                   <span className="ml-auto text-xs text-indigo-600">({viewPagos.length}) registros</span>
                 </div>
@@ -2230,7 +2231,7 @@ function ContribuyentesPageContent() {
                         <tr>
                           <th className="px-3 py-2">Fecha</th>
                           <th className="px-3 py-2">Monto (Bs)</th>
-                          <th className="px-3 py-2">Método</th>
+                          <th className="px-3 py-2">MÃ©todo</th>
                           <th className="px-3 py-2">Tipo</th>
                           <th className="px-3 py-2">Estado</th>
                         </tr>
@@ -2283,7 +2284,7 @@ function ContribuyentesPageContent() {
                 </div>
                 <div className="p-0">
                   {(() => {
-                    const userConvenios = (convenios || []).filter((c: any) => c.identidad === viewData.Identidad && c.estado === 'Al Día');
+                    const userConvenios = (convenios || []).filter((c: any) => c.identidad === viewData.Identidad && c.estado === 'Al DÃ­a');
                     if (userConvenios.length === 0) {
                       return (
                         <div className="p-6 text-center">
@@ -2351,7 +2352,7 @@ function ContribuyentesPageContent() {
                                     {c.isVencida ? (
                                       <span className="text-red-600 font-bold text-xs">VENCIDA</span>
                                     ) : (
-                                      <span className="text-blue-600 font-medium text-xs">Próxima</span>
+                                      <span className="text-blue-600 font-medium text-xs">PrÃ³xima</span>
                                     )}
                                   </td>
                                   <td className="px-4 py-2 text-right font-bold text-orange-700">{c.monto}</td>
@@ -2393,14 +2394,14 @@ function ContribuyentesPageContent() {
             </div>
             <div className="p-6">
               <p className="text-sm text-slate-600 mb-4">
-                Está a punto de <strong>{actionModal.type.toLowerCase()}</strong> la factura <span className="font-bold">{actionModal.factura.referencia}</span>. 
+                EstÃ¡ a punto de <strong>{actionModal.type.toLowerCase()}</strong> la factura <span className="font-bold">{actionModal.factura.referencia}</span>. 
                 Por favor, indique el motivo. <span className="text-red-600 font-bold">* Obligatorio</span>
               </p>
               
               <textarea
                 value={actionNota}
                 onChange={e => setActionNota(e.target.value)}
-                placeholder="Ej. Error en la emisión, pago duplicado..."
+                placeholder="Ej. Error en la emisiÃ³n, pago duplicado..."
                 className="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-slate-500 min-h-[100px] outline-none"
               ></textarea>
               
@@ -2436,14 +2437,14 @@ function ContribuyentesPageContent() {
             </div>
             <div className="p-6">
               <p className="text-sm text-slate-600 mb-4">
-                Está a punto de <strong>{statusModal.type.toLowerCase()}</strong> al contribuyente <span className="font-bold">{statusModal.row.Contribuyente}</span>. 
-                Por favor, indique el motivo detallado de esta acción. <span className="text-red-600 font-bold">* Obligatorio</span>
+                EstÃ¡ a punto de <strong>{statusModal.type.toLowerCase()}</strong> al contribuyente <span className="font-bold">{statusModal.row.Contribuyente}</span>. 
+                Por favor, indique el motivo detallado de esta acciÃ³n. <span className="text-red-600 font-bold">* Obligatorio</span>
               </p>
               
               <textarea
                 value={statusNota}
                 onChange={e => setStatusNota(e.target.value)}
-                placeholder="Ej. Cese de actividades, orden de Alcaldía..."
+                placeholder="Ej. Cese de actividades, orden de AlcaldÃ­a..."
                 className="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-slate-500 min-h-[100px] outline-none"
               ></textarea>
               
@@ -2486,5 +2487,6 @@ export default function ContribuyentesPage() {
     </Suspense>
   );
 }
+
 
 
