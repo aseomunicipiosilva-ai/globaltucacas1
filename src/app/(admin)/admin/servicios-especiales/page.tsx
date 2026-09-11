@@ -169,7 +169,7 @@ export default function ServiciosEspecialesPage() {
     )
   );
 
-  const iconMap: Record<TipoServicio, any> = { especial: Wrench, extraordinario: FlaskConical, inspeccion: ClipboardCheck, visto_bueno: ShieldCheck };
+  const iconMap: Record<TipoServicio, any> = { especial: Wrench, extraordinario: FlaskConical, inspeccion: ClipboardCheck, visto_bueno: ShieldCheck, tala_poda: TreePine };
 
   const exportarServicios = () => {
     if (serviciosFiltrados.length === 0) return alert('No hay registros para exportar.');
