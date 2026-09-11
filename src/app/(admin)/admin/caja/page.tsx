@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import React, { useState, useEffect } from 'react';
 import { exportToExcelWithLogos } from '@/lib/excelExport';
 import { Search, CreditCard, Landmark, CheckCircle, XCircle, FileText, Handshake, Calendar as CalendarIcon, Wrench, ShieldCheck, ClipboardCheck, FlaskConical } from 'lucide-react';
@@ -177,11 +177,36 @@ export default function CajaPage() {
     if (user) {
       setFoundUser(user);
       
-      const userFacturas = facturas.filter((f: any) => {
+      // Consulta directa a Supabase para obtener TODAS las facturas pendientes
+      // (el contexto tiene límite de 1000 filas y puede no incluir las CM- mensuales)
+      const { data: allUserFacturas } = await supabase
+        .from('facturas')
+        .select('*')
+        .eq('estado', 'Pendiente')
+        .or(`identidad.eq.${user.Identidad},identidad.eq.${cleanFullDoc}`)
+        .order('emision', { ascending: true });
+
+      // Combinar con facturas del contexto que coincidan por nombre (fallback)
+      const fromContext = facturas.filter((f: any) => {
         const idCleanFactura = (f.identidad || '').replace(/-/g, '').toUpperCase();
         return (idCleanFactura === cleanFullDoc || f.contribuyente === user.Contribuyente) && f.estado === 'Pendiente';
       });
-      setRecibos(userFacturas);
+
+      // Unificar evitando duplicados por referencia
+      const combined = [...(allUserFacturas || [])];
+      const existingRefs = new Set(combined.map((f: any) => f.referencia));
+      fromContext.forEach((f: any) => { if (!existingRefs.has(f.referencia)) combined.push(f); });
+
+      // Ordenar: primero facturas normales (FACT-), luego CM- por fecha
+      combined.sort((a: any, b: any) => {
+        const aIsCM = a.referencia?.startsWith('CM-');
+        const bIsCM = b.referencia?.startsWith('CM-');
+        if (!aIsCM && bIsCM) return -1;
+        if (aIsCM && !bIsCM) return 1;
+        return (a.emision || '').localeCompare(b.emision || '');
+      });
+
+      setRecibos(combined);
       
       // Load Convenios Cuotas
       const userConvenios = convenios.filter((c: any) => {
