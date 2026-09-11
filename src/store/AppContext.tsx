@@ -101,7 +101,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       let semanalTcmmv = 0;
       if (dbConfig) {
         const ordenanza = dbConfig.find(c => c.id === 'tarifas_ordenanza');
-        if (ordenanza && ordenanza.valor) setOrdenanzasConfig(ordenanza.valor);
+        if (ordenanza && ordenanza.valor) {
+          setOrdenanzasConfig({ ...ordenanzaData, ...ordenanza.valor });
+        }
         
         const manual = dbConfig.find(c => c.id === 'tasa_bcv_manual');
         if (manual && manual.valor) manualTcmmv = parseFloat(manual.valor);

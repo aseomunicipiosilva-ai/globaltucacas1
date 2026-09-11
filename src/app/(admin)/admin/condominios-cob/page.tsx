@@ -86,6 +86,37 @@ export default function CondominiosCOBPage() {
           <button 
             onClick={async () => {
               try {
+                const pendingFacturas = (facturas || []).filter((f: any) => {
+                  const contrib = (f.contribuyente || '').toLowerCase().trim();
+                  return contrib === row.identidad.toLowerCase().trim() || contrib === row.nombre.toLowerCase().trim();
+                });
+                if (pendingFacturas.length === 0) {
+                  alert('Este condominio no tiene facturas registradas.');
+                  return;
+                }
+                const { exportToExcelWithLogos } = await import('@/lib/excelExport');
+                const data = pendingFacturas.map((f: any) => ({
+                  "Referencia": f.referencia,
+                  "Condominio": row.nombre,
+                  "RIF": row.identidad,
+                  "Emisión": f.emision,
+                  "Vencimiento": f.vencimiento,
+                  "Monto (Bs)": parseFloat(f.monto || '0').toFixed(2),
+                  "Estado": f.estado
+                }));
+                await exportToExcelWithLogos(data, `EstadoCuenta_${row.identidad}.xlsx`, "Estado_de_Cuenta");
+              } catch (e) {
+                alert("Error exportando Estado de Cuenta a Excel");
+              }
+            }}
+            className="bg-orange-50 text-orange-600 hover:bg-orange-100 p-1.5 rounded transition-colors"
+            title="Exportar Estado de Cuenta a Excel"
+          >
+            <Receipt className="w-4 h-4" />
+          </button>
+          <button 
+            onClick={async () => {
+              try {
                 const { supabase } = await import('@/lib/supabase');
                 const { data: unidades, error } = await supabase.from('unidades_condominio').select('*').eq('condominio_id', row.id);
                 if (error) throw error;
@@ -108,7 +139,7 @@ export default function CondominiosCOBPage() {
               }
             }}
             className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 p-1.5 rounded transition-colors"
-            title="Exportar Hijos a Excel"
+            title="Exportar Unidades (Hijos) a Excel"
           >
             <Download className="w-4 h-4" />
           </button>

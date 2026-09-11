@@ -146,21 +146,70 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
     }
   };
 
-  const eliminarUnidad = async (id: number) => {
-    const { error } = await supabase.from('unidades_condominio').delete().eq('id', id);
-    if (!error) {
-      setUnidades(unidades.filter(u => u.id !== id));
+  const [statusModal, setStatusModal] = useState<{ type: string, u: any } | null>(null);
+  const [statusNota, setStatusNota] = useState('');
+  const [isProcessingStatus, setIsProcessingStatus] = useState(false);
+  const { facturas, addAuditLog } = useAppContext();
+
+  const handleStatusSubmit = async () => {
+    if (!statusModal || !statusNota.trim()) {
+      alert("Debe ingresar el motivo obligatoriamente.");
+      return;
+    }
+    setIsProcessingStatus(true);
+    try {
+      const { type, u } = statusModal;
+      if (type === 'Eliminar') {
+        const { error } = await supabase.from('unidades_condominio').delete().eq('id', u.id);
+        if (error) throw error;
+        
+        await addAuditLog(
+          'ELIMINAR_UNIDAD_CONDOMINIO',
+          JSON.stringify({
+            unidad_id: u.id,
+            numero: u.numero_unidad,
+            condominio: condominioNombre,
+            motivo: statusNota.trim()
+          })
+        );
+        setUnidades(unidades.filter(x => x.id !== u.id));
+      } else if (type === 'Desactivar') {
+        const { error } = await supabase.from('unidades_condominio').update({ activo: false }).eq('id', u.id);
+        if (error) throw error;
+        
+        await addAuditLog(
+          'DESACTIVAR_UNIDAD_CONDOMINIO',
+          JSON.stringify({
+            unidad_id: u.id,
+            numero: u.numero_unidad,
+            condominio: condominioNombre,
+            motivo: statusNota.trim()
+          })
+        );
+        setUnidades(unidades.map(x => x.id === u.id ? { ...x, activo: false } : x));
+      }
+      setStatusModal(null);
+      setStatusNota('');
+      alert(`Unidad ${type === 'Eliminar' ? 'eliminada' : 'desactivada'} exitosamente.`);
+    } catch (err: any) {
+      alert(`Error procesando acción: ${err.message}`);
+    } finally {
+      setIsProcessingStatus(false);
     }
   };
 
   const toggleActivoUnidad = async (u: any) => {
-    const nuevoActivo = u.activo === false ? true : false; // toggle
-    const { error } = await supabase
-      .from('unidades_condominio')
-      .update({ activo: nuevoActivo })
-      .eq('id', u.id);
-    if (!error) {
-      setUnidades(unidades.map(x => x.id === u.id ? { ...x, activo: nuevoActivo } : x));
+    if (u.activo === false) {
+      // Reactivar no pide nota, solo la desactiva
+      const { error } = await supabase
+        .from('unidades_condominio')
+        .update({ activo: true })
+        .eq('id', u.id);
+      if (!error) {
+        setUnidades(unidades.map(x => x.id === u.id ? { ...x, activo: true } : x));
+      }
+    } else {
+      setStatusModal({ type: 'Desactivar', u });
     }
   };
 
@@ -682,7 +731,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                               >
                                 <Power size={16} />
                               </button>
-                              <button onClick={() => eliminarUnidad(u.id)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                              <button onClick={() => setStatusModal({ type: 'Eliminar', u })} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                                 <Trash2 size={16} />
                               </button>
                             </td>
@@ -780,10 +829,41 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                       {showEstado === u.id && (
                         <tr className="bg-orange-50/40 border-b border-orange-100">
                           <td colSpan={8} className="px-4 py-4">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Receipt size={14} className="text-orange-600" />
-                              <span className="text-xs font-bold text-orange-700 uppercase">Estado de Cuenta — Unidad: {u.numero_unidad}</span>
-                              <span className="text-[10px] text-slate-500">({u.propietario || 'Sin propietario'})</span>
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <Receipt size={14} className="text-orange-600" />
+                                <span className="text-xs font-bold text-orange-700 uppercase">Estado de Cuenta — Unidad: {u.numero_unidad}</span>
+                                <span className="text-[10px] text-slate-500">({u.propietario || 'Sin propietario'})</span>
+                              </div>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const factCondominio = (facturas || []).filter((f: any) =>
+                                      f.contribuyente === condominioIdentidad || f.contribuyente === condominioNombre
+                                    );
+                                    if (factCondominio.length === 0) {
+                                      alert("No hay facturas registradas para emitir estado de cuenta.");
+                                      return;
+                                    }
+                                    const { exportToExcelWithLogos } = await import('@/lib/excelExport');
+                                    const data = factCondominio.map((f: any) => ({
+                                      "Referencia": f.referencia,
+                                      "Unidad": u.numero_unidad,
+                                      "Propietario": u.propietario || 'Sin propietario',
+                                      "Emisión": f.emision,
+                                      "Vencimiento": f.vencimiento,
+                                      "Monto (Bs)": parseFloat(f.monto || '0').toFixed(2),
+                                      "Estado": f.estado
+                                    }));
+                                    await exportToExcelWithLogos(data, `EstadoCuenta_Unidad_${u.numero_unidad}.xlsx`, "Estado_de_Cuenta");
+                                  } catch (e) {
+                                    alert("Error exportando a Excel");
+                                  }
+                                }}
+                                className="px-2 py-1 bg-orange-100 text-orange-700 hover:bg-orange-200 rounded text-xs font-bold flex items-center gap-1 transition-colors"
+                              >
+                                <Download size={12} /> Exportar Excel
+                              </button>
                             </div>
                             {(() => {
                               const factCondominio = (facturas || []).filter((f: any) =>
@@ -860,6 +940,51 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
           </div>
         </div>
       </div>
+
+      {/* Status Modal (Eliminar/Desactivar) */}
+      {statusModal && (
+        <div className="fixed inset-0 z-[70] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className={`px-6 py-4 border-b flex items-center justify-between ${statusModal.type === 'Eliminar' ? 'bg-red-50 border-red-100' : 'bg-amber-50 border-amber-100'}`}>
+              <h2 className={`text-lg font-bold ${statusModal.type === 'Eliminar' ? 'text-red-800' : 'text-amber-800'}`}>
+                {statusModal.type} Unidad
+              </h2>
+              <button onClick={() => setStatusModal(null)} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-slate-600 mb-4">
+                Está a punto de <strong>{statusModal.type.toLowerCase()}</strong> la unidad <span className="font-bold">{statusModal.u.numero_unidad}</span>. 
+                Por favor, indique el motivo detallado de esta acción. <span className="text-red-600 font-bold">* Obligatorio</span>
+              </p>
+              
+              <textarea
+                value={statusNota}
+                onChange={e => setStatusNota(e.target.value)}
+                placeholder="Ej. Error de registro, fusión de locales..."
+                className="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-slate-500 min-h-[100px] outline-none"
+              ></textarea>
+              
+              <div className="mt-6 flex justify-end gap-3">
+                <button 
+                  onClick={() => setStatusModal(null)}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium text-sm transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleStatusSubmit}
+                  disabled={isProcessingStatus || statusNota.trim().length < 10}
+                  className={`px-6 py-2 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50 ${statusModal.type === 'Eliminar' ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'}`}
+                >
+                  {isProcessingStatus ? 'Procesando...' : `Confirmar`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
   );
 
   if (isInline) {

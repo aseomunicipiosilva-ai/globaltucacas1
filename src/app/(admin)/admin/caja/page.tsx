@@ -284,9 +284,32 @@ export default function CajaPage() {
   }, [selectedRecibos, selectedCuotas, selectedServicios, selectedTalaPoda, recibos, cuotas, serviciosEsp, talaPoda]);
 
   const toggleRecibo = (ref: string) => {
+    const sortedRecibos = [...recibos].sort((a: any, b: any) => {
+      // Primero CM- luego FACT- etc.
+      const aIsCM = a.referencia?.startsWith('CM-');
+      const bIsCM = b.referencia?.startsWith('CM-');
+      if (!aIsCM && bIsCM) return -1;
+      if (aIsCM && !bIsCM) return 1;
+      return (a.emision || '').localeCompare(b.emision || '');
+    });
+    
+    const currentIndex = sortedRecibos.findIndex(r => r.referencia === ref);
+    if (currentIndex === -1) return;
+
     if (selectedRecibos.includes(ref)) {
-      setSelectedRecibos(selectedRecibos.filter(r => r !== ref));
+      // Deselecting: deselect this one and all subsequent ones to maintain order
+      const toRemove = sortedRecibos.slice(currentIndex).map(r => r.referencia);
+      setSelectedRecibos(selectedRecibos.filter(r => !toRemove.includes(r)));
     } else {
+      // Selecting: ensure all previous ones are also selected
+      const previousRefs = sortedRecibos.slice(0, currentIndex).map(r => r.referencia);
+      const missingPrevious = previousRefs.some(pr => !selectedRecibos.includes(pr));
+      
+      if (missingPrevious) {
+        alert("¡No se puede adelantar meses! Debe seleccionar y pagar las deudas más antiguas primero.");
+        return; // Bloquea la selección
+      }
+      
       setSelectedRecibos([...selectedRecibos, ref]);
     }
   };

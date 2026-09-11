@@ -2458,7 +2458,7 @@ function ContribuyentesPageContent() {
                 </button>
                 <button 
                   onClick={handleStatusSubmit}
-                  disabled={isProcessingStatus || !statusNota.trim()}
+                  disabled={isProcessingStatus || statusNota.trim().length < 10}
                   className={`px-6 py-2 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50 ${statusModal.type === 'Eliminar' ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'}`}
                 >
                   {isProcessingStatus ? 'Procesando...' : `Confirmar`}
