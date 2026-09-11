@@ -1,5 +1,5 @@
 'use client';
-import { Home, Search, FileText, FlaskConical, Wrench, UserPlus, Users, FileSpreadsheet, History, Award, Clock, Building2, AlertTriangle, Handshake, LayoutDashboard, Mail, User, PieChart, Truck, Inbox, Calculator, Briefcase, Landmark, BookOpen, Car, Map, Bus, TreePine, ShieldAlert, DollarSign, Wallet, FileCheck, Package, ShoppingCart, Target } from 'lucide-react';
+import { Home, Search, FileText, FlaskConical, Wrench, UserPlus, Users, FileSpreadsheet, History, Award, Clock, Building2, AlertTriangle, Handshake, LayoutDashboard, Mail, User, PieChart, Truck, Inbox, Calculator, Briefcase, Landmark, BookOpen, Car, Map, Bus, TreePine, ShieldAlert, DollarSign, Wallet, FileCheck, Package, ShoppingCart, Target, BarChart3 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
@@ -24,6 +24,7 @@ export default function Sidebar() {
 
     { icon: Map, name: 'Jornadas de Campo', href: '/admin/jornadas' },
     { icon: Building2, name: 'Inmuebles', href: '/admin/inmuebles' },
+    { icon: BarChart3, name: 'Análisis de Deudas', href: '/admin/herramientas' },
     { icon: Calculator, name: 'CÃ¡lculo y ProyecciÃ³n', href: '/admin/calculo' },
     { icon: Briefcase, name: 'Caja / Pagos', href: '/admin/caja' },
     { icon: Landmark, name: 'Conciliacion Bancaria', href: '/admin/caja/conciliacion' },
