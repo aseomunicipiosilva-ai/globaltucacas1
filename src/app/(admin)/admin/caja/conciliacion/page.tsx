@@ -479,13 +479,13 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
         enviar_correo: enviarCorreo,
         cod_inmueble: det.cod_inmueble || pago.cod_inmueble || contribInfo?.codigo,
         analista: typeof window !== 'undefined' ? localStorage.getItem('adminUser') || 'Administrador' : 'Administrador',
+        banco_destino: bancoReceptor,
       };
 
       // Actualizar el pago
       const { error } = await supabase.from('pagos_reportados').update({
         estado: estatus,
         banco: bancoEmisor,
-        banco_destino: bancoReceptor,
         tipo: pago.tipo,
         detalles: updatedDet,
       }).eq('id', pago.id);
