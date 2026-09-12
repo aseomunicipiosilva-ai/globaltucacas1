@@ -40,7 +40,8 @@ export default function Sidebar() {
     { icon: Wrench, name: 'Servicios Especiales', href: '/admin/servicios-especiales' },
     { icon: PieChart, name: 'Reportes Generales', href: '/admin/reportes' },
     { icon: Mail, name: 'Correos Informativos', href: '/admin/correos' },
-    { icon: UserPlus, name: 'Trabajadores Aseo', href: '/admin/trabajadores' }
+    { icon: UserPlus, name: 'Trabajadores Aseo', href: '/admin/trabajadores' },
+    { icon: ShieldAlert, name: 'Auditoría', href: '/admin/auditoria' }
   ];
 
   const menuRecaudacion = [
