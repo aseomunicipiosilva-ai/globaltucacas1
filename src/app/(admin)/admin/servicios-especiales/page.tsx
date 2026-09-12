@@ -25,7 +25,7 @@ const TIPO_INFO = {
   extraordinario: { label: 'Servicio Extraordinario', color: 'bg-orange-100 text-orange-800 border-orange-200', icon: FlaskConical, accent: 'orange' },
   inspeccion: { label: 'Inspección', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: ClipboardCheck, accent: 'blue' },
   visto_bueno: { label: 'Visto Bueno Ambiental', color: 'bg-green-100 text-green-800 border-green-200', icon: ShieldCheck, accent: 'green' },
-  tala_poda: { label: 'Tala y Poda', color: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: TreePine, accent: 'emerald' }
+  tala_poda: { label: 'Permisos (Tala/Poda)', color: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: TreePine, accent: 'emerald' }
 };
 
 export default function ServiciosEspecialesPage() {
@@ -57,7 +57,10 @@ export default function ServiciosEspecialesPage() {
     area: '',
     tipoVistoBueno: '',
     tipoInspeccion: '',
-    codigoServicio: ''
+    codigoServicio: '',
+    tipoPermiso: '',
+    alturaArbol: '',
+    unidadesArboreas: '1'
   });
   const [searchContrib, setSearchContrib] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -95,6 +98,24 @@ export default function ServiciosEspecialesPage() {
     if (form.tipo === 'visto_bueno' && form.tipoVistoBueno && form.area) {
       const t = (ordenanzaData as any).vistoBueno?.find((s: any) => s.codigo === form.tipoVistoBueno);
       if (t) return { tcmv: t.tcmvPorM2 * parseFloat(form.area || '0'), label: `${t.label} — ${form.area} m²` };
+    }
+    if (form.tipo === 'tala_poda' && form.tipoPermiso) {
+      if (form.tipoPermiso === 'Tala y Poda' && form.alturaArbol) {
+         let base = 0;
+         let altLabel = '';
+         if (form.alturaArbol === 'hasta_3') { base = 7; altLabel = 'Hasta 3m'; }
+         else if (form.alturaArbol === 'de_4_a_5') { base = 10; altLabel = 'De 4m a 5m'; }
+         else if (form.alturaArbol === 'mayor_5') { base = 15; altLabel = 'Mayor de 5m'; }
+         
+         const unis = parseInt(String(form.unidadesArboreas) || '1') || 1;
+         return { tcmv: base * unis, label: `Tala y Poda (${altLabel}) x ${unis} arb.` };
+      }
+      else if (form.tipoPermiso === 'Limpieza') {
+         return { tcmv: 15, label: 'Autorización de Limpieza' };
+      }
+      else if (form.tipoPermiso === 'Variables') {
+         return { tcmv: 15, label: 'Variables Ambientales' };
+      }
     }
     return null;
   };
@@ -140,7 +161,7 @@ export default function ServiciosEspecialesPage() {
       if (res.ok) {
         setMsg({ type: 'ok', text: 'Servicio registrado y notificado al contribuyente.' });
         setShowModal(false);
-        setForm({ tipo: 'especial', identidad: '', contribuyenteNombre: '', descripcion: '', monto: '', fecha: new Date().toISOString().split('T')[0], notas: '', camion: '', distancia: '', area: '', tipoVistoBueno: '', tipoInspeccion: '', codigoServicio: '' });
+        setForm({ tipo: 'especial', identidad: '', contribuyenteNombre: '', descripcion: '', monto: '', fecha: new Date().toISOString().split('T')[0], notas: '', camion: '', distancia: '', area: '', tipoVistoBueno: '', tipoInspeccion: '', codigoServicio: '', tipoPermiso: '', alturaArbol: '', unidadesArboreas: '1' });
         setSearchContrib('');
         loadServicios();
       } else {
@@ -464,6 +485,50 @@ export default function ServiciosEspecialesPage() {
                       onChange={e => setForm(prev => ({ ...prev, area: e.target.value }))}
                       className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-500" />
                   </div>
+                </div>
+              )}
+
+              
+              {form.tipo === 'tala_poda' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Tipo de Permiso *</label>
+                    <select value={form.tipoPermiso} onChange={e => {
+                      const val = e.target.value;
+                      let desc = '';
+                      if (val === 'Tala y Poda') desc = 'Permiso de Tala y Poda';
+                      if (val === 'Limpieza') desc = 'Autorización de Limpieza';
+                      if (val === 'Variables') desc = 'Variables Ambientales';
+                      setForm(prev => ({ ...prev, tipoPermiso: val, descripcion: desc }));
+                    }}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-500 bg-white">
+                      <option value="">Seleccione...</option>
+                      <option value="Tala y Poda">Tala y Poda</option>
+                      <option value="Limpieza">Autorización de Limpieza</option>
+                      <option value="Variables">Variables Ambientales</option>
+                    </select>
+                  </div>
+                  
+                  {form.tipoPermiso === 'Tala y Poda' && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Altura del Árbol</label>
+                        <select value={form.alturaArbol} onChange={e => setForm(prev => ({ ...prev, alturaArbol: e.target.value }))}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-500 bg-white">
+                          <option value="">Seleccione...</option>
+                          <option value="hasta_3">Hasta 3 metros (7 UMMV)</option>
+                          <option value="de_4_a_5">De 4 a 5 metros (10 UMMV)</option>
+                          <option value="mayor_5">Mayor de 5 metros (15 UMMV)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Unidades Arbóreas</label>
+                        <input type="number" min="1" value={form.unidadesArboreas}
+                          onChange={e => setForm(prev => ({ ...prev, unidadesArboreas: e.target.value }))}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-500" />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

@@ -1,7 +1,8 @@
 'use client';
-import { Truck, Upload, AlertCircle, Send, CheckCircle2, Clock, RefreshCw, FlaskConical } from 'lucide-react';
+import { TreePine, Upload, AlertCircle, Send, CheckCircle2, Clock, RefreshCw } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { formatBs } from '@/lib/formatCurrency';
 
 type Servicio = {
   id: number;
@@ -14,12 +15,13 @@ type Servicio = {
   notas?: string;
 };
 
-export default function ServiciosExtraordinariosPage() {
-  const [tipo, setTipo] = useState('');
-  const [camion, setCamion] = useState('');
-  const [distancia, setDistancia] = useState('');
+export default function TalaYPodaPage() {
+  const [tipoPermiso, setTipoPermiso] = useState('tala_poda');
+  const [altura, setAltura] = useState('hasta_3');
+  const [cantidad, setCantidad] = useState(1);
   const [direccion, setDireccion] = useState('');
   const [detalles, setDetalles] = useState('');
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [tasaBcv, setTasaBcv] = useState<number>(0);
@@ -38,7 +40,7 @@ export default function ServiciosExtraordinariosPage() {
         const filtrados = data.filter((s: any) => {
           const id = (s.identidad || '').replace(/-/g,'').toUpperCase();
           return id === docLimpio || id === doc.toUpperCase();
-        }).filter((s: any) => s.tipo === 'extraordinario');
+        }).filter((s: any) => s.tipo === 'tala_poda');
         setServicios(filtrados);
       }
     } catch {}
@@ -54,14 +56,16 @@ export default function ServiciosExtraordinariosPage() {
   }, []);
 
   let tarifaTCMV = 0;
-  if (distancia === 'menor') {
-    if (camion === '350') tarifaTCMV = 30;
-    if (camion === '600') tarifaTCMV = 50;
-    if (camion === '750') tarifaTCMV = 70;
-  } else if (distancia === 'mayor') {
-    if (camion === '350') tarifaTCMV = 40;
-    if (camion === '600') tarifaTCMV = 60;
-    if (camion === '750') tarifaTCMV = 80;
+  if (tipoPermiso === 'tala_poda') {
+    if (altura === 'hasta_3') tarifaTCMV = 7 * cantidad;
+    else if (altura === '4_a_5') tarifaTCMV = 10 * cantidad;
+    else if (altura === 'mayor_5') tarifaTCMV = 15 * cantidad;
+  } else if (tipoPermiso === 'limpieza') {
+    tarifaTCMV = 10;
+  } else if (tipoPermiso === 'variables') {
+    tarifaTCMV = 20;
+  } else if (tipoPermiso === 'constancias') {
+    tarifaTCMV = 5;
   }
   const costoTotalBs = (tarifaTCMV * tasaBcv);
 
@@ -73,20 +77,28 @@ export default function ServiciosExtraordinariosPage() {
     const doc = localStorage.getItem('portal_doc') || '';
     const nombre = localStorage.getItem('portal_user') || '';
 
+    let desc = '';
+    if (tipoPermiso === 'tala_poda') {
+      const altStr = altura === 'hasta_3' ? 'Hasta 3m' : (altura === '4_a_5' ? '4m a 5m' : 'Mayor a 5m');
+      desc = `Tala y Poda - Altura: ${altStr} - Unidades: ${cantidad} - Dir: ${direccion}`;
+    } else {
+      desc = `Permiso: ${tipoPermiso} - Dir: ${direccion}`;
+    }
+
     try {
       const res = await fetch('/api/admin/servicios-especiales', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tipo: 'extraordinario',
+          tipo: 'tala_poda',
           identidad: doc,
           contribuyente: nombre,
-          descripcion: `Recolección Especial: ${tipo} — Camión ${camion} — ${distancia === 'menor' ? 'Menos de 20 Km' : 'Más de 20 Km'} — ${direccion}`,
+          descripcion: desc,
           monto: costoTotalBs,
           fecha: new Date().toISOString().split('T')[0],
           notas: detalles,
           estado: 'Pendiente',
-          referencia: `SERV-EXT-${Date.now()}`,
+          referencia: `SERV-TALA-${Date.now()}`,
           origen: 'contribuyente'
         })
       });
@@ -109,156 +121,183 @@ export default function ServiciosExtraordinariosPage() {
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-12">
 
-      {/* Servicios Asignados por el Funcionario */}
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-        <div className="bg-orange-50 px-6 py-4 border-b border-orange-100 flex items-center justify-between">
-          <h2 className="font-semibold text-orange-900 uppercase flex items-center gap-2 text-sm">
-            <FlaskConical className="w-5 h-5 text-orange-600" />
-            Mis Servicios Extraordinarios
+        <div className="bg-emerald-50 px-6 py-4 border-b border-emerald-100 flex items-center justify-between">
+          <h2 className="font-semibold text-emerald-900 uppercase flex items-center gap-2 text-sm">
+            <TreePine className="w-5 h-5 text-emerald-600" />
+            Mis Permisos (Tala / Poda / Otros)
           </h2>
-          <button onClick={cargarServicios} className="text-orange-600 hover:text-orange-800 transition-colors p-1">
-            <RefreshCw className="w-4 h-4" />
+          <button onClick={cargarServicios} className="text-emerald-600 hover:text-emerald-800 transition-colors p-1">
+            <RefreshCw className={`w-4 h-4 ${isLoadingServicios ? 'animate-spin' : ''}`} />
           </button>
         </div>
-
-        {isLoadingServicios ? (
-          <div className="p-8 text-center text-slate-400 text-sm">Cargando servicios...</div>
-        ) : servicios.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 text-sm">
-            <FlaskConical className="w-10 h-10 mx-auto mb-2 opacity-20" />
-            No tiene servicios extraordinarios registrados.
-          </div>
-        ) : (
+        
+        {servicios.length > 0 ? (
           <div className="divide-y divide-slate-100">
-            {servicios.map(s => (
-              <div key={s.id} className="px-6 py-4 flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-800 truncate">{s.descripcion}</p>
-                  <div className="flex items-center gap-3 mt-1 flex-wrap">
-                    <span className="text-xs text-slate-400">{s.fecha}</span>
-                    {s.referencia && <span className="text-xs font-mono text-slate-400">{s.referencia}</span>}
-                    {s.notas && <span className="text-xs text-slate-500 italic">{s.notas}</span>}
+            {servicios.map((s, i) => (
+              <div key={i} className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-3 mb-1">
+                    <span className="font-bold text-slate-800">{s.referencia || `PERM-00${s.id}`}</span>
+                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${estadoColor(s.estado)}`}>
+                      {s.estado}
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-600">{s.descripcion}</p>
+                  <div className="text-xs text-slate-400 mt-2 flex items-center gap-4">
+                    <span className="flex items-center gap-1"><Clock className="w-3 h-3"/> Solicitado: {new Date(s.fecha).toLocaleDateString('es-VE')}</span>
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-1 shrink-0">
-                  <span className="font-bold text-slate-800 text-sm">
-                    Bs. {Number(s.monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}
+                
+                <div className="sm:text-right flex sm:flex-col items-center sm:items-end justify-between">
+                  <span className="text-lg font-black text-slate-900 flex items-baseline gap-1">
+                    {formatBs(s.monto)}
                   </span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${estadoColor(s.estado)}`}>{s.estado}</span>
-                  {s.estado === 'Pendiente' && (
-                    <Link href="/portal/pagos" className="text-[10px] text-emerald-600 hover:underline font-semibold">→ Ir a Pagar</Link>
+                  
+                  {(s.estado === 'Pendiente' || s.estado === 'Aprobado') && (
+                    <Link href="/portal/pagos" className="mt-2 text-xs font-semibold text-blue-600 hover:text-blue-800 underline">
+                      Ir a Pagar
+                    </Link>
                   )}
                 </div>
               </div>
             ))}
           </div>
+        ) : (
+          <div className="p-8 text-center text-slate-500">
+            <TreePine className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <p>No tienes permisos ni solicitudes de Tala/Poda registrados.</p>
+          </div>
         )}
       </div>
 
-      {/* Solicitar Nuevo */}
-      <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg flex items-start gap-3">
-        <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
-        <div className="text-sm text-blue-800">
-          <p className="font-semibold mb-1">Sobre los Servicios Extraordinarios (Art. 50-52)</p>
-          <p>Aplica para residuos que por sus dimensiones, peso o naturaleza no pueden ser recolectados por el servicio ordinario. Incluye escombros, desechos vegetales, muebles, cauchos, etc.</p>
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-slate-50 px-6 py-4 border-b border-slate-100">
+          <h2 className="font-semibold text-slate-800 uppercase flex items-center gap-2 text-sm">
+            <TreePine className="w-5 h-5 text-slate-500" />
+            Solicitar Nuevo Permiso
+          </h2>
         </div>
-      </div>
 
-      {isSuccess ? (
-        <div className="bg-white rounded-lg border border-emerald-200 p-10 text-center shadow-sm">
-          <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-slate-800 mb-2">¡Solicitud Registrada!</h2>
-          <p className="text-slate-600 mb-2">Su solicitud fue enviada al equipo de Aseo Urbano.</p>
-          <p className="text-sm text-slate-500 bg-slate-50 p-4 rounded-lg inline-block border border-slate-100 mb-6">
-            El cargo de <strong>Bs. {costoTotalBs.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</strong> aparecerá en su estado de cuenta.
-            Diríjase a <strong>PAGAR</strong> para cancelarlo.
-          </p>
-          <div>
-            <button onClick={() => { setIsSuccess(false); setTipo(''); setCamion(''); setDistancia(''); setDireccion(''); setDetalles(''); }}
-              className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded font-medium transition-colors">
-              Nueva Solicitud
+        {isSuccess ? (
+          <div className="p-12 text-center">
+            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 className="w-10 h-10 text-green-600" />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-800 mb-2">¡Solicitud Enviada!</h3>
+            <p className="text-slate-600 mb-6">
+              Tu solicitud de permiso ha sido enviada. Pronto el departamento de Ambiente se comunicará contigo.
+            </p>
+            <button 
+              onClick={() => setIsSuccess(false)}
+              className="px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors font-semibold"
+            >
+              Realizar otra solicitud
             </button>
           </div>
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-          <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
-            <h2 className="font-semibold text-slate-700 uppercase flex items-center gap-2 text-sm">
-              <Truck className="w-5 h-5 text-orange-600" />
-              SOLICITAR RECOLECCIÓN ESPECIAL
-            </h2>
-          </div>
-
-          <form className="p-6 space-y-5" onSubmit={handleSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de Desecho o Material *</label>
-                <select value={tipo} onChange={e => setTipo(e.target.value)}
-                  className="w-full text-sm border border-slate-300 rounded px-3 py-2.5 focus:ring-2 focus:ring-orange-500 bg-white" required>
-                  <option value="">Seleccione una opción...</option>
-                  <option value="Escombros y restos de construcción">Escombros y restos de construcción</option>
-                  <option value="Desechos vegetales (Tala y poda)">Desechos vegetales (Tala y poda)</option>
-                  <option value="Voluminosos (Muebles, colchones, enseres)">Voluminosos (Muebles, colchones, enseres)</option>
-                  <option value="Cauchos / Neumáticos">Cauchos / Neumáticos</option>
-                  <option value="Animales muertos">Animales muertos</option>
-                  <option value="Residuos de eventos especiales">Residuos de eventos especiales (Ferias, verbenas)</option>
-                  <option value="Otros materiales pesados o especiales">Otros materiales pesados o especiales</option>
-                </select>
-              </div>
-
+        ) : (
+          <form onSubmit={handleSubmit} className="p-6">
+            <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg mb-6 flex gap-3 text-sm text-blue-800">
+              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de Camión Requerido *</label>
-                <select value={camion} onChange={e => setCamion(e.target.value)}
-                  className="w-full text-sm border border-slate-300 rounded px-3 py-2.5 focus:ring-2 focus:ring-orange-500 bg-white" required>
-                  <option value="">Seleccione capacidad...</option>
-                  <option value="350">Camión 350</option>
-                  <option value="600">Camión 600</option>
-                  <option value="750">Camión 750</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Distancia del Servicio *</label>
-                <select value={distancia} onChange={e => setDistancia(e.target.value)}
-                  className="w-full text-sm border border-slate-300 rounded px-3 py-2.5 focus:ring-2 focus:ring-orange-500 bg-white" required>
-                  <option value="">Seleccione rango...</option>
-                  <option value="menor">Menor a 20 Kms</option>
-                  <option value="mayor">Mayor a 20 Kms</option>
-                </select>
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Dirección Exacta de Recolección *</label>
-                <input type="text" value={direccion} onChange={e => setDireccion(e.target.value)}
-                  className="w-full text-sm border border-slate-300 rounded px-3 py-2.5 focus:ring-2 focus:ring-orange-500"
-                  placeholder="Ej: Calle Principal, Frente a la plaza..." required />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Detalles adicionales</label>
-                <textarea rows={2} value={detalles} onChange={e => setDetalles(e.target.value)}
-                  className="w-full text-sm border border-slate-300 rounded px-3 py-2 focus:ring-2 focus:ring-orange-500"
-                  placeholder="Describa si se requiere maquinaria pesada, acceso difícil, etc." />
+                <p className="font-semibold mb-1">Información Importante</p>
+                <p>Las tarifas aplicadas se calculan automáticamente según la ordenanza vigente. Asegúrese de especificar las dimensiones correctas.</p>
               </div>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200 p-4 rounded-lg flex flex-col items-end">
-              <span className="text-sm font-medium text-slate-500">Cálculo de Tarifa (Tabla 3 Ordenanza)</span>
-              <div className="text-2xl font-black text-slate-800 mt-1">
-                {tarifaTCMV > 0 ? `Bs. ${costoTotalBs.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}` : '0.00 Bs'}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Tipo de Permiso</label>
+                <select 
+                  value={tipoPermiso}
+                  onChange={e => setTipoPermiso(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  required
+                >
+                  <option value="tala_poda">Tala y Poda de Árboles</option>
+                  <option value="limpieza">Limpieza de Terrenos</option>
+                  <option value="variables">Variables Urbanas (Ambiental)</option>
+                  <option value="constancias">Constancias y Renovaciones</option>
+                </select>
               </div>
-              {tarifaTCMV > 0 && <span className="text-xs text-slate-400 mt-1">Equivalente a {tarifaTCMV} TCMV</span>}
+
+              {tipoPermiso === 'tala_poda' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Altura Promedio</label>
+                    <select 
+                      value={altura}
+                      onChange={e => setAltura(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      required
+                    >
+                      <option value="hasta_3">Hasta 3 metros</option>
+                      <option value="4_a_5">De 4 a 5 metros</option>
+                      <option value="mayor_5">Mayor a 5 metros</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Unidades Arbóreas (Cantidad)</label>
+                    <input 
+                      type="number" 
+                      min="1"
+                      value={cantidad}
+                      onChange={e => setCantidad(parseInt(e.target.value) || 1)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      required
+                    />
+                  </div>
+                </>
+              )}
+
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Dirección de la solicitud</label>
+                <input 
+                  type="text" 
+                  value={direccion}
+                  onChange={e => setDireccion(e.target.value)}
+                  placeholder="Ej: Sector Las Quintas, Calle 4, Casa 12"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  required
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Detalles o Notas Adicionales (Opcional)</label>
+                <textarea 
+                  value={detalles}
+                  onChange={e => setDetalles(e.target.value)}
+                  placeholder="Cualquier información relevante para los inspectores..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 h-24 resize-none"
+                />
+              </div>
             </div>
 
-            <div className="flex justify-end pt-2">
-              <button type="submit" disabled={isSubmitting || tarifaTCMV === 0}
-                className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-6 py-2.5 rounded font-semibold text-sm disabled:opacity-50 transition-colors shadow-sm">
-                {isSubmitting ? 'Enviando...' : <><Send className="w-4 h-4" /> Enviar Solicitud</>}
+            <div className="bg-slate-50 p-6 rounded-lg border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-6">
+              <div>
+                <p className="text-sm font-bold text-slate-500 uppercase mb-1">Costo Estimado del Permiso</p>
+                <p className="text-3xl font-black text-slate-900">{formatBs(costoTotalBs)}</p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Base cálculo: {tarifaTCMV} U.M.M.V. × Tasa BCV ({tasaBcv.toFixed(2)})
+                </p>
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={isSubmitting || tarifaTCMV === 0}
+                className="w-full sm:w-auto px-8 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <span className="flex items-center gap-2"><RefreshCw className="w-5 h-5 animate-spin" /> Procesando...</span>
+                ) : (
+                  <span className="flex items-center gap-2"><Send className="w-5 h-5" /> Enviar Solicitud</span>
+                )}
               </button>
             </div>
+
           </form>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

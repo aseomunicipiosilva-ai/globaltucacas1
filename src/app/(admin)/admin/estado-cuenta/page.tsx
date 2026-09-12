@@ -294,6 +294,7 @@ export default function EstadoCuentaPage() {
     let montoPendiente: number | undefined = undefined;
     let esAbono = false;
     let historialPagos: any[] | undefined = undefined;
+    let tasaBcvAplicada: number | undefined = undefined;
 
     // Obtener mes y año
     let mesTexto = '---';
@@ -347,6 +348,7 @@ export default function EstadoCuentaPage() {
           const pago = pagos[0]; // The latest payment
           const det = parseDetalles(pago.detalles);
           const tipoP = pago.tipo || '';
+          tasaBcvAplicada = det.tasa_bcv || pago.tasa_bcv || undefined;
           formaPagoStr = (tipoP === 'Debito' || tipoP.toLowerCase().includes('punto')) ? 'PUNTO DE VENTA' : 'TRANSFERENCIA';
           bancoReal = pago.banco || '---';
           referenciaReal = pago.referencia || '---';
@@ -462,6 +464,7 @@ export default function EstadoCuentaPage() {
       montoCancelado,
       montoPendiente,
       historialPagos: typeof historialPagos !== 'undefined' ? historialPagos : undefined,
+      tasaBcv: tasaBcvAplicada,
     });
   };
 

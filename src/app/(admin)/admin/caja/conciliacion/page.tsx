@@ -102,13 +102,25 @@ function ModalComprobante({ pago, onClose }: { pago: Pago; onClose: () => void }
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h2 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Archivos Adjuntos</h2>
+          <h2 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Detalles de la Conciliación</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
         </div>
         <div className="p-6">
-          <div className="bg-blue-600 text-white rounded-lg px-4 py-2 mb-4 text-sm font-semibold">
-            Listado de Adjuntos del usuario {label}
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+              <p className="text-xs font-bold text-slate-500 uppercase mb-1">Monto Reportado</p>
+              <p className="text-lg font-black text-slate-800">
+                Bs. {parseFloat(String(pago.monto || '0').replace(/[^0-9.]/g, '')).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}
+              </p>
+            </div>
+            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+              <p className="text-xs font-bold text-slate-500 uppercase mb-1">Tasa Utilizada</p>
+              <p className="text-lg font-black text-slate-800">
+                {det.tasa_bcv ? 'Bs. ' + Number(det.tasa_bcv).toFixed(2) : '---'}
+              </p>
+            </div>
           </div>
+          <h3 className="text-sm font-bold text-slate-800 uppercase mb-3">Archivos Adjuntos ({label})</h3>
           {loading ? (
             <div className="text-center py-8 text-slate-400">Cargando archivos...</div>
           ) : archivos.length === 0 ? (
@@ -177,8 +189,18 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
 
         if (inms && inms.length > 0) {
           // Calcular totales
-          const deudaTotal = inms.reduce((a: number, i: any) =>
-            a + (parseFloat(i.deuda_congelada_bs || '0') || 0) + (parseFloat(i.deuda_mmv || '0') || 0), 0);
+          // DEUDA TOTAL CALCULADA DE FACTURAS EN LUGAR DE INMUEBLES
+          let deudaTotal = 0;
+          try {
+            const { data: facs } = await supabase
+              .from('facturas')
+              .select('monto')
+              .or(`identidad.eq.${pago.identidad},identidad.eq.${idLimpio}`)
+              .in('estado', ['Pendiente', 'Por Verificar']);
+            if (facs) {
+              deudaTotal = facs.reduce((a, f) => a + (parseFloat(String(f.monto || '0').replace(/[^0-9.]/g,'')) || 0), 0);
+            }
+          } catch(e) {}
           const saldoFavor = inms.reduce((a: number, i: any) =>
             a + (parseFloat(i.saldo_favor_bs || '0') || 0), 0);
           const codInmDet = det.cod_inmueble || pago.cod_inmueble;
@@ -688,10 +710,14 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
             </div>
 
             {/* CONCILIACIÓN */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               <div>
                 <label className={lc}>Monto Reportado</label>
                 <input value={fmt(montoReportadoNum)} readOnly className={icRO + ' font-bold text-slate-800'}/>
+              </div>
+              <div>
+                <label className={lc}>Tasa Utilizada</label>
+                <input value={det.tasa_bcv ? 'Bs. ' + Number(det.tasa_bcv).toFixed(2) : '---'} readOnly className={icRO + ' text-slate-600'}/>
               </div>
               <div>
                 <label className={lc}>Estatus de Conciliación</label>
