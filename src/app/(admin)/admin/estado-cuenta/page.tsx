@@ -289,6 +289,7 @@ export default function EstadoCuentaPage() {
     let montoCancelado: number | undefined = undefined;
     let montoPendiente: number | undefined = undefined;
     let esAbono = false;
+    let historialPagos: any[] | undefined = undefined;
 
     // Obtener mes y año
     let mesTexto = '---';
@@ -327,7 +328,6 @@ export default function EstadoCuentaPage() {
       montoNumerico = montoCancelado; // el recibo muestra lo que SE CANCELÓ
       esAbono = true;
     } else if (row.referencia) {
-      let historialPagos: any[] = [];
       try {
         const { data: pagos } = await supabase
           .from('pagos_reportados')
