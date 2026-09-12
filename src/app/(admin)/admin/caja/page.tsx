@@ -194,7 +194,18 @@ export default function CajaPage() {
     });
     
     if (user) {
-      setFoundUser(user);
+      // Obtener saldo_favor_bs fresco desde Supabase (el contexto puede estar desactualizado
+      // si hubo conciliaciones o notas de crédito posteriores a la carga inicial)
+      const { data: inmFresh } = await supabase
+        .from('inmuebles')
+        .select('saldo_favor_bs')
+        .or(`identidad.eq.${user.Identidad},identidad.eq.${cleanFullDoc}`);
+      
+      const saldoFavorFresh = (inmFresh || []).reduce(
+        (sum: number, i: any) => sum + (parseFloat(i.saldo_favor_bs || '0') || 0), 0
+      );
+      
+      setFoundUser({ ...user, SaldoFavor: saldoFavorFresh });
       
       // Consulta directa a Supabase: siempre fresca, incluye todas las CM- mensuales
       const { data: allUserFacturas } = await supabase
