@@ -26,12 +26,23 @@ export default function ReportesPage() {
   const [selectedCajero, setSelectedCajero] = useState('Todos');
   const [cajerosDisponibles, setCajerosDisponibles] = useState<string[]>([]);
   const [currentUser, setCurrentUser] = useState('Administrador');
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     // Fetch base data for reports
     const user = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'Administrador';
     setCurrentUser(user);
-    if (user !== 'Administrador') setSelectedCajero(user);
+    let adminCheck = false;
+    if (typeof window !== 'undefined') {
+      try {
+        const userData = JSON.parse(localStorage.getItem('admin_user_data') || '{}');
+        if (userData.rol === 'Administrador' || userData.rol === 'SuperAdmin' || user === 'Administrador' || user === 'dzara') {
+          adminCheck = true;
+        }
+      } catch(e) {}
+    }
+    setIsAdmin(adminCheck);
+    if (!adminCheck) setSelectedCajero(user);
     const loadPagos = async () => {
       const { data } = await supabase.from('pagos_reportados').select('*').order('created_at', { ascending: false });
       if (data) {
@@ -154,7 +165,7 @@ export default function ReportesPage() {
               className="border rounded p-2 text-sm max-w-[150px]"
               value={selectedCajero}
               onChange={e => setSelectedCajero(e.target.value)}
-              disabled={currentUser !== 'Administrador'}
+              disabled={!isAdmin}
             >
               <option value="Todos">Todos (Unificado)</option>
               {cajerosDisponibles.map(c => <option key={c} value={c}>{c}</option>)}
@@ -188,7 +199,7 @@ export default function ReportesPage() {
             <h2 className="font-bold text-lg text-slate-800">Caja e Ingresos</h2>
           </div>
           <div className="space-y-3">
-            {currentUser === 'Administrador' && (
+            {isAdmin && (
               <>
                 <button onClick={() => generarLibroVentas('Diario')} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-blue-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
                   Libro de Ventas Diario <Download className="w-4 h-4 text-blue-500" />
@@ -211,7 +222,7 @@ export default function ReportesPage() {
               Cuadre de Caja (PDF) <FileText className="w-4 h-4 text-emerald-500" />
             </button>
             
-            {currentUser === 'Administrador' && (
+            {isAdmin && (
               <>
                 <hr className="my-2" />
                 <button onClick={() => generarIngresoBancario('Diario')} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-red-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
@@ -228,7 +239,7 @@ export default function ReportesPage() {
           </div>
         </div>
 
-        {currentUser === 'Administrador' && (
+        {isAdmin && (
           <>
             {/* MODULO FISCALIZACION */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
