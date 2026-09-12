@@ -4,6 +4,7 @@ import { DataTable } from '@/components/DataTable';
 import { FileSpreadsheet, Download, Filter, RefreshCw, Zap, Printer, X, CheckCircle, XCircle } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
+import { logAudit } from '@/lib/audit';
 import tarifasData from '@/data/tarifas.json';
 import { ReciboImprimible } from '@/components/ReciboImprimible';
 
