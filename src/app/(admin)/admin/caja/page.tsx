@@ -33,7 +33,7 @@ export default function CajaPage() {
   const [totalBs, setTotalBs] = useState(0);
 
   // Payment State
-  const [paymentMethod, setPaymentMethod] = useState<'Debito' | 'Transferencia'>('Debito');
+  const [paymentMethod, setPaymentMethod] = useState<'Debito' | 'Transferencia' | 'Saldo a Favor'>('Debito');
   const [referenciaDebito, setReferenciaDebito] = useState('');
   const [montoDebito, setMontoDebito] = useState<string>(''); // Monto manual punto de venta
   const [banco, setBanco] = useState('Banco de Venezuela');
@@ -430,6 +430,14 @@ export default function CajaPage() {
       if (montoDebito && parseFloat(montoDebito) > 0) {
         montoReal = parseFloat(montoDebito);
       }
+    } else if (paymentMethod === 'Saldo a Favor') {
+      // Validar que el contribuyente tenga saldo suficiente para cubrir la deuda
+      const saldoDisponible = foundUser?.SaldoFavor || 0;
+      if (saldoDisponible <= 0) return alert("El contribuyente no tiene Saldo a Favor disponible.");
+      if (saldoDisponible < finalTotal) {
+        return alert(`Saldo a Favor insuficiente. Disponible: Bs. ${formatBs(saldoDisponible)}. Deuda: Bs. ${formatBs(finalTotal)}. Use otro método de pago o un pago combinado.`);
+      }
+      montoReal = finalTotal; // Se paga exactamente lo que se debe
     }
     
     if (customBcvRate && !justificacionBcv.trim()) {
@@ -489,7 +497,7 @@ export default function CajaPage() {
         }
       }
 
-      const isAutoAprobado = ['Debito'].includes(paymentMethod);
+      const isAutoAprobado = ['Debito', 'Saldo a Favor'].includes(paymentMethod);
       // Detect abono: montoDebito provided and < totalBs
       const esAbonoDebito = !!(montoDebito && parseFloat(montoDebito) > 0 && parseFloat(montoDebito) < totalBs - 0.01);
 
@@ -1249,6 +1257,9 @@ export default function CajaPage() {
                 >
                   <option value="Debito">Punto de Venta (TD/TC)</option>
                   <option value="Transferencia">Transferencia Bancaria</option>
+                  {(foundUser?.SaldoFavor || 0) > 0 && (
+                    <option value="Saldo a Favor">💳 Saldo a Favor (Bs. {formatBs(foundUser?.SaldoFavor || 0)})</option>
+                  )}
                   </select>
               </label>
 
