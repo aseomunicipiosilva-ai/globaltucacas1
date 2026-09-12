@@ -31,7 +31,7 @@ export default function EstadoCuentaPage() {
   };
 
   const filteredFacturas = facturas
-    .filter((f: any) => filterStatus === 'Todos' || f.estado === filterStatus)
+    .filter((f: any) => f.estado === 'Pagado')
     .sort((a: any, b: any) => {
       const dA = new Date(a.emision || '1900-01-01').getTime();
       const dB = new Date(b.emision || '1900-01-01').getTime();
@@ -698,20 +698,9 @@ export default function EstadoCuentaPage() {
           <div className="flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5 text-slate-700" />
             <h1 className="text-lg font-semibold text-slate-800 uppercase tracking-wide">
-              Estado de Cuenta General
+              Estado de Cuenta General (Pagados)
             </h1>
           </div>
-          <select 
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="border border-slate-200 rounded-md px-3 py-1.5 text-sm bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="Todos">Todos los Estados</option>
-            <option value="Pendiente">Pendiente</option>
-            <option value="Pagado">Pagado (Conciliado)</option>
-            <option value="Anulado">Anulado</option>
-            <option value="Reversado">Reversado</option>
-          </select>
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
@@ -1035,7 +1024,7 @@ export default function EstadoCuentaPage() {
           <div className="bg-indigo-50 px-6 py-4 border-b border-indigo-100 flex items-center justify-between">
             <div>
               <h2 className="text-base font-bold text-indigo-800">Historial de Pagos Realizados</h2>
-              <p className="text-xs text-indigo-600 mt-0.5">Incluye pagos completos, abonos fraccionados y pagos por verificar</p>
+              <p className="text-xs text-indigo-600 mt-0.5">Incluye solo pagos completos (excluye abonos)</p>
             </div>
             <button onClick={fetchHistorial} className="text-indigo-400 hover:text-indigo-600 transition-colors" title="Refrescar">
               <RefreshCw size={16} className={loadingPagos ? 'animate-spin' : ''} />
@@ -1060,7 +1049,7 @@ export default function EstadoCuentaPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {pagosHistorial.map((pago: any, idx: number) => {
+                  {pagosHistorial.filter((p: any) => parseDetalles(p.detalles).es_abono !== true).map((pago: any, idx: number) => {
                     const det = parseDetalles(pago.detalles);
                     const esAbono = det.es_abono === true;
                     const metodo = pago.tipo === 'Debito' ? 'Punto de Venta' : pago.tipo || '---';
