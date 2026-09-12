@@ -705,11 +705,23 @@ export default function CajaPage() {
         setSuccessMsg(`${paymentMethod} registrado(a). Ha sido enviado(a) al módulo de Facturación para su conciliación automática o manual.`);
       }
 
-      // Reset
-      setTimeout(() => {
+      // Refrescar datos del contribuyente sin salir de la pantalla
+      setTimeout(async () => {
         setSuccessMsg('');
-        window.location.reload(); // Refresh entire context
-      }, 3000);
+        // Limpiar selección y campos de pago
+        setSelectedRecibos([]);
+        setSelectedCuotas([]);
+        setSelectedServicios([]);
+        setSelectedTalaPoda([]);
+        setReferencia('');
+        setReferenciaDebito('');
+        setMontoDebito('');
+        setMontoTransferido('');
+        setComprobante(null);
+        setTotalBs(0);
+        // Recargar deuda actualizada del mismo contribuyente
+        await handleSearch();
+      }, 2500);
       
     } catch (err: any) {
       console.error(err);
