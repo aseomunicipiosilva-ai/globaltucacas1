@@ -29,7 +29,7 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
   useEffect(() => {
     if (!isAuthenticated) return;
     
-    let timeoutId;
+    let timeoutId: NodeJS.Timeout;
 
     const resetTimer = () => {
       clearTimeout(timeoutId);
