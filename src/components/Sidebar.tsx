@@ -84,11 +84,11 @@ export default function Sidebar() {
 
   return (
     <aside className="w-64 bg-[#111827] h-screen text-slate-300 flex flex-col fixed left-0 top-0 z-50">
-      <div className="h-20 flex items-center justify-center border-b border-white/10 bg-[#111827] px-4">
+      <div className="flex items-center justify-center border-b border-white/10 bg-[#111827] px-4 py-4">
         <img
           src="/logos/logo_global_rec.png"
           alt="Global Rec"
-          className="h-12 w-auto object-contain"
+          className="w-40 max-w-full h-auto object-contain"
           style={{ filter: 'brightness(0) invert(1)' }}
         />
       </div>
