@@ -55,7 +55,7 @@ export async function POST(request: Request) {
           <p style="font-size: 14px; color: #64748b;">Si usted no solicitó este cambio, puede ignorar este correo de forma segura. El enlace expirará en 1 hora.</p>
         </div>
         <div style="background-color: #f8fafc; padding: 15px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #eaeaea;">
-          &copy; ${new Date().getFullYear()} Sistema Integrado de Recaudación Municipal
+          &copy; ${new Date().getFullYear()} Sistema Integral de Recaudación Tributaria Municipal
         </div>
       </div>
     `;

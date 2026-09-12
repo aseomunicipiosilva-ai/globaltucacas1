@@ -11,10 +11,10 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: "Global Rec Mun Silva",
-  description: "Sistema Integrado de Recaudación Municipal para el Municipio Silva.",
+  description: "Sistema Integral de Recaudación Tributaria Municipal para el Municipio Silva.",
   openGraph: {
     title: "Global Rec Mun Silva",
-    description: "Accede al Sistema Integrado de Recaudación del Municipio Silva. Autogestión en línea para contribuyentes y operadores.",
+    description: "Accede al Sistema Integral de Recaudación Tributaria Municipal del Municipio Silva. Autogestión en línea para contribuyentes y operadores.",
     url: "https://aseosilva.globalrecca.com",
     siteName: "Global Rec Mun Silva",
     locale: "es_VE",

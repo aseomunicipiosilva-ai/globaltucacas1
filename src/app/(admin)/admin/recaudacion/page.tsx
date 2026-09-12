@@ -49,7 +49,7 @@ export default function RecaudacionDashboard() {
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8 text-center mt-8">
         <Landmark className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-        <h2 className="text-xl font-bold text-slate-700 mb-2">Bienvenido al Sistema Integrado de Hacienda</h2>
+        <h2 className="text-xl font-bold text-slate-700 mb-2">Bienvenido al Sistema Integral de Recaudación Tributaria Municipal</h2>
         <p className="text-slate-500 max-w-2xl mx-auto mb-6">
           Desde este panel podrás gestionar las actividades económicas, patentes, catastro, registro vehicular, servicios públicos y multas del municipio.
         </p>

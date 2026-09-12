@@ -219,7 +219,7 @@ export default function Home() {
           <div className="header-left">
             <div className="header-accent" />
             <div>
-              {['SISTEMA INTEGRADO','DE ADMINISTRACIÓN','PÚBLICA MUNICIPAL'].map((line,i) => (
+              {['SISTEMA INTEGRAL','DE RECAUDACIÓN','TRIBUTARIA MUNICIPAL'].map((line,i) => (
                 <div key={i} className="header-title">{line}</div>
               ))}
             </div>
