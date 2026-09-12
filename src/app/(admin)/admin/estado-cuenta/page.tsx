@@ -851,68 +851,7 @@ export default function EstadoCuentaPage() {
 
         <DataTable data={filteredFacturas} columns={columns} itemsPerPage={10} />
 
-        {/* Abonos Realizados */}
-        {abonosAprobados.length > 0 && (
-          <div className="mt-6 bg-white rounded-xl border border-amber-200 shadow-sm overflow-hidden">
-            <div className="bg-amber-50 px-4 py-3 border-b border-amber-100 flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-amber-800 text-sm">Abonos Parciales Realizados</h3>
-                <p className="text-xs text-amber-600">Pagos fraccionados aprobados ΓÇö haz clic en ≡ƒû¿∩╕Å para generar el recibo del abono</p>
-              </div>
-              <button onClick={fetchAbonos} className="text-amber-400 hover:text-amber-600 transition-colors" title="Refrescar">
-                <RefreshCw size={14} />
-              </button>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-amber-50 text-amber-700 font-medium text-[11px] uppercase">
-                  <tr>
-                    <th className="px-4 py-2">Fecha</th>
-                    <th className="px-4 py-2">Contribuyente</th>
-                    <th className="px-4 py-2">Monto Abonado (Bs)</th>
-                    <th className="px-4 py-2">M├⌐todo</th>
-                    <th className="px-4 py-2">Estado</th>
-                    <th className="px-4 py-2">Recibo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {abonosAprobados.map((abono: any, idx: number) => {
-                    const det = parseDetalles(abono.detalles);
-                    const metodo = abono.tipo === 'Debito' ? 'Punto de Venta' : abono.tipo || '---';
-                    const recibosAfectados: string[] = det.recibos || [];
-                    // Find the matching factura (first one in the list) to build receipt
-                    const facturaRef = recibosAfectados[0];
-                    const facturaRow = facturas.find((f: any) => f.referencia === facturaRef);
-                    return (
-                      <tr key={idx} className="border-b border-slate-100 last:border-0 hover:bg-amber-50/30">
-                        <td className="px-4 py-2 text-slate-500 text-xs">{abono.created_at ? new Date(abono.created_at).toLocaleDateString('es-VE') : '---'}</td>
-                        <td className="px-4 py-2 font-medium text-slate-700">{abono.identidad}</td>
-                        <td className="px-4 py-2 font-bold text-amber-700">Bs. {Number(abono.monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
-                        <td className="px-4 py-2">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${metodo === 'Punto de Venta' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>{metodo}</span>
-                        </td>
-                        <td className="px-4 py-2">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${abono.estado === 'Aprobado' ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'}`}>{abono.estado}</span>
-                        </td>
-                        <td className="px-4 py-2">
-                          {facturaRow && (
-                            <button
-                              onClick={() => handleOpenRecibo(facturaRow, abono)}
-                              className="bg-blue-50 text-blue-600 hover:bg-blue-100 px-2 py-1 rounded text-xs flex items-center gap-1 border border-blue-200 transition-colors"
-                              title="Generar recibo del abono"
-                            >
-                              <Printer size={12} /> Recibo
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        {/* Abonos Realizados Removed per user request */}
 
       </>
       )}
