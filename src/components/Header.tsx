@@ -1,7 +1,7 @@
 'use client';
 import { Power } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-
+import { logAudit } from '@/lib/audit';
 export default function Header() {
   const router = useRouter();
   
@@ -16,7 +16,13 @@ export default function Header() {
           <div className="text-xs text-slate-300">Última Conexión: Hoy</div>
         </div>
         <button 
-          onClick={() => router.push('/')}
+          onClick={() => {
+            logAudit('Logout (Cierre Manual)');
+            localStorage.removeItem('adminUser');
+            localStorage.removeItem('adminLetra');
+            localStorage.removeItem('adminToken');
+            router.push('/');
+          }}
           className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-full transition-colors"
           title="Cerrar sesión"
         >

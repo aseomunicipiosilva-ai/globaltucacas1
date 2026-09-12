@@ -22,6 +22,7 @@ import { DebtAdjustmentModal } from '@/components/DebtAdjustmentModal';
 import { logos } from '@/lib/logosBase64';
 import { exportToExcelWithLogos } from '@/lib/excelExport';
 import { createClient } from '@supabase/supabase-js';
+import { logAudit } from '@/lib/audit';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;

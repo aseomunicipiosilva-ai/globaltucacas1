@@ -1,36 +1,25 @@
-import { supabase } from './supabase';
+import { createClient } from '@supabase/supabase-js';
 
-export interface AuditLog {
-  user_id: string;
-  action: string;
-  ip_address: string;
-  details?: string;
-}
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-/**
- * Registra una acción en la tabla de auditoría
- */
-export async function logAudit(data: AuditLog) {
+export const logAudit = async (accion: string, detalles: any = {}) => {
   try {
-    const { error } = await supabase
-      .from('audit_logs')
-      .insert([
-        {
-          user_id: data.user_id,
-          action: data.action,
-          ip_address: data.ip_address,
-          details: data.details,
-          created_at: new Date().toISOString(),
-        }
-      ]);
-
-    if (error) {
-      console.error('Error logging audit:', error);
-      return false;
+    let usuario = 'SISTEMA';
+    if (typeof window !== 'undefined') {
+      const u = localStorage.getItem('adminUser');
+      const l = localStorage.getItem('adminLetra');
+      if (u) {
+        usuario = l ? `${l}-${u}` : u;
+      }
     }
-    return true;
-  } catch (err) {
-    console.error('Unexpected error logging audit:', err);
-    return false;
+    await supabase.from('auditoria').insert([{
+      usuario,
+      accion,
+      detalles
+    }]);
+  } catch (e) {
+    console.error('Audit Log Error:', e);
   }
-}
+};

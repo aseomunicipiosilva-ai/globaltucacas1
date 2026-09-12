@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Lock, User, AlertCircle , Eye, EyeOff} from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
+import { logAudit } from '@/lib/audit';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -24,6 +25,36 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
     setLoading(false);
   }, []);
 
+  // AUTO LOGOUT LOGIC (45 SECONDS)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    let timeoutId;
+
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        logAudit('Logout (Inactividad 45s)');
+        localStorage.removeItem('admin_auth_andministrador');
+        localStorage.removeItem('admin_user_data');
+        localStorage.removeItem('adminUser');
+        localStorage.removeItem('adminLetra');
+        localStorage.removeItem('adminToken');
+        setIsAuthenticated(false);
+        window.location.href = '/admin'; // Force full reload to login screen
+      }, 45000); // 45 seconds
+    };
+
+    const events = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'];
+    events.forEach(e => window.addEventListener(e, resetTimer));
+    resetTimer(); // Start the timer
+
+    return () => {
+      clearTimeout(timeoutId);
+      events.forEach(e => window.removeEventListener(e, resetTimer));
+    };
+  }, [isAuthenticated]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAuthenticating(true);
@@ -32,8 +63,10 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
     if (username.toLowerCase() === 'dzara' && (password === 'dzara' || password === 'andministrador')) {
       localStorage.setItem('admin_auth_andministrador', 'true');
       localStorage.setItem('admin_user_data', JSON.stringify({ nombre: 'Administrador Sistema', rol: 'Administrador', usuario: 'dzara' }));
+      localStorage.setItem('adminUser', 'dzara');
       setIsAuthenticated(true);
       setIsAuthenticating(false);
+      logAudit('Login Exitoso (Master)', { usuario: 'dzara' });
       return;
     }
 
@@ -54,9 +87,12 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
       if (data.clave === password) {
         localStorage.setItem('admin_auth_andministrador', 'true');
         localStorage.setItem('admin_user_data', JSON.stringify(data));
+        localStorage.setItem('adminUser', data.usuario);
         setIsAuthenticated(true);
+        logAudit('Login Exitoso', { usuario: data.usuario, rol: data.rol });
       } else {
         setError('Contraseña incorrecta');
+        logAudit('Intento de Login Fallido', { usuario: username, error: 'Contraseña incorrecta' });
       }
     } catch (err) {
       console.error(err);

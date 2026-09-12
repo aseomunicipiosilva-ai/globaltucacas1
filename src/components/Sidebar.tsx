@@ -68,7 +68,8 @@ export default function Sidebar() {
     { icon: FileCheck, name: 'Contrataciones', href: '/admin/administracion/contrataciones' },
     { icon: Package, name: 'Almacén e Inventario', href: '/admin/administracion/almacen' },
     { icon: Building2, name: 'Bienes Nacionales', href: '/admin/administracion/bienes' },
-    { icon: Target, name: 'Plan Operativo Anual', href: '/admin/administracion/poa' }
+    { icon: Target, name: 'Plan Operativo Anual', href: '/admin/administracion/poa' },
+    { icon: ShieldAlert, name: 'Auditoría', href: '/admin/auditoria' }
   ];
 
   let activeMenu = menuAseo;
