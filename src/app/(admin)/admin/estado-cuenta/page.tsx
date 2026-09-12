@@ -353,6 +353,7 @@ export default function EstadoCuentaPage() {
 
           // Build historialPagos if there is more than 1 payment, or if it's an Abono
           if (pagos.length > 1 || (pagos.length === 1 && det.es_abono === true)) {
+            let sumTotal = 0;
             historialPagos = pagos.map(p => {
               const pDet = parseDetalles(p.detalles);
               let pTipo = p.tipo || '';
@@ -364,14 +365,23 @@ export default function EstadoCuentaPage() {
                 if (parts.length === 3) pFecha = `${parts[2]}/${parts[1]}/${parts[0]}`;
                 else pFecha = pDet.fecha_transaccion;
               }
+              const pMonto = parseFloat(String(p.monto || '0').replace(/[^\d.]/g, '')) || 0;
+              sumTotal += pMonto;
               return {
                 formaPago: pFormaPagoStr,
                 banco: p.banco || '---',
                 referencia: p.referencia || '---',
-                monto: parseFloat(String(p.monto || '0').replace(/[^\d.]/g, '')) || 0,
+                monto: pMonto,
                 fecha: pFecha
               };
             }).reverse(); // chronological order
+
+            if (row.estado === 'Pagado') {
+              montoNumerico = sumTotal; // The total of the receipt is the sum of all payments for this invoice
+              formaPagoStr = 'PAGO MULTIPLE'; // Optional: indicate it was paid in parts
+              bancoReal = 'MULTIPLES BANCOS';
+              referenciaReal = 'VARIAS REFERENCIAS';
+            }
           }
         }
       } catch {
