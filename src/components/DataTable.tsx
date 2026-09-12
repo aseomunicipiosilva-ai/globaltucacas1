@@ -130,20 +130,25 @@ export function DataTable<T extends Record<string, any>>({ data, columns, itemsP
             disabled={currentPage === 1}
             className="p-1 rounded border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40"
           ><ChevronLeft className="w-4 h-4" /></button>
-          {/* Page numbers */}
-          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-            let pg = currentPage - 2 + i;
-            if (pg < 1) pg = i + 1;
-            if (pg > totalPages) pg = totalPages - (4 - i);
-            if (pg < 1 || pg > totalPages) return null;
-            return (
+          {/* Page numbers — ventana de hasta 5 páginas sin duplicados */}
+          {(() => {
+            if (totalPages <= 1) return null;
+            const maxVisible = 5;
+            let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+            let end = start + maxVisible - 1;
+            if (end > totalPages) {
+              end = totalPages;
+              start = Math.max(1, end - maxVisible + 1);
+            }
+            return Array.from({ length: end - start + 1 }, (_, i) => start + i).map(pg => (
               <button
                 key={pg}
                 onClick={() => goToPage(pg)}
                 className={`px-2.5 py-1 text-xs rounded border ${currentPage === pg ? 'bg-blue-500 text-white border-blue-500' : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'}`}
               >{pg}</button>
-            );
-          })}
+            ));
+          })()}
+
           <button
             onClick={() => goToPage(currentPage + 1)}
             disabled={currentPage >= totalPages || totalPages === 0}
