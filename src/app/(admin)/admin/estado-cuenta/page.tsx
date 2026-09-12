@@ -607,16 +607,30 @@ export default function EstadoCuentaPage() {
       return;
     }
     try {
+      const nuevoEstado = actionModal.action === 'Condonar' ? 'Condonado' : actionModal.action === 'Anular' ? 'Anulado' : 'Reversado';
+      const cajero = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'Administrador';
+      let detallesActuales: any = {};
+      try { detallesActuales = JSON.parse(actionModal.factura.detalles || '{}'); } catch(e) {}
+      const nuevoDetalles = JSON.stringify({
+        ...detallesActuales,
+        nota_anulacion: actionModal.nota,
+        accion: actionModal.action,
+        usuario_accion: cajero,
+        fecha_accion: new Date().toISOString(),
+        referencia_original: actionModal.factura.referencia,
+      });
       const { error } = await supabase.from('facturas').update({
-        estado: actionModal.action === 'Condonar' ? 'Condonado' : actionModal.action === 'Anular' ? 'Anulado' : 'Reversado',
-        nota: actionModal.nota
+        estado: nuevoEstado,
+        detalles: nuevoDetalles
       }).eq('id', actionModal.factura.id);
       
       if (error) throw error;
       
+      try { await supabase.from('audit_logs').insert({ usuario: cajero, accion: `FACTURA_${actionModal.action.toUpperCase()}`, detalles: `Factura ${actionModal.factura.referencia} ${nuevoEstado.toLowerCase()}. Motivo: ${actionModal.nota}` }); } catch(ae) {}
+      
       alert(`Factura ${actionModal.action.toLowerCase()}a correctamente.`);
       setActionModal({ isOpen: false, action: 'Anular', factura: null, nota: '' });
-      window.location.reload(); // Quick refresh to reflect changes, or context refresh
+      window.location.reload()
     } catch (e: any) {
       alert("Error: " + e.message);
     }
@@ -642,15 +656,26 @@ export default function EstadoCuentaPage() {
         return `Bs. ${monto.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
       }
     },
-    { key: 'estado', header: 'Estado', render: (row: any) => (
-      <span className={`px-2 py-1 rounded text-xs font-semibold ${
-        row.estado === 'Pagado' ? 'bg-green-100 text-green-700' :
-        row.estado === 'Pendiente' ? 'bg-yellow-100 text-yellow-700' :
-        row.estado === 'Anulado' ? 'bg-red-100 text-red-700' :
-        row.estado === 'Reversado' ? 'bg-orange-100 text-orange-700' :
-        'bg-slate-100 text-slate-700'
-      }`}>{row.estado}</span>
-    ) },
+    { key: 'estado', header: 'Estado', render: (row: any) => {
+      let det: any = {};
+      try { det = JSON.parse(row.detalles || '{}'); } catch(e) {}
+      return (
+        <div>
+          <span className={`px-2 py-1 rounded text-xs font-semibold ${
+            row.estado === 'Pagado' ? 'bg-green-100 text-green-700' :
+            row.estado === 'Pendiente' ? 'bg-yellow-100 text-yellow-700' :
+            row.estado === 'Anulado' ? 'bg-red-100 text-red-700' :
+            row.estado === 'Reversado' ? 'bg-orange-100 text-orange-700' :
+            'bg-slate-100 text-slate-700'
+          }`}>{row.estado}</span>
+          {det.nota_anulacion && (
+            <div className="text-[10px] text-red-600 mt-0.5 max-w-[180px]" title={`${det.accion}: ${det.nota_anulacion}`}>
+              ⚠ {det.nota_anulacion}
+            </div>
+          )}
+        </div>
+      );
+    } },
     { key: 'emision', header: 'F. Emisi├│n' },
     { key: 'vencimiento', header: 'F. Vencimiento' },
     { key: 'actions', header: 'Acciones', render: (row: any) => (
