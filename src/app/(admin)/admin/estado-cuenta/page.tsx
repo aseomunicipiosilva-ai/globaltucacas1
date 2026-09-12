@@ -329,13 +329,17 @@ export default function EstadoCuentaPage() {
       esAbono = true;
     } else if (row.referencia) {
       try {
-        const { data: pagos } = await supabase
+        const { data: pagosData } = await supabase
           .from('pagos_reportados')
           .select('*')
-          .ilike('detalles', `%${row.referencia}%`)
+          .eq('identidad', row.identidad)
           .order('created_at', { ascending: false });
 
-        if (pagos && pagos.length > 0) {
+        if (pagosData) {
+          const pagos = pagosData.filter(p => {
+             const d = typeof p.detalles === 'string' ? (() => { try { return JSON.parse(p.detalles); } catch(e) { return {}; } })() : p.detalles;
+             return JSON.stringify(d || {}).includes(row.referencia);
+          });
           const pago = pagos[0]; // The latest payment
           const det = parseDetalles(pago.detalles);
           const tipoP = pago.tipo || '';
