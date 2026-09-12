@@ -158,6 +158,12 @@ export default function ReportesPage() {
             >
               <option value="Todos">Todos (Unificado)</option>
               {cajerosDisponibles.map(c => <option key={c} value={c}>{c}</option>)}
+              {!cajerosDisponibles.includes('Caja 1') && <option value="Caja 1">Caja 1</option>}
+              {!cajerosDisponibles.includes('Caja 2') && <option value="Caja 2">Caja 2</option>}
+              {!cajerosDisponibles.includes('Caja 3') && <option value="Caja 3">Caja 3</option>}
+              {!cajerosDisponibles.includes('Caja 4') && <option value="Caja 4">Caja 4</option>}
+              {!cajerosDisponibles.includes('Caja 5') && <option value="Caja 5">Caja 5</option>}
+              {!cajerosDisponibles.includes('Caja 6') && <option value="Caja 6">Caja 6</option>}
             </select>
           </div>
           <div className="flex flex-col">
@@ -179,87 +185,100 @@ export default function ReportesPage() {
             <div className="p-3 bg-blue-100 text-blue-600 rounded-lg">
               <FileSpreadsheet className="w-6 h-6" />
             </div>
-            <h2 className="font-bold text-lg text-slate-800">Módulo Caja (Ingresos)</h2>
+            <h2 className="font-bold text-lg text-slate-800">Caja e Ingresos</h2>
           </div>
           <div className="space-y-3">
-            <button onClick={() => generarLibroVentas('Diario')} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-blue-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
-              Libro de Ventas Diario <Download className="w-4 h-4 text-blue-500" />
-            </button>
-            <button onClick={() => generarLibroVentas('Semanal')} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-blue-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
-              Libro de Ventas Semanal <Download className="w-4 h-4 text-blue-500" />
-            </button>
-            <button onClick={() => generarLibroVentas('Mensual')} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-blue-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
-              Libro de Ventas Mensual <Download className="w-4 h-4 text-blue-500" />
-            </button>
-            <hr className="my-2" />
+            {currentUser === 'Administrador' && (
+              <>
+                <button onClick={() => generarLibroVentas('Diario')} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-blue-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
+                  Libro de Ventas Diario <Download className="w-4 h-4 text-blue-500" />
+                </button>
+                <button onClick={() => generarLibroVentas('Semanal')} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-blue-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
+                  Libro de Ventas Semanal <Download className="w-4 h-4 text-blue-500" />
+                </button>
+                <button onClick={() => generarLibroVentas('Mensual')} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-blue-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
+                  Libro de Ventas Mensual <Download className="w-4 h-4 text-blue-500" />
+                </button>
+                <hr className="my-2" />
+              </>
+            )}
+
             <button onClick={generarCorteCaja} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-red-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
               Corte de Caja a las 12 (PDF) <FileText className="w-4 h-4 text-red-500" />
             </button>
-            <hr className="my-2" />
-            <button onClick={() => generarIngresoBancario('Diario')} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-red-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
-              Ingreso Bancario Diario (PDF) <FileText className="w-4 h-4 text-red-500" />
-            </button>
-            <button onClick={() => generarIngresoBancario('Semanal')} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-red-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
-              Ingreso Bancario Semanal (PDF) <FileText className="w-4 h-4 text-red-500" />
-            </button>
-            <button onClick={() => generarIngresoBancario('Mensual')} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-red-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
-              Ingreso Bancario Mensual (PDF) <FileText className="w-4 h-4 text-red-500" />
-            </button>
-            <hr className="my-2" />
+            
             <button onClick={generarCuadreCaja} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-emerald-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
               Cuadre de Caja (PDF) <FileText className="w-4 h-4 text-emerald-500" />
             </button>
+            
+            {currentUser === 'Administrador' && (
+              <>
+                <hr className="my-2" />
+                <button onClick={() => generarIngresoBancario('Diario')} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-red-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
+                  Ingreso Bancario Diario (PDF) <FileText className="w-4 h-4 text-red-500" />
+                </button>
+                <button onClick={() => generarIngresoBancario('Semanal')} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-red-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
+                  Ingreso Bancario Semanal (PDF) <FileText className="w-4 h-4 text-red-500" />
+                </button>
+                <button onClick={() => generarIngresoBancario('Mensual')} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-red-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
+                  Ingreso Bancario Mensual (PDF) <FileText className="w-4 h-4 text-red-500" />
+                </button>
+              </>
+            )}
           </div>
         </div>
 
-        {/* MODULO FISCALIZACION */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-purple-100 text-purple-600 rounded-lg">
-              <FileSpreadsheet className="w-6 h-6" />
+        {currentUser === 'Administrador' && (
+          <>
+            {/* MODULO FISCALIZACION */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-purple-100 text-purple-600 rounded-lg">
+                  <FileSpreadsheet className="w-6 h-6" />
+                </div>
+                <h2 className="font-bold text-lg text-slate-800">Fiscalización</h2>
+              </div>
+              <div className="space-y-3">
+                <button onClick={() => generarFiscalizacion('General')} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-purple-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
+                  Reporte General (Excel) <Download className="w-4 h-4 text-purple-500" />
+                </button>
+                <button onClick={() => generarFiscalizacion('Pendientes')} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-purple-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
+                  Por Fiscalizar (Excel) <Download className="w-4 h-4 text-purple-500" />
+                </button>
+              </div>
             </div>
-            <h2 className="font-bold text-lg text-slate-800">Fiscalización</h2>
-          </div>
-          <div className="space-y-3">
-            <button onClick={() => generarFiscalizacion('general')} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-purple-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
-              Reporte General de Fiscalizaciones <Download className="w-4 h-4 text-purple-500" />
-            </button>
-            <button onClick={() => generarFiscalizacion('pendientes')} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-purple-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
-              Reporte Por Fiscalizar <Download className="w-4 h-4 text-purple-500" />
-            </button>
-          </div>
-        </div>
 
-        {/* MODULO SALDO A FAVOR */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-emerald-100 text-emerald-600 rounded-lg">
-              <FileSpreadsheet className="w-6 h-6" />
+            {/* GESTIÓN DE EMPLEADOS */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-orange-100 text-orange-600 rounded-lg">
+                  <FileSpreadsheet className="w-6 h-6" />
+                </div>
+                <h2 className="font-bold text-lg text-slate-800">Gestión de Empleados</h2>
+              </div>
+              <div className="space-y-3">
+                <button onClick={generarEmpleados} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-orange-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
+                  Reporte Mensual (Excel) <Download className="w-4 h-4 text-orange-500" />
+                </button>
+              </div>
             </div>
-            <h2 className="font-bold text-lg text-slate-800">Saldos a Favor</h2>
-          </div>
-          <div className="space-y-3">
-            <button onClick={generarSaldosFavor} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-emerald-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
-              Reporte Saldos a Favor Mensual <Download className="w-4 h-4 text-emerald-500" />
-            </button>
-          </div>
-        </div>
 
-        {/* MODULO GESTIÓN DE EMPLEADOS */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-orange-100 text-orange-600 rounded-lg">
-              <FileSpreadsheet className="w-6 h-6" />
+            {/* MODULO SALDO A FAVOR */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-teal-100 text-teal-600 rounded-lg">
+                  <FileSpreadsheet className="w-6 h-6" />
+                </div>
+                <h2 className="font-bold text-lg text-slate-800">Saldo a Favor</h2>
+              </div>
+              <div className="space-y-3">
+                <button onClick={generarSaldosFavor} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-teal-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
+                  Reporte Mensual (Excel) <Download className="w-4 h-4 text-teal-500" />
+                </button>
+              </div>
             </div>
-            <h2 className="font-bold text-lg text-slate-800">Gestión de Empleados</h2>
-          </div>
-          <div className="space-y-3">
-            <button onClick={generarEmpleados} className="w-full text-left px-4 py-3 bg-slate-50 hover:bg-orange-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 flex items-center justify-between transition-colors">
-              Reporte Mensual de Gestión <Download className="w-4 h-4 text-orange-500" />
-            </button>
-          </div>
-        </div>
-
+          </>
+        )}
       </div>
     </div>
   );
