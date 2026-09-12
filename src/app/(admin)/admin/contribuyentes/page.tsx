@@ -2188,7 +2188,21 @@ function ContribuyentesPageContent() {
                                   {d.estado}
                                 </span>
                               </td>
-                              <td className="px-4 py-2 font-bold text-slate-800">{Number(d.monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                              <td className="px-4 py-2 font-bold text-slate-800">
+                                {(() => {
+                                  let finalMonto = Number(parseFloat(String(d.monto || '0').replace(/[^\d.]/g, '')));
+                                  if (d.estado === 'Pagado') {
+                                    const pRel = pagosContribuyente.filter((p: any) => {
+                                      const pDet = typeof p.detalles === 'string' ? (() => { try { return JSON.parse(p.detalles); } catch(e){return {}}})() : p.detalles;
+                                      return JSON.stringify(pDet || {}).includes(d.referencia);
+                                    });
+                                    if (pRel.length > 1) {
+                                      finalMonto = pRel.reduce((s: number, p: any) => s + (parseFloat(String(p.monto || '0').replace(/[^\d.]/g, '')) || 0), 0);
+                                    }
+                                  }
+                                  return finalMonto.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2});
+                                })()}
+                              </td>
                               <td className="px-4 py-2 flex justify-center gap-2">
                                 {(d.estado === 'Pagado' || d.estado === 'Por Verificar') && (
                                   <>
