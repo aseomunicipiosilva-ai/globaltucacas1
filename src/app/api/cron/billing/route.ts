@@ -11,6 +11,25 @@ export async function GET(request: Request) {
     return new Response('Unauthorized', { status: 401 });
   }
 
+  // ── Verificar si hoy es el día correcto para facturar ──
+  // El cron corre días 28-31 para cubrir todos los meses.
+  // Solo procesa cuando es el día 30 o el último día del mes (el que llegue primero).
+  // Ejemplos:
+  //   Enero (31 días)    → procesa el día 30
+  //   Febrero (28 días)  → procesa el día 28
+  //   Febrero (29 días)  → procesa el día 29
+  //   Abril (30 días)    → procesa el día 30
+  const hoy = new Date();
+  const lastDayOfMonth = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
+  const diaFacturacion = Math.min(30, lastDayOfMonth);
+
+  if (hoy.getDate() !== diaFacturacion) {
+    return NextResponse.json({
+      skipped: true,
+      reason: `Hoy es día ${hoy.getDate()}, el día de facturación es el ${diaFacturacion}. No se procesó.`
+    });
+  }
+
   try {
     // Obtener tasa TCMMV (EUR oficial)
     const [usdRes, eurRes] = await Promise.all([
