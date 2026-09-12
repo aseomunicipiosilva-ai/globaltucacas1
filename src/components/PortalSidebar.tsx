@@ -111,7 +111,7 @@ export default function PortalSidebar({ isOpen = false, setIsOpen }: PortalSideb
                       }`}
                     >
                       {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-400 rounded-r-md" />}
-                      <item.icon className={`w-4 h-4 mr-3 flex-shrink-0 ${isActive ? 'text-green-400' : 'text-slate-500'}`} />
+                      <item.icon className={`w-4 h-4 mr-3 flex-shrink-0 ${isActive ? 'text-[#c8e64c]' : 'text-slate-500'}`} />
                       <span className="truncate">{item.name}</span>
                     </Link>
                   </li>
@@ -132,9 +132,9 @@ export default function PortalSidebar({ isOpen = false, setIsOpen }: PortalSideb
           Cerrar Sesión
         </button>
         <div className="flex items-center gap-2 opacity-70 pt-2">
-          <Building2 className="w-5 h-5 text-green-500" />
+          
           <span className="text-white font-bold tracking-wider text-xs">
-            <span className="text-green-400">GLOBAL</span> REC
+            <span className="text-[#c8e64c]">GLOBAL</span> REC
           </span>
         </div>
       </div>
@@ -159,7 +159,7 @@ export default function PortalSidebar({ isOpen = false, setIsOpen }: PortalSideb
         (isOpen || showMobileMenu) ? 'translate-x-0' : '-translate-x-full'
       }`}>
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
-          <span className="text-white font-bold text-sm"><span className="text-green-400">GLOBAL</span> REC</span>
+          <span className="text-white font-bold text-sm"><span className="text-[#c8e64c]">GLOBAL</span> REC</span>
           <button onClick={() => { setIsOpen && setIsOpen(false); setShowMobileMenu(false); }}>
             <X className="w-5 h-5 text-slate-400" />
           </button>
@@ -182,7 +182,7 @@ export default function PortalSidebar({ isOpen = false, setIsOpen }: PortalSideb
                 router.push(item.href);
               }}
               className={`flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
-                isActive ? 'text-green-400' : 'text-slate-500 hover:text-slate-300'
+                isActive ? 'text-[#c8e64c]' : 'text-slate-500 hover:text-slate-300'
               }`}
             >
               <item.icon className="w-5 h-5" />

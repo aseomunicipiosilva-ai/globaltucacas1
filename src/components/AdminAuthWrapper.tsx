@@ -106,15 +106,20 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100">
-        <div className="bg-white p-8 rounded-xl shadow-lg w-full max-w-sm border border-slate-200">
-          <div className="flex justify-center mb-6">
-            <div className="bg-blue-100 p-4 rounded-full text-blue-600 shadow-inner">
-              <Lock size={32} />
+      <div className="min-h-screen flex items-center justify-center bg-white p-4">
+        <div className="w-full max-w-sm">
+          <div className="bg-white rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.12)] border border-slate-100 overflow-hidden">
+            {/* Header branding */}
+            <div className="pt-10 pb-6 px-8 text-center">
+              <div className="flex justify-center mb-3">
+                <img src="/logos/global_rec.jpg" alt="Global Rec" className="h-16 w-auto object-contain" />
+              </div>
+              <h1 className="text-2xl font-black text-slate-900 tracking-tight">Global Rec</h1>
+              <p className="text-[11px] font-semibold tracking-[0.18em] text-slate-400 uppercase mt-0.5">Collection System</p>
+              <p className="text-sm font-bold text-slate-700 mt-3 uppercase tracking-widest">Administración</p>
             </div>
-          </div>
-          <h2 className="text-2xl font-black text-center text-slate-800 mb-1">Acceso Funcionario</h2>
-          <p className="text-center text-slate-500 text-sm mb-6 font-medium">Por favor, ingrese sus credenciales</p>
+            <div className="px-8 pb-8">
+              <p className="text-sm text-slate-500 text-center mb-6 leading-snug">Ingresa tus credenciales para acceder de forma segura.</p>
           
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
@@ -125,7 +130,7 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
                   type="text" 
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-medium text-slate-700"
+                  className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:border-slate-400 outline-none transition-all font-medium text-slate-700"
                   placeholder="Ingrese usuario"
                   required
                 />
@@ -140,7 +145,7 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-medium text-slate-700"
+                  className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:border-slate-400 outline-none transition-all font-medium text-slate-700"
                   placeholder="Ingrese contraseña"
                   required
                 />
@@ -161,12 +166,14 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
             <button 
               type="submit" 
               disabled={isAuthenticating}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md shadow-blue-500/30 transition-all mt-4 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full bg-[#c8e64c] hover:bg-[#b8d93c] text-slate-900 text-white font-bold py-3 rounded-lg shadow-md shadow-blue-500/30 transition-all mt-4 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isAuthenticating ? <AlertCircle className="w-5 h-5 animate-spin" /> : null}
               {isAuthenticating ? 'Verificando...' : 'Iniciar Sesión'}
             </button>
           </form>
+            </div>
+          </div>
         </div>
       </div>
     );

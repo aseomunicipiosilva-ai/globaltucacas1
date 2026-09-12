@@ -91,7 +91,7 @@ export default function Sidebar() {
           className="h-14 w-auto object-contain"
         />
       </div>
-      <div className="p-4 bg-[#0f172a] border-b border-slate-700 text-sm text-yellow-500 text-center uppercase tracking-wider font-semibold">
+      <div className="p-4 bg-[#0f172a] border-b border-slate-700 text-sm text-[#c8e64c] text-center uppercase tracking-wider font-semibold">
         {title}
       </div>
       <nav className="flex-1 overflow-y-auto py-4 sidebar-scroll">

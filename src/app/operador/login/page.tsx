@@ -75,12 +75,13 @@ export default function OperadorLogin() {
       
       <div className="w-full max-w-sm relative z-10">
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-          <div className="bg-orange-600 p-8 text-center text-white relative">
-            <div className="bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
-              <Building2 className="w-8 h-8 text-white" />
+          <div className="pt-8 pb-6 px-6 text-center border-b border-slate-100">
+            <div className="flex justify-center mb-2">
+              <img src="/logos/global_rec.jpg" alt="Global Rec" className="h-14 w-auto object-contain" />
             </div>
-            <h1 className="text-2xl font-black tracking-tight">GLOBAL REC</h1>
-            <p className="text-orange-200 text-sm font-medium mt-1">Módulo Operador de Censo</p>
+            <h1 className="text-xl font-black text-slate-900 tracking-tight">Global Rec</h1>
+            <p className="text-[10px] font-semibold tracking-[0.15em] text-slate-400 uppercase mt-0.5">Collection System</p>
+            <p className="text-xs font-bold text-slate-600 mt-2 uppercase tracking-widest">Módulo Operador</p>
           </div>
           
           <form onSubmit={handleLogin} className="p-8 space-y-6">
@@ -100,7 +101,7 @@ export default function OperadorLogin() {
                     required
                     value={usuario}
                     onChange={e => setUsuario(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 text-sm outline-none focus:border-orange-500 focus:bg-white transition-all font-medium text-slate-700" 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 text-sm outline-none focus:border-slate-400 focus:bg-white transition-all font-medium text-slate-700" 
                     placeholder="Ej. jperez"
                   />
                 </div>
@@ -115,7 +116,7 @@ export default function OperadorLogin() {
                     required
                     value={clave}
                     onChange={e => setClave(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-10 py-2.5 text-sm outline-none focus:border-orange-500 focus:bg-white transition-all font-medium text-slate-700" 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-10 py-2.5 text-sm outline-none focus:border-slate-400 focus:bg-white transition-all font-medium text-slate-700" 
                     placeholder="********"
                   />
                   <button 
@@ -134,7 +135,7 @@ export default function OperadorLogin() {
             <button 
               type="submit" 
               disabled={isAuthenticating}
-              className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 shadow-lg shadow-orange-500/30 transition-all active:scale-95 disabled:opacity-50"
+              className="w-full bg-[#c8e64c] hover:bg-[#b8d93c] text-slate-900 font-bold py-3.5 px-4 rounded-xl text-sm transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
             >
               {isAuthenticating ? <AlertCircle className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
               {isAuthenticating ? 'Verificando...' : 'Iniciar Jornada'}
