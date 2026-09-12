@@ -18,6 +18,7 @@ export default function EstadoCuentaPage() {
   const [pagosVerificar, setPagosVerificar] = useState<any[]>([]);
   const [pagosHistorial, setPagosHistorial] = useState<any[]>([]);
   const [abonosAprobados, setAbonosAprobados] = useState<any[]>([]);
+  const [allPagos, setAllPagos] = useState<any[]>([]);
   const [loadingPagos, setLoadingPagos] = useState(false);
 
   const [filterStatus, setFilterStatus] = useState('Todos');
@@ -68,6 +69,7 @@ export default function EstadoCuentaPage() {
   };
 
   const fetchAbonos = async () => {
+    try { const { data } = await supabase.from('pagos_reportados').select('*').order('created_at', { ascending: false }).limit(2000); if(data) setAllPagos(data); } catch(e){}
     try {
       const { data } = await supabase
         .from('pagos_reportados')
@@ -618,7 +620,23 @@ export default function EstadoCuentaPage() {
   const columns = [
     { key: 'referencia', header: 'Nro. Factura' },
     { key: 'contribuyente', header: 'Contribuyente' },
-    { key: 'monto', header: 'Monto' },
+    { 
+      key: 'monto', 
+      header: 'Monto',
+      render: (row: any) => {
+        let monto = Number(parseFloat(String(row.monto || '0').replace(/[^\d.]/g, '')));
+        if (row.estado === 'Pagado') {
+          const pRel = allPagos.filter(p => {
+            const d = typeof p.detalles === 'string' ? (() => { try { return JSON.parse(p.detalles); } catch(e){return {}}})() : p.detalles;
+            return JSON.stringify(d || {}).includes(row.referencia);
+          });
+          if (pRel.length > 1) {
+            monto = pRel.reduce((s, p) => s + (parseFloat(String(p.monto || '0').replace(/[^\d.]/g, '')) || 0), 0);
+          }
+        }
+        return `Bs. ${monto.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+      }
+    },
     { key: 'estado', header: 'Estado', render: (row: any) => (
       <span className={`px-2 py-1 rounded text-xs font-semibold ${
         row.estado === 'Pagado' ? 'bg-green-100 text-green-700' :
