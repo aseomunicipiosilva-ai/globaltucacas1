@@ -2192,7 +2192,7 @@ function ContribuyentesPageContent() {
                                 {(() => {
                                   let finalMonto = Number(parseFloat(String(d.monto || '0').replace(/[^\d.]/g, '')));
                                   if (d.estado === 'Pagado') {
-                                    const pRel = pagosContribuyente.filter((p: any) => {
+                                    const pRel = viewPagos.filter((p: any) => {
                                       const pDet = typeof p.detalles === 'string' ? (() => { try { return JSON.parse(p.detalles); } catch(e){return {}}})() : p.detalles;
                                       return JSON.stringify(pDet || {}).includes(d.referencia);
                                     });
