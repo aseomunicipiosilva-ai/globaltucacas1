@@ -27,7 +27,7 @@ export default function Sidebar() {
     { icon: Calculator, name: 'Cálculo y Proyección', href: '/admin/calculo' },
     { icon: Briefcase, name: 'Caja / Pagos', href: '/admin/caja' },
     { icon: Landmark, name: 'Conciliacion Bancaria', href: '/admin/caja/conciliacion' },
-    { icon: FileSpreadsheet, name: 'Facturación / Edo Cuenta', href: '/admin/estado-cuenta' },
+    { icon: FileSpreadsheet, name: 'Facturación', href: '/admin/estado-cuenta' },
     { icon: Clock, name: 'Cuentas Por Facturar', href: '/admin/por-facturar' },
     { icon: Handshake, name: 'Convenios de Pago', href: '/admin/convenios-pago' },
     { icon: Award, name: 'Certificados Emitidos', href: '/admin/certificados' },
