@@ -29,6 +29,13 @@ interface ReciboProps {
   montoCancelado?: number;
   montoPendiente?: number;
   tasaBcv?: number;
+  historialPagos?: {
+    formaPago: string;
+    banco: string;
+    referencia: string;
+    monto: number;
+    fecha: string;
+  }[];
 }
 
 function normalizarFormaPago(fp: string): 'PUNTO_VENTA' | 'TRANSFERENCIA' | 'EFECTIVO' | 'OTRO' {
@@ -206,6 +213,38 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
           )}
         </div>
       </div>
+
+      {/* Breakdown of Payments (Option B) */}
+      {data.historialPagos && data.historialPagos.length > 0 && (
+        <div className="mt-6 border border-black text-sm">
+          <div className="bg-slate-100 px-3 py-1 font-bold text-center border-b border-black uppercase tracking-wide">
+            Desglose de Pagos Realizados
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-black">
+                <th className="p-1 border-r border-black text-left">FECHA</th>
+                <th className="p-1 border-r border-black text-left">MÉTODO</th>
+                <th className="p-1 border-r border-black text-left">BANCO</th>
+                <th className="p-1 border-r border-black text-left">REFERENCIA</th>
+                <th className="p-1 text-right">MONTO CANCELADO</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.historialPagos.map((hp, idx) => (
+                <tr key={idx} className="border-b border-slate-200 last:border-b-0">
+                  <td className="p-1 border-r border-black">{hp.fecha}</td>
+                  <td className="p-1 border-r border-black">{hp.formaPago}</td>
+                  <td className="p-1 border-r border-black">{hp.banco}</td>
+                  <td className="p-1 border-r border-black">{hp.referencia}</td>
+                  <td className="p-1 text-right font-bold text-emerald-800">Bs. {formatBs(hp.monto)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
     </div>
   );
 }
