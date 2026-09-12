@@ -100,7 +100,7 @@ export default function Sidebar() {
             <li key={item.name}>
               <Link
                 href={item.href}
-                className={`flex items-center gap-3 px-4 py-2 hover:bg-slate-700 hover:text-white transition-colors ${pathname === item.href ? 'bg-slate-700 text-white border-l-4 border-green-500' : ''}`}
+                className={`flex items-center gap-3 px-4 py-2 hover:bg-slate-700/60 hover:text-[#c8e64c] transition-colors ${pathname === item.href ? 'bg-slate-700/80 text-[#c8e64c] border-l-4 border-[#c8e64c]' : ''}`}
               >
                 <item.icon className="w-5 h-5" />
                 <span className="text-sm font-medium">{item.name}</span>
