@@ -53,6 +53,13 @@ export default function CajaPage() {
   const [isNotaModalOpen, setIsNotaModalOpen] = useState(false);
   const [isPagoMultiple, setIsPagoMultiple] = useState(false);
 
+  // Modal de Confirmación de Pago
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [confirmPayload, setConfirmPayload] = useState<any>(null);
+
+  // Historial de pagos de la sesión actual
+  const [sessionPagos, setSessionPagos] = useState<any[]>([]);
+
   // Notas de Crédito â€” carga directa desde Supabase
   const [notasCredito, setNotasCredito] = useState<any[]>([]);
   const [isLoadingNotas, setIsLoadingNotas] = useState(false);
@@ -387,7 +394,7 @@ export default function CajaPage() {
         .eq('referencia', referencia)
         .limit(1);
       if (dupCheck && dupCheck.length > 0) {
-        return alert(`âš ï¸ ADVERTENCIA: El número de referencia "${referencia}" ya fue registrado previamente en el sistema. Verifique antes de continuar.`);
+        return alert(`⚠️ ADVERTENCIA: El número de referencia "${referencia}" ya fue registrado previamente en el sistema. Verifique antes de continuar.`);
       }
 
       const transferido = parseFloat(montoTransferido);
@@ -418,8 +425,22 @@ export default function CajaPage() {
       return alert("Al modificar la Tasa BCV manualmente, debe ingresar una justificación obligatoria.");
     }
     
-    if (!confirm(`¿Confirmar pago por Bs. ${formatBs(montoReal)}${saldoAFavorNuevo > 0 ? ` (Generará un Saldo a Favor de Bs. ${formatBs(saldoAFavorNuevo)})` : ''}${esAbono ? ` (Es un ABONO. Quedará un saldo pendiente de Bs. ${formatBs(finalTotal - montoReal)})` : ''} mediante ${paymentMethod}?`)) return;
+    // ── Abrir modal de confirmación en lugar de confirm() nativo ──
+    setConfirmPayload({
+      montoReal, finalTotal, saldoAFavorNuevo, esAbono, descuentoSaldoFavor,
+      reqRef,
+      recibosSeleccionados: selectedRecibos,
+      cuotasSeleccionadas: selectedCuotas,
+      serviciosSeleccionados: selectedServicios,
+      talaPodaSeleccionada: selectedTalaPoda,
+    });
+    setIsConfirmModalOpen(true);
+  };
 
+  const handleConfirmAndPay = async () => {
+    if (!confirmPayload) return;
+    const { montoReal, finalTotal, saldoAFavorNuevo, esAbono, descuentoSaldoFavor, reqRef } = confirmPayload;
+    setIsConfirmModalOpen(false);
     setIsProcessing(true);
     
     try {
@@ -698,10 +719,21 @@ export default function CajaPage() {
         setSuccessMsg(`${paymentMethod} registrado(a). Ha sido enviado(a) al módulo de Facturación para su conciliación automática o manual.`);
       }
 
+      // Agregar al historial de la sesión
+      setSessionPagos(prev => [{
+        contribuyente: foundUser?.Contribuyente || '',
+        identidad: foundUser?.Identidad || '',
+        monto: montoReal,
+        metodo: paymentMethod,
+        referencia: reqRef ? referencia : referenciaDebito,
+        hora: new Date().toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }),
+        esAbono,
+        saldoFavor: saldoAFavorNuevo,
+      }, ...prev]);
+
       // Refrescar datos del contribuyente sin salir de la pantalla
       setTimeout(async () => {
         setSuccessMsg('');
-        // Limpiar selección y campos de pago
         setSelectedRecibos([]);
         setSelectedCuotas([]);
         setSelectedServicios([]);
@@ -712,7 +744,7 @@ export default function CajaPage() {
         setMontoTransferido('');
         setComprobante(null);
         setTotalBs(0);
-        // Recargar deuda actualizada del mismo contribuyente
+        setConfirmPayload(null);
         await handleSearch();
       }, 2500);
       
@@ -1349,13 +1381,138 @@ export default function CajaPage() {
               className="w-full bg-slate-800 text-white py-3 rounded-lg font-bold hover:bg-slate-900 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
             >
               <CreditCard className="w-5 h-5" /> 
-              {isProcessing ? 'Procesando...' : 'Procesar Pago'}
+              {isProcessing ? 'Procesando...' : 'Verificar y Pagar'}
             </button>
+
+            {/* Historial de pagos de la sesión */}
+            {sessionPagos.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-slate-200">
+                <p className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2">Pagos de esta sesión ({sessionPagos.length})</p>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {sessionPagos.map((p, i) => (
+                    <div key={i} className="flex justify-between items-start text-xs bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                      <div>
+                        <div className="font-bold text-slate-700 truncate max-w-[140px]">{p.contribuyente}</div>
+                        <div className="text-slate-500">{p.metodo} · {p.hora}</div>
+                        {p.referencia && <div className="text-slate-400">Ref: {p.referencia}</div>}
+                        {p.esAbono && <span className="text-orange-600 font-semibold">Abono</span>}
+                        {p.saldoFavor > 0 && <div className="text-blue-600">+Saldo favor: Bs. {formatBs(p.saldoFavor)}</div>}
+                      </div>
+                      <div className="font-black text-emerald-700 text-sm">Bs. {formatBs(p.monto)}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 text-right text-xs font-bold text-slate-700">
+                  Total sesión: <span className="text-emerald-700">Bs. {formatBs(sessionPagos.reduce((s, p) => s + p.monto, 0))}</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
         </div>
       )}
       </div>
+      )}
+
+      {/* ── Modal de Confirmación de Pago ── */}
+      {isConfirmModalOpen && confirmPayload && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="bg-slate-800 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-white font-black text-lg">Confirmar Pago</h3>
+                <p className="text-slate-400 text-xs mt-0.5">Verifique los datos antes de procesar</p>
+              </div>
+              <button onClick={() => { setIsConfirmModalOpen(false); setConfirmPayload(null); }} className="text-slate-400 hover:text-white text-2xl font-bold leading-none">&times;</button>
+            </div>
+
+            <div className="p-6 space-y-3">
+              {/* Contribuyente */}
+              <div className="bg-slate-50 rounded-xl p-4">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Contribuyente</p>
+                <p className="font-black text-slate-800 text-sm">{foundUser?.Contribuyente}</p>
+                <p className="text-slate-500 text-xs">{foundUser?.Identidad}</p>
+              </div>
+
+              {/* Recibos seleccionados */}
+              {confirmPayload.recibosSeleccionados?.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Recibos a saldar</p>
+                  <div className="space-y-1">
+                    {confirmPayload.recibosSeleccionados.map((ref: string) => {
+                      const f = recibos.find((r: any) => r.referencia === ref);
+                      return (
+                        <div key={ref} className="flex justify-between text-xs bg-white border border-slate-200 rounded-lg px-3 py-1.5">
+                          <span className="text-slate-600 font-medium">{ref}</span>
+                          <span className="font-bold text-slate-800">Bs. {formatBs(getReciboMonto(f))}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Método y referencia */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-blue-50 rounded-xl p-3">
+                  <p className="text-[10px] font-bold text-blue-400 uppercase">Método</p>
+                  <p className="font-bold text-blue-800 text-sm mt-0.5">{paymentMethod}</p>
+                </div>
+                <div className="bg-blue-50 rounded-xl p-3">
+                  <p className="text-[10px] font-bold text-blue-400 uppercase">Fecha</p>
+                  <p className="font-bold text-blue-800 text-sm mt-0.5">{fechaTransaccion}</p>
+                </div>
+              </div>
+
+              {(referenciaDebito || referencia) && (
+                <div className="bg-amber-50 rounded-xl p-3">
+                  <p className="text-[10px] font-bold text-amber-500 uppercase">N° Referencia / Comprobante</p>
+                  <p className="font-black text-amber-800 text-base tracking-widest">{referenciaDebito || referencia}</p>
+                </div>
+              )}
+
+              {confirmPayload.descuentoSaldoFavor > 0 && (
+                <div className="flex justify-between text-xs text-slate-600 px-1">
+                  <span>Descuento saldo a favor:</span>
+                  <span className="font-bold text-green-600">- Bs. {formatBs(confirmPayload.descuentoSaldoFavor)}</span>
+                </div>
+              )}
+
+              {confirmPayload.esAbono && (
+                <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-xs text-orange-700 font-semibold">
+                  ⚠️ Pago parcial (abono). Quedará saldo pendiente de Bs. {formatBs(Math.max(0, confirmPayload.finalTotal - confirmPayload.montoReal))}
+                </div>
+              )}
+
+              {confirmPayload.saldoAFavorNuevo > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700 font-semibold">
+                  💳 Se generará Saldo a Favor de Bs. {formatBs(confirmPayload.saldoAFavorNuevo)}
+                </div>
+              )}
+
+              {/* Total */}
+              <div className="bg-emerald-600 rounded-xl p-4 flex justify-between items-center">
+                <span className="text-white font-bold text-sm">TOTAL A PAGAR</span>
+                <span className="text-white font-black text-2xl">Bs. {formatBs(confirmPayload.montoReal)}</span>
+              </div>
+            </div>
+
+            <div className="px-6 pb-6 flex gap-3">
+              <button
+                onClick={() => { setIsConfirmModalOpen(false); setConfirmPayload(null); }}
+                className="flex-1 py-3 border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-colors"
+              >Cancelar</button>
+              <button
+                onClick={handleConfirmAndPay}
+                disabled={isProcessing}
+                className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <CreditCard className="w-4 h-4" />
+                {isProcessing ? 'Procesando...' : 'Procesar Pago'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal Nota Manual */}
