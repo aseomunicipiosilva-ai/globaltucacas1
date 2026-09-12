@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/billing",
-      "schedule": "0 0 1 * *"
+      "schedule": "59 3 31 * *"
     },
     {
       "path": "/api/cron/ucd-semanal",
