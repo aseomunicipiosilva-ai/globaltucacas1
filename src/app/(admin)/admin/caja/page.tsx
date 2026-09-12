@@ -189,8 +189,7 @@ export default function CajaPage() {
     if (user) {
       setFoundUser(user);
       
-      // Consulta directa a Supabase para obtener TODAS las facturas pendientes
-      // (el contexto tiene límite de 1000 filas y puede no incluir las CM- mensuales)
+      // Consulta directa a Supabase: siempre fresca, incluye todas las CM- mensuales
       const { data: allUserFacturas } = await supabase
         .from('facturas')
         .select('*')
@@ -198,16 +197,9 @@ export default function CajaPage() {
         .or(`identidad.eq.${user.Identidad},identidad.eq.${cleanFullDoc}`)
         .order('emision', { ascending: true });
 
-      // Combinar con facturas del contexto que coincidan por nombre (fallback)
-      const fromContext = facturas.filter((f: any) => {
-        const idCleanFactura = (f.identidad || '').replace(/-/g, '').toUpperCase();
-        return (idCleanFactura === cleanFullDoc || f.contribuyente === user.Contribuyente) && f.estado === 'Pendiente';
-      });
-
-      // Unificar evitando duplicados por referencia
+      // NO combinar con contexto React (puede estar desactualizado tras un pago)
+      // Solo usar datos frescos de Supabase
       const combined = [...(allUserFacturas || [])];
-      const existingRefs = new Set(combined.map((f: any) => f.referencia));
-      fromContext.forEach((f: any) => { if (!existingRefs.has(f.referencia)) combined.push(f); });
 
       // Ordenar: primero facturas normales (FACT-), luego CM- por fecha
       combined.sort((a: any, b: any) => {
@@ -219,6 +211,7 @@ export default function CajaPage() {
       });
 
       setRecibos(combined);
+
       
       // Load Convenios Cuotas
       const userConvenios = convenios.filter((c: any) => {
