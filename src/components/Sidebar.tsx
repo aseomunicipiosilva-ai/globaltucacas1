@@ -83,15 +83,15 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="w-64 bg-[#0f2552] h-screen text-slate-200 flex flex-col fixed left-0 top-0 z-50">
-      <div className="h-20 flex items-center justify-center border-b border-[#1a3a6e] bg-[#0a1d42] px-3">
+    <aside className="w-64 bg-[#111827] h-screen text-slate-300 flex flex-col fixed left-0 top-0 z-50">
+      <div className="h-20 flex items-center justify-center border-b border-white/10 bg-[#111827] px-3">
         <img
           src="/logos/global_rec.jpg"
           alt="Global Rec"
           className="h-14 w-auto object-contain"
         />
       </div>
-      <div className="p-4 bg-[#0a1d42] border-b border-[#1a3a6e] text-sm text-[#c8e64c] text-center uppercase tracking-wider font-semibold">
+      <div className="p-4 bg-[#111827] border-b border-white/10 text-sm text-[#c8e64c] text-center uppercase tracking-wider font-semibold">
         {title}
       </div>
       <nav className="flex-1 overflow-y-auto py-4 sidebar-scroll">
@@ -100,7 +100,7 @@ export default function Sidebar() {
             <li key={item.name}>
               <Link
                 href={item.href}
-                className={`flex items-center gap-3 px-4 py-2 hover:bg-[#1a3a6e]/60 hover:text-[#c8e64c] transition-colors ${pathname === item.href ? 'bg-[#1a3a6e] text-[#c8e64c] border-l-4 border-[#c8e64c]' : ''}`}
+                className={`flex items-center gap-3 px-4 py-2 hover:bg-white/5 hover:text-[#c8e64c] transition-colors ${pathname === item.href ? 'bg-white/10 text-[#c8e64c] border-l-4 border-[#c8e64c]' : ''}`}
               >
                 <item.icon className="w-5 h-5" />
                 <span className="text-sm font-medium">{item.name}</span>
@@ -110,7 +110,7 @@ export default function Sidebar() {
         </ul>
       </nav>
       
-      <div className="p-4 bg-[#0a1d42] border-t border-[#1a3a6e] shrink-0">
+      <div className="p-4 bg-[#111827] border-t border-white/10 shrink-0">
         <Link href="/" className="flex items-center justify-center gap-2 text-xs font-semibold text-slate-400 hover:text-white transition-colors">
           <Home className="w-4 h-4" /> Volver al Inicio
         </Link>
