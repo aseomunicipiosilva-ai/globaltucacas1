@@ -1206,6 +1206,15 @@ export default function CajaPage() {
 
                   {['Debito'].includes(paymentMethod) && (
                     <div className="mt-4 space-y-3">
+                      {isPagoMultiple && (
+                        <label className="block mt-2">
+                          <span className="text-xs font-semibold text-slate-600 mb-1 block">Monto a Pagar por Punto (Bs)</span>
+                          <input type="text" value={montoDebito} onChange={e => {
+                            const val = e.target.value.replace(/[^0-9.]/g, '');
+                            setMontoDebito(val);
+                          }} placeholder="Ej. 1500.00" className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" />
+                        </label>
+                      )}
                       <label className="block">
                         <span className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 block">Fecha de Transacción <span className="text-red-500">*</span></span>
                         <input
