@@ -384,7 +384,11 @@ export default function CajaPage() {
     if (totalBs <= 0) return alert("Debe seleccionar al menos una deuda a pagar.");
     
     const maxSaldoUsable = foundUser?.SaldoFavor || 0;
-    const descuentoSaldoFavor = useSaldoFavor ? Math.min(totalBs, maxSaldoUsable) : 0;
+    // Cuando el método de pago ES Saldo a Favor, el checkbox no aplica
+    // (evita doble deducción: una por descuento + otra por el método)
+    const descuentoSaldoFavor = (paymentMethod !== 'Saldo a Favor' && useSaldoFavor)
+      ? Math.min(totalBs, maxSaldoUsable)
+      : 0;
     const finalTotal = Math.max(0, totalBs - descuentoSaldoFavor);
     
     let saldoAFavorNuevo = 0;
@@ -431,13 +435,13 @@ export default function CajaPage() {
         montoReal = parseFloat(montoDebito);
       }
     } else if (paymentMethod === 'Saldo a Favor') {
-      // Validar que el contribuyente tenga saldo suficiente para cubrir la deuda
+      // El método paga con el saldo directamente (totalBs completo, sin descuento previo)
       const saldoDisponible = foundUser?.SaldoFavor || 0;
       if (saldoDisponible <= 0) return alert("El contribuyente no tiene Saldo a Favor disponible.");
-      if (saldoDisponible < finalTotal) {
-        return alert(`Saldo a Favor insuficiente. Disponible: Bs. ${formatBs(saldoDisponible)}. Deuda: Bs. ${formatBs(finalTotal)}. Use otro método de pago o un pago combinado.`);
+      if (saldoDisponible < totalBs) {
+        return alert(`Saldo a Favor insuficiente. Disponible: Bs. ${formatBs(saldoDisponible)}. Deuda total: Bs. ${formatBs(totalBs)}.\nUse otro método de pago o combínelo con el descuento de saldo parcial.`);
       }
-      montoReal = finalTotal; // Se paga exactamente lo que se debe
+      montoReal = totalBs; // Paga la deuda completa con el saldo
     }
     
     if (customBcvRate && !justificacionBcv.trim()) {
@@ -486,13 +490,24 @@ export default function CajaPage() {
         }
       }
       
-      // Deduct used Saldo a Favor immediately
+      // Deduct used Saldo a Favor (via checkbox discount on other methods)
       if (descuentoSaldoFavor > 0) {
         const { data: userInmuebles } = await supabase.from('inmuebles').select('id, saldo_favor_bs').eq('identidad', foundUser.Identidad);
         if (userInmuebles && userInmuebles.length > 0) {
           const firstInmueble = userInmuebles[0];
           const currentSaldo = parseFloat(firstInmueble.saldo_favor_bs || '0');
           const newSaldo = Math.max(0, currentSaldo - descuentoSaldoFavor);
+          await supabase.from('inmuebles').update({ saldo_favor_bs: newSaldo }).eq('id', firstInmueble.id);
+        }
+      }
+
+      // Deduct when the payment METHOD itself is Saldo a Favor
+      if (paymentMethod === 'Saldo a Favor') {
+        const { data: userInmuebles } = await supabase.from('inmuebles').select('id, saldo_favor_bs').eq('identidad', foundUser.Identidad);
+        if (userInmuebles && userInmuebles.length > 0) {
+          const firstInmueble = userInmuebles[0];
+          const currentSaldo = parseFloat(firstInmueble.saldo_favor_bs || '0');
+          const newSaldo = Math.max(0, currentSaldo - montoReal);
           await supabase.from('inmuebles').update({ saldo_favor_bs: newSaldo }).eq('id', firstInmueble.id);
         }
       }
