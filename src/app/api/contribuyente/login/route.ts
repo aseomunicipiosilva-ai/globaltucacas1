@@ -9,17 +9,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Identidad requerida" }, { status: 400 });
     }
 
-    // Normalizar: quitar guiones, uppercase -> "V12345678"
+    // Normalizar: quitar guiones, uppercase -> "V12345678" o "191753720"
     const idNorm = identidad.replace(/-/g, "").toUpperCase().trim();
-    // Con guion: "V-12345678"
-    const idFormateado = `${idNorm.charAt(0)}-${idNorm.slice(1)}`;
+    // Solo agregar guion formateado si el primer caracter ES una letra (V, J, E, G, P, C)
+    const primeraEsLetra = /^[A-Z]/.test(idNorm);
+    const idFormateado = primeraEsLetra ? `${idNorm.charAt(0)}-${idNorm.slice(1)}` : null;
+    // Armar todas las variantes a buscar (sin duplicados)
+    const variantes = [idNorm, identidad.toUpperCase().trim()];
+    if (idFormateado) variantes.push(idFormateado);
+    const orFilter = [...new Set(variantes)].map(v => `identidad.eq.${v}`).join(',');
 
-    // Buscar SOLO por las variantes exactas (con y sin guion, mismo prefijo tipo)
-    // NO buscar solo numeros para evitar V/J/E/G falsos positivos
+    // Buscar por todas las variantes de identidad
     const { data: records, error } = await supabase
       .from("inmuebles")
       .select("contribuyente, cod_cont, clave_portal, identidad")
-      .or(`identidad.eq.${idFormateado},identidad.eq.${idNorm}`)
+      .or(orFilter)
       .limit(1);
 
     if (error) {

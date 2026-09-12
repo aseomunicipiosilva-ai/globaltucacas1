@@ -10,14 +10,18 @@ export async function GET(request: Request) {
   }
 
   // Normalizar: Si el usuario escribe J123456, convertirlo a J-123456 para buscar en BD
-  const idLimpio = identidad.replace(/-/g, '').toUpperCase();
-  const idFormateado = `${idLimpio.charAt(0)}-${idLimpio.slice(1)}`;
+  const idLimpio = identidad.replace(/-/g, '').toUpperCase().trim();
+  const primeraEsLetra = /^[A-Z]/.test(idLimpio);
+  const idFormateado = primeraEsLetra ? `${idLimpio.charAt(0)}-${idLimpio.slice(1)}` : null;
   const soloNumeros = identidad.replace(/\D/g, '');
+  const variantesGet = [idLimpio, identidad.toUpperCase().trim(), soloNumeros];
+  if (idFormateado) variantesGet.push(idFormateado);
+  const orFilterGet = [...new Set(variantesGet)].map(v => `identidad.eq.${v}`).join(',');
 
   const { data: records, error } = await supabase
     .from('inmuebles')
     .select('contribuyente, cod_cont')
-    .or(`identidad.eq.${idFormateado},identidad.eq.${idLimpio},identidad.eq.${identidad.toUpperCase()},identidad.eq.${soloNumeros}`)
+    .or(orFilterGet)
     .limit(1);
 
   if (error) {
