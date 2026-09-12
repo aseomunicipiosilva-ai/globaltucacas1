@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { exportToExcelWithLogos } from '@/lib/excelExport';
-import { Search, CreditCard, Landmark, CheckCircle, XCircle, FileText, Handshake, Calendar as CalendarIcon, Wrench, ShieldCheck, ClipboardCheck, FlaskConical } from 'lucide-react';
+import { TreePine, Search, CreditCard, Landmark, CheckCircle, XCircle, FileText, Handshake, Calendar as CalendarIcon, Wrench, ShieldCheck, ClipboardCheck, FlaskConical } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
 import { formatBs } from '@/lib/formatCurrency';
@@ -250,7 +250,7 @@ export default function CajaPage() {
         .select('*')
         .or(`identidad.eq.${user.Identidad},identidad.eq.${cleanFullDoc}`)
         .eq('estado', 'Pendiente');
-      setServiciosEsp(servEsp || []);
+      setServiciosEsp((servEsp || []).filter((s: any) => s.tipo !== 'tala_poda'));
 
       // Cargar servicios de tala y poda pendientes
       const { data: talaData } = await supabase
@@ -1090,7 +1090,7 @@ export default function CajaPage() {
             {talaPoda.length > 0 && (
               <div className={`bg-white rounded-lg shadow-sm border overflow-hidden ${selectedTalaPoda.length > 0 ? 'border-green-300' : 'border-slate-200'}`}>
                 <div className="bg-green-50 px-4 py-3 border-b border-green-200 flex items-center gap-2">
-                  <span className="text-lg">ðŸŒ¿</span>
+                  <TreePine className="w-5 h-5 text-green-600 flex-shrink-0" />
                   <h3 className="font-bold text-green-800">Servicio de Tala y Poda</h3>
                   <span className="text-xs text-green-600 font-medium">({talaPoda.length})</span>
                 </div>
@@ -1104,10 +1104,10 @@ export default function CajaPage() {
                           onChange={() => toggleTalaPoda(s.referencia)}
                           className="w-4 h-4 text-green-600 rounded border-slate-300 focus:ring-green-500"
                         />
-                        <span className="text-lg">ðŸŒ¿</span>
+                        <TreePine className="w-5 h-5 text-green-600 flex-shrink-0" />
                         <div>
                           <p className="font-semibold text-sm text-slate-800">{s.descripcion || 'Servicio de Tala y Poda'}</p>
-                          <p className="text-xs text-slate-500">{s.referencia} â€¢ {s.fecha || 'Sin fecha'}</p>
+                          <p className="text-xs text-slate-500">{s.referencia} • {s.fecha || 'Sin fecha'}</p>
                         </div>
                       </div>
                       <span className="font-bold text-green-700">Bs. {formatBs(parseFloat(s.monto || '0'))}</span>
@@ -1141,7 +1141,7 @@ export default function CajaPage() {
                           <Icon className="w-4 h-4 text-purple-500 flex-shrink-0" />
                           <div>
                             <p className="font-semibold text-sm text-slate-800">{s.descripcion}</p>
-                            <p className="text-xs text-slate-500">{s.referencia} â€¢ {s.fecha}</p>
+                            <p className="text-xs text-slate-500">{s.referencia} • {s.fecha}</p>
                           </div>
                         </div>
                         <span className="font-bold text-purple-700">Bs. {formatBs(parseFloat(s.monto || '0'))}</span>
