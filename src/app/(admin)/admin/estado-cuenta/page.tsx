@@ -327,28 +327,51 @@ export default function EstadoCuentaPage() {
       montoNumerico = montoCancelado; // el recibo muestra lo que SE CANCELÓ
       esAbono = true;
     } else if (row.referencia) {
+      let historialPagos: any[] = [];
       try {
-        const { data: pago } = await supabase
+        const { data: pagos } = await supabase
           .from('pagos_reportados')
           .select('*')
           .ilike('detalles', `%${row.referencia}%`)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+          .order('created_at', { ascending: false });
 
-        if (pago) {
+        if (pagos && pagos.length > 0) {
+          const pago = pagos[0]; // The latest payment
           const det = parseDetalles(pago.detalles);
           const tipoP = pago.tipo || '';
           formaPagoStr = (tipoP === 'Debito' || tipoP.toLowerCase().includes('punto')) ? 'PUNTO DE VENTA' : 'TRANSFERENCIA';
           bancoReal = pago.banco || '---';
           referenciaReal = pago.referencia || '---';
 
-          if (det.es_abono === true) {
+          if (det.es_abono === true && row.estado !== 'Pagado') {
             esAbono = true;
             // pago.monto = lo que se canceló; row.monto = saldo pendiente restante
             montoCancelado = parseFloat(String(pago.monto || '0').replace(/[^\d.]/g, '')) || 0;
             montoPendiente = montoNumerico; // saldo que quedó pendiente
             montoNumerico = montoCancelado;
+          }
+
+          // Build historialPagos if there is more than 1 payment, or if it's an Abono
+          if (pagos.length > 1 || (pagos.length === 1 && det.es_abono === true)) {
+            historialPagos = pagos.map(p => {
+              const pDet = parseDetalles(p.detalles);
+              let pTipo = p.tipo || '';
+              let pFormaPagoStr = (pTipo === 'Debito' || pTipo.toLowerCase().includes('punto')) ? 'PUNTO DE VENTA' : 'TRANSFERENCIA';
+              let pFecha = p.created_at ? new Date(p.created_at).toLocaleDateString('es-VE') : '---';
+              if (pDet.fecha_transaccion) {
+                // handle YYYY-MM-DD
+                const parts = pDet.fecha_transaccion.split('-');
+                if (parts.length === 3) pFecha = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                else pFecha = pDet.fecha_transaccion;
+              }
+              return {
+                formaPago: pFormaPagoStr,
+                banco: p.banco || '---',
+                referencia: p.referencia || '---',
+                monto: parseFloat(String(p.monto || '0').replace(/[^\d.]/g, '')) || 0,
+                fecha: pFecha
+              };
+            }).reverse(); // chronological order
           }
         }
       } catch {
@@ -420,6 +443,7 @@ export default function EstadoCuentaPage() {
       esAbono,
       montoCancelado,
       montoPendiente,
+      historialPagos: typeof historialPagos !== 'undefined' ? historialPagos : undefined,
     });
   };
 
