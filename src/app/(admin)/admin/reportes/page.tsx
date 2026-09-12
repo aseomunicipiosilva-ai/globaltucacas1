@@ -23,12 +23,28 @@ export default function ReportesPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
+  const [selectedCajero, setSelectedCajero] = useState('Todos');
+  const [cajerosDisponibles, setCajerosDisponibles] = useState<string[]>([]);
+  const [currentUser, setCurrentUser] = useState('Administrador');
 
   useEffect(() => {
     // Fetch base data for reports
+    const user = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'Administrador';
+    setCurrentUser(user);
+    if (user !== 'Administrador') setSelectedCajero(user);
     const loadPagos = async () => {
       const { data } = await supabase.from('pagos_reportados').select('*').order('created_at', { ascending: false });
-      if (data) setPagos(data);
+      if (data) {
+        setPagos(data);
+        const cajerosSet = new Set<string>();
+        data.forEach(p => {
+          try {
+            const dets = JSON.parse(p.detalles);
+            if (dets.cajero) cajerosSet.add(dets.cajero);
+          } catch(e) {}
+        });
+        setCajerosDisponibles(Array.from(cajerosSet));
+      }
     };
     loadPagos();
   }, [supabase]);
@@ -54,8 +70,10 @@ export default function ReportesPage() {
     generarLibroVentasExcel(pagosFiltrados, contribuyentes, tipo, fechaInicio, fechaFin);
   };
 
-  const generarSaldosFavor = () => {
-    generarSaldosFavorExcel(contribuyentes);
+  const generarSaldosFavor = async () => {
+    const mes = new Date().toLocaleString('es-VE', { month: 'long' });
+    const { data } = await supabase.from('saldos_favor').select('*');
+    generarSaldosFavorExcel(data || [], mes);
   };
 
   const generarCorteCaja = () => {
@@ -95,10 +113,19 @@ export default function ReportesPage() {
     
     pagosFiltrados = pagos.filter((p: any) => {
       const d = new Date(p.created_at);
-      return d >= start && d <= end;
+      let isCajeroMatch = true;
+      if (selectedCajero !== 'Todos') {
+        try {
+          const dets = JSON.parse(p.detalles);
+          isCajeroMatch = dets.cajero === selectedCajero;
+        } catch(e) {
+          isCajeroMatch = false;
+        }
+      }
+      return d >= start && d <= end && isCajeroMatch;
     });
 
-    generarCuadreCajaPDF(pagosFiltrados, fechaInicio, fechaFin);
+    generarCuadreCajaPDF(pagosFiltrados, fechaInicio, fechaFin, selectedCajero);
   };
 
   const generarEmpleados = async () => {
@@ -121,6 +148,18 @@ export default function ReportesPage() {
           <p className="text-slate-500 mt-1">Generación de modelos de exportación en PDF y Excel</p>
         </div>
         <div className="flex gap-4">
+          <div className="flex flex-col">
+            <label className="text-xs font-bold text-slate-500 mb-1">Cajero (Corte)</label>
+            <select 
+              className="border rounded p-2 text-sm max-w-[150px]"
+              value={selectedCajero}
+              onChange={e => setSelectedCajero(e.target.value)}
+              disabled={currentUser !== 'Administrador'}
+            >
+              <option value="Todos">Todos (Unificado)</option>
+              {cajerosDisponibles.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
           <div className="flex flex-col">
             <label className="text-xs font-bold text-slate-500 mb-1">Desde</label>
             <input type="date" className="border rounded p-2 text-sm" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)} />

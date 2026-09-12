@@ -1,64 +1,59 @@
-import * as ExcelJS from 'exceljs';
+import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 
 export const generarFiscalizacionExcel = async (data: any[], tipo: string) => {
   if (data.length === 0) {
-    alert("No hay registros para este reporte.");
+    alert("No hay datos para exportar.");
     return;
   }
 
   const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet('FISCALIZACION');
+  const title = tipo === 'General' ? 'REPORTE DE FISCALIZACIONES' : 'REPORTE POR FISCALIZAR';
+  const sheet = workbook.addWorksheet('Fiscalizacion');
 
-  sheet.mergeCells('B6:J6');
-  const titleCell = sheet.getCell('B6');
-  titleCell.value = tipo === 'general' ? 'REPORTE GENERAL DE FISCALIZACIONES' : 'REPORTE POR FISCALIZAR';
-  titleCell.font = { bold: true, size: 12 };
+  sheet.mergeCells('A1:H1');
+  const titleCell = sheet.getCell('A1');
+  titleCell.value = title;
+  titleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
   titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD35400' } };
 
-  const headers = ['N°', 'FECHA', 'CONTRIBUYENTE', 'RIF', 'INMUEBLE', 'TIPO', 'ESTATUS FISCAL', 'DEUDA', 'OBSERVACION'];
-  const row7 = sheet.getRow(7);
-  headers.forEach((h, i) => {
-    const cell = row7.getCell(i + 2);
-    cell.value = h;
-    cell.font = { bold: true, size: 9, color: { argb: 'FFFFFFFF' } };
-    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF800080' } }; // Purpura
+  sheet.columns = [
+    { header: 'Nº', key: 'num', width: 5 },
+    { header: 'RIF', key: 'rif', width: 15 },
+    { header: 'Razón Social', key: 'nombre', width: 40 },
+    { header: 'Dirección', key: 'direccion', width: 40 },
+    { header: 'Actividad Económica', key: 'actividad', width: 30 },
+    { header: 'Última Fiscalización', key: 'ultima', width: 20 },
+    { header: 'Inspector', key: 'inspector', width: 20 },
+    { header: 'Estatus', key: 'estatus', width: 15 }
+  ];
+
+  sheet.getRow(3).values = ['Nº', 'RIF', 'Razón Social', 'Dirección', 'Actividad Económica', 'Última Fiscalización', 'Inspector', 'Estatus'];
+  const headerRow = sheet.getRow(3);
+  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  headerRow.eachCell(cell => {
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE67E22' } };
+    cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+    cell.alignment = { horizontal: 'center' };
   });
 
-  sheet.getColumn('B').width = 5;
-  sheet.getColumn('C').width = 12;
-  sheet.getColumn('D').width = 40;
-  sheet.getColumn('E').width = 15;
-  sheet.getColumn('F').width = 15;
-  sheet.getColumn('G').width = 15;
-  sheet.getColumn('H').width = 15;
-  sheet.getColumn('I').width = 15;
-  sheet.getColumn('J').width = 30;
-
-  let currentRow = 8;
-  data.forEach((d, index) => {
-    const row = sheet.getRow(currentRow);
-    row.getCell('B').value = index + 1;
-    row.getCell('C').value = new Date().toLocaleDateString('es-VE'); // Simulado
-    row.getCell('D').value = d.Contribuyente || '';
-    row.getCell('E').value = d.Identidad || '';
-    row.getCell('F').value = d.CodCont || '';
-    row.getCell('G').value = 'Comercial';
-    row.getCell('H').value = 'Por Fiscalizar';
-    row.getCell('I').value = parseFloat(d.Deuda || '0');
-    row.getCell('J').value = 'Requiere visita técnica';
-
-    row.eachCell((cell, colNum) => {
-      cell.font = { size: 9 };
-      cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-      if (colNum === 9) cell.numFmt = '#,##0.00';
+  data.forEach((item, index) => {
+    const row = sheet.addRow({
+      num: index + 1,
+      rif: item.Identidad || item.rif || 'N/A',
+      nombre: item.Contribuyente || item.nombre || 'N/A',
+      direccion: item.Direccion || item.direccion || 'N/A',
+      actividad: item.actividad_principal || 'N/A',
+      ultima: item.ultima_fiscalizacion ? new Date(item.ultima_fiscalizacion).toLocaleDateString('es-VE') : 'N/A',
+      inspector: item.inspector || 'N/A',
+      estatus: item.estatus || (tipo === 'General' ? 'Fiscalizado' : 'Pendiente')
     });
-    currentRow++;
+    row.eachCell(cell => {
+      cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+    });
   });
 
   const buffer = await workbook.xlsx.writeBuffer();
-  saveAs(new Blob([buffer]), `Fiscalizacion_${tipo}_${new Date().getTime()}.xlsx`);
+  saveAs(new Blob([buffer]), `${title.replace(/ /g, '_')}_${new Date().getTime()}.xlsx`);
 };
