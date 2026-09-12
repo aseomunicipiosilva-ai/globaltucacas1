@@ -23,7 +23,6 @@ export default function Sidebar() {
     { icon: FileText, name: 'Pre-registros WEB', href: '/admin/pre-registros' },
 
     { icon: Map, name: 'Jornadas de Campo', href: '/admin/jornadas' },
-    { icon: Building2, name: 'Inmuebles', href: '/admin/inmuebles' },
     { icon: BarChart3, name: 'Análisis de Deudas', href: '/admin/herramientas' },
     { icon: Calculator, name: 'Cálculo y Proyección', href: '/admin/calculo' },
     { icon: Briefcase, name: 'Caja / Pagos', href: '/admin/caja' },
@@ -34,7 +33,6 @@ export default function Sidebar() {
     { icon: Award, name: 'Certificados Emitidos', href: '/admin/certificados' },
     { icon: History, name: 'Historial Documentos', href: '/admin/historial-documentos' },
     { icon: Inbox, name: 'Buzón de Solicitudes', href: '/admin/buzon' },
-    { icon: AlertTriangle, name: 'Reclamos / Atención', href: '/admin/reclamos' },
     { icon: AlertTriangle, name: 'Denuncias Ciudadanas', href: '/admin/denuncias' },
     { icon: Truck, name: 'Rutas Camiones', href: '/admin/rutas' },
     { icon: Wrench, name: 'Servicios Especiales', href: '/admin/servicios-especiales' },
