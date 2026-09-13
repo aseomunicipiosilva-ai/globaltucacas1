@@ -842,9 +842,12 @@ export default function ConciliacionPage() {
   const fetchPagos = useCallback(async () => {
     setLoading(true);
     try {
+      // Cuando se buscan pagos Por Verificar, NO aplicar filtro de fecha (mostrar todos)
+      // El filtro de fecha solo se aplica si el estatus es 'Todos', 'Aprobado', etc.
+      const soloVerificacion = filtros.estatus === 'Por Verificar';
       let q = supabase.from('pagos_reportados').select('*').order('created_at', { ascending: false }).limit(500);
-      if (filtros.desde) q = q.gte('created_at', filtros.desde + 'T04:00:00.000Z'); // UTC-4 VE offset
-      if (filtros.hasta) { const d = new Date(filtros.hasta + 'T04:00:00Z'); d.setDate(d.getDate()+1); q = q.lte('created_at', d.toISOString()); } // end of day VE
+      if (!soloVerificacion && filtros.desde) q = q.gte('created_at', filtros.desde + 'T04:00:00.000Z');
+      if (!soloVerificacion && filtros.hasta) { const d = new Date(filtros.hasta + 'T04:00:00Z'); d.setDate(d.getDate()+1); q = q.lte('created_at', d.toISOString()); }
       if (filtros.estatus !== 'Todos') q = q.eq('estado', filtros.estatus);
       if (filtros.formaPago !== 'Todos') q = q.eq('tipo', filtros.formaPago);
       if (filtros.referencia) q = q.ilike('referencia', '%' + filtros.referencia + '%');
