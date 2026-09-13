@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-// Usar service_role key para bypassear RLS en operaciones de sistema
-// Si no está configurada, usar anon key (puede fallar con RLS activo)
+// Service role key bypasses RLS — necesario para inserts server-side
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: { persistSession: false, autoRefreshToken: false }
@@ -15,7 +14,7 @@ export async function GET(request: Request) {
   const testSecret = searchParams.get('secret');
   const simDateStr = searchParams.get('simDate'); // ej: 2026-09-30
 
-  // Auth: Bearer token O secret de prueba
+  // Auth: Bearer token O secret de prueba en query param
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET || 'test-billing-2026';
   const isAuthorized = authHeader === `Bearer ${cronSecret}` || testSecret === cronSecret;
@@ -25,8 +24,6 @@ export async function GET(request: Request) {
   }
 
   // ── Verificar si hoy es el día correcto para facturar ──
-  // El cron corre días 28-31 para cubrir todos los meses.
-  // Solo procesa cuando es el día 30 o el último día del mes (el que llegue primero).
   const hoy = simDateStr ? new Date(simDateStr + 'T12:00:00') : new Date();
   const lastDayOfMonth = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
   const diaFacturacion = Math.min(30, lastDayOfMonth);
@@ -40,109 +37,126 @@ export async function GET(request: Request) {
 
   try {
     // Obtener tasa TCMMV (EUR oficial)
-    const [usdRes, eurRes] = await Promise.all([
-      fetch('https://ve.dolarapi.com/v1/dolares/oficial', { cache: 'no-store' }),
-      fetch('https://ve.dolarapi.com/v1/euros/oficial', { cache: 'no-store' })
-    ]);
-
-    if (!usdRes.ok || !eurRes.ok) throw new Error('Error HTTP obteniendo tasas BCV');
-
+    const eurRes = await fetch('https://ve.dolarapi.com/v1/euros/oficial', { cache: 'no-store' });
+    if (!eurRes.ok) throw new Error('Error obteniendo tasa EUR/BCV');
     const eurData = await eurRes.json();
     const tcmmv: number = eurData.promedio;
 
-    // El cron corre el día 30 de cada mes para PRE-FACTURAR el mes siguiente
-    // Ej: corre el 30-Sep → genera facturas de OCTUBRE
+    // El cron corre el día 30 → genera facturas del MES SIGUIENTE
     const ahora = simDateStr ? new Date(simDateStr + 'T12:00:00') : new Date();
-
-    // Calcular el mes siguiente (con manejo de fin de año)
     const mesFacturacionDate = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 1);
     const mesMM = String(mesFacturacionDate.getMonth() + 1).padStart(2, '0');
     const mesYYYY = String(mesFacturacionDate.getFullYear());
-    const periodoKey = `${mesMM}-${mesYYYY}`; // ej: 10-2026 (cuando corre el 30-Sep)
+    const periodoKey = `${mesMM}-${mesYYYY}`; // ej: 10-2026
     const mesFacturado = mesFacturacionDate.toLocaleString('es-VE', { month: 'long', year: 'numeric' });
-
-    // Emisión = día 1 del mes a facturar, vencimiento = día 15 del mismo mes
     const emisionDate = new Date(mesFacturacionDate.getFullYear(), mesFacturacionDate.getMonth(), 1).toISOString().split('T')[0];
     const vencimientoDate = new Date(mesFacturacionDate.getFullYear(), mesFacturacionDate.getMonth(), 30).toISOString().split('T')[0];
     const modoTexto = testMode ? ' [MODO PRUEBA]' : '';
 
-    // Obtener inmuebles activos
+    // ── PASO 1: Obtener todos los inmuebles activos de una sola vez ──
     const { data: inmuebles, error: inmueblesError } = await supabase
       .from('inmuebles')
-      .select('id, identidad, contribuyente, cod_cont, mmv_mes, cant_inmuebles, deuda_mmv');
+      .select('id, identidad, contribuyente, cod_cont, mmv_mes, cant_inmuebles, deuda_mmv')
+      .gt('mmv_mes', 0);
 
     if (inmueblesError) throw inmueblesError;
+    if (!inmuebles || inmuebles.length === 0) {
+      return NextResponse.json({ success: true, procesados: 0, omitidos: 0, message: 'No hay inmuebles activos' });
+    }
 
-    let procesados = 0;
-    let omitidos = 0;
-    let montoTotal = 0;
+    // ── PASO 2: Obtener referencias ya existentes para este período (batch) ──
+    const todasLasRefs = inmuebles
+      .filter((inm: any) => inm.cod_cont)
+      .map((inm: any) => `CM-${inm.cod_cont}-${periodoKey}`);
 
-    for (const inm of (inmuebles || [])) {
-      const cant = parseInt(inm.cant_inmuebles) || 1;
-      const mmv = parseFloat(inm.mmv_mes) || 0;
+    const { data: existentes } = await supabase
+      .from('facturas')
+      .select('referencia')
+      .in('referencia', todasLasRefs);
 
-      if (mmv <= 0 || !inm.cod_cont) continue;
+    const refsExistentes = new Set((existentes || []).map((e: any) => e.referencia));
 
-      // Referencia única por contribuyente y período — previene duplicados
+    // ── PASO 3: Construir batch de facturas nuevas ──
+    const facturasNuevas: any[] = [];
+    const inmueblesAActualizar: { id: string; nuevaDeudaMmv: number }[] = [];
+
+    for (const inm of inmuebles) {
+      if (!inm.cod_cont) continue;
+      const cant = parseFloat(inm.cant_inmuebles) || 1;
+      const mmv  = parseFloat(inm.mmv_mes) || 0;
+      if (mmv <= 0) continue;
+
       const refFactura = `CM-${inm.cod_cont}-${periodoKey}`;
-
-      // Verificar si ya existe factura de este período
-      const { data: existente } = await supabase
-        .from('facturas')
-        .select('id')
-        .eq('referencia', refFactura)
-        .limit(1);
-
-      if (existente && existente.length > 0) {
-        omitidos++;
-        continue;
-      }
+      if (refsExistentes.has(refFactura)) continue; // ya existe
 
       const deudaAgregadaBs = parseFloat((cant * mmv * tcmmv).toFixed(2));
-      const nuevaDeudaMmv = (parseFloat(inm.deuda_mmv) || 0) + (cant * mmv);
+      const nuevaDeudaMmv   = (parseFloat(inm.deuda_mmv) || 0) + (cant * mmv);
 
-      // Actualizar deuda MMV del inmueble
-      await supabase.from('inmuebles')
-        .update({ deuda_mmv: nuevaDeudaMmv })
-        .eq('id', inm.id);
-
-      // Insertar factura mensual
-      await supabase.from('facturas').insert({
-        referencia: refFactura,
-        identidad: inm.identidad,
+      facturasNuevas.push({
+        referencia:    refFactura,
+        identidad:     inm.identidad,
         contribuyente: inm.contribuyente,
-        monto: deudaAgregadaBs,
-        estado: 'Pendiente',
-        emision: emisionDate,
-        vencimiento: vencimientoDate,
-        detalles: JSON.stringify({
-          tipo: 'Cobro Mensual Automático',
-          periodo: mesFacturado,
-          periodo_key: periodoKey,
-          tasa_tcmmv: tcmmv,
-          mmv_aplicado: mmv,
+        monto:         deudaAgregadaBs,
+        estado:        'Pendiente',
+        emision:       emisionDate,
+        vencimiento:   vencimientoDate,
+        detalles:      JSON.stringify({
+          tipo:          'Cobro Mensual Automático',
+          periodo:       mesFacturado,
+          periodo_key:   periodoKey,
+          tasa_tcmmv:    tcmmv,
+          mmv_aplicado:  mmv,
           cant_inmuebles: cant,
-          generado_en: new Date().toISOString()
+          generado_en:   new Date().toISOString()
         })
       });
 
-      procesados++;
-      montoTotal += deudaAgregadaBs;
+      inmueblesAActualizar.push({ id: inm.id, nuevaDeudaMmv });
     }
 
-    // Registrar en audit_logs
+    const omitidos = todasLasRefs.length - facturasNuevas.length;
+
+    if (facturasNuevas.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: `Todas las facturas de ${mesFacturado} ya existían.${modoTexto}`,
+        procesados: 0,
+        omitidos,
+        periodo: periodoKey,
+        tasa_tcmmv: tcmmv,
+        test_mode: testMode
+      });
+    }
+
+    // ── PASO 4: INSERT masivo (una sola llamada a Supabase) ──
+    const { error: insertError } = await supabase
+      .from('facturas')
+      .insert(facturasNuevas);
+
+    if (insertError) throw insertError;
+
+    // ── PASO 5: Actualizar deuda_mmv en paralelo (batch updates) ──
+    await Promise.all(
+      inmueblesAActualizar.map(({ id, nuevaDeudaMmv }) =>
+        supabase.from('inmuebles').update({ deuda_mmv: nuevaDeudaMmv }).eq('id', id)
+      )
+    );
+
+    const montoTotal = facturasNuevas.reduce((s: number, f: any) => s + f.monto, 0);
+
+    // Audit log
     try {
       await supabase.from('audit_logs').insert({
-        usuario: 'Sistema (Cron)',
-        accion: 'FACTURACION_MENSUAL_AUTOMATICA',
-        detalles: `Período: ${mesFacturado}. Procesados: ${procesados}. Omitidos (ya facturados): ${omitidos}. Monto total: Bs ${montoTotal.toFixed(2)}. Tasa TCMMV: ${tcmmv}`
+        usuario:  'Sistema (Cron)',
+        accion:   'FACTURACION_MENSUAL_AUTOMATICA',
+        detalles: `Período: ${mesFacturado}${modoTexto}. Procesados: ${facturasNuevas.length}. Omitidos: ${omitidos}. Monto total: Bs ${montoTotal.toFixed(2)}. Tasa TCMMV: ${tcmmv}`
       });
     } catch(e) {}
 
     return NextResponse.json({
       success: true,
-      message: `Facturación mensual automática completada — ${mesFacturado}${modoTexto}`,
-      procesados,
+      message: `Facturación mensual completada — ${mesFacturado}${modoTexto}`,
+      procesados: facturasNuevas.length,
       omitidos,
       montoTotal,
       periodo: periodoKey,
@@ -155,8 +169,8 @@ export async function GET(request: Request) {
     console.error('Error en Cron Billing:', error);
     try {
       await supabase.from('audit_logs').insert({
-        usuario: 'Sistema (Cron)',
-        accion: 'ERROR_FACTURACION_MENSUAL',
+        usuario:  'Sistema (Cron)',
+        accion:   'ERROR_FACTURACION_MENSUAL',
         detalles: error.message || 'Error desconocido'
       });
     } catch(e) {}
