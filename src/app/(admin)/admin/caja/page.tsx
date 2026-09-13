@@ -1164,7 +1164,14 @@ export default function CajaPage() {
                           />
                           <div>
                             <p className="font-semibold text-sm text-slate-800">{r.referencia}</p>
-                            <p className="text-xs text-slate-500">Emisión: {r.emision}</p>
+                            <p className="text-xs text-slate-500">
+                              {(() => {
+                                const M = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+                                if (!r.emision) return 'Sin fecha';
+                                const p = r.emision.split('-');
+                                return p.length >= 2 ? `${M[parseInt(p[1])-1] || p[1]} ${p[0]}` : r.emision;
+                              })()}
+                            </p>
                           </div>
                         </div>
                         <span className="font-bold text-emerald-700">{getReciboMonto(r)}</span>

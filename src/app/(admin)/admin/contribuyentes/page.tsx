@@ -2065,28 +2065,43 @@ function ContribuyentesPageContent() {
                             <thead className="bg-slate-100 text-slate-500 font-medium text-[10px] uppercase">
                               <tr>
                                 <th className="px-4 py-2">Referencia</th>
-                                <th className="px-4 py-2">Fecha</th>
+                                <th className="px-4 py-2">Mes</th>
+                                <th className="px-4 py-2">Estado</th>
                                 <th className="px-4 py-2 text-right">Monto (Bs)</th>
                                 <th className="px-4 py-2 text-center w-10">Acción</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {deudas.map((d: any, idx: number) => (
-                                <tr key={idx} className="border-b border-slate-100 last:border-0 bg-white group">
-                                  <td className="px-4 py-2 font-medium text-slate-700">{d.referencia}</td>
-                                  <td className="px-4 py-2 text-slate-600">{d.emision || 'N/A'}</td>
-                                  <td className="px-4 py-2 text-right font-bold text-slate-800">{Number(d.monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
-                                  <td className="px-4 py-2 text-center">
-                                    <button 
-                                      onClick={() => handleDeleteFactura(d)}
-                                      className="text-red-400 hover:text-red-600 p-1 rounded-full hover:bg-red-50 transition-colors"
-                                      title="Eliminar Deuda"
-                                    >
-                                      <X className="w-4 h-4" />
-                                    </button>
-                                  </td>
-                                </tr>
-                              ))}
+                              {deudas.map((d: any, idx: number) => {
+                                const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+                                let mesLabel = d.emision || 'N/A';
+                                if (d.emision) {
+                                  const parts = d.emision.split('-');
+                                  if (parts.length >= 2) mesLabel = `${MESES[parseInt(parts[1])-1] || parts[1]} ${parts[0]}`;
+                                }
+                                const montoNum = parseFloat(String(d.monto || '0').replace(/[^\d.]/g, '')) || 0;
+                                return (
+                                  <tr key={idx} className="border-b border-slate-100 last:border-0 bg-white group">
+                                    <td className="px-4 py-2 font-medium text-slate-700 text-xs">{d.referencia}</td>
+                                    <td className="px-4 py-2 text-slate-700 font-semibold text-xs whitespace-nowrap">{mesLabel}</td>
+                                    <td className="px-4 py-2">
+                                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${d.estado === 'Por Verificar' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                        {d.estado || 'Pendiente'}
+                                      </span>
+                                    </td>
+                                    <td className="px-4 py-2 text-right font-bold text-slate-800">{montoNum.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                                    <td className="px-4 py-2 text-center">
+                                      <button 
+                                        onClick={() => handleDeleteFactura(d)}
+                                        className="text-red-400 hover:text-red-600 p-1 rounded-full hover:bg-red-50 transition-colors"
+                                        title="Eliminar Deuda"
+                                      >
+                                        <X className="w-4 h-4" />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
                             </tbody>
                           </table>
                         </div>
