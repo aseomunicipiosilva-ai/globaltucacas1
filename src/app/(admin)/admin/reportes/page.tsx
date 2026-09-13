@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useAppContext } from '@/store/AppContext';
@@ -10,8 +10,8 @@ import { generarCorteCajaPDF, generarIngresoBancarioPDF } from './generators/Pdf
 import { generarEmpleadosExcel } from './generators/Empleados';
 import { generarFiscalizacionExcel } from './generators/Fiscalizacion';
 import { generarCuadreCajaPDF } from './generators/CuadreCaja';
-import CajaIngresos from './views/CajaIngresos';
-import CorteCaja from './views/CorteCaja';
+import CajaIngresosMain from './views/CajaIngresosMain';
+import CuadreCaja from './views/CuadreCaja';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -20,13 +20,11 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 type ActiveView = null | 'ingresos' | 'corte' | 'libro-ventas' | 'fiscalizacion' | 'empleados' | 'saldos' | 'ingreso-bancario';
 
 const CARDS = [
-  { id: 'ingresos' as ActiveView,       label: 'Caja - Ingresos',         emoji: '🖨️',  desc: 'Reporte general de todos los ingresos',        adminOnly: false },
-  { id: 'corte' as ActiveView,          label: 'Cuadrar Caja',            emoji: '💰',  desc: 'Solo pagos conciliados del periodo',           adminOnly: false },
+  { id: 'ingresos' as ActiveView,       label: 'Caja - Ingresos',         emoji: '🖨️',  desc: 'General de Ingresos, Corte, Libro de Ventas', adminOnly: false },
+  { id: 'corte' as ActiveView,          label: 'Cuadre de Caja',          emoji: '🗂️',  desc: 'Cuadre diario por cajero y forma de pago',    adminOnly: false },
   { id: 'fiscalizacion' as ActiveView,  label: 'Fiscalizacion',           emoji: '🛡️',  desc: 'Reporte de contribuyentes fiscalizados',       adminOnly: true  },
   { id: 'saldos' as ActiveView,         label: 'Saldo a Favor',           emoji: '💳',  desc: 'Contribuyentes con saldo a favor vigente',     adminOnly: true  },
   { id: 'empleados' as ActiveView,      label: 'Gestion Empleados',       emoji: '👥',  desc: 'Reporte mensual del personal',                 adminOnly: true  },
-  { id: 'libro-ventas' as ActiveView,   label: 'Resumen Libro de Ventas', emoji: '📊',  desc: 'Libro de ventas diario, semanal o mensual',    adminOnly: true  },
-  { id: 'ingreso-bancario' as ActiveView, label: 'Ingreso Bancario',      emoji: '🏦',  desc: 'Reporte de ingresos bancarios',                adminOnly: true  },
 ];
 
 export default function ReportesPage() {
@@ -108,18 +106,16 @@ export default function ReportesPage() {
 
   // --- Routing ---
   if (activeView === 'ingresos') return (
-    <CajaIngresos
+    <CajaIngresosMain
       pagos={pagos} cajeros={cajeros} isAdmin={isAdmin} currentUser={currentUser}
-      tcmmv={tcmmv || 0} onBack={() => setActiveView(null)}
-      onExportPDF={generarCorteCaja}
-      onExportExcel={() => generarLibroVentas('Diario')}
+      tcmmv={tcmmv || 0} contribuyentes={contribuyentes} onBack={() => setActiveView(null)}
     />
   );
 
   if (activeView === 'corte') return (
-    <CorteCaja
+    <CuadreCaja
       pagos={pagos} cajeros={cajeros} isAdmin={isAdmin} currentUser={currentUser}
-      onBack={() => setActiveView(null)} onExportPDF={generarCorteCaja}
+      onBack={() => setActiveView(null)}
     />
   );
 
