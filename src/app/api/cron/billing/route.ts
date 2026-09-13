@@ -6,24 +6,28 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const testMode = searchParams.get('test') === 'true';
+  const testSecret = searchParams.get('secret');
+  const simDateStr = searchParams.get('simDate'); // ej: 2026-09-30
+
+  // Auth: Bearer token O secret de prueba
   const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const cronSecret = process.env.CRON_SECRET || 'test-billing-2026';
+  const isAuthorized = authHeader === `Bearer ${cronSecret}` || testSecret === cronSecret;
+
+  if (!isAuthorized) {
     return new Response('Unauthorized', { status: 401 });
   }
 
   // ── Verificar si hoy es el día correcto para facturar ──
   // El cron corre días 28-31 para cubrir todos los meses.
   // Solo procesa cuando es el día 30 o el último día del mes (el que llegue primero).
-  // Ejemplos:
-  //   Enero (31 días)    → procesa el día 30
-  //   Febrero (28 días)  → procesa el día 28
-  //   Febrero (29 días)  → procesa el día 29
-  //   Abril (30 días)    → procesa el día 30
-  const hoy = new Date();
+  const hoy = simDateStr ? new Date(simDateStr + 'T12:00:00') : new Date();
   const lastDayOfMonth = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
   const diaFacturacion = Math.min(30, lastDayOfMonth);
 
-  if (hoy.getDate() !== diaFacturacion) {
+  if (!testMode && hoy.getDate() !== diaFacturacion) {
     return NextResponse.json({
       skipped: true,
       reason: `Hoy es día ${hoy.getDate()}, el día de facturación es el ${diaFacturacion}. No se procesó.`
@@ -43,13 +47,14 @@ export async function GET(request: Request) {
     const tcmmv: number = eurData.promedio;
 
     // Fecha: el cron corre el día 31 a las 03:59 UTC = día 30 a las 23:59 hora Venezuela (UTC-4)
-    const ahora = new Date();
+    const ahora = simDateStr ? new Date(simDateStr + 'T12:00:00') : new Date();
     const mesYYYY = String(ahora.getFullYear());
     const mesMM = String(ahora.getMonth() + 1).padStart(2, '0');
     const periodoKey = `${mesMM}-${mesYYYY}`; // ej: 09-2026
     const mesFacturado = ahora.toLocaleString('es-VE', { month: 'long', year: 'numeric' });
     const emisionDate = new Date(ahora.getFullYear(), ahora.getMonth(), 30).toISOString().split('T')[0];
     const vencimientoDate = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 15).toISOString().split('T')[0];
+    const modoTexto = testMode ? ' [MODO PRUEBA]' : '';
 
     // Obtener inmuebles activos
     const { data: inmuebles, error: inmueblesError } = await supabase
@@ -126,12 +131,14 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `Facturación mensual automática completada — ${mesFacturado}`,
+      message: `Facturación mensual automática completada — ${mesFacturado}${modoTexto}`,
       procesados,
       omitidos,
       montoTotal,
       periodo: periodoKey,
-      tasa_tcmmv: tcmmv
+      tasa_tcmmv: tcmmv,
+      test_mode: testMode,
+      sim_date: simDateStr || null
     });
 
   } catch (error: any) {
