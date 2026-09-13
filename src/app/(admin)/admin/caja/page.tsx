@@ -184,7 +184,7 @@ export default function CajaPage() {
     const idLimpioSearch = docNumber.replace(/-/g, '').toUpperCase();
     const cleanFullDoc = `${docType}${idLimpioSearch}`;
 
-    const user = contribuyentes.find((c: any) => {
+    let user = contribuyentes.find((c: any) => {
       if (!c.Identidad) return false;
       const idClean = String(c.Identidad).replace(/-/g, '').toUpperCase();
       const codMatch = c.CodCont && c.CodCont.toUpperCase() === docNumber.toUpperCase();
@@ -192,6 +192,31 @@ export default function CajaPage() {
       const nombreMatch = c.Contribuyente && c.Contribuyente.toUpperCase().includes(docNumber.toUpperCase());
       return idClean === cleanFullDoc || idClean === idLimpioSearch || codMatch || codContMatch || nombreMatch;
     });
+
+    // Fallback: usuario nuevo aprobado recientemente que aún no está en el contexto React
+    if (!user) {
+      const { data: inmFallback } = await supabase
+        .from('inmuebles')
+        .select('*')
+        .or(`identidad.eq.${cleanFullDoc},identidad.eq.${idLimpioSearch},cod_cont.ilike.${docNumber}`)
+        .limit(1)
+        .maybeSingle();
+
+      if (inmFallback) {
+        user = {
+          Identidad: inmFallback.identidad,
+          Contribuyente: inmFallback.contribuyente,
+          Telefono: inmFallback.telefono || 'No registrado',
+          Correo: inmFallback.correo_electronico || 'No registrado',
+          CodCont: inmFallback.cod_cont,
+          cod_cont: inmFallback.cod_cont,
+          Direccion: inmFallback.direccion,
+          Clasificacion: inmFallback.clasificacion || 'Residencial',
+          SaldoFavor: parseFloat(inmFallback.saldo_favor_bs || '0'),
+          Estado: inmFallback.estado || 'Activo'
+        };
+      }
+    }
     
     if (user) {
       // Obtener saldo_favor_bs fresco desde Supabase (el contexto puede estar desactualizado

@@ -243,6 +243,7 @@ export default function PreRegistrosPage() {
       if (deudaMMV > 0) {
         const facturaData = {
           referencia: `FACT-${Math.floor(Math.random() * 1000000)}`,
+          identidad: rowToApprove.identidad,
           contribuyente: rowToApprove.contribuyente,
           monto: (deudaMMV * (tcmmv || 1)).toFixed(2), // We store in Bs for the factura
           emision: new Date().toISOString().split('T')[0],
