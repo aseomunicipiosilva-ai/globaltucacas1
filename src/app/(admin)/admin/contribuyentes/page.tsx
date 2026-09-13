@@ -41,6 +41,7 @@ function ContribuyentesPageContent() {
   const [selectedSolvenciaInmueble, setSelectedSolvenciaInmueble] = useState<string>('');
   const [viewCalculo, setViewCalculo] = useState<any>(null);
   const [viewFacturasCM, setViewFacturasCM] = useState<any[]>([]);
+  const [viewFacturasDb, setViewFacturasDb] = useState<any[]>([]); // facturas frescas desde Supabase
   const [selectedCondominioModal, setSelectedCondominioModal] = useState<{ id: number, nombre: string, identidad: string } | null>(null);
   const [viewServiciosEsp, setViewServiciosEsp] = useState<any[]>([]);
   const [viewPagos, setViewPagos] = useState<any[]>([]);
@@ -321,10 +322,34 @@ function ContribuyentesPageContent() {
         .or(`identidad.eq.${viewData.Identidad},identidad.eq.${(viewData.Identidad || '').replace(/-/g, '')}`)
         .order('created_at', { ascending: false })
         .then(({ data }) => setViewPagos(data || []));
+      // Cargar facturas frescas desde Supabase (evitar discrepancias con el contexto React)
+      const identidadClean = (viewData.Identidad || '').replace(/-/g, '').toUpperCase();
+      supabase
+        .from('facturas')
+        .select('*')
+        .in('estado', ['Pendiente', 'Por Verificar'])
+        .or(`identidad.eq.${viewData.Identidad},identidad.eq.${identidadClean}`)
+        .order('created_at', { ascending: false })
+        .then(({ data: facData }) => {
+          // fallback por nombre si no hay resultados por identidad
+          if (!facData || facData.length === 0) {
+            supabase
+              .from('facturas')
+              .select('*')
+              .in('estado', ['Pendiente', 'Por Verificar'])
+              .is('identidad', null)
+              .eq('contribuyente', viewData.Contribuyente)
+              .order('created_at', { ascending: false })
+              .then(({ data: facByName }) => setViewFacturasDb(facByName || []));
+          } else {
+            setViewFacturasDb(facData || []);
+          }
+        });
     } else {
       setViewCalculo(null);
       setViewServiciosEsp([]);
       setViewPagos([]);
+      setViewFacturasDb([]);
     }
   }, [isViewModalOpen, viewData, inmuebles]);
 
@@ -961,7 +986,7 @@ function ContribuyentesPageContent() {
                 <label className="block text-[10px] font-semibold text-slate-600 mb-1">Copia de Cédula / RIF</label>
                 <label className="block border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-colors">
                   {uploadDocs.cedula.uploading ? (
-                    <span className="text-xs text-blue-500 animate-pulse">â³ Subiendo...</span>
+                    <span className="text-xs text-blue-500 animate-pulse">â ³ Subiendo...</span>
                   ) : uploadDocs.cedula.url ? (
                     <div className="space-y-1">
                       <span className="text-[10px] text-green-600 font-bold block">âœ… {uploadDocs.cedula.name}</span>
@@ -979,7 +1004,7 @@ function ContribuyentesPageContent() {
                 <label className="block text-[10px] font-semibold text-slate-600 mb-1">Ficha Catastral Digitalizada</label>
                 <label className="block border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-colors">
                   {uploadDocs.ficha.uploading ? (
-                    <span className="text-xs text-blue-500 animate-pulse">â³ Subiendo...</span>
+                    <span className="text-xs text-blue-500 animate-pulse">â ³ Subiendo...</span>
                   ) : uploadDocs.ficha.url ? (
                     <div className="space-y-1">
                       <span className="text-[10px] text-green-600 font-bold block">âœ… {uploadDocs.ficha.name}</span>
@@ -997,7 +1022,7 @@ function ContribuyentesPageContent() {
                 <label className="block text-[10px] font-semibold text-slate-600 mb-1">Registro Mercantil / Otros</label>
                 <label className="block border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-colors">
                   {uploadDocs.registro.uploading ? (
-                    <span className="text-xs text-blue-500 animate-pulse">â³ Subiendo...</span>
+                    <span className="text-xs text-blue-500 animate-pulse">â ³ Subiendo...</span>
                   ) : uploadDocs.registro.url ? (
                     <div className="space-y-1">
                       <span className="text-[10px] text-green-600 font-bold block">âœ… {uploadDocs.registro.name}</span>
@@ -1981,9 +2006,8 @@ function ContribuyentesPageContent() {
                 </div>
                 <div className="p-0">
                   {(() => {
-                    const deudas = (facturas || [])
-                      .filter((f: any) => f.identidad === viewData.Identidad || f.contribuyente === viewData.Contribuyente || f.contribuyente === viewData.Identidad)
-                      .filter((f: any) => f.estado === 'Pendiente');
+                    // Usar facturas frescas de Supabase (no el contexto que puede estar desactualizado)
+                    const deudas = viewFacturasDb;
                     const totalBs = deudas.reduce((acc: number, f: any) => acc + parseFloat(f.monto || '0'), 0);
                     
                     if (deudas.length === 0) {
