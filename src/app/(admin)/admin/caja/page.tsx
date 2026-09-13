@@ -233,16 +233,41 @@ export default function CajaPage() {
       setFoundUser({ ...user, SaldoFavor: saldoFavorFresh });
       
       // Consulta directa a Supabase: siempre fresca, incluye todas las CM- mensuales
+      // Incluye variantes de identidad (con/sin guión) + búsqueda por nombre (facturas antiguas sin identidad)
+      const identidadClean = (user.Identidad || '').replace(/-/g, '').toUpperCase();
       const { data: allUserFacturas } = await supabase
         .from('facturas')
         .select('*')
-        .eq('estado', 'Pendiente')
-        .or(`identidad.eq.${user.Identidad},identidad.eq.${cleanFullDoc}`)
+        .in('estado', ['Pendiente', 'Por Verificar'])
+        .or(`identidad.eq.${user.Identidad},identidad.eq.${cleanFullDoc},identidad.eq.${identidadClean}`)
         .order('emision', { ascending: true });
+
+      // Fallback: facturas creadas antes del fix de identidad (campo identidad = NULL)
+      // Se buscan por nombre del contribuyente para cubrir datos históricos
+      let fallbackFacturas: any[] = [];
+      if ((allUserFacturas || []).length === 0 && user.Contribuyente) {
+        const { data: fByName } = await supabase
+          .from('facturas')
+          .select('*')
+          .in('estado', ['Pendiente', 'Por Verificar'])
+          .is('identidad', null)
+          .eq('contribuyente', user.Contribuyente)
+          .order('emision', { ascending: true });
+        
+        if (fByName && fByName.length > 0) {
+          fallbackFacturas = fByName;
+          // Backfill identidad en BD para que proximas búsquedas funcionen directamente
+          const idsToUpdate = fByName.map((f: any) => f.id);
+          await supabase
+            .from('facturas')
+            .update({ identidad: user.Identidad })
+            .in('id', idsToUpdate);
+        }
+      }
 
       // NO combinar con contexto React (puede estar desactualizado tras un pago)
       // Solo usar datos frescos de Supabase
-      const combined = [...(allUserFacturas || [])];
+      const combined = [...(allUserFacturas || []), ...fallbackFacturas];
 
       // Ordenar: primero facturas normales (FACT-), luego CM- por fecha
       combined.sort((a: any, b: any) => {

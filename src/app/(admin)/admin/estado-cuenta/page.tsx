@@ -9,11 +9,15 @@ import tarifasData from '@/data/tarifas.json';
 import { ReciboImprimible } from '@/components/ReciboImprimible';
 
 export default function EstadoCuentaPage() {
-  const { facturas, inmuebles } = useAppContext();
+  const { inmuebles } = useAppContext();
   const [tcmmv, setTcmmv] = useState<number | null>(null);
   const [loadingTasa, setLoadingTasa] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedRecibo, setSelectedRecibo] = useState<any>(null);
+
+  // Facturas frescas desde Supabase (no del contexto React que puede estar desactualizado)
+  const [facturasDb, setFacturasDb] = useState<any[]>([]);
+  const [loadingFacturas, setLoadingFacturas] = useState(false);
   
   const [activeTab, setActiveTab] = useState<'General' | 'PorVerificar' | 'Historial'>('General');
   const [pagosVerificar, setPagosVerificar] = useState<any[]>([]);
@@ -32,13 +36,43 @@ export default function EstadoCuentaPage() {
     try { return JSON.parse(raw); } catch(e) { return {}; }
   };
 
-  const filteredFacturas = facturas
-    .filter((f: any) => f.estado === 'Pagado')
-    .sort((a: any, b: any) => {
-      const dA = new Date(a.emision || '1900-01-01').getTime();
-      const dB = new Date(b.emision || '1900-01-01').getTime();
-      return dB - dA;
-    });
+  // Carga fresca de facturas desde Supabase (para que los pagos recientes aparezcan de inmediato)
+  const fetchFacturasDb = async () => {
+    setLoadingFacturas(true);
+    try {
+      let all: any[] = [];
+      let from = 0;
+      const step = 999;
+      let more = true;
+      while (more) {
+        const { data: chunk } = await supabase
+          .from('facturas')
+          .select('*')
+          .range(from, from + step);
+        if (chunk && chunk.length > 0) {
+          all = [...all, ...chunk];
+          from += step + 1;
+        } else {
+          more = false;
+        }
+      }
+      // Ordenar de más nuevas a más antiguas
+      all.sort((a: any, b: any) => {
+        const dA = new Date(a.emision || '1900-01-01').getTime();
+        const dB = new Date(b.emision || '1900-01-01').getTime();
+        return dB - dA;
+      });
+      setFacturasDb(all);
+    } catch (e) {
+      console.error('Error cargando facturas:', e);
+    }
+    setLoadingFacturas(false);
+  };
+
+  const filteredFacturas = facturasDb.filter((f: any) => {
+    if (filterStatus === 'Todos') return true;
+    return f.estado === filterStatus;
+  });
 
   const fetchPagos = async () => {
     setLoadingPagos(true);
@@ -86,6 +120,7 @@ export default function EstadoCuentaPage() {
 
   useEffect(() => {
     fetchAbonos();
+    fetchFacturasDb();
   }, []);
 
   useEffect(() => {
@@ -760,12 +795,39 @@ export default function EstadoCuentaPage() {
           <div className="flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5 text-slate-700" />
             <h1 className="text-lg font-semibold text-slate-800 uppercase tracking-wide">
-              Estado de Cuenta General (Pagados)
+              Estado de Cuenta General
             </h1>
           </div>
+          {/* Filtro por estado */}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="Todos">Todos los estados</option>
+            <option value="Pagado">Pagado</option>
+            <option value="Pendiente">Pendiente</option>
+            <option value="Por Verificar">Por Verificar</option>
+            <option value="Anulado">Anulado</option>
+            <option value="Reversado">Reversado</option>
+          </select>
+          <span className="text-xs text-slate-500 font-medium">
+            {loadingFacturas ? 'Cargando...' : `${filteredFacturas.length} registros`}
+          </span>
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
+          {/* Botón Refrescar facturas */}
+          <button
+            onClick={fetchFacturasDb}
+            disabled={loadingFacturas}
+            className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 px-3 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2"
+            title="Refrescar lista de facturas"
+          >
+            <RefreshCw size={14} className={loadingFacturas ? 'animate-spin' : ''} />
+            Refrescar
+          </button>
+
           <div className="bg-slate-100 px-3 py-1.5 rounded-lg flex items-center gap-2 border border-slate-200">
             <span className="text-xs font-medium text-slate-500">TCMMV (Euro):</span>
             <span className="text-sm font-bold text-slate-800">
@@ -794,7 +856,7 @@ export default function EstadoCuentaPage() {
             className="bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
           >
             <Zap className="w-4 h-4" /> 
-            {isGenerating ? 'Generando...' : 'Generar Facturaci├│n'}
+            {isGenerating ? 'Generando...' : 'Generar Facturación'}
           </button>
           <button 
             onClick={exportarAExcel}
@@ -806,7 +868,7 @@ export default function EstadoCuentaPage() {
             onClick={enviarCorreosMasivos}
             className="bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded text-sm font-medium transition-colors shadow-sm flex items-center gap-2"
           >
-            Env├¡o Masivo Correos
+            Envío Masivo Correos
           </button>
           </div>
         </div>
@@ -867,7 +929,7 @@ export default function EstadoCuentaPage() {
 
         {/* Desglose anual de deuda */}
         {filterStatus === 'Todos' || filterStatus === 'Pendiente' ? (() => {
-          const pendientes = facturas.filter((f: any) => f.estado === 'Pendiente');
+          const pendientes = facturasDb.filter((f: any) => f.estado === 'Pendiente');
           const yearsMap: Record<string, {total: number, count: number}> = {};
           pendientes.forEach((f: any) => {
             const key = f.emision ? f.emision.substring(0, 4) : 'Sin Año';
