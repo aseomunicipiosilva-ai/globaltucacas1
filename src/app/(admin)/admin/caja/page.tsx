@@ -242,21 +242,20 @@ export default function CajaPage() {
         .or(`identidad.eq.${user.Identidad},identidad.eq.${cleanFullDoc},identidad.eq.${identidadClean}`)
         .order('emision', { ascending: true });
 
-      // Fallback: facturas creadas antes del fix de identidad (campo identidad = NULL)
-      // Se buscan por nombre del contribuyente para cubrir datos históricos
+      // Fallback: buscar por nombre del contribuyente (cubre facturas con identidad en formato
+      // distinto o NULL — ej: FACT- generadas por ajuste de deuda sin guión V-)
       let fallbackFacturas: any[] = [];
       if ((allUserFacturas || []).length === 0 && user.Contribuyente) {
         const { data: fByName } = await supabase
           .from('facturas')
           .select('*')
           .in('estado', ['Pendiente', 'Por Verificar'])
-          .is('identidad', null)
           .eq('contribuyente', user.Contribuyente)
           .order('emision', { ascending: true });
         
         if (fByName && fByName.length > 0) {
           fallbackFacturas = fByName;
-          // Backfill identidad en BD para que proximas búsquedas funcionen directamente
+          // Backfill identidad en BD para que próximas búsquedas funcionen directamente
           const idsToUpdate = fByName.map((f: any) => f.id);
           await supabase
             .from('facturas')

@@ -331,13 +331,12 @@ function ContribuyentesPageContent() {
         .or(`identidad.eq.${viewData.Identidad},identidad.eq.${identidadClean}`)
         .order('created_at', { ascending: false })
         .then(({ data: facData }) => {
-          // fallback por nombre si no hay resultados por identidad
+          // fallback por nombre si no hay resultados por identidad (cubre FACT- con identidad en otro formato)
           if (!facData || facData.length === 0) {
             supabase
               .from('facturas')
               .select('*')
               .in('estado', ['Pendiente', 'Por Verificar'])
-              .is('identidad', null)
               .eq('contribuyente', viewData.Contribuyente)
               .order('created_at', { ascending: false })
               .then(({ data: facByName }) => setViewFacturasDb(facByName || []));
