@@ -45,22 +45,26 @@ export default function EstadoCuentaPage() {
       const step = 999;
       let more = true;
       while (more) {
-        const { data: chunk } = await supabase
+        const { data: chunk, error } = await supabase
           .from('facturas')
           .select('*')
+          .order('created_at', { ascending: false }) // orden consistente en cada chunk
           .range(from, from + step);
+        if (error) { console.error('Error cargando chunk:', error); break; }
         if (chunk && chunk.length > 0) {
           all = [...all, ...chunk];
           from += step + 1;
+          if (chunk.length < step + 1) more = false; // último chunk parcial
         } else {
           more = false;
         }
       }
-      // Ordenar de más nuevas a más antiguas
+      // El array ya viene ordenado por created_at desc desde Supabase — no necesitamos re-ordenar.
+      // Pero por seguridad lo afirmamos en el cliente también:
       all.sort((a: any, b: any) => {
-        const dA = new Date(a.emision || '1900-01-01').getTime();
-        const dB = new Date(b.emision || '1900-01-01').getTime();
-        return dB - dA;
+        const dA = new Date(a.created_at || '1900-01-01').getTime();
+        const dB = new Date(b.created_at || '1900-01-01').getTime();
+        return dB - dA; // más nuevos primero
       });
       setFacturasDb(all);
     } catch (e) {
