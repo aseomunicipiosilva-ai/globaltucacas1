@@ -322,11 +322,12 @@ export default function CajaPage() {
       setTalaPoda(talaData || []);
 
       // Cargar pagos pendientes de verificar para bloquear seleccion
+      // Solo 'Por Verificar' bloquea — significa que ya hay una transferencia enviada esperando conciliación
       const { data: pagosPendData } = await supabase
         .from('pagos_reportados')
         .select('*')
         .or('identidad.eq.' + user.Identidad + ',identidad.eq.' + cleanFullDoc)
-        .in('estado', ['Por Verificar', 'Pendiente']);
+        .eq('estado', 'Por Verificar');
       setPagosPendientes(pagosPendData || []);
 
     } else {
