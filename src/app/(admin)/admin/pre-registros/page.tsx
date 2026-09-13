@@ -189,20 +189,18 @@ export default function PreRegistrosPage() {
       const baseInmuebleData = {
         identidad: rowToApprove.identidad,
         contribuyente: rowToApprove.contribuyente,
-        telefono: rowToApprove.registro || '', // Read telefono from registro
-        correo_electronico: '', // Can be improved later if we split the field
-        direccion: rowToApprove.domicilio_fiscal || rowToApprove.direccion_exacta || '', // Use new fields
+        telefono: rowToApprove.registro || '',
+        correo_electronico: '',
+        // Combinar dirección y dirección exacta igual que AppContext
+        direccion: rowToApprove.direccion_exacta
+          ? `${rowToApprove.domicilio_fiscal || rowToApprove.direccion || ''} | Exacta: ${rowToApprove.direccion_exacta}`
+          : (rowToApprove.domicilio_fiscal || rowToApprove.direccion || ''),
         cod_cont: `N-${Math.floor(Math.random() * 100000)}`,
         clasificacion: rowToApprove.tipo,
         actividad_principal: rowToApprove.actividad,
-        inmueble: 'Principal', 
+        inmueble: 'Principal',
         deuda_mmv: deudaMMV,
         deuda_congelada_bs: 0,
-        // New advanced fields
-        nota: rowToApprove.nota || '',
-        coordenadas: rowToApprove.coordenadas,
-        direccion_exacta: rowToApprove.direccion_exacta,
-        is_condominio: rowToApprove.is_condominio || false,
         cant_inmuebles: rowToApprove.cantidad_inmuebles || 0
       };
 
