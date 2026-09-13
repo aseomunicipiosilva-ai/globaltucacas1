@@ -46,14 +46,20 @@ export async function GET(request: Request) {
     const eurData = await eurRes.json();
     const tcmmv: number = eurData.promedio;
 
-    // Fecha: el cron corre el día 31 a las 03:59 UTC = día 30 a las 23:59 hora Venezuela (UTC-4)
+    // El cron corre el día 30 de cada mes para PRE-FACTURAR el mes siguiente
+    // Ej: corre el 30-Sep → genera facturas de OCTUBRE
     const ahora = simDateStr ? new Date(simDateStr + 'T12:00:00') : new Date();
-    const mesYYYY = String(ahora.getFullYear());
-    const mesMM = String(ahora.getMonth() + 1).padStart(2, '0');
-    const periodoKey = `${mesMM}-${mesYYYY}`; // ej: 09-2026
-    const mesFacturado = ahora.toLocaleString('es-VE', { month: 'long', year: 'numeric' });
-    const emisionDate = new Date(ahora.getFullYear(), ahora.getMonth(), 30).toISOString().split('T')[0];
-    const vencimientoDate = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 15).toISOString().split('T')[0];
+
+    // Calcular el mes siguiente (con manejo de fin de año)
+    const mesFacturacionDate = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 1);
+    const mesMM = String(mesFacturacionDate.getMonth() + 1).padStart(2, '0');
+    const mesYYYY = String(mesFacturacionDate.getFullYear());
+    const periodoKey = `${mesMM}-${mesYYYY}`; // ej: 10-2026 (cuando corre el 30-Sep)
+    const mesFacturado = mesFacturacionDate.toLocaleString('es-VE', { month: 'long', year: 'numeric' });
+
+    // Emisión = día 1 del mes a facturar, vencimiento = día 15 del mismo mes
+    const emisionDate = new Date(mesFacturacionDate.getFullYear(), mesFacturacionDate.getMonth(), 1).toISOString().split('T')[0];
+    const vencimientoDate = new Date(mesFacturacionDate.getFullYear(), mesFacturacionDate.getMonth(), 15).toISOString().split('T')[0];
     const modoTexto = testMode ? ' [MODO PRUEBA]' : '';
 
     // Obtener inmuebles activos
