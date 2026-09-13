@@ -59,7 +59,7 @@ export async function GET(request: Request) {
 
     // Emisión = día 1 del mes a facturar, vencimiento = día 15 del mismo mes
     const emisionDate = new Date(mesFacturacionDate.getFullYear(), mesFacturacionDate.getMonth(), 1).toISOString().split('T')[0];
-    const vencimientoDate = new Date(mesFacturacionDate.getFullYear(), mesFacturacionDate.getMonth(), 15).toISOString().split('T')[0];
+    const vencimientoDate = new Date(mesFacturacionDate.getFullYear(), mesFacturacionDate.getMonth(), 30).toISOString().split('T')[0];
     const modoTexto = testMode ? ' [MODO PRUEBA]' : '';
 
     // Obtener inmuebles activos
