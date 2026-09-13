@@ -832,7 +832,7 @@ export default function ConciliacionPage() {
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [loading, setLoading] = useState(false);
   const [filtros, setFiltros] = useState<Filtros>({
-    desde: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    desde: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     hasta: new Date().toISOString().split('T')[0],
     estatus: 'Por Verificar', bancoDestino: 'Todos', formaPago: 'Todos', referencia: '', monto: '',
   });
@@ -843,8 +843,8 @@ export default function ConciliacionPage() {
     setLoading(true);
     try {
       let q = supabase.from('pagos_reportados').select('*').order('created_at', { ascending: false }).limit(500);
-      if (filtros.desde) q = q.gte('created_at', filtros.desde + 'T00:00:00');
-      if (filtros.hasta) q = q.lte('created_at', filtros.hasta + 'T23:59:59');
+      if (filtros.desde) q = q.gte('created_at', filtros.desde + 'T04:00:00.000Z'); // UTC-4 VE offset
+      if (filtros.hasta) { const d = new Date(filtros.hasta + 'T04:00:00Z'); d.setDate(d.getDate()+1); q = q.lte('created_at', d.toISOString()); } // end of day VE
       if (filtros.estatus !== 'Todos') q = q.eq('estado', filtros.estatus);
       if (filtros.formaPago !== 'Todos') q = q.eq('tipo', filtros.formaPago);
       if (filtros.referencia) q = q.ilike('referencia', '%' + filtros.referencia + '%');
