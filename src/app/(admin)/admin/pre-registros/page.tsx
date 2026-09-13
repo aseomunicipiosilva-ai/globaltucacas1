@@ -158,6 +158,15 @@ export default function PreRegistrosPage() {
     return factor;
   };
 
+  // Extrae el primer numero de un string como "101 - 200 m²" → 101
+  const parseAreaNumeric = (val: any): number | null => {
+    if (val === null || val === undefined) return null;
+    if (typeof val === 'number') return isNaN(val) ? null : val;
+    const match = String(val).match(/(\d+(?:[.,]\d+)?)/);
+    if (!match) return null;
+    return parseFloat(match[1].replace(',', '.'));
+  };
+
   const handleApproveClick = (row: any) => {
     setRowToApprove(row);
     setCalculatedFactor(calculateFactor(row));
@@ -213,14 +222,15 @@ export default function PreRegistrosPage() {
           inmueble: local.numeracion,
           actividad_principal: local.uso === 'Comercial' ? local.actividad : local.uso,
           tipo: local.uso === 'Residencial' ? local.tipoResidencia : 'Inmueble',
-          area: local.uso === 'Comercial' ? local.nivel : null,
+          area: local.uso === 'Comercial' ? parseAreaNumeric(local.nivel) : null,
           mmv_mes: 0 // Will be recalculated in general or mapped later if needed
         }));
       } else {
         recordsToInsert = [{
           ...baseInmuebleData,
           tipo: rowToApprove.tipo === 'Residencial' ? rowToApprove.codigo : 'Inmueble',
-          area: rowToApprove.tipo !== 'Residencial' ? rowToApprove.codigo : null
+          // codigo puede ser "101 - 200 m²" para comercial, extraer numero
+          area: rowToApprove.tipo !== 'Residencial' ? parseAreaNumeric(rowToApprove.codigo) : null
         }];
       }
 
