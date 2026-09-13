@@ -104,37 +104,43 @@ export default function CajaPage() {
 
   const getReciboMonto = (r: any) => {
     if (customBcvRate && !isNaN(parseFloat(customBcvRate)) && foundUser) {
-      // FACT- invoices = deuda acumulada de múltiples meses → usar monto guardado en BD
-      // Solo se ajusta si hay tasa personalizada, estimando el MMV original
+      const tasaActual = parseFloat(customBcvRate);
+      const userInms = inmuebles.filter((i: any) =>
+        (i.identidad || '').replace(/-/g,'').toUpperCase() === (foundUser.Identidad || '').replace(/-/g,'').toUpperCase()
+      );
+
+      // FACT- = deuda acumulada de N meses → usar deuda_mmv del inmueble × tasa actual
+      // deuda_mmv es el total en TCMMV calculado por la ordenanza real al momento de Ajustar Deuda
       if (r.referencia?.startsWith('FACT-')) {
-        const originalBs = parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
-        if (originalBs > 0) {
-          // Recalcular proporcionalmente: monto_original / tasa_original * tasa_nueva
-          const tasaOriginal = tcmmv || parseFloat(customBcvRate);
-          const mmvEquivalente = originalBs / tasaOriginal;
-          return (mmvEquivalente * parseFloat(customBcvRate)).toFixed(2);
+        let totalDeudaMMV = 0;
+        userInms.forEach((inm: any) => {
+          totalDeudaMMV += parseFloat(inm.deuda_mmv || 0);
+        });
+        if (totalDeudaMMV > 0) {
+          return (totalDeudaMMV * tasaActual).toFixed(2);
         }
-        return String(originalBs.toFixed(2));
+        // Fallback proporcional si no hay deuda_mmv registrado
+        const originalBs = parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
+        const tasaRef = tcmmv || tasaActual;
+        return ((originalBs / tasaRef) * tasaActual).toFixed(2);
       }
 
-      // CM- invoices = exactamente 1 mes → recalcular con tasa actual
-      const userInms = inmuebles.filter((i: any) => i.identidad === foundUser.Identidad);
+      // CM- = exactamente 1 mes → mmv_mes × cant_inmuebles × tasa actual (ordenanza real)
       let monthlyMMV = 0;
       userInms.forEach((inm: any) => {
         const cant = parseFloat(inm.cant_inmuebles || 1);
-        const mmv = parseFloat(inm.mmv_mes || 0);
-        if (mmv > 0) monthlyMMV += (cant * mmv);
+        const mmv  = parseFloat(inm.mmv_mes || 0);
+        if (mmv > 0) monthlyMMV += cant * mmv;
       });
-      
-      if (monthlyMMV > 0 && r.referencia?.startsWith('CM-')) {
-        return (monthlyMMV * parseFloat(customBcvRate)).toFixed(2);
-      } else {
-        // Fallback para recibos sin prefijo conocido
-        const originalBs = parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
-        const mmvAprox = originalBs / (tcmmv || 1);
-        return (mmvAprox * parseFloat(customBcvRate)).toFixed(2);
+      if (monthlyMMV > 0) {
+        return (monthlyMMV * tasaActual).toFixed(2);
       }
+
+      // Fallback genérico: proporcional a la tasa actual
+      const originalBs = parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
+      return ((originalBs / (tcmmv || tasaActual)) * tasaActual).toFixed(2);
     }
+    // Sin tasa personalizada: devolver monto guardado en BD tal cual
     return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
   };
 
