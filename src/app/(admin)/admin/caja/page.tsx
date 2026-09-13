@@ -104,8 +104,21 @@ export default function CajaPage() {
 
   const getReciboMonto = (r: any) => {
     if (customBcvRate && !isNaN(parseFloat(customBcvRate)) && foundUser) {
+      // FACT- invoices = deuda acumulada de múltiples meses → usar monto guardado en BD
+      // Solo se ajusta si hay tasa personalizada, estimando el MMV original
+      if (r.referencia?.startsWith('FACT-')) {
+        const originalBs = parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
+        if (originalBs > 0) {
+          // Recalcular proporcionalmente: monto_original / tasa_original * tasa_nueva
+          const tasaOriginal = tcmmv || parseFloat(customBcvRate);
+          const mmvEquivalente = originalBs / tasaOriginal;
+          return (mmvEquivalente * parseFloat(customBcvRate)).toFixed(2);
+        }
+        return String(originalBs.toFixed(2));
+      }
+
+      // CM- invoices = exactamente 1 mes → recalcular con tasa actual
       const userInms = inmuebles.filter((i: any) => i.identidad === foundUser.Identidad);
-      // Calculate monthly MMV based on cant_inmuebles * mmv_mes
       let monthlyMMV = 0;
       userInms.forEach((inm: any) => {
         const cant = parseFloat(inm.cant_inmuebles || 1);
@@ -113,18 +126,16 @@ export default function CajaPage() {
         if (mmv > 0) monthlyMMV += (cant * mmv);
       });
       
-      // If we found a valid monthly MMV and the receipt seems to be a monthly bill
-      if (monthlyMMV > 0 && (r.referencia.startsWith('CM-') || r.referencia.startsWith('FACT-'))) {
+      if (monthlyMMV > 0 && r.referencia?.startsWith('CM-')) {
         return (monthlyMMV * parseFloat(customBcvRate)).toFixed(2);
       } else {
-        // Fallback para usuarios con datos incompletos en inmuebles (mmv_mes = null)
-        const originalBs = parseFloat(r.monto) || 0;
-        // Asumimos que la deuda original fue calculada con el tcmmv actual para estimar su valor en MMV
+        // Fallback para recibos sin prefijo conocido
+        const originalBs = parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
         const mmvAprox = originalBs / (tcmmv || 1);
         return (mmvAprox * parseFloat(customBcvRate)).toFixed(2);
       }
     }
-    return r.monto;
+    return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
   };
 
 
