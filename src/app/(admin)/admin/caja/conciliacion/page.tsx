@@ -832,9 +832,9 @@ export default function ConciliacionPage() {
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [loading, setLoading] = useState(false);
   const [filtros, setFiltros] = useState<Filtros>({
-    desde: new Date().toISOString().split('T')[0],
+    desde: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     hasta: new Date().toISOString().split('T')[0],
-    estatus: 'Todos', bancoDestino: 'Todos', formaPago: 'Todos', referencia: '', monto: '',
+    estatus: 'Por Verificar', bancoDestino: 'Todos', formaPago: 'Todos', referencia: '', monto: '',
   });
   const [pagoSel, setPagoSel] = useState<Pago | null>(null);
   const [mode, setMode] = useState<'conciliar'|'comprobante'|'edoCuenta'|null>(null);
@@ -862,7 +862,7 @@ export default function ConciliacionPage() {
     setLoading(false);
   }, [filtros]);
 
-  useEffect(() => { fetchPagos(); }, []);
+  useEffect(() => { fetchPagos(); }, [fetchPagos]);
 
   const abrir = (pago: Pago, m: 'conciliar'|'comprobante'|'edoCuenta') => { setPagoSel(pago); setMode(m); };
   const cerrar = () => { setPagoSel(null); setMode(null); };

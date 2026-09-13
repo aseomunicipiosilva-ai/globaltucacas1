@@ -810,6 +810,7 @@ function ContribuyentesPageContent() {
         const facturaData = {
           referencia: `FACT-${Math.floor(Math.random() * 1000000)}`,
           contribuyente: formData.Contribuyente,
+          identidad: formData.Identidad,
           monto: montoBs,
           emision: new Date().toISOString().split('T')[0],
           vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
