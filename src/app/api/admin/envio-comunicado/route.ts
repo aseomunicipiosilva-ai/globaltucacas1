@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 
@@ -78,10 +78,10 @@ function buildHtml(nombre: string): string {
         Estimado(a) <strong>${nombre}</strong>,
       </p>
       <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.8;">
-        Reciban un cordial y respetuoso saludo institucional. En el marco del fortalecimiento integral del sistema de recolección de desechos sólidos y preservación ambiental en nuestras comunidades y ejes comerciales, el <strong>Instituto de Ambiente del Municipio Silva (ISMA)</strong> conjuntamente con la <strong>Alcaldía del Municipio Silva</strong>, les informa la <strong>renovación y modernización tecnológica</strong> de nuestra plataforma de atención y recaudación.
+        Reciban un cordial y respetuoso saludo institucional. En el marco del fortalecimiento integral del sistema de recolecciÃ³n de desechos sÃ³lidos y preservaciÃ³n ambiental en nuestras comunidades y ejes comerciales, el <strong>Instituto de Ambiente del Municipio Silva (ISMA)</strong> conjuntamente con la <strong>AlcaldÃ­a del Municipio Silva</strong>, les informa la <strong>renovaciÃ³n y modernizaciÃ³n tecnolÃ³gica</strong> de nuestra plataforma de atenciÃ³n y recaudaciÃ³n.
       </p>
       <p style="margin:0 0 20px;font-size:14px;color:#374151;line-height:1.8;">
-        Esta actualización tiene como objetivo brindar a cada ciudadano y comerciante una experiencia &aacute;gil, aut&oacute;noma y accesible, evitando traslados innecesarios y garantizando total transparencia en sus gestiones tributarias.
+        Esta actualizaciÃ³n tiene como objetivo brindar a cada ciudadano y comerciante una experiencia &aacute;gil, aut&oacute;noma y accesible, evitando traslados innecesarios y garantizando total transparencia en sus gestiones tributarias.
       </p>
     </td>
   </tr>
@@ -254,7 +254,7 @@ export async function POST(request: Request) {
       await Promise.all(lote.map(async (dest) => {
         try {
           await resend.emails.send({
-            from: 'ISMA Aseo Urbano <noreply@globalrecca.com>',
+            from: 'ISMA Aseo Urbano <aseo.municipiosilva@globalgreenca.com>',
             to: [dest.correo],
             subject: 'Comunicado Oficial - Renovacion de Plataforma Digital | ISMA Municipio Silva',
             html: buildHtml(dest.nombre),
@@ -284,3 +284,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });
   }
 }
+
