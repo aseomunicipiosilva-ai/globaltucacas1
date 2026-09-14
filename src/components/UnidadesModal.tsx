@@ -255,7 +255,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
   // Searches by identidad AND by nombre because recibos may store either
   const hasCondominioDebt = React.useMemo(() => {
     const pendingFacturas = (recibos || []).filter((f: any) => {
-      if (f.estado !== 'Pendiente') return false;
+      if (f.estado !== 'Pendiente' && f.estado !== 'Abonado') return false;
       const contrib = (f.contribuyente || '').toLowerCase().trim();
       const identMatch = condominioIdentidad && contrib === condominioIdentidad.toLowerCase().trim();
       const nombreMatch = condominioNombre && contrib === condominioNombre.toLowerCase().trim();
@@ -869,7 +869,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                               const factCondominio = (recibos || []).filter((f: any) =>
                                 f.contribuyente === condominioIdentidad || f.contribuyente === condominioNombre
                               );
-                              const pendientes = factCondominio.filter((f: any) => f.estado === 'Pendiente');
+                              const pendientes = factCondominio.filter((f: any) => f.estado === 'Pendiente' || f.estado === 'Abonado');
                               const pagadas = factCondominio.filter((f: any) => f.estado === 'Pagado' || f.estado === 'Pagado Parcial');
                               const totalDeuda = pendientes.reduce((a: number, f: any) => a + parseFloat(f.monto || '0'), 0);
                               const totalPagado = pagadas.reduce((a: number, f: any) => a + parseFloat(f.monto || '0'), 0);

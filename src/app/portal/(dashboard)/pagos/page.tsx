@@ -27,7 +27,7 @@ export default function DondePagarPage() {
     const portalUser = localStorage.getItem('portal_user') || '';
 
     const facturasPendientes = recibos
-      .filter((f: any) => (f.estado === 'Pendiente') && 
+      .filter((f: any) => (f.estado === 'Pendiente' || f.estado === 'Abonado') && 
         (f.contribuyente === portalUser || f.contribuyente === portalDoc))
       .map((f: any) => ({
         id: f.id,

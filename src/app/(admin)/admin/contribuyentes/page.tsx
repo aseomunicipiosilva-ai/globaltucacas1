@@ -327,7 +327,7 @@ function ContribuyentesPageContent() {
       supabase
         .from('recibos')
         .select('*')
-        .in('estado', ['Pendiente', 'Por Verificar'])
+        .in('estado', ['Pendiente', 'Por Verificar', 'Abonado'])
         .or(`identidad.eq.${viewData.Identidad},identidad.eq.${identidadClean}`)
         .order('created_at', { ascending: false })
         .then(({ data: facData }) => {
@@ -336,7 +336,7 @@ function ContribuyentesPageContent() {
             supabase
               .from('recibos')
               .select('*')
-              .in('estado', ['Pendiente', 'Por Verificar'])
+              .in('estado', ['Pendiente', 'Por Verificar', 'Abonado'])
               .eq('contribuyente', viewData.Contribuyente)
               .order('created_at', { ascending: false })
               .then(({ data: facByName }) => setViewFacturasDb(facByName || []));
@@ -403,7 +403,7 @@ function ContribuyentesPageContent() {
     if (!viewData) return;
     const deudas = (recibos || [])
       .filter((f: any) => f.contribuyente === viewData.Contribuyente || f.contribuyente === viewData.Identidad)
-      .filter((f: any) => f.estado === 'Pendiente');
+      .filter((f: any) => f.estado === 'Pendiente' || f.estado === 'Abonado');
 
     // Fetch pagos realizados (abonos + pagos completos)
     let pagosRealizados: any[] = [];
@@ -554,7 +554,7 @@ function ContribuyentesPageContent() {
     const dataToExport = contribuyentes.map((c: any) => {
       const deudas = (recibos || [])
         .filter((f: any) => f.contribuyente === c.Contribuyente || f.contribuyente === c.Identidad)
-        .filter((f: any) => f.estado === 'Pendiente');
+        .filter((f: any) => f.estado === 'Pendiente' || f.estado === 'Abonado');
       const totalBs = deudas.reduce((acc: number, f: any) => acc + parseFloat(f.monto || '0'), 0);
       
       return {
@@ -2015,6 +2015,7 @@ function ContribuyentesPageContent() {
                       (i.identidad || '').replace(/-/g,'').toUpperCase() === (viewData?.Identidad || '').replace(/-/g,'').toUpperCase()
                     );
                     const getMontoActual = (f: any): number => {
+                      if (f.estado === 'Abonado') return parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
                       if (f.referencia?.startsWith('CM-')) {
                         // Recalcular: mmv_mes * cant_inmuebles * tcmmv_actual
                         let totalMMV = 0;
@@ -2218,7 +2219,7 @@ function ContribuyentesPageContent() {
                   {(() => {
                     const procesadas = (recibos || [])
                       .filter((f: any) => f.identidad === viewData.Identidad || f.contribuyente === viewData.Contribuyente || f.contribuyente === viewData.Identidad)
-                      .filter((f: any) => f.estado !== 'Pendiente');
+                      .filter((f: any) => f.estado !== 'Pendiente' && f.estado !== 'Abonado');
                       
                     if (procesadas.length === 0) {
                       return <p className="p-4 text-sm text-slate-500 text-center">No hay recibos procesados (pagados, anulados o reversados).</p>;

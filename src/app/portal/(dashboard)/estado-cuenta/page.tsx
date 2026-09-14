@@ -1,5 +1,6 @@
 
   const getReciboMonto = (r: any) => {
+    if (r.estado === 'Abonado') return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
     if (tasaBcv <= 0) return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
 
     // RECIB-
@@ -106,7 +107,7 @@ export default function EstadoCuentaPage() {
     return portalDoc && (contrib === docNorm || contrib.includes(soloNum));
   }), [recibos, portalDoc, docNorm, soloNum]);
 
-  const pendientes = misFact.filter((f: any) => f.estado === 'Pendiente');
+  const pendientes = misFact.filter((f: any) => f.estado === 'Pendiente' || f.estado === 'Abonado');
   const pagadas = misFact.filter((f: any) => f.estado === 'Pagada' || f.estado === 'Pagado').slice(0, 10);
 
   // Calculos

@@ -108,6 +108,8 @@ export default function CajaPage() {
       return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
     }
 
+    if (r.estado === 'Abonado') return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
+
     // SIEMPRE usar una tasaActual: la personalizada o la del BCV global
     const tasaActual = (customBcvRate && !isNaN(parseFloat(customBcvRate))) 
         ? parseFloat(customBcvRate) 
@@ -262,7 +264,7 @@ export default function CajaPage() {
       const { data: allUserFacturas } = await supabase
         .from('recibos')
         .select('*')
-        .in('estado', ['Pendiente', 'Por Verificar'])
+        .in('estado', ['Pendiente', 'Por Verificar', 'Abonado'])
         .or(`identidad.eq.${user.Identidad},identidad.eq.${cleanFullDoc},identidad.eq.${identidadClean}`)
         .order('emision', { ascending: true });
 
@@ -615,7 +617,7 @@ export default function CajaPage() {
             } else if (dineroDisponible > 0.01) {
               // Abono parcial: actualizar monto restante (mantener Pendiente)
               const montoRestante = (montoFac - dineroDisponible).toFixed(2);
-              const { error: fErr } = await supabase.from('recibos').update({ monto: montoRestante }).eq('referencia', ref);
+              const { error: fErr } = await supabase.from('recibos').update({ monto: montoRestante, estado: 'Abonado' }).eq('referencia', ref);
               if (fErr) throw fErr;
               dineroDisponible = 0;
             }

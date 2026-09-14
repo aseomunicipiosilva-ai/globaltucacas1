@@ -23,7 +23,7 @@ export default function SolvenciaPage() {
     return portalDoc && (contrib === docNorm || (soloNum && contrib.includes(soloNum)));
   }), [recibos, portalDoc, docNorm, soloNum]);
 
-  const pendientes = misFact.filter((f: any) => f.estado === 'Pendiente');
+  const pendientes = misFact.filter((f: any) => f.estado === 'Pendiente' || f.estado === 'Abonado');
   const isSolvente = pendientes.length === 0;
 
   const misInmuebles = useMemo(() => inmuebles.filter((inm: any) => {
