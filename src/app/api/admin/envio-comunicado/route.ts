@@ -9,53 +9,220 @@ const supabase = createClient(
 );
 
 function buildHtml(nombre: string): string {
-  return [
-    '<div style="font-family:Arial,sans-serif;color:#1e293b;max-width:600px;margin:0 auto;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">',
-    '<div style="background:linear-gradient(135deg,#0f172a,#1e3a5f);padding:32px 24px;text-align:center">',
-    '<h1 style="color:#4ade80;margin:0;font-size:22px">ALCALDIA DEL MUNICIPIO SILVA</h1>',
-    '<p style="color:#94a3b8;margin:8px 0 0;font-size:14px">Instituto de Servicios de Mantenimiento Ambiental</p>',
-    '<p style="color:#60a5fa;margin:4px 0 0;font-size:12px;font-weight:bold">ISMA - ASEO URBANO TUCACAS</p>',
-    '</div>',
-    '<div style="padding:28px 24px">',
-    '<p style="font-size:15px;line-height:1.7">Estimado(a) <strong>' + nombre + '</strong>,</p>',
-    '<p style="font-size:15px;line-height:1.7">Por medio del presente le hacemos llegar el <strong>Comunicado Oficial</strong> emitido por la Alcaldia del Municipio Silva en materia de Aseo Urbano.</p>',
-    '<div style="background:#f0fdf4;border-left:4px solid #4ade80;padding:16px;border-radius:4px;margin:20px 0">',
-    '<p style="margin:0;font-size:14px;color:#166534">Se adjunta el Comunicado Oficial ISMA en formato PDF para su conocimiento y archivo.</p>',
-    '</div>',
-    '<p style="font-size:14px;color:#64748b">Para consultas puede contactarnos a traves del portal en linea o nuestras oficinas en Municipio Silva, Estado Falcon.</p>',
-    '</div>',
-    '<div style="background:#f8fafc;padding:16px 24px;border-top:1px solid #e2e8f0;text-align:center">',
-    '<p style="margin:0;font-size:12px;color:#94a3b8">ISMA - Aseo Urbano Tucacas - Municipio Silva, Estado Falcon</p>',
-    '</div>',
-    '</div>',
-  ].join('');
+  const BASE = 'https://aseosilvaad.globalrecca.com';
+  return `
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Comunicado Oficial ISMA</title></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:20px 0;">
+<tr><td align="center">
+<table width="620" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);max-width:620px;">
+
+  <!-- HEADER LOGOS -->
+  <tr>
+    <td style="background:linear-gradient(135deg,#0a4a2a 0%,#1a7a40 50%,#0a4a2a 100%);padding:20px 24px;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td align="center" width="33%">
+            <img src="${BASE}/logos/alcaldia.jpg" alt="Alcaldia Municipio Silva" width="100" style="display:block;margin:0 auto;border-radius:6px;" />
+          </td>
+          <td align="center" width="34%">
+            <img src="${BASE}/logos/isma.jpg" alt="ISMA" width="120" style="display:block;margin:0 auto;background:#fff;border-radius:8px;padding:4px;" />
+          </td>
+          <td align="center" width="33%">
+            <img src="${BASE}/logos/basura_cero.jpg" alt="Basura Cero" width="90" style="display:block;margin:0 auto;border-radius:6px;" />
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- SLOGAN BANNER -->
+  <tr>
+    <td style="background:#1a7a40;padding:12px 24px;text-align:center;">
+      <p style="margin:0;color:#ffffff;font-size:13px;font-weight:bold;letter-spacing:2px;text-transform:uppercase;">
+        &#x1F331; LIMPIAMOS EL PRESENTE, TRANSFORMAMOS EL FUTURO &#x1F331;
+      </p>
+    </td>
+  </tr>
+
+  <!-- HEADER MEMO INFO -->
+  <tr>
+    <td style="background:#f8fafc;padding:20px 28px;border-bottom:3px solid #1a7a40;">
+      <table width="100%" cellpadding="4" cellspacing="0" style="font-size:13px;color:#374151;">
+        <tr>
+          <td width="80" style="font-weight:bold;color:#1a7a40;vertical-align:top;">DE:</td>
+          <td style="color:#1e293b;">INSTITUTO DE AMBIENTE DEL MUNICIPIO SILVA (ISMA) / ALCALD&Iacute;A DEL MUNICIPIO SILVA</td>
+        </tr>
+        <tr>
+          <td style="font-weight:bold;color:#1a7a40;vertical-align:top;">FECHA:</td>
+          <td style="color:#1e293b;">Septiembre, 2026</td>
+        </tr>
+        <tr>
+          <td style="font-weight:bold;color:#1a7a40;vertical-align:top;">PARA:</td>
+          <td style="color:#1e293b;">COMERCIANTES, CONTRIBUYENTES Y COMUNIDAD EN GENERAL DEL MUNICIPIO SILVA</td>
+        </tr>
+        <tr>
+          <td style="font-weight:bold;color:#1a7a40;vertical-align:top;">ASUNTO:</td>
+          <td style="color:#1e293b;font-weight:bold;">COMUNICADO OFICIAL &ndash; RENOVACI&Oacute;N DE PLATAFORMA DIGITAL Y CANALES DE ATENCI&Oacute;N</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- SALUDO -->
+  <tr>
+    <td style="padding:24px 28px 8px;">
+      <p style="margin:0 0 12px;font-size:15px;color:#1e293b;line-height:1.7;">
+        Estimado(a) <strong>${nombre}</strong>,
+      </p>
+      <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.8;">
+        Reciban un cordial y respetuoso saludo institucional. En el marco del fortalecimiento integral del sistema de recolección de desechos sólidos y preservación ambiental en nuestras comunidades y ejes comerciales, el <strong>Instituto de Ambiente del Municipio Silva (ISMA)</strong> conjuntamente con la <strong>Alcaldía del Municipio Silva</strong>, les informa la <strong>renovación y modernización tecnológica</strong> de nuestra plataforma de atención y recaudación.
+      </p>
+      <p style="margin:0 0 20px;font-size:14px;color:#374151;line-height:1.8;">
+        Esta actualización tiene como objetivo brindar a cada ciudadano y comerciante una experiencia &aacute;gil, aut&oacute;noma y accesible, evitando traslados innecesarios y garantizando total transparencia en sus gestiones tributarias.
+      </p>
+    </td>
+  </tr>
+
+  <!-- SECCION 1: PORTAL WEB -->
+  <tr>
+    <td style="padding:0 28px 16px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:10px;border-left:5px solid #1a7a40;overflow:hidden;">
+        <tr>
+          <td style="padding:18px 20px;">
+            <p style="margin:0 0 8px;font-size:15px;font-weight:bold;color:#14532d;">
+              &#x1F4BB; Portal Web de Autogesti&oacute;n y Pago en L&iacute;nea (24/7)
+            </p>
+            <p style="margin:0 0 10px;font-size:13px;color:#166534;line-height:1.7;">
+              Desde cualquier dispositivo m&oacute;vil o computador, acceda a consultar su estado de cuenta, efectuar pagos y gestionar su solvencia en el siguiente enlace oficial:
+            </p>
+            <p style="margin:0 0 12px;text-align:center;">
+              <a href="https://aseosilva.globalrecca.com" style="display:inline-block;background:#1a7a40;color:#ffffff;text-decoration:none;padding:10px 24px;border-radius:24px;font-size:14px;font-weight:bold;letter-spacing:0.5px;">
+                &#x1F517; aseosilva.globalrecca.com
+              </a>
+            </p>
+            <table cellpadding="3" cellspacing="0" style="font-size:13px;color:#166534;">
+              <tr><td style="padding-right:8px;">&#x2022;</td><td><strong>Usuario:</strong> Su correo electr&oacute;nico registrado en el sistema.</td></tr>
+              <tr><td>&#x2022;</td><td><strong>Contrase&ntilde;a:</strong> La misma contrase&ntilde;a utilizada por &uacute;ltima vez para acceder a la plataforma.</td></tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- SECCION 2: DATOS BANCARIOS -->
+  <tr>
+    <td style="padding:0 28px 16px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f9ff;border-radius:10px;border-left:5px solid #0369a1;overflow:hidden;">
+        <tr>
+          <td style="padding:18px 20px;">
+            <p style="margin:0 0 12px;font-size:15px;font-weight:bold;color:#0c4a6e;">
+              &#x1F3E6; Cuentas Bancarias Oficiales para Pagos y Transferencias
+            </p>
+            <p style="margin:0 0 10px;font-size:13px;color:#075985;line-height:1.7;">
+              Le informamos que <strong>seguimos contando con los mismos n&uacute;meros de cuenta habituales</strong> para procesar sus pagos y reportar transferencias a trav&eacute;s del portal:
+            </p>
+            <table width="100%" cellpadding="6" cellspacing="0" style="background:#ffffff;border-radius:8px;font-size:13px;color:#1e293b;">
+              <tr style="background:#0369a1;">
+                <td colspan="2" style="color:#ffffff;font-weight:bold;padding:8px 12px;border-radius:6px 6px 0 0;">Datos Bancarios ISMA</td>
+              </tr>
+              <tr><td style="padding:6px 12px;font-weight:bold;color:#0369a1;width:100px;">Titular:</td><td style="padding:6px 12px;">INST SOC MUN PARA EL AMBIENTE</td></tr>
+              <tr style="background:#f8fafc;"><td style="padding:6px 12px;font-weight:bold;color:#0369a1;">Banco:</td><td style="padding:6px 12px;">BANESCO (0134)</td></tr>
+              <tr><td style="padding:6px 12px;font-weight:bold;color:#0369a1;">Cta. Cte:</td><td style="padding:6px 12px;font-family:monospace;font-size:14px;font-weight:bold;">0134 0415 14 4151031715</td></tr>
+              <tr style="background:#f8fafc;"><td style="padding:6px 12px;font-weight:bold;color:#0369a1;">R.I.F.:</td><td style="padding:6px 12px;font-family:monospace;">G-200076739</td></tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- SECCION 3: CONTACTO -->
+  <tr>
+    <td style="padding:0 28px 16px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#fefce8;border-radius:10px;border-left:5px solid #ca8a04;overflow:hidden;">
+        <tr>
+          <td style="padding:18px 20px;">
+            <p style="margin:0 0 12px;font-size:15px;font-weight:bold;color:#713f12;">
+              &#x1F4F2; Canales Oficiales de Orientaci&oacute;n, Tr&aacute;mites y Reportes
+            </p>
+            <table width="100%" cellpadding="3" cellspacing="0">
+              <tr>
+                <td width="50%" style="vertical-align:top;padding-right:10px;">
+                  <p style="margin:0 0 6px;font-size:13px;font-weight:bold;color:#92400e;">&#x1F4DE; Tel&eacute;fonos y WhatsApp:</p>
+                  <p style="margin:0;font-size:13px;color:#78350f;line-height:1.9;">
+                    +58 412-9030238<br/>+58 412-0374884
+                  </p>
+                </td>
+                <td width="50%" style="vertical-align:top;">
+                  <p style="margin:0 0 6px;font-size:13px;font-weight:bold;color:#92400e;">&#x2709;&#xFE0F; Correos Electr&oacute;nicos:</p>
+                  <p style="margin:0;font-size:12px;color:#78350f;line-height:2.0;">
+                    aseo.municipiosilva@globalgreenca.com<br/>
+                    atencion.aseourbanoms@globalgreenca.com<br/>
+                    coordinacion.aseourbanoms@gmail.com
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- PARRAFO CIERRE -->
+  <tr>
+    <td style="padding:8px 28px 20px;">
+      <p style="margin:0;font-size:14px;color:#374151;line-height:1.8;border-top:1px solid #e2e8f0;padding-top:16px;">
+        Recordamos que mantenerse al d&iacute;a con el servicio de aseo urbano se traduce en <strong>salud familiar, prevenci&oacute;n de plagas, revalorizaci&oacute;n del patrimonio</strong> y consolidaci&oacute;n del atractivo tur&iacute;stico de Tucacas y Boca de Aroa. Agradecemos su colaboraci&oacute;n c&iacute;vica hacia la meta de un municipio sustentable.
+      </p>
+    </td>
+  </tr>
+
+  <!-- REDES SOCIALES -->
+  <tr>
+    <td style="padding:0 28px 20px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#1a7a40;border-radius:10px;">
+        <tr>
+          <td style="padding:14px 20px;text-align:center;">
+            <p style="margin:0 0 6px;color:#ffffff;font-size:12px;font-weight:bold;letter-spacing:1px;">&#x1F310; REDES SOCIALES OFICIALES</p>
+            <p style="margin:0;font-size:13px;color:#bbf7d0;">
+              @ismamunicipiosilva &nbsp;|&nbsp; @alcaldiadesilvaoficial &nbsp;|&nbsp; @osnel_arniasoficial
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <!-- FOOTER -->
+  <tr>
+    <td style="background:#0a4a2a;padding:16px 24px;text-align:center;">
+      <p style="margin:0;font-size:11px;color:#86efac;line-height:1.7;">
+        Instituto de Ambiente del Municipio Silva (ISMA) &bull; Alcald&iacute;a del Municipio Silva &bull; Estado Falc&oacute;n<br/>
+        Este correo fue enviado de forma oficial. Por favor no responda directamente a este mensaje.
+      </p>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+  `;
 }
 
 export async function POST(request: Request) {
-  // Resend se inicializa dentro del handler para evitar error en build con key vacia
   const resend = new Resend(process.env.RESEND_API_KEY || 'dev-placeholder');
   try {
     const body = await request.json().catch(() => ({}));
-    const testMode: boolean = body.test !== false; // default: prueba=true
+    const testMode: boolean = body.test !== false;
     const testEmail = 'davidzara66@gmail.com';
 
-    // Leer PDF via require dinamico (evita analisis estatico de Next.js)
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const fsNode = require('fs');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pathNode = require('path');
-    const pdfPath = pathNode.join(process.cwd(), 'public', 'comunicado_aseo_isma.pdf');
-    let pdfBase64: string;
-    try {
-      pdfBase64 = fsNode.readFileSync(pdfPath).toString('base64');
-    } catch (e) {
-      return NextResponse.json(
-        { success: false, error: 'PDF no encontrado en public/comunicado_aseo_isma.pdf' },
-        { status: 404 }
-      );
-    }
-
-    // Determinar destinatarios
     let destinatarios: { nombre: string; correo: string }[] = [];
     if (testMode) {
       destinatarios = [{ nombre: 'Prueba ISMA', correo: testEmail }];
@@ -82,7 +249,6 @@ export async function POST(request: Request) {
     let enviados = 0, errores = 0;
     const erroresList: string[] = [];
 
-    // Enviar en lotes de 10
     for (let i = 0; i < destinatarios.length; i += 10) {
       const lote = destinatarios.slice(i, i + 10);
       await Promise.all(lote.map(async (dest) => {
@@ -90,9 +256,8 @@ export async function POST(request: Request) {
           await resend.emails.send({
             from: 'ISMA Aseo Urbano <noreply@globalrecca.com>',
             to: [dest.correo],
-            subject: 'Comunicado Oficial - Aseo Urbano ISMA | Alcaldia Municipio Silva',
+            subject: 'Comunicado Oficial - Renovacion de Plataforma Digital | ISMA Municipio Silva',
             html: buildHtml(dest.nombre),
-            attachments: [{ filename: 'Comunicado_Oficial_ISMA.pdf', content: pdfBase64 }],
           });
           enviados++;
         } catch (err: any) {
