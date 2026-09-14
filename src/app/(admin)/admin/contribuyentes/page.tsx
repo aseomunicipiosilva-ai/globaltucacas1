@@ -1940,6 +1940,54 @@ function ContribuyentesPageContent() {
                 </div>
               </div>
               
+              {/* Ficha de Censo Inmobiliario */}
+              {(() => {
+                const userInms = inmuebles.filter((i: any) =>
+                  (i.identidad || '').replace(/-/g,'').toUpperCase() === (viewData?.Identidad || '').replace(/-/g,'').toUpperCase()
+                );
+                
+                if (userInms.length === 0) return null;
+                
+                return (
+                  <div className="mt-6 bg-slate-50 border border-slate-200 rounded p-4">
+                    <h4 className="font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-2 text-xs">
+                      <FileText className="w-4 h-4 text-slate-500" /> Ficha del Censo Inmobiliario
+                    </h4>
+                    <div className="space-y-3">
+                      {userInms.map((inm: any, idx: number) => (
+                        <div key={idx} className="bg-white p-3 rounded border border-slate-200 shadow-sm grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                          <div className="col-span-2 md:col-span-4 border-b border-slate-100 pb-2 mb-1 flex items-center justify-between">
+                            <span className="font-bold text-blue-700">{inm.inmueble || inm.cod_cont || `Inmueble ${idx+1}`}</span>
+                            <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-medium">{inm.tipo || 'N/A'}</span>
+                          </div>
+                          
+                          <div>
+                            <span className="block text-[10px] text-slate-400 font-bold uppercase">Clasificación</span>
+                            <span className="font-medium text-slate-700">{inm.clasificacion || 'Residencial'}</span>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] text-slate-400 font-bold uppercase">Act. Económica</span>
+                            <span className="font-medium text-slate-700 truncate block" title={inm.actividad_principal}>{inm.actividad_principal || 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] text-slate-400 font-bold uppercase">Metraje (m²)</span>
+                            <span className="font-medium text-slate-700">{inm.area || inm.area_operativa || 'N/A'} m²</span>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] text-slate-400 font-bold uppercase">Estatus</span>
+                            <span className="font-medium text-slate-700">{inm.estado || 'Vigente'}</span>
+                          </div>
+                          <div className="col-span-2 md:col-span-4 pt-1">
+                            <span className="block text-[10px] text-slate-400 font-bold uppercase">Dirección</span>
+                            <span className="font-medium text-slate-700">{inm.direccion || 'No especificada'}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+              
               {viewCalculo && (
                 <div className="mt-6 bg-slate-50 border border-slate-200 rounded p-4">
                   <h4 className="font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-2 text-xs">
