@@ -1,27 +1,3 @@
-
-  const getReciboMonto = (r: any) => {
-    if (r.estado === 'Abonado') return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
-    if (tasaBcv <= 0) return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
-
-    // RECIB-
-    if (r.referencia?.startsWith('RECIB-')) {
-      let totalDeudaMMV = 0;
-      misInmuebles.forEach((inm: any) => { totalDeudaMMV += parseFloat(inm.deuda_mmv || 0); });
-      if (totalDeudaMMV > 0) return (totalDeudaMMV * tasaBcv).toFixed(2);
-      return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
-    }
-    // CM-
-    if (r.referencia?.startsWith('CM-')) {
-      let monthlyMMV = 0;
-      misInmuebles.forEach((inm: any) => {
-        const cant = parseFloat(inm.cant_inmuebles || 1);
-        const mmv  = parseFloat(inm.mmv_mes || 0);
-        if (mmv > 0) monthlyMMV += cant * mmv;
-      });
-      if (monthlyMMV > 0) return (monthlyMMV * tasaBcv).toFixed(2);
-    }
-    return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
-  };
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { FileText, Building, Handshake, AlertCircle, CheckCircle2, Wrench, ClipboardCheck, ShieldCheck, FlaskConical } from 'lucide-react';
@@ -101,7 +77,31 @@ export default function EstadoCuentaPage() {
     return portalDoc && (id === docNorm || idFmt2 === docFmt || id === portalDoc.toUpperCase() || id === soloNum);
   }), [inmuebles, portalDoc, docNorm, docFmt, soloNum]);
 
-  // Filtrar recibos del usuario
+
+  const getReciboMonto = (r: any) => {
+    if (r.estado === 'Abonado') return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
+    if (tasaBcv <= 0) return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
+
+    // RECIB-
+    if (r.referencia?.startsWith('RECIB-')) {
+      let totalDeudaMMV = 0;
+      misInmuebles.forEach((inm: any) => { totalDeudaMMV += parseFloat(inm.deuda_mmv || 0); });
+      if (totalDeudaMMV > 0) return (totalDeudaMMV * tasaBcv).toFixed(2);
+      return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
+    }
+    // CM-
+    if (r.referencia?.startsWith('CM-')) {
+      let monthlyMMV = 0;
+      misInmuebles.forEach((inm: any) => {
+        const cant = parseFloat(inm.cant_inmuebles || 1);
+        const mmv  = parseFloat(inm.mmv_mes || 0);
+        if (mmv > 0) monthlyMMV += cant * mmv;
+      });
+      if (monthlyMMV > 0) return (monthlyMMV * tasaBcv).toFixed(2);
+    }
+    return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
+  };
+\n  // Filtrar recibos del usuario
   const misFact = useMemo(() => recibos.filter((f: any) => {
     const contrib = (f.contribuyente || f.identidad || '').replace(/-/g, '').toUpperCase();
     return portalDoc && (contrib === docNorm || contrib.includes(soloNum));

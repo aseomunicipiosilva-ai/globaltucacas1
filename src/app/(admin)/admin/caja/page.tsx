@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { formatBs } from '@/lib/formatCurrency';
 
 export default function CajaPage() {
-  const { inmuebles, convenios, contribuyentes, recibos, documentos, tcmmv } = useAppContext();
+  const { inmuebles, convenios, contribuyentes, documentos, tcmmv } = useAppContext();
   
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState<'Pagos' | 'NotasCredito'>('Pagos');
