@@ -2008,8 +2008,27 @@ function ContribuyentesPageContent() {
                   {(() => {
                     // Usar facturas frescas de Supabase (no el contexto que puede estar desactualizado)
                     const deudas = viewFacturasDb;
-                    const totalBs = deudas.reduce((acc: number, f: any) => acc + parseFloat(f.monto || '0'), 0);
-                    
+
+                    // Helper: para CM- recalcular con tasa BCV actual (fluctúa cada día)
+                    // Para FACT- usar monto guardado (deuda acumulada ajustada por Ajustar Deuda)
+                    const userInms = inmuebles.filter((i: any) =>
+                      (i.identidad || '').replace(/-/g,'').toUpperCase() === (viewData?.Identidad || '').replace(/-/g,'').toUpperCase()
+                    );
+                    const getMontoActual = (f: any): number => {
+                      if (f.referencia?.startsWith('CM-')) {
+                        // Recalcular: mmv_mes * cant_inmuebles * tcmmv_actual
+                        let totalMMV = 0;
+                        userInms.forEach((inm: any) => {
+                          totalMMV += (parseFloat(inm.mmv_mes || 0)) * (parseFloat(inm.cant_inmuebles || 1));
+                        });
+                        if (totalMMV > 0 && tcmmv > 0) return totalMMV * tcmmv;
+                      }
+                      // FACT- u otros: usar monto guardado en BD
+                      return parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
+                    };
+
+                    const totalBs = deudas.reduce((acc: number, f: any) => acc + getMontoActual(f), 0);
+
                     if (deudas.length === 0) {
                       return (
                         <div className="p-6 text-center">
@@ -2089,7 +2108,7 @@ function ContribuyentesPageContent() {
                                         {d.estado || 'Pendiente'}
                                       </span>
                                     </td>
-                                    <td className="px-4 py-2 text-right font-bold text-slate-800">{montoNum.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                                    <td className="px-4 py-2 text-right font-bold text-slate-800">{getMontoActual(d).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
                                     <td className="px-4 py-2 text-center">
                                       <button 
                                         onClick={() => handleDeleteFactura(d)}
