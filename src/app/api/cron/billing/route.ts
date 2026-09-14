@@ -119,10 +119,10 @@ export async function GET(request: Request) {
       });
     }
 
-    // ── PASO 4: INSERT masivo (una sola llamada a Supabase) ──
+    // ── PASO 4: UPSERT masivo — ignora duplicados automáticamente ──
     const { error: insertError } = await supabase
       .from('facturas')
-      .insert(facturasNuevas);
+      .upsert(facturasNuevas, { onConflict: 'referencia', ignoreDuplicates: true });
 
     if (insertError) throw insertError;
 
