@@ -1,3 +1,26 @@
+
+  const getReciboMonto = (r: any) => {
+    if (tasaBcv <= 0) return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
+
+    // RECIB-
+    if (r.referencia?.startsWith('RECIB-')) {
+      let totalDeudaMMV = 0;
+      misInmuebles.forEach((inm: any) => { totalDeudaMMV += parseFloat(inm.deuda_mmv || 0); });
+      if (totalDeudaMMV > 0) return (totalDeudaMMV * tasaBcv).toFixed(2);
+      return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
+    }
+    // CM-
+    if (r.referencia?.startsWith('CM-')) {
+      let monthlyMMV = 0;
+      misInmuebles.forEach((inm: any) => {
+        const cant = parseFloat(inm.cant_inmuebles || 1);
+        const mmv  = parseFloat(inm.mmv_mes || 0);
+        if (mmv > 0) monthlyMMV += cant * mmv;
+      });
+      if (monthlyMMV > 0) return (monthlyMMV * tasaBcv).toFixed(2);
+    }
+    return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
+  };
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { FileText, Building, Handshake, AlertCircle, CheckCircle2, Wrench, ClipboardCheck, ShieldCheck, FlaskConical } from 'lucide-react';
@@ -94,7 +117,7 @@ export default function EstadoCuentaPage() {
   }, 0);
 
   const totalPendBs = pendientes.reduce((acc: number, f: any) => {
-    const m = parseFloat((f.monto || '0').toString().replace(/[^d.,]/g, '').replace(',', '.')) || 0;
+    const m = parseFloat(getReciboMonto(f)) || 0;
     return acc + m;
   }, 0);
 
@@ -269,7 +292,7 @@ export default function EstadoCuentaPage() {
                     <td className="px-4 py-3 font-mono text-slate-700">{f.referencia}</td>
                     <td className="px-4 py-3 font-medium">{mesLabel(f.emision)}</td>
                     <td className="px-4 py-3 text-center text-red-600 text-xs">{f.vencimiento || 'N/A'}</td>
-                    <td className="px-4 py-3 text-right font-bold text-red-700">{f.monto}</td>
+                    <td className="px-4 py-3 text-right font-bold text-red-700">{getReciboMonto(f)}</td>
                   </tr>
                 ))}
               </tbody>

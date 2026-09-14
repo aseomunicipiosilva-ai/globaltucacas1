@@ -102,30 +102,40 @@ export default function CajaPage() {
     });
   };
 
-  const getReciboMonto = (r: any) => {
-    if (customBcvRate && !isNaN(parseFloat(customBcvRate)) && foundUser) {
-      const tasaActual = parseFloat(customBcvRate);
-      const userInms = inmuebles.filter((i: any) =>
-        (i.identidad || '').replace(/-/g,'').toUpperCase() === (foundUser.Identidad || '').replace(/-/g,'').toUpperCase()
-      );
+    const getReciboMonto = (r: any) => {
+    // Si no hay usuario encontrado o no tenemos tcmmv, fallback al monto original
+    if (!foundUser) {
+      return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
+    }
 
-      // RECIB- = deuda acumulada de N meses → usar deuda_mmv del inmueble × tasa actual
-      // deuda_mmv es el total en TCMMV calculado por la ordenanza real al momento de Ajustar Deuda
-      if (r.referencia?.startsWith('RECIB-')) {
-        let totalDeudaMMV = 0;
-        userInms.forEach((inm: any) => {
-          totalDeudaMMV += parseFloat(inm.deuda_mmv || 0);
-        });
-        if (totalDeudaMMV > 0) {
-          return (totalDeudaMMV * tasaActual).toFixed(2);
-        }
-        // Fallback proporcional si no hay deuda_mmv registrado
-        const originalBs = parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
-        const tasaRef = tcmmv || tasaActual;
-        return ((originalBs / tasaRef) * tasaActual).toFixed(2);
+    // SIEMPRE usar una tasaActual: la personalizada o la del BCV global
+    const tasaActual = (customBcvRate && !isNaN(parseFloat(customBcvRate))) 
+        ? parseFloat(customBcvRate) 
+        : (tcmmv || 0);
+
+    if (tasaActual <= 0) {
+      return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
+    }
+
+    const userInms = inmuebles.filter((i: any) =>
+      (i.identidad || '').replace(/-/g,'').toUpperCase() === (foundUser.Identidad || '').replace(/-/g,'').toUpperCase()
+    );
+
+    // RECIB- = deuda acumulada de N meses → usar deuda_mmv del inmueble × tasa actual
+    if (r.referencia?.startsWith('RECIB-')) {
+      let totalDeudaMMV = 0;
+      userInms.forEach((inm: any) => {
+        totalDeudaMMV += parseFloat(inm.deuda_mmv || 0);
+      });
+      if (totalDeudaMMV > 0) {
+        return (totalDeudaMMV * tasaActual).toFixed(2);
       }
+      // Fallback si no hay deuda_mmv registrado
+      return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
+    }
 
-      // CM- = exactamente 1 mes → mmv_mes × cant_inmuebles × tasa actual (ordenanza real)
+    // CM- = exactamente 1 mes → mmv_mes × cant_inmuebles × tasa actual
+    if (r.referencia?.startsWith('CM-')) {
       let monthlyMMV = 0;
       userInms.forEach((inm: any) => {
         const cant = parseFloat(inm.cant_inmuebles || 1);
@@ -135,12 +145,9 @@ export default function CajaPage() {
       if (monthlyMMV > 0) {
         return (monthlyMMV * tasaActual).toFixed(2);
       }
-
-      // Fallback genérico: proporcional a la tasa actual
-      const originalBs = parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
-      return ((originalBs / (tcmmv || tasaActual)) * tasaActual).toFixed(2);
     }
-    // Sin tasa personalizada: devolver monto guardado en BD tal cual
+
+    // Fallback genérico (para otros tipos de recibos que no sean CM- o RECIB- y no tengan cálculo MMV)
     return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
   };
 
