@@ -1,5 +1,5 @@
 'use client';
-import { Home, Search, FileText, FlaskConical, Wrench, UserPlus, Users, FileSpreadsheet, History, Award, Clock, Building2, AlertTriangle, Handshake, LayoutDashboard, Mail, User, PieChart, Truck, Inbox, Calculator, Briefcase, Landmark, BookOpen, Car, Map, Bus, TreePine, ShieldAlert, DollarSign, Wallet, FileCheck, Package, ShoppingCart, Target, BarChart3 } from 'lucide-react';
+import { Home, Search, FileText, FlaskConical, Wrench, UserPlus, Users, FileSpreadsheet, History, Award, Clock, Building2, AlertTriangle, Handshake, LayoutDashboard, Mail, User, PieChart, Truck, Inbox, Calculator, Briefcase, Landmark, BookOpen, Car, Map, Bus, TreePine, ShieldAlert, DollarSign, Wallet, FileCheck, Package, ShoppingCart, Target, BarChart3, ClipboardCheck } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
@@ -18,6 +18,7 @@ export default function Sidebar() {
     { icon: Home, name: 'Inicio Aseo', href: '/admin' },
     { icon: PieChart, name: 'Administrativo', href: '/admin/administrativo' },
     { icon: FileText, name: 'Tarifas / Ordenanza', href: '/admin/tarifas' },
+    { icon: ClipboardCheck, name: 'Censo de Contribuyentes', href: '/admin/censo' },
     { icon: User, name: 'Contribuyentes', href: '/admin/contribuyentes' },
     { icon: Users, name: 'Condominios COB', href: '/admin/condominios-cob' },
     { icon: FileText, name: 'Pre-registros WEB', href: '/admin/pre-registros' },
