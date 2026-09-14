@@ -170,7 +170,7 @@ function ModalComprobante({ pago, onClose }: { pago: Pago; onClose: () => void }
 
 // ─── MODAL ESTADO DE CUENTA ──────────────────────────────
 function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void }) {
-  const [facturas, setFacturas] = useState<any[]>([]);
+  const [recibos, setFacturas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [inmueble, setInmueble] = useState<any>(null);
   const det = parseDetalles(pago.detalles);
@@ -189,11 +189,11 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
 
         if (inms && inms.length > 0) {
           // Calcular totales
-          // DEUDA TOTAL CALCULADA DE FACTURAS EN LUGAR DE INMUEBLES
+          // DEUDA TOTAL CALCULADA DE RECIBOS EN LUGAR DE INMUEBLES
           let deudaTotal = 0;
           try {
             const { data: facs } = await supabase
-              .from('facturas')
+              .from('recibos')
               .select('monto')
               .or(`identidad.eq.${pago.identidad},identidad.eq.${idLimpio}`)
               .in('estado', ['Pendiente', 'Por Verificar']);
@@ -209,7 +209,7 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
             : inms[0];
           setInmueble({ ...inmPrincipal, _deudaTotal: deudaTotal, _saldoFavor: saldoFavor, _todos: inms });
         }
-        const { data: facs } = await supabase.from('facturas').select('*')
+        const { data: facs } = await supabase.from('recibos').select('*')
           .or(`identidad.eq.${pago.identidad},identidad.eq.${idLimpio}`)
           .order('emision', { ascending: true });
         setFacturas(facs || []);
@@ -218,8 +218,8 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
     })();
   }, [pago.identidad]);
 
-  const pendientes = facturas.filter(f => f.estado === 'Pendiente');
-  const pagadas = facturas.filter(f => f.estado === 'Pagado');
+  const pendientes = recibos.filter(f => f.estado === 'Pendiente');
+  const pagadas = recibos.filter(f => f.estado === 'Pagado');
   const totalDoc = parseFloat(String(pago.monto || '0').replace(/[^0-9.]/g, '').replace(',','.')) || 0;
   const totalPendiente = pendientes.reduce((a, f) => a + (parseFloat(String(f.monto||'0').replace(/[^0-9.]/g,''))||0), 0);
   const totalPagado = pagadas.reduce((a, f) => a + (parseFloat(String(f.monto||'0').replace(/[^0-9.]/g,''))||0), 0);
@@ -311,8 +311,8 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
                     <span className="font-bold">{pendientes.map(f => { const p = (f.emision||'').split('-'); return p.length>=2 ? mesesNombre[parseInt(p[1])-1]+'-'+p[0] : f.emision; }).join(', ') || '---'}</span>
                   </div>
                   <div className="flex justify-between"><span className="text-blue-600">Monto del Pago Reportado Bs.:</span><span className="font-bold">{fmt(totalDoc)}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-600">Total Facturas Pendientes:</span><span className="text-red-600 font-semibold">{fmt(totalPendiente)}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-600">Total Facturas Pagadas:</span><span className="text-green-600 font-semibold">{fmt(totalPagado)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-600">Total Recibos Pendientes:</span><span className="text-red-600 font-semibold">{fmt(totalPendiente)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-600">Total Recibos Pagadas:</span><span className="text-green-600 font-semibold">{fmt(totalPagado)}</span></div>
                   <div className="flex justify-between"><span className="text-blue-600">Total Exento Bs.:</span><span>{fmt(totalDoc)}</span></div>
                   <div className="flex justify-between"><span>Base Imponible Bs.:</span><span>0,00</span></div>
                   <div className="flex justify-between"><span>IVA (16.00%) Bs.:</span><span>0,00</span></div>
@@ -341,7 +341,7 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
                           <td className="px-3 py-2 text-right">0,00</td><td className="px-3 py-2 text-right font-bold">{fmt(m)}</td>
                         </tr>
                       );
-                    }) : <tr><td colSpan={7} className="px-3 py-4 text-center text-slate-400">Sin facturas pendientes</td></tr>}
+                    }) : <tr><td colSpan={7} className="px-3 py-4 text-center text-slate-400">Sin recibos pendientes</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -430,11 +430,11 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
 
         if (inm) {
           // Calcular deuda total de todos sus inmuebles
-          // Sumar las facturas pendientes
+          // Sumar las recibos pendientes
           let deudaTotal = 0;
           try {
             const { data: facs } = await supabase
-              .from('facturas')
+              .from('recibos')
               .select('monto')
               .or(`identidad.eq.${pago.identidad},identidad.eq.${idLimpio}`)
               .in('estado', ['Pendiente', 'Por Verificar']);
@@ -457,9 +457,9 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
           }
           if (!telefonoResponsable && inm.telefono) setTelefonoResponsable(inm.telefono);
         } else {
-          // Fallback: buscar factura por identidad para obtener nombre
+          // Fallback: buscar recibo por identidad para obtener nombre
           const { data: fac } = await supabase
-            .from('facturas')
+            .from('recibos')
             .select('contribuyente, identidad')
             .eq('identidad', pago.identidad)
             .limit(1)
@@ -513,11 +513,11 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
       }).eq('id', pago.id);
       if (error) throw error;
 
-      // Aprobado: marcar facturas como Pagado o aplicar abono
+      // Aprobado: marcar recibos como Pagado o aplicar abono
       if (estatus === 'Aprobado' && recibos.length > 0) {
         if (det.es_abono && montoConciliadoNum > 0) {
           // Es un abono parcial (Pago Múltiple)
-          const { data: facs } = await supabase.from('facturas').select('*').in('referencia', recibos);
+          const { data: facs } = await supabase.from('recibos').select('*').in('referencia', recibos);
           if (facs && facs.length > 0) {
             // Ordenar por fecha (las más antiguas primero)
             facs.sort((a, b) => new Date(a.fecha_emision || 0).getTime() - new Date(b.fecha_emision || 0).getTime());
@@ -528,21 +528,21 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
               if (dineroDisponible >= montoFac - 0.01) {
                 // Se paga completa
                 dineroDisponible = Math.max(0, dineroDisponible - montoFac);
-                await supabase.from('facturas').update({ estado: 'Pagado' }).eq('referencia', fac.referencia);
+                await supabase.from('recibos').update({ estado: 'Pagado' }).eq('referencia', fac.referencia);
               } else if (dineroDisponible > 0.01) {
                 // Abono parcial
                 const montoRestante = (montoFac - dineroDisponible).toFixed(2);
-                await supabase.from('facturas').update({ monto: montoRestante, estado: 'Pendiente' }).eq('referencia', fac.referencia);
+                await supabase.from('recibos').update({ monto: montoRestante, estado: 'Pendiente' }).eq('referencia', fac.referencia);
                 dineroDisponible = 0;
               } else {
                 // No queda dinero, regresarla a Pendiente
-                await supabase.from('facturas').update({ estado: 'Pendiente' }).eq('referencia', fac.referencia);
+                await supabase.from('recibos').update({ estado: 'Pendiente' }).eq('referencia', fac.referencia);
               }
             }
           }
         } else {
           // Pago completo normal
-          await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', recibos);
+          await supabase.from('recibos').update({ estado: 'Pagado' }).in('referencia', recibos);
         }
       }
 
@@ -572,9 +572,9 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
             })
           }]);
         }
-        // Marcar facturas como Pagado también (el pago se concilia aunque con diferencia)
+        // Marcar recibos como Pagado también (el pago se concilia aunque con diferencia)
         if (recibos.length > 0) {
-          await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', recibos);
+          await supabase.from('recibos').update({ estado: 'Pagado' }).in('referencia', recibos);
         }
       }
 

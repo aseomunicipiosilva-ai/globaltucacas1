@@ -6,7 +6,7 @@ import { History, Eye, X, FileText } from 'lucide-react';
 export default function HistorialDocumentosPage() {
   const [data] = useState([
     { id: 'DOC-101', contribuyente: 'Carlos Ruiz', tipo: 'Solvencia', fecha: '18-08-2026', emisor: 'Admin', estado: 'Generado', detalles: 'Solvencia generada por pago del mes de agosto correspondiente al Inmueble Residencial N-2834.' },
-    { id: 'DOC-102', contribuyente: 'Tienda La Esquina', tipo: 'Factura', fecha: '17-08-2026', emisor: 'Sistema', estado: 'Enviado', detalles: 'Factura automática mensual generada para el comercio Tienda La Esquina (J-12345678).' },
+    { id: 'DOC-102', contribuyente: 'Tienda La Esquina', tipo: 'Recibo', fecha: '17-08-2026', emisor: 'Sistema', estado: 'Enviado', detalles: 'Recibo automática mensual generada para el comercio Tienda La Esquina (J-12345678).' },
     { id: 'DOC-103', contribuyente: 'Condominio El Sol', tipo: 'Notificación', fecha: '15-08-2026', emisor: 'Fiscal 01', estado: 'Leído', detalles: 'Notificación de vencimiento de pago enviada al administrador del condominio.' },
   ]);
 

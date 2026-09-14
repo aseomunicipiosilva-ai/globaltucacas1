@@ -44,7 +44,7 @@ export default function DenunciasPage() {
                     <option value="">Seleccione...</option>
                     <option value="Falla de Recolección">Falla de Recolección (El camión no pasó)</option>
                     <option value="Bote Ilegal">Bote de Basura Ilegal en Vía Pública</option>
-                    <option value="Falla en Facturación">Problema de Facturación o Deuda Incorrecta</option>
+                    <option value="Falla en Emisión de recibos">Problema de Emisión de recibos o Deuda Incorrecta</option>
                     <option value="Otro">Otro Motivo</option>
                   </select>
                 </div>

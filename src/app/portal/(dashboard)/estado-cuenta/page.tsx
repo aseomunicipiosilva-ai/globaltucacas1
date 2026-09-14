@@ -13,7 +13,7 @@ const TIPO_LABEL: Record<string, string> = {
 };
 
 export default function EstadoCuentaPage() {
-  const { inmuebles, facturas } = useAppContext();
+  const { inmuebles, recibos } = useAppContext();
   const [portalDoc, setPortalDoc] = useState('');
   const [tasaBcv, setTasaBcv] = useState(0);
   const [cuotasData, setCuotasData] = useState<any[]>([]);
@@ -77,11 +77,11 @@ export default function EstadoCuentaPage() {
     return portalDoc && (id === docNorm || idFmt2 === docFmt || id === portalDoc.toUpperCase() || id === soloNum);
   }), [inmuebles, portalDoc, docNorm, docFmt, soloNum]);
 
-  // Filtrar facturas del usuario
-  const misFact = useMemo(() => facturas.filter((f: any) => {
+  // Filtrar recibos del usuario
+  const misFact = useMemo(() => recibos.filter((f: any) => {
     const contrib = (f.contribuyente || f.identidad || '').replace(/-/g, '').toUpperCase();
     return portalDoc && (contrib === docNorm || contrib.includes(soloNum));
-  }), [facturas, portalDoc, docNorm, soloNum]);
+  }), [recibos, portalDoc, docNorm, soloNum]);
 
   const pendientes = misFact.filter((f: any) => f.estado === 'Pendiente');
   const pagadas = misFact.filter((f: any) => f.estado === 'Pagada' || f.estado === 'Pagado').slice(0, 10);
@@ -127,7 +127,7 @@ export default function EstadoCuentaPage() {
           <div className="text-[10px] text-slate-400 mt-1">tasa: {tasaBcv.toFixed(2)}</div>
         </div>
         <div className={"rounded-xl border p-4 text-center shadow-sm " + (pendientes.length > 0 ? "bg-red-50 border-red-200" : "bg-emerald-50 border-emerald-200")}>
-          <div className={"text-[10px] font-bold uppercase mb-1 " + (pendientes.length > 0 ? "text-red-400" : "text-emerald-400")}>Facturas Pend.</div>
+          <div className={"text-[10px] font-bold uppercase mb-1 " + (pendientes.length > 0 ? "text-red-400" : "text-emerald-400")}>Recibos Pend.</div>
           <div className={"text-lg font-bold " + (pendientes.length > 0 ? "text-red-700" : "text-emerald-700")}>{pendientes.length}</div>
           <div className={"text-[10px] mt-1 " + (pendientes.length > 0 ? "text-red-500" : "text-emerald-500")}>
             {pendientes.length > 0 ? "Bs. " + formatBs(totalPendBs) : "Al día ✓"}
@@ -245,12 +245,12 @@ export default function EstadoCuentaPage() {
         </div>
       )}
 
-      {/* Facturas Pendientes */}
+      {/* Recibos Pendientes */}
       {pendientes.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden">
           <div className="bg-red-50 px-4 py-3 border-b border-red-200 flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-red-500" />
-            <h3 className="font-bold text-red-700 uppercase text-sm tracking-wide">Facturas Pendientes</h3>
+            <h3 className="font-bold text-red-700 uppercase text-sm tracking-wide">Recibos Pendientes</h3>
             <span className="ml-auto text-xs font-bold text-red-600">Total: Bs. {formatBs(totalPendBs)}</span>
           </div>
           <div className="overflow-x-auto">

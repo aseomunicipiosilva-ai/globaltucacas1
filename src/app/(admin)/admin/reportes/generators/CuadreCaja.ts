@@ -135,7 +135,7 @@ export const generarCuadreCajaPDF = (
   drawSubTable(
     "TRANSACCIONES CON TARJETA DE DEBITO", 
     debitos, 
-    ["FECHA/HORA", "TIPO", "CONTRIBUYENTE", "FACTURA", "BANCO", "APROBACION", "LOTE", "MONTO"],
+    ["FECHA/HORA", "TIPO", "CONTRIBUYENTE", "RECIBO", "BANCO", "APROBACION", "LOTE", "MONTO"],
     (p, c) => [
       new Date(p.created_at).toLocaleString('es-VE', {hour12: false, day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}),
       p.tipo.substring(0,3).toUpperCase(),

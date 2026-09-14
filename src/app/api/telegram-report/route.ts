@@ -84,9 +84,9 @@ async function generarReporte(request?: Request) {
       .from('contribuyentes')
       .select('*', { count: 'exact', head: true });
 
-    // ── 4. Deuda total del sistema (facturas Pendiente) ─────────
+    // ── 4. Deuda total del sistema (recibos Pendiente) ─────────
     const { data: facturasPend } = await supabase
-      .from('facturas')
+      .from('recibos')
       .select('monto')
       .eq('estado', 'Pendiente');
 
@@ -129,7 +129,7 @@ async function generarReporte(request?: Request) {
       ``,
       `━━━━━ ⏳ PENDIENTES DEL SISTEMA ━━━━━`,
       `🔍 Conciliaciones por verificar: <b>${porVerificar || 0}</b>`,
-      `📋 Facturas pendientes de cobro: <b>${totalFactPend}</b>`,
+      `📋 Recibos pendientes de cobro: <b>${totalFactPend}</b>`,
       ``,
       `━━━━━━ 📊 ESTADO GENERAL ━━━━━━━━━`,
       `👤 Total contribuyentes: <b>${totalUsuarios || 0}</b>`,

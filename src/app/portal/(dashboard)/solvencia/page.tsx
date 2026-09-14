@@ -4,7 +4,7 @@ import { Award, Printer, AlertTriangle, CheckCircle2, RefreshCw } from 'lucide-r
 import { useAppContext } from '@/store/AppContext';
 
 export default function SolvenciaPage() {
-  const { facturas, inmuebles } = useAppContext();
+  const { recibos, inmuebles } = useAppContext();
   const [portalDoc, setPortalDoc] = useState('');
   const [contribuyenteNombre, setContribuyenteNombre] = useState('');
 
@@ -18,10 +18,10 @@ export default function SolvenciaPage() {
   const docNorm = portalDoc.replace(/-/g, '').toUpperCase();
   const soloNum = portalDoc.replace(/\D/g, '');
 
-  const misFact = useMemo(() => facturas.filter((f: any) => {
+  const misFact = useMemo(() => recibos.filter((f: any) => {
     const contrib = (f.contribuyente || f.identidad || '').replace(/-/g, '').toUpperCase();
     return portalDoc && (contrib === docNorm || (soloNum && contrib.includes(soloNum)));
-  }), [facturas, portalDoc, docNorm, soloNum]);
+  }), [recibos, portalDoc, docNorm, soloNum]);
 
   const pendientes = misFact.filter((f: any) => f.estado === 'Pendiente');
   const isSolvente = pendientes.length === 0;
@@ -116,7 +116,7 @@ export default function SolvenciaPage() {
             <div>
               <h3 className="text-[10px] font-bold text-slate-600 uppercase mb-3 border-b border-slate-200 pb-1">Estado de Cuenta</h3>
               <div className="space-y-2 text-sm">
-                <div className="flex gap-2"><span className="w-28 text-slate-500">Facturas Totales:</span><strong>{misFact.length}</strong></div>
+                <div className="flex gap-2"><span className="w-28 text-slate-500">Recibos Totales:</span><strong>{misFact.length}</strong></div>
                 <div className="flex gap-2"><span className="w-28 text-slate-500">Pendientes:</span>
                   <strong className={pendientes.length > 0 ? 'text-red-600' : 'text-emerald-600'}>{pendientes.length}</strong>
                 </div>

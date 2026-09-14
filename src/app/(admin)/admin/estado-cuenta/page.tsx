@@ -15,7 +15,7 @@ export default function EstadoCuentaPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedRecibo, setSelectedRecibo] = useState<any>(null);
 
-  // Facturas frescas desde Supabase (no del contexto React que puede estar desactualizado)
+  // Recibos frescas desde Supabase (no del contexto React que puede estar desactualizado)
   const [facturasDb, setFacturasDb] = useState<any[]>([]);
   const [loadingFacturas, setLoadingFacturas] = useState(false);
   
@@ -27,7 +27,7 @@ export default function EstadoCuentaPage() {
   const [loadingPagos, setLoadingPagos] = useState(false);
 
   const [filterStatus, setFilterStatus] = useState('Todos');
-  const [actionModal, setActionModal] = useState<{ isOpen: boolean, action: 'Anular' | 'Reversar' | 'Condonar' | 'Eliminar Multa', factura: any, nota: string }>({ isOpen: false, action: 'Anular', factura: null, nota: '' });
+  const [actionModal, setActionModal] = useState<{ isOpen: boolean, action: 'Anular' | 'Reversar' | 'Condonar' | 'Eliminar Multa', recibo: any, nota: string }>({ isOpen: false, action: 'Anular', recibo: null, nota: '' });
   
   // Handle both jsonb (object) and text (string) detalles column
   const parseDetalles = (raw: any): any => {
@@ -36,7 +36,7 @@ export default function EstadoCuentaPage() {
     try { return JSON.parse(raw); } catch(e) { return {}; }
   };
 
-  // Carga fresca de facturas desde Supabase (para que los pagos recientes aparezcan de inmediato)
+  // Carga fresca de recibos desde Supabase (para que los pagos recientes aparezcan de inmediato)
   const fetchFacturasDb = async () => {
     setLoadingFacturas(true);
     try {
@@ -46,7 +46,7 @@ export default function EstadoCuentaPage() {
       let more = true;
       while (more) {
         const { data: chunk, error } = await supabase
-          .from('facturas')
+          .from('recibos')
           .select('*')
           .order('created_at', { ascending: false }) // orden consistente en cada chunk
           .range(from, from + step);
@@ -68,7 +68,7 @@ export default function EstadoCuentaPage() {
       });
       setFacturasDb(all);
     } catch (e) {
-      console.error('Error cargando facturas:', e);
+      console.error('Error cargando recibos:', e);
     }
     setLoadingFacturas(false);
   };
@@ -146,7 +146,7 @@ export default function EstadoCuentaPage() {
       if (accion === 'Rechazar') {
         // Simple revert to Pendiente
         if (detalles.recibos && detalles.recibos.length > 0) {
-          await supabase.from('facturas').update({ estado: 'Pendiente' }).in('referencia', detalles.recibos);
+          await supabase.from('recibos').update({ estado: 'Pendiente' }).in('referencia', detalles.recibos);
         }
         if (detalles.cuotas && detalles.cuotas.length > 0) {
           const { data: convs } = await supabase.from('convenios').select('*');
@@ -175,7 +175,7 @@ export default function EstadoCuentaPage() {
         if (!esAbono) {
           // Pago completo normal
           if (detalles.recibos && detalles.recibos.length > 0) {
-            await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', detalles.recibos);
+            await supabase.from('recibos').update({ estado: 'Pagado' }).in('referencia', detalles.recibos);
           }
           if (detalles.cuotas && detalles.cuotas.length > 0) {
             const { data: convs } = await supabase.from('convenios').select('*');
@@ -206,21 +206,21 @@ export default function EstadoCuentaPage() {
           // L├ôGICA DE ABONO (Pago Parcial)
           let dineroDisponible = parseFloat(pago.monto);
 
-          // 1. Process Facturas first
+          // 1. Process Recibos first
           if (detalles.recibos && detalles.recibos.length > 0) {
-            const { data: facturasData } = await supabase.from('facturas').select('*').in('referencia', detalles.recibos).order('emision', { ascending: true });
+            const { data: facturasData } = await supabase.from('recibos').select('*').in('referencia', detalles.recibos).order('emision', { ascending: true });
             if (facturasData) {
               for (const f of facturasData) {
                 const montoFac = parseFloat((f.monto || '0').replace(/[^\d.]/g, ''));
                 if (dineroDisponible >= montoFac) {
                   dineroDisponible -= montoFac;
-                  await supabase.from('facturas').update({ estado: 'Pagado' }).eq('id', f.id);
+                  await supabase.from('recibos').update({ estado: 'Pagado' }).eq('id', f.id);
                 } else if (dineroDisponible > 0) {
                   const montoRestante = (montoFac - dineroDisponible).toFixed(2);
-                  await supabase.from('facturas').update({ estado: 'Pendiente', monto: `${montoRestante} Bs` }).eq('id', f.id);
+                  await supabase.from('recibos').update({ estado: 'Pendiente', monto: `${montoRestante} Bs` }).eq('id', f.id);
                   dineroDisponible = 0;
                 } else {
-                  await supabase.from('facturas').update({ estado: 'Pendiente' }).eq('id', f.id);
+                  await supabase.from('recibos').update({ estado: 'Pendiente' }).eq('id', f.id);
                 }
               }
             }
@@ -366,9 +366,9 @@ export default function EstadoCuentaPage() {
       formaPagoStr = (tipoAbono === 'Debito' || tipoAbono.toLowerCase().includes('punto')) ? 'PUNTO DE VENTA' : 'TRANSFERENCIA';
       bancoReal = abonoOverride.banco || '---';
       referenciaReal = abonoOverride.referencia || '---';
-      // montoCancelado = monto del abono (lo que pagó); montoPendiente = monto factura actual (saldo que queda)
+      // montoCancelado = monto del abono (lo que pagó); montoPendiente = monto recibo actual (saldo que queda)
       montoCancelado = parseFloat(String(abonoOverride.monto || '0').replace(/[^\d.]/g, '')) || 0;
-      montoPendiente = montoNumerico; // row.monto = saldo pendiente en la factura
+      montoPendiente = montoNumerico; // row.monto = saldo pendiente en la recibo
       montoNumerico = montoCancelado; // el recibo muestra lo que SE CANCELÓ
       esAbono = true;
     } else if (row.referencia) {
@@ -443,7 +443,7 @@ export default function EstadoCuentaPage() {
     }
 
     // Cargar datos completos del contribuyente desde inmuebles
-    // Fuente de identidad: primero el abono, luego la factura
+    // Fuente de identidad: primero el abono, luego la recibo
     const identidadBusqueda = (abonoOverride?.identidad || row.identidad || '').trim();
     const idLimpio = identidadBusqueda.replace(/-/g, '');
 
@@ -582,7 +582,7 @@ export default function EstadoCuentaPage() {
       return;
     }
     
-    if (!confirm(`┬┐Generar facturaci├│n usando TCMMV de ${tcmmv} Bs? Esto facturar├í a los ${inmuebles.length} inmuebles.`)) {
+    if (!confirm(`┬┐Generar facturaci├│n usando TCMMV de ${tcmmv} Bs? Esto recibir├í a los ${inmuebles.length} inmuebles.`)) {
       return;
     }
 
@@ -631,17 +631,17 @@ export default function EstadoCuentaPage() {
     // Para simplificar enviamos de 500 en 500
     for(let i=0; i<nuevasFacturas.length; i+=500){
       const chunk = nuevasFacturas.slice(i, i+500);
-      await supabase.from('facturas').insert(chunk);
+      await supabase.from('recibos').insert(chunk);
     }
 
-    alert(`Se han generado ${nuevasFacturas.length} facturas exitosamente.`);
+    alert(`Se han generado ${nuevasFacturas.length} recibos exitosamente.`);
     setIsGenerating(false);
     // Idealmente har├¡amos un refetch del context aqu├¡, o se actualiza en tiempo real
     window.location.reload();
   };
 
   const handleActionSubmit = async () => {
-    if (!actionModal.factura || !actionModal.nota.trim()) {
+    if (!actionModal.recibo || !actionModal.nota.trim()) {
       alert("Debes ingresar un comentario obligatorio.");
       return;
     }
@@ -649,26 +649,26 @@ export default function EstadoCuentaPage() {
       const nuevoEstado = actionModal.action === 'Condonar' ? 'Condonado' : actionModal.action === 'Anular' ? 'Anulado' : 'Reversado';
       const cajero = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'Administrador';
       let detallesActuales: any = {};
-      try { detallesActuales = JSON.parse(actionModal.factura.detalles || '{}'); } catch(e) {}
+      try { detallesActuales = JSON.parse(actionModal.recibo.detalles || '{}'); } catch(e) {}
       const nuevoDetalles = JSON.stringify({
         ...detallesActuales,
         nota_anulacion: actionModal.nota,
         accion: actionModal.action,
         usuario_accion: cajero,
         fecha_accion: new Date().toISOString(),
-        referencia_original: actionModal.factura.referencia,
+        referencia_original: actionModal.recibo.referencia,
       });
-      const { error } = await supabase.from('facturas').update({
+      const { error } = await supabase.from('recibos').update({
         estado: nuevoEstado,
         detalles: nuevoDetalles
-      }).eq('id', actionModal.factura.id);
+      }).eq('id', actionModal.recibo.id);
       
       if (error) throw error;
       
-      try { await supabase.from('audit_logs').insert({ usuario: cajero, accion: `FACTURA_${actionModal.action.toUpperCase()}`, detalles: `Factura ${actionModal.factura.referencia} ${nuevoEstado.toLowerCase()}. Motivo: ${actionModal.nota}` }); } catch(ae) {}
+      try { await supabase.from('audit_logs').insert({ usuario: cajero, accion: `FACTURA_${actionModal.action.toUpperCase()}`, detalles: `Recibo ${actionModal.recibo.referencia} ${nuevoEstado.toLowerCase()}. Motivo: ${actionModal.nota}` }); } catch(ae) {}
       
-      alert(`Factura ${actionModal.action.toLowerCase()}a correctamente.`);
-      setActionModal({ isOpen: false, action: 'Anular', factura: null, nota: '' });
+      alert(`Recibo ${actionModal.action.toLowerCase()}a correctamente.`);
+      setActionModal({ isOpen: false, action: 'Anular', recibo: null, nota: '' });
       window.location.reload()
     } catch (e: any) {
       alert("Error: " + e.message);
@@ -676,7 +676,7 @@ export default function EstadoCuentaPage() {
   };
 
   const columns = [
-    { key: 'referencia', header: 'Nro. Factura' },
+    { key: 'referencia', header: 'Nro. Recibo' },
     { key: 'contribuyente', header: 'Contribuyente' },
     { 
       key: 'monto', 
@@ -729,21 +729,21 @@ export default function EstadoCuentaPage() {
         {(row.estado === 'Pendiente' || row.estado === 'Pagado') && (
           <>
             <button 
-              onClick={() => setActionModal({ isOpen: true, action: 'Reversar', factura: row, nota: '' })}
+              onClick={() => setActionModal({ isOpen: true, action: 'Reversar', recibo: row, nota: '' })}
               className="bg-orange-50 text-orange-600 hover:bg-orange-100 px-3 py-1.5 rounded text-xs transition-colors font-medium border border-orange-200"
-              title="Reversar Factura"
+              title="Reversar Recibo"
             >
               Reversar
             </button>
             <button 
-              onClick={() => setActionModal({ isOpen: true, action: 'Anular', factura: row, nota: '' })}
+              onClick={() => setActionModal({ isOpen: true, action: 'Anular', recibo: row, nota: '' })}
               className="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded text-xs transition-colors font-medium border border-red-200"
-              title="Anular Factura"
+              title="Anular Recibo"
             >
               Anular
             </button>
             <button 
-              onClick={() => setActionModal({ isOpen: true, action: 'Condonar', factura: row, nota: '' })}
+              onClick={() => setActionModal({ isOpen: true, action: 'Condonar', recibo: row, nota: '' })}
               className="bg-purple-50 text-purple-600 hover:bg-purple-100 px-3 py-1.5 rounded text-xs transition-colors font-medium border border-purple-200"
               title="Condonar Deuda"
             >
@@ -821,12 +821,12 @@ export default function EstadoCuentaPage() {
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
-          {/* Botón Refrescar facturas */}
+          {/* Botón Refrescar recibos */}
           <button
             onClick={fetchFacturasDb}
             disabled={loadingFacturas}
             className="bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 px-3 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2"
-            title="Refrescar lista de facturas"
+            title="Refrescar lista de recibos"
           >
             <RefreshCw size={14} className={loadingFacturas ? 'animate-spin' : ''} />
             Refrescar
@@ -860,7 +860,7 @@ export default function EstadoCuentaPage() {
             className="bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
           >
             <Zap className="w-4 h-4" /> 
-            {isGenerating ? 'Generando...' : 'Generar Facturación'}
+            {isGenerating ? 'Generando...' : 'Generar Emisión de recibos'}
           </button>
           <button 
             onClick={exportarAExcel}
@@ -883,10 +883,10 @@ export default function EstadoCuentaPage() {
             <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 animate-in zoom-in-95 duration-200">
               <div className="flex justify-between items-center mb-4">
                 <h2 className={`text-xl font-bold ${actionModal.action === 'Anular' ? 'text-red-700' : 'text-orange-700'}`}>
-                  {actionModal.action} Factura
+                  {actionModal.action} Recibo
                 </h2>
                 <button 
-                  onClick={() => setActionModal({ isOpen: false, action: 'Anular', factura: null, nota: '' })} 
+                  onClick={() => setActionModal({ isOpen: false, action: 'Anular', recibo: null, nota: '' })} 
                   className="text-slate-400 hover:text-slate-600"
                 >
                   <X size={20} />
@@ -894,9 +894,9 @@ export default function EstadoCuentaPage() {
               </div>
               
               <div className="bg-slate-50 p-4 rounded-lg mb-4 text-sm text-slate-700">
-                <p><strong>Nro. Factura:</strong> {actionModal.factura.referencia}</p>
-                <p><strong>Contribuyente:</strong> {actionModal.factura.contribuyente}</p>
-                <p><strong>Monto:</strong> {actionModal.factura.monto}</p>
+                <p><strong>Nro. Recibo:</strong> {actionModal.recibo.referencia}</p>
+                <p><strong>Contribuyente:</strong> {actionModal.recibo.contribuyente}</p>
+                <p><strong>Monto:</strong> {actionModal.recibo.monto}</p>
               </div>
 
               <div className="space-y-3">
@@ -907,13 +907,13 @@ export default function EstadoCuentaPage() {
                   value={actionModal.nota}
                   onChange={(e) => setActionModal(prev => ({ ...prev, nota: e.target.value }))}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] resize-none"
-                  placeholder={`Por favor describe por qu├⌐ se est├í ${actionModal.action.toLowerCase()}ndo esta factura...`}
+                  placeholder={`Por favor describe por qu├⌐ se est├í ${actionModal.action.toLowerCase()}ndo esta recibo...`}
                 />
               </div>
 
               <div className="flex justify-end gap-3 mt-6">
                 <button 
-                  onClick={() => setActionModal({ isOpen: false, action: 'Anular', factura: null, nota: '' })} 
+                  onClick={() => setActionModal({ isOpen: false, action: 'Anular', recibo: null, nota: '' })} 
                   className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                 >
                   Cancelar

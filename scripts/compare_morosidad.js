@@ -75,7 +75,7 @@ async function run() {
     // Fetch tcmmv (from bcv) - we can just use 1 for now if we just compare
     // But actually, we don't need to calculate if we just want to know if they exist.
     // The user wants "si conciden con los que estan registrados y que usuarios no estan registrados"
-    // Since we don't have a live BCV endpoint in the script, we can query facturas?
+    // Since we don't have a live BCV endpoint in the script, we can query recibos?
     // Wait, the debt in the old system might not match the new system exactly because of the exchange rate date.
     // Let's just compare what we can.
 

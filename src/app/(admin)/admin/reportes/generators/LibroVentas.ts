@@ -26,13 +26,13 @@ export const generarLibroVentas = async (pagosFiltrados: any[], contribuyentes: 
   sheet.columns = [
     { header: 'Nº', key: 'num', width: 5 },
     { header: 'Fecha', key: 'fecha', width: 15 },
-    { header: 'Factura / Doc', key: 'factura', width: 20 },
+    { header: 'Recibo / Doc', key: 'recibo', width: 20 },
     { header: 'Contribuyente', key: 'contribuyente', width: 40 },
     { header: 'RIF / CI', key: 'rif', width: 20 },
     { header: 'Monto (Bs)', key: 'monto', width: 20 }
   ];
 
-  sheet.getRow(4).values = ['Nº', 'Fecha', 'Factura / Doc', 'Contribuyente', 'RIF / CI', 'Monto (Bs)'];
+  sheet.getRow(4).values = ['Nº', 'Fecha', 'Recibo / Doc', 'Contribuyente', 'RIF / CI', 'Monto (Bs)'];
   const headerRow = sheet.getRow(4);
   headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
   headerRow.eachCell(cell => {
@@ -50,7 +50,7 @@ export const generarLibroVentas = async (pagosFiltrados: any[], contribuyentes: 
     const row = sheet.addRow({
       num: index + 1,
       fecha: new Date(p.created_at).toLocaleDateString('es-VE'),
-      factura: p.factura_ref || p.referencia || 'N/A',
+      recibo: p.factura_ref || p.referencia || 'N/A',
       contribuyente: cInfo ? cInfo.Contribuyente : p.identidad,
       rif: p.identidad,
       monto: monto

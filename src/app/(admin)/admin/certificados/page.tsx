@@ -6,7 +6,7 @@ import { useAppContext } from '@/store/AppContext';
 import { generarSolvenciaPDF, reimprimirSolvenciaPDF } from '@/lib/pdfGenerator';
 
 export default function CertificadosPage() {
-  const { certificados, contribuyentes, facturas, inmuebles, addCertificado } = useAppContext();
+  const { certificados, contribuyentes, recibos, inmuebles, addCertificado } = useAppContext();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResult, setSearchResult] = useState<any>(null);
@@ -36,7 +36,7 @@ export default function CertificadosPage() {
     
     if (found) {
       // Calcular deuda
-      const deudas = (facturas || [])
+      const deudas = (recibos || [])
         .filter((f: any) => f.identidad === found.Identidad)
         .filter((f: any) => f.estado === 'Pendiente');
       

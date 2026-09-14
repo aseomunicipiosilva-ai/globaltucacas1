@@ -148,7 +148,7 @@ export default function CuadreCaja({ pagos, cajeros, isAdmin, currentUser, onBac
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr>{['#', 'Fecha/Hora', 'Fecha Bco', 'Tipo', 'Fecha Libro', 'Cajero', 'Contribuyente', 'Factura', 'Banco', 'Referencia', 'Banco Destino', 'Referencia', 'Monto']
+                  <tr>{['#', 'Fecha/Hora', 'Fecha Bco', 'Tipo', 'Fecha Libro', 'Cajero', 'Contribuyente', 'Recibo', 'Banco', 'Referencia', 'Banco Destino', 'Referencia', 'Monto']
                     .map(h => <th key={h} style={S.th}>{h}</th>)}</tr>
                 </thead>
                 <tbody>
@@ -190,7 +190,7 @@ export default function CuadreCaja({ pagos, cajeros, isAdmin, currentUser, onBac
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr>{['#', 'Fecha/Hora', 'Tipo', 'Cajero', 'Contribuyente', 'Factura', 'Banco', 'Aprobacion', 'Lote', 'Monto']
+                  <tr>{['#', 'Fecha/Hora', 'Tipo', 'Cajero', 'Contribuyente', 'Recibo', 'Banco', 'Aprobacion', 'Lote', 'Monto']
                     .map(h => <th key={h} style={S.th}>{h}</th>)}</tr>
                 </thead>
                 <tbody>

@@ -30,7 +30,7 @@ async function generarCodigoCondominio(tipo: 'padre' | 'hijo'): Promise<string> 
 }
 
 export default function CondominiosCOBPage() {
-  const { condominios, inmuebles, tcmmv, facturas, setFacturas, addAuditLog } = useAppContext();
+  const { condominios, inmuebles, tcmmv, recibos, setFacturas, addAuditLog } = useAppContext();
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCondominio, setSelectedCondominio] = useState<{ id: number, nombre: string, identidad: string, codigo?: string } | null>(null);
 
@@ -86,12 +86,12 @@ export default function CondominiosCOBPage() {
           <button 
             onClick={async () => {
               try {
-                const pendingFacturas = (facturas || []).filter((f: any) => {
+                const pendingFacturas = (recibos || []).filter((f: any) => {
                   const contrib = (f.contribuyente || '').toLowerCase().trim();
                   return contrib === row.identidad.toLowerCase().trim() || contrib === row.nombre.toLowerCase().trim();
                 });
                 if (pendingFacturas.length === 0) {
-                  alert('Este condominio no tiene facturas registradas.');
+                  alert('Este condominio no tiene recibos registradas.');
                   return;
                 }
                 const { exportToExcelWithLogos } = await import('@/lib/excelExport');
@@ -231,7 +231,7 @@ export default function CondominiosCOBPage() {
           row={selectedDebtRow}
           inmuebles={inmuebles}
           tcmmv={tcmmv}
-          facturas={facturas}
+          recibos={recibos}
           setFacturas={setFacturas}
           addAuditLog={addAuditLog}
           onClose={() => setDebtModalOpen(false)}

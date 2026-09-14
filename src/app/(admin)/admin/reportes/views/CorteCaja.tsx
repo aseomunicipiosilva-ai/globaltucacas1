@@ -155,7 +155,7 @@ export default function CorteCaja({ pagos, cajeros, isAdmin, currentUser, onBack
               <h3 className="font-bold text-sm text-slate-700 mb-3 uppercase tracking-wide border-b pb-1">Transferencia</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-[11px] border-collapse">
-                  <thead><tr>{['#','Fecha/Hora','Fecha Bco','Tipo','Fecha Libro','Cajero','Contribuyente','Factura','Banco','Referencia','Banco Destino','Referencia','Monto'].map(h => <th key={h} className={thCls}>{h}</th>)}</tr></thead>
+                  <thead><tr>{['#','Fecha/Hora','Fecha Bco','Tipo','Fecha Libro','Cajero','Contribuyente','Recibo','Banco','Referencia','Banco Destino','Referencia','Monto'].map(h => <th key={h} className={thCls}>{h}</th>)}</tr></thead>
                   <tbody>
                     {transferencias.map((p, i) => {
                       const det = parseDet(p);
@@ -191,7 +191,7 @@ export default function CorteCaja({ pagos, cajeros, isAdmin, currentUser, onBack
               <h3 className="font-bold text-sm text-slate-700 mb-3 uppercase tracking-wide border-b pb-1">Debito</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-[11px] border-collapse">
-                  <thead><tr>{['#','Fecha/Hora','Tipo','Cajero','Contribuyente','Factura','Banco','Aprobacion','Lote','Monto'].map(h => <th key={h} className={thCls}>{h}</th>)}</tr></thead>
+                  <thead><tr>{['#','Fecha/Hora','Tipo','Cajero','Contribuyente','Recibo','Banco','Aprobacion','Lote','Monto'].map(h => <th key={h} className={thCls}>{h}</th>)}</tr></thead>
                   <tbody>
                     {debitos.map((p, i) => {
                       const det = parseDet(p);

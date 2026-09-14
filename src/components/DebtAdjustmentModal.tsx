@@ -7,7 +7,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export function DebtAdjustmentModal({ row, inmuebles, tcmmv, facturas, setFacturas, onClose, addAuditLog }: any) {
+export function DebtAdjustmentModal({ row, inmuebles, tcmmv, recibos, setFacturas, onClose, addAuditLog }: any) {
   const { ordenanzasConfig: ordenanzaData } = useAppContext();
   const [debtMonths, setDebtMonths] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -83,9 +83,9 @@ export function DebtAdjustmentModal({ row, inmuebles, tcmmv, facturas, setFactur
       const rowContribuyente = row.Contribuyente || row.contribuyente || row.nombre;
 
       // Delete all existing pending invoices
-      const facturasPendientes = facturas.filter((f: any) => f.contribuyente === rowContribuyente && f.estado === 'Pendiente');
+      const facturasPendientes = recibos.filter((f: any) => f.contribuyente === rowContribuyente && f.estado === 'Pendiente');
       for (const fp of facturasPendientes) {
-        await supabase.from('facturas').delete().eq('id', fp.id);
+        await supabase.from('recibos').delete().eq('id', fp.id);
       }
 
       // Generate a single new invoice for the adjusted debt
@@ -93,7 +93,7 @@ export function DebtAdjustmentModal({ row, inmuebles, tcmmv, facturas, setFactur
       const montoBs = (deudaMMV * dynamicTcmmv).toFixed(2);
       
       const facturaData = {
-        referencia: `FACT-${Math.floor(Math.random() * 1000000)}`,
+        referencia: `RECIB-${Math.floor(Math.random() * 1000000)}`,
         contribuyente: rowContribuyente,
         monto: montoBs,
         emision: new Date().toISOString().split('T')[0],
@@ -101,18 +101,18 @@ export function DebtAdjustmentModal({ row, inmuebles, tcmmv, facturas, setFactur
         estado: 'Pendiente'
       };
 
-      const { data: newFactura, error: err2 } = await supabase.from('facturas').insert([facturaData]).select().single();
+      const { data: newFactura, error: err2 } = await supabase.from('recibos').insert([facturaData]).select().single();
       if (err2) throw err2;
 
       // Update state
-      const facturasRestantes = facturas.filter((f: any) => !(f.contribuyente === rowContribuyente && f.estado === 'Pendiente'));
+      const facturasRestantes = recibos.filter((f: any) => !(f.contribuyente === rowContribuyente && f.estado === 'Pendiente'));
       setFacturas([newFactura, ...facturasRestantes]);
 
       if (addAuditLog) {
         await addAuditLog('AJUSTAR_DEUDA', `Deuda ajustada a ${debtMonths} meses (${montoBs} Bs) para el contribuyente ${rowContribuyente}`);
       }
 
-      alert('Deuda ajustada y factura generada exitosamente.');
+      alert('Deuda ajustada y recibo generada exitosamente.');
       onClose();
     } catch (e: any) {
       console.error(e);

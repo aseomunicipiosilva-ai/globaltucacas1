@@ -29,7 +29,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 function ContribuyentesPageContent() {
-  const { inmuebles, contribuyentes, facturas, setFacturas, convenios, updateContribuyente, addContribuyente, addAuditLog, tcmmv, addCertificado, auditLogs } = useAppContext();
+  const { inmuebles, contribuyentes, recibos, setFacturas, convenios, updateContribuyente, addContribuyente, addAuditLog, tcmmv, addCertificado, auditLogs } = useAppContext();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [formData, setFormData] = useState<any>(null);
@@ -41,7 +41,7 @@ function ContribuyentesPageContent() {
   const [selectedSolvenciaInmueble, setSelectedSolvenciaInmueble] = useState<string>('');
   const [viewCalculo, setViewCalculo] = useState<any>(null);
   const [viewFacturasCM, setViewFacturasCM] = useState<any[]>([]);
-  const [viewFacturasDb, setViewFacturasDb] = useState<any[]>([]); // facturas frescas desde Supabase
+  const [viewFacturasDb, setViewFacturasDb] = useState<any[]>([]); // recibos frescas desde Supabase
   const [selectedCondominioModal, setSelectedCondominioModal] = useState<{ id: number, nombre: string, identidad: string } | null>(null);
   const [viewServiciosEsp, setViewServiciosEsp] = useState<any[]>([]);
   const [viewPagos, setViewPagos] = useState<any[]>([]);
@@ -57,7 +57,7 @@ function ContribuyentesPageContent() {
   const [isCalculating, setIsCalculating] = useState(false);
 
   // Action Modal State
-  const [actionModal, setActionModal] = useState<{type: 'Anular'|'Reversar', factura: any} | null>(null);
+  const [actionModal, setActionModal] = useState<{type: 'Anular'|'Reversar', recibo: any} | null>(null);
   const [actionNota, setActionNota] = useState('');
   const [isProcessingAction, setIsProcessingAction] = useState(false);
 
@@ -140,20 +140,20 @@ function ContribuyentesPageContent() {
     try {
       const nuevoEstado = actionModal.type === 'Anular' ? 'Anulado' : 'Reversado';
       const { error } = await supabase
-        .from('facturas')
+        .from('recibos')
         .update({ estado: nuevoEstado, nota: actionNota.trim() })
-        .eq('referencia', actionModal.factura.referencia);
+        .eq('referencia', actionModal.recibo.referencia);
         
       if (error) throw error;
       
       // Si es Reversar: devolver el monto como saldo a favor en inmuebles
       if (actionModal.type === 'Reversar') {
-        const montoPagado = parseFloat((actionModal.factura.monto || '0').toString().replace(/[^\d.]/g, ''));
+        const montoPagado = parseFloat((actionModal.recibo.monto || '0').toString().replace(/[^\d.]/g, ''));
         if (montoPagado > 0) {
           const { data: inmuebleData } = await supabase
             .from('inmuebles')
             .select('id, saldo_favor_bs')
-            .eq('identidad', actionModal.factura.contribuyente)
+            .eq('identidad', actionModal.recibo.contribuyente)
             .limit(1)
             .single();
           if (inmuebleData) {
@@ -164,11 +164,11 @@ function ContribuyentesPageContent() {
       }
       
       // Update local state
-      setFacturas(prev => prev.map(f => f.referencia === actionModal.factura.referencia ? { ...f, estado: nuevoEstado, nota: actionNota.trim() } : f));
+      setFacturas(prev => prev.map(f => f.referencia === actionModal.recibo.referencia ? { ...f, estado: nuevoEstado, nota: actionNota.trim() } : f));
       
       setActionModal(null);
       setActionNota('');
-      alert(`Factura ${actionModal.factura.referencia} ha sido ${nuevoEstado.toLowerCase()} exitosamente.${actionModal.type === 'Reversar' ? ' El monto fue acreditado como Saldo a Favor.' : ''}`);
+      alert(`Recibo ${actionModal.recibo.referencia} ha sido ${nuevoEstado.toLowerCase()} exitosamente.${actionModal.type === 'Reversar' ? ' El monto fue acreditado como Saldo a Favor.' : ''}`);
     } catch (e: any) {
       alert("Error procesando acción: " + e.message);
     }
@@ -322,19 +322,19 @@ function ContribuyentesPageContent() {
         .or(`identidad.eq.${viewData.Identidad},identidad.eq.${(viewData.Identidad || '').replace(/-/g, '')}`)
         .order('created_at', { ascending: false })
         .then(({ data }) => setViewPagos(data || []));
-      // Cargar facturas frescas desde Supabase (evitar discrepancias con el contexto React)
+      // Cargar recibos frescas desde Supabase (evitar discrepancias con el contexto React)
       const identidadClean = (viewData.Identidad || '').replace(/-/g, '').toUpperCase();
       supabase
-        .from('facturas')
+        .from('recibos')
         .select('*')
         .in('estado', ['Pendiente', 'Por Verificar'])
         .or(`identidad.eq.${viewData.Identidad},identidad.eq.${identidadClean}`)
         .order('created_at', { ascending: false })
         .then(({ data: facData }) => {
-          // fallback por nombre si no hay resultados por identidad (cubre FACT- con identidad en otro formato)
+          // fallback por nombre si no hay resultados por identidad (cubre RECIB- con identidad en otro formato)
           if (!facData || facData.length === 0) {
             supabase
-              .from('facturas')
+              .from('recibos')
               .select('*')
               .in('estado', ['Pendiente', 'Por Verificar'])
               .eq('contribuyente', viewData.Contribuyente)
@@ -352,14 +352,14 @@ function ContribuyentesPageContent() {
     }
   }, [isViewModalOpen, viewData, inmuebles]);
 
-  const handleDeleteFactura = async (factura: any) => {
-    const isConfirmed = window.confirm(`¿Estás seguro de eliminar la deuda ${factura.referencia}?`);
+  const handleDeleteFactura = async (recibo: any) => {
+    const isConfirmed = window.confirm(`¿Estás seguro de eliminar la deuda ${recibo.referencia}?`);
     if (!isConfirmed) return;
 
     // Validation: cannot delete if subsequent months are paid
-    const facturasContribuyente = facturas.filter((f: any) => f.contribuyente === factura.contribuyente);
+    const facturasContribuyente = recibos.filter((f: any) => f.contribuyente === recibo.contribuyente);
     const facturasPagadasPosteriores = facturasContribuyente.filter((f: any) => {
-      return f.estado === 'Pagado' && new Date(f.emision) > new Date(factura.emision);
+      return f.estado === 'Pagado' && new Date(f.emision) > new Date(recibo.emision);
     });
 
     if (facturasPagadasPosteriores.length > 0) {
@@ -368,10 +368,10 @@ function ContribuyentesPageContent() {
     }
 
     try {
-      const { error } = await supabase.from('facturas').delete().eq('id', factura.id);
+      const { error } = await supabase.from('recibos').delete().eq('id', recibo.id);
       if (error) throw error;
       
-      setFacturas(facturas.filter((f: any) => f.id !== factura.id));
+      setFacturas(recibos.filter((f: any) => f.id !== recibo.id));
       alert("Deuda eliminada exitosamente.");
     } catch (e: any) {
       alert("Error eliminando deuda: " + e.message);
@@ -401,7 +401,7 @@ function ContribuyentesPageContent() {
 
   const imprimirEstadoDeCuenta = async () => {
     if (!viewData) return;
-    const deudas = (facturas || [])
+    const deudas = (recibos || [])
       .filter((f: any) => f.contribuyente === viewData.Contribuyente || f.contribuyente === viewData.Identidad)
       .filter((f: any) => f.estado === 'Pendiente');
 
@@ -552,7 +552,7 @@ function ContribuyentesPageContent() {
 
   const exportarExcelContribuyentes = () => {
     const dataToExport = contribuyentes.map((c: any) => {
-      const deudas = (facturas || [])
+      const deudas = (recibos || [])
         .filter((f: any) => f.contribuyente === c.Contribuyente || f.contribuyente === c.Identidad)
         .filter((f: any) => f.estado === 'Pendiente');
       const totalBs = deudas.reduce((acc: number, f: any) => acc + parseFloat(f.monto || '0'), 0);
@@ -793,22 +793,22 @@ function ContribuyentesPageContent() {
         
       if (err1) throw err1;
 
-      // Delete all pending facturas for this taxpayer
+      // Delete all pending recibos for this taxpayer
       const { error: errDelete } = await supabase
-        .from('facturas')
+        .from('recibos')
         .delete()
         .eq('contribuyente', formData.Contribuyente)
         .eq('estado', 'Pendiente');
         
       if (errDelete) throw errDelete;
 
-      // Insert new factura for the new balance if > 0
+      // Insert new recibo for the new balance if > 0
       if (deudaMMV > 0) {
         const tasaOficial = bcvRate ? parseFloat(bcvRate.replace(',', '.')) : 1;
         const montoBs = (deudaMMV * tasaOficial).toFixed(2);
         
         const facturaData = {
-          referencia: `FACT-${Math.floor(Math.random() * 1000000)}`,
+          referencia: `RECIB-${Math.floor(Math.random() * 1000000)}`,
           contribuyente: formData.Contribuyente,
           identidad: formData.Identidad,
           monto: montoBs,
@@ -816,7 +816,7 @@ function ContribuyentesPageContent() {
           vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           estado: 'Pendiente'
         };
-        const { error: errInsert } = await supabase.from('facturas').insert([facturaData]);
+        const { error: errInsert } = await supabase.from('recibos').insert([facturaData]);
         if (errInsert) throw errInsert;
       }
 
@@ -1635,7 +1635,7 @@ function ContribuyentesPageContent() {
                 <div className="flex items-start gap-2 bg-amber-50 p-3 rounded border border-amber-200">
                   <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-700 leading-relaxed font-medium">
-                    Al confirmar, se **borrarán todos los recibos (facturas) pendientes** actuales de este usuario y se generará un **único recibo nuevo** con el monto total ajustado.
+                    Al confirmar, se **borrarán todos los recibos (recibos) pendientes** actuales de este usuario y se generará un **único recibo nuevo** con el monto total ajustado.
                   </p>
                 </div>
 
@@ -2006,11 +2006,11 @@ function ContribuyentesPageContent() {
                 </div>
                 <div className="p-0">
                   {(() => {
-                    // Usar facturas frescas de Supabase (no el contexto que puede estar desactualizado)
+                    // Usar recibos frescas de Supabase (no el contexto que puede estar desactualizado)
                     const deudas = viewFacturasDb;
 
                     // Helper: para CM- recalcular con tasa BCV actual (fluctúa cada día)
-                    // Para FACT- usar monto guardado (deuda acumulada ajustada por Ajustar Deuda)
+                    // Para RECIB- usar monto guardado (deuda acumulada ajustada por Ajustar Deuda)
                     const userInms = inmuebles.filter((i: any) =>
                       (i.identidad || '').replace(/-/g,'').toUpperCase() === (viewData?.Identidad || '').replace(/-/g,'').toUpperCase()
                     );
@@ -2023,7 +2023,7 @@ function ContribuyentesPageContent() {
                         });
                         if (totalMMV > 0 && tcmmv > 0) return totalMMV * tcmmv;
                       }
-                      // FACT- u otros: usar monto guardado en BD
+                      // RECIB- u otros: usar monto guardado en BD
                       return parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
                     };
 
@@ -2216,7 +2216,7 @@ function ContribuyentesPageContent() {
                 </div>
                 <div className="p-0 bg-white">
                   {(() => {
-                    const procesadas = (facturas || [])
+                    const procesadas = (recibos || [])
                       .filter((f: any) => f.identidad === viewData.Identidad || f.contribuyente === viewData.Contribuyente || f.contribuyente === viewData.Identidad)
                       .filter((f: any) => f.estado !== 'Pendiente');
                       
@@ -2266,13 +2266,13 @@ function ContribuyentesPageContent() {
                                 {(d.estado === 'Pagado' || d.estado === 'Por Verificar') && (
                                   <>
                                     <button 
-                                      onClick={() => setActionModal({ type: 'Reversar', factura: d })}
+                                      onClick={() => setActionModal({ type: 'Reversar', recibo: d })}
                                       className="text-orange-600 bg-orange-50 hover:bg-orange-100 px-2 py-1 rounded text-xs font-medium transition-colors"
                                     >
                                       Reversar
                                     </button>
                                     <button 
-                                      onClick={() => setActionModal({ type: 'Anular', factura: d })}
+                                      onClick={() => setActionModal({ type: 'Anular', recibo: d })}
                                       className="text-red-600 bg-red-50 hover:bg-red-100 px-2 py-1 rounded text-xs font-medium transition-colors"
                                     >
                                       Anular
@@ -2450,7 +2450,7 @@ function ContribuyentesPageContent() {
           row={selectedDebtRow}
           inmuebles={inmuebles}
           tcmmv={tcmmv || viewCalculo?.tasaBcv || 1}
-          facturas={facturas}
+          recibos={recibos}
           setFacturas={setFacturas}
           onClose={() => setDebtModalOpen(false)}
         />
@@ -2468,7 +2468,7 @@ function ContribuyentesPageContent() {
             </div>
             <div className="p-6">
               <p className="text-sm text-slate-600 mb-4">
-                Está a punto de <strong>{actionModal.type.toLowerCase()}</strong> la factura <span className="font-bold">{actionModal.factura.referencia}</span>. 
+                Está a punto de <strong>{actionModal.type.toLowerCase()}</strong> la recibo <span className="font-bold">{actionModal.recibo.referencia}</span>. 
                 Por favor, indique el motivo. <span className="text-red-600 font-bold">* Obligatorio</span>
               </p>
               

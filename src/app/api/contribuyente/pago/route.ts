@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
       if (facturaIds && facturaIds.length > 0) {
         const { error } = await supabase
-          .from('facturas')
+          .from('recibos')
           .update({
             estado: 'Pagado',
             metodo_pago: 'Punto de Venta',
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
             referencia_pago: referencia || `PDV-${Date.now()}`
           })
           .in('id', facturaIds);
-        if (error) errores.push(`Error facturas: ${error.message}`);
+        if (error) errores.push(`Error recibos: ${error.message}`);
       }
 
       if (convenioIds && convenioIds.length > 0) {
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     // TRANSFERENCIA: queda en revisión
     if (facturaIds && facturaIds.length > 0) {
       await supabase
-        .from('facturas')
+        .from('recibos')
         .update({
           estado: 'En Revisión',
           metodo_pago: banco || metodo,

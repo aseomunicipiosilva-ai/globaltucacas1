@@ -7,7 +7,7 @@ type AppState = {
   inmuebles: any[];
   contribuyentes: any[];
   preRegistros: any[];
-  facturas: any[];
+  recibos: any[];
   documentos: any[];
   certificados: any[];
   condominios: any[];
@@ -22,7 +22,7 @@ type AppState = {
   updateContribuyente: (id: string, data: any) => void;
   addContribuyente: (data: any) => void;
   aprobarPreRegistro: (item: number) => void;
-  addFactura: (factura: any) => Promise<void>;
+  addFactura: (recibo: any) => Promise<void>;
   addAuditLog: (action: string, details: string) => Promise<void>;
   auditLogs: any[];
   setPreRegistros: React.Dispatch<React.SetStateAction<any[]>>;
@@ -35,7 +35,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [inmuebles, setInmuebles] = useState<any[]>([]);
   const [contribuyentes, setContribuyentes] = useState<any[]>([]);
   const [preRegistros, setPreRegistros] = useState<any[]>([]);
-  const [facturas, setFacturas] = useState<any[]>([]);
+  const [recibos, setFacturas] = useState<any[]>([]);
   const [documentos, setDocumentos] = useState<any[]>([]);
   const [certificados, setCertificados] = useState<any[]>([]);
   const [condominios, setCondominios] = useState<any[]>([]);
@@ -51,13 +51,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
       
-      // Fetch facturas con paginación para superar el límite de 1000
+      // Fetch recibos con paginación para superar el límite de 1000
       let allFacturas: any[] = [];
       let fetchMore = true;
       let from = 0;
       let step = 999;
       while (fetchMore) {
-        const { data: chunk } = await supabase.from('facturas').select('*').range(from, from + step);
+        const { data: chunk } = await supabase.from('recibos').select('*').range(from, from + step);
         if (chunk && chunk.length > 0) {
           allFacturas = [...allFacturas, ...chunk];
           from += step + 1;
@@ -365,9 +365,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addFactura = async (data: any) => {
     try {
       const { data: result, error } = await supabase
-        .from('facturas')
+        .from('recibos')
         .insert([{
-          referencia: data.referencia || `FACT-${Math.floor(Math.random() * 1000000)}`,
+          referencia: data.referencia || `RECIB-${Math.floor(Math.random() * 1000000)}`,
           contribuyente: data.contribuyente,
           monto: data.monto.toString(),
           emision: data.emision || new Date().toISOString().split('T')[0],
@@ -380,10 +380,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       if (result) {
         setFacturas(prev => [result, ...prev]);
-        await addAuditLog('GENERAR_FACTURA', `Se generó la factura ${result.referencia} para ${result.contribuyente} por Bs. ${result.monto}`);
+        await addAuditLog('GENERAR_FACTURA', `Se generó la recibo ${result.referencia} para ${result.contribuyente} por Bs. ${result.monto}`);
       }
     } catch (e) {
-      console.error("Error adding factura:", e);
+      console.error("Error adding recibo:", e);
       throw e;
     }
   };
@@ -393,7 +393,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       inmuebles,
       contribuyentes,
       preRegistros,
-      facturas,
+      recibos,
       documentos,
       certificados,
       condominios,

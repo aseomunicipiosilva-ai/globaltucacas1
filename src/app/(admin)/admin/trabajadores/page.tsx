@@ -188,7 +188,7 @@ export default function TrabajadoresPage() {
     { key: 'borrar_contribuyente', label: 'Eliminar Contribuyentes', desc: 'Permite borrar registros permanentemente.' },
     { key: 'gestionar_pagos', label: 'Procesar Pagos', desc: 'Permite registrar cobros y convenios de pago.' },
     { key: 'anular_pagos', label: 'Anular Recibos', desc: 'Permite revertir pagos ya procesados.' },
-    { key: 'anular_facturas', label: 'Anular Facturas', desc: 'Permite anular facturas emitidas.' },
+    { key: 'anular_facturas', label: 'Anular Recibos', desc: 'Permite anular recibos emitidas.' },
     { key: 'caja_tasa_personalizada', label: 'Aplicar Tasa BCV Manual (Caja)', desc: 'Permite editar la tasa BCV manualmente al cobrar en Caja.' },
     { key: 'ver_reportes', label: 'Ver Reportes', desc: 'Acceso a los reportes financieros e informes.' },
     { key: 'gestionar_usuarios', label: 'Gestionar Trabajadores', desc: 'Permite crear o editar accesos al sistema.' },

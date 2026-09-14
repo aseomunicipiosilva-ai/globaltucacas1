@@ -12,7 +12,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function PreRegistrosPage() {
-  const { inmuebles, facturas, preRegistros, aprobarPreRegistro, addContribuyente, ordenanzasConfig: ordenanzaData, setPreRegistros, setInmuebles, setFacturas, addAuditLog, tcmmv } = useAppContext();
+  const { inmuebles, recibos, preRegistros, aprobarPreRegistro, addContribuyente, ordenanzasConfig: ordenanzaData, setPreRegistros, setInmuebles, setFacturas, addAuditLog, tcmmv } = useAppContext();
   const [showSuccess, setShowSuccess] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'Web' | 'Censo'>('Web');
   
@@ -239,20 +239,20 @@ export default function PreRegistrosPage() {
       
       mainInmueble = newInmuebles?.[0];
 
-      // 2. Generate Factura if debt > 0
+      // 2. Generate Recibo if debt > 0
       if (deudaMMV > 0) {
         const facturaData = {
-          referencia: `FACT-${Math.floor(Math.random() * 1000000)}`,
+          referencia: `RECIB-${Math.floor(Math.random() * 1000000)}`,
           identidad: rowToApprove.identidad,
           contribuyente: rowToApprove.contribuyente,
-          monto: (deudaMMV * (tcmmv || 1)).toFixed(2), // We store in Bs for the factura
+          monto: (deudaMMV * (tcmmv || 1)).toFixed(2), // We store in Bs for the recibo
           emision: new Date().toISOString().split('T')[0],
           vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           estado: 'Pendiente'
         };
-        const { data: newFactura, error: err2 } = await supabase.from('facturas').insert([facturaData]).select().single();
+        const { data: newFactura, error: err2 } = await supabase.from('recibos').insert([facturaData]).select().single();
         if (err2) throw err2;
-        if (newFactura) setFacturas([newFactura, ...facturas]);
+        if (newFactura) setFacturas([newFactura, ...recibos]);
       }
 
       // 3. Delete from pre_registros
@@ -484,7 +484,7 @@ export default function PreRegistrosPage() {
               <div className="flex items-start gap-2 bg-amber-50 p-3 rounded border border-amber-200">
                 <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-700 leading-relaxed font-medium">
-                  Al confirmar, este registro será movido a la tabla de Inmuebles/Contribuyentes y se le generará una factura inicial por el monto reflejado arriba.
+                  Al confirmar, este registro será movido a la tabla de Inmuebles/Contribuyentes y se le generará una recibo inicial por el monto reflejado arriba.
                 </p>
               </div>
 

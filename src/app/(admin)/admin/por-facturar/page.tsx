@@ -6,7 +6,7 @@ import { useAppContext } from '@/store/AppContext';
 import { exportToExcelWithLogos } from '@/lib/excelExport';
 
 export default function PorFacturarPage() {
-  const { inmuebles, tcmmv, addAuditLog, setFacturas, facturas } = useAppContext();
+  const { inmuebles, tcmmv, addAuditLog, setFacturas, recibos } = useAppContext();
   
   const [localPreLiquidaciones, setLocalPreLiquidaciones] = useState<any[]>([]);
   const [isPreGenerado, setIsPreGenerado] = useState(false);
@@ -14,7 +14,7 @@ export default function PorFacturarPage() {
   const [isGenerando, setIsGenerando] = useState(false);
   const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
-  // Fecha próxima factura (último día del mes actual o +30 días)
+  // Fecha próxima recibo (último día del mes actual o +30 días)
   const today = new Date();
   const emisionStr = today.toISOString().split('T')[0];
   const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0); // Ultimo dia del mes
@@ -39,7 +39,7 @@ export default function PorFacturarPage() {
 
         return {
           id_temp: `pre_${index}`,
-          referencia: `FACT-${Math.floor(Math.random() * 1000000)}`,
+          referencia: `RECIB-${Math.floor(Math.random() * 1000000)}`,
           identidad: inv.identidad,
           contribuyente: inv.contribuyente || inv.nombre || 'Desconocido',
           concepto: 'Mensualidad Aseo Urbano (Auto)',
@@ -53,7 +53,7 @@ export default function PorFacturarPage() {
       setLocalPreLiquidaciones(proyecciones);
       setIsPreGenerado(true);
       setIsLoading(false);
-      setMessage({ type: 'success', text: `Se pre-cargaron ${proyecciones.length} facturas con tasa BCV: ${tcmmv.toFixed(4)}` });
+      setMessage({ type: 'success', text: `Se pre-cargaron ${proyecciones.length} recibos con tasa BCV: ${tcmmv.toFixed(4)}` });
     }, 1000);
   };
 
@@ -86,41 +86,41 @@ export default function PorFacturarPage() {
     // Check if these were already generated this month to avoid duplicates
     // We do a simple check on the first few items
     const sample = localPreLiquidaciones[0];
-    const exists = (facturas || []).some(f => f.identidad === sample.identidad && f.emision.substring(0,7) === emisionStr.substring(0,7) && f.estado !== 'Anulado');
+    const exists = (recibos || []).some(f => f.identidad === sample.identidad && f.emision.substring(0,7) === emisionStr.substring(0,7) && f.estado !== 'Anulado');
     if (exists) {
-      if(!confirm("Advertencia: Pareciera que ya se generaron facturas para este mes. ¿Desea continuar y generar de nuevo?")) {
+      if(!confirm("Advertencia: Pareciera que ya se generaron recibos para este mes. ¿Desea continuar y generar de nuevo?")) {
         return;
       }
     }
 
     setIsGenerando(true);
-    setMessage({ type: 'success', text: 'Enviando facturas a base de datos y preparando correos... Esto puede tardar unos segundos.' });
+    setMessage({ type: 'success', text: 'Enviando recibos a base de datos y preparando correos... Esto puede tardar unos segundos.' });
 
     try {
       const response = await fetch('/api/admin/facturacion-masiva', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ facturas: localPreLiquidaciones })
+        body: JSON.stringify({ recibos: localPreLiquidaciones })
       });
 
       const resData = await response.json();
 
       if (response.ok) {
-        // Añadir a facturas locales para actualizar UI
+        // Añadir a recibos locales para actualizar UI
         setFacturas(prev => [...localPreLiquidaciones, ...prev]);
-        await addAuditLog('FACTURACION_MASIVA', `Se generaron masivamente ${localPreLiquidaciones.length} facturas por un monto total de Bs. ${localPreLiquidaciones.reduce((a,b)=>a+parseFloat(b.monto),0).toFixed(2)}`);
+        await addAuditLog('FACTURACION_MASIVA', `Se generaron masivamente ${localPreLiquidaciones.length} recibos por un monto total de Bs. ${localPreLiquidaciones.reduce((a,b)=>a+parseFloat(b.monto),0).toFixed(2)}`);
         
-        setMessage({ type: 'success', text: `¡Facturación Masiva completada! Se guardaron ${localPreLiquidaciones.length} facturas y los correos se están enviando.` });
+        setMessage({ type: 'success', text: `¡Emisión de recibos Masiva completada! Se guardaron ${localPreLiquidaciones.length} recibos y los correos se están enviando.` });
         
         // Limpiar
         setLocalPreLiquidaciones([]);
         setIsPreGenerado(false);
       } else {
-        setMessage({ type: 'error', text: resData.error || 'Ocurrió un error al generar las facturas masivas.' });
+        setMessage({ type: 'error', text: resData.error || 'Ocurrió un error al generar las recibos masivas.' });
       }
     } catch (e) {
       console.error(e);
-      setMessage({ type: 'error', text: 'Ocurrió un error de conexión al generar las facturas masivas.' });
+      setMessage({ type: 'error', text: 'Ocurrió un error de conexión al generar las recibos masivas.' });
     } finally {
       setIsGenerando(false);
     }
@@ -130,7 +130,7 @@ export default function PorFacturarPage() {
     { key: 'referencia', header: 'Referencia' },
     { key: 'contribuyente', header: 'Contribuyente' },
     { key: 'concepto', header: 'Concepto' },
-    { key: 'monto', header: 'Monto a Facturar (Bs)' },
+    { key: 'monto', header: 'Monto a Recibir (Bs)' },
     { key: 'vencimiento', header: 'Fecha de Corte' },
     { key: 'estado', header: 'Estado', render: (row: any) => (
       <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs font-semibold">Proyectado</span>
@@ -143,7 +143,7 @@ export default function PorFacturarPage() {
         <div className="flex items-center gap-2">
           <Clock className="w-5 h-5 text-slate-700" />
           <h1 className="text-lg font-semibold text-slate-800 uppercase tracking-wide">
-            Cuentas Por Facturar (Pre-liquidación)
+            Cuentas Por Recibir (Pre-liquidación)
           </h1>
         </div>
         
@@ -154,7 +154,7 @@ export default function PorFacturarPage() {
             className="bg-white border border-blue-600 text-blue-700 hover:bg-blue-50 px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2"
           >
             {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-            Pre-generar Facturas
+            Pre-generar Recibos
           </button>
 
           <button 
@@ -171,7 +171,7 @@ export default function PorFacturarPage() {
             className="bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2"
           >
             {isGenerando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-            Generar Facturación y Enviar
+            Generar Emisión de recibos y Enviar
           </button>
         </div>
       </div>
@@ -191,8 +191,8 @@ export default function PorFacturarPage() {
           <h3 className="text-blue-800 font-bold text-sm">¿Qué es este módulo?</h3>
           <p className="text-blue-700 text-xs mt-1 leading-relaxed">
             Este módulo muestra los <strong>próximos ciclos automatizados</strong> a generar para comercios y residencias. 
-            Haga clic en <strong>"Pre-generar Facturas"</strong> para calcular la deuda masiva utilizando la tasa BCV actual <strong>(Bs. {tcmmv.toFixed(4)})</strong>. 
-            Revise los datos en la tabla (o expórtelos a Excel), y cuando esté seguro, presione <strong>"Generar Facturación y Enviar"</strong> para emitir los recibos y notificar por correo a los contribuyentes.
+            Haga clic en <strong>"Pre-generar Recibos"</strong> para calcular la deuda masiva utilizando la tasa BCV actual <strong>(Bs. {tcmmv.toFixed(4)})</strong>. 
+            Revise los datos en la tabla (o expórtelos a Excel), y cuando esté seguro, presione <strong>"Generar Emisión de recibos y Enviar"</strong> para emitir los recibos y notificar por correo a los contribuyentes.
           </p>
         </div>
       </div>
@@ -204,7 +204,7 @@ export default function PorFacturarPage() {
           <div className="p-12 text-center text-slate-500 flex flex-col items-center">
             <Clock className="w-12 h-12 text-slate-300 mb-3" />
             <p className="text-sm font-medium">No hay proyecciones generadas.</p>
-            <p className="text-xs mt-1">Haga clic en "Pre-generar Facturas" para iniciar el ciclo.</p>
+            <p className="text-xs mt-1">Haga clic en "Pre-generar Recibos" para iniciar el ciclo.</p>
           </div>
         )}
       </div>

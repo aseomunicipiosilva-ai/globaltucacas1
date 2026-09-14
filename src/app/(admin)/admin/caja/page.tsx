@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { formatBs } from '@/lib/formatCurrency';
 
 export default function CajaPage() {
-  const { inmuebles, convenios, contribuyentes, facturas, documentos, tcmmv } = useAppContext();
+  const { inmuebles, convenios, contribuyentes, recibos, documentos, tcmmv } = useAppContext();
   
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState<'Pagos' | 'NotasCredito'>('Pagos');
@@ -109,9 +109,9 @@ export default function CajaPage() {
         (i.identidad || '').replace(/-/g,'').toUpperCase() === (foundUser.Identidad || '').replace(/-/g,'').toUpperCase()
       );
 
-      // FACT- = deuda acumulada de N meses → usar deuda_mmv del inmueble × tasa actual
+      // RECIB- = deuda acumulada de N meses → usar deuda_mmv del inmueble × tasa actual
       // deuda_mmv es el total en TCMMV calculado por la ordenanza real al momento de Ajustar Deuda
-      if (r.referencia?.startsWith('FACT-')) {
+      if (r.referencia?.startsWith('RECIB-')) {
         let totalDeudaMMV = 0;
         userInms.forEach((inm: any) => {
           totalDeudaMMV += parseFloat(inm.deuda_mmv || 0);
@@ -250,21 +250,21 @@ export default function CajaPage() {
       setFoundUser({ ...user, SaldoFavor: saldoFavorFresh });
       
       // Consulta directa a Supabase: siempre fresca, incluye todas las CM- mensuales
-      // Incluye variantes de identidad (con/sin guión) + búsqueda por nombre (facturas antiguas sin identidad)
+      // Incluye variantes de identidad (con/sin guión) + búsqueda por nombre (recibos antiguas sin identidad)
       const identidadClean = (user.Identidad || '').replace(/-/g, '').toUpperCase();
       const { data: allUserFacturas } = await supabase
-        .from('facturas')
+        .from('recibos')
         .select('*')
         .in('estado', ['Pendiente', 'Por Verificar'])
         .or(`identidad.eq.${user.Identidad},identidad.eq.${cleanFullDoc},identidad.eq.${identidadClean}`)
         .order('emision', { ascending: true });
 
-      // Fallback: buscar por nombre del contribuyente (cubre facturas con identidad en formato
-      // distinto o NULL — ej: FACT- generadas por ajuste de deuda sin guión V-)
+      // Fallback: buscar por nombre del contribuyente (cubre recibos con identidad en formato
+      // distinto o NULL — ej: RECIB- generadas por ajuste de deuda sin guión V-)
       let fallbackFacturas: any[] = [];
       if ((allUserFacturas || []).length === 0 && user.Contribuyente) {
         const { data: fByName } = await supabase
-          .from('facturas')
+          .from('recibos')
           .select('*')
           .in('estado', ['Pendiente', 'Por Verificar'])
           .eq('contribuyente', user.Contribuyente)
@@ -275,7 +275,7 @@ export default function CajaPage() {
           // Backfill identidad en BD para que próximas búsquedas funcionen directamente
           const idsToUpdate = fByName.map((f: any) => f.id);
           await supabase
-            .from('facturas')
+            .from('recibos')
             .update({ identidad: user.Identidad })
             .in('id', idsToUpdate);
         }
@@ -285,7 +285,7 @@ export default function CajaPage() {
       // Solo usar datos frescos de Supabase
       const combined = [...(allUserFacturas || []), ...fallbackFacturas];
 
-      // Ordenar: primero facturas normales (FACT-), luego CM- por fecha
+      // Ordenar: primero recibos normales (RECIB-), luego CM- por fecha
       combined.sort((a: any, b: any) => {
         const aIsCM = a.referencia?.startsWith('CM-');
         const bIsCM = b.referencia?.startsWith('CM-');
@@ -383,7 +383,7 @@ export default function CajaPage() {
 
   const toggleRecibo = (ref: string) => {
     const sortedRecibos = [...recibos].sort((a: any, b: any) => {
-      // Primero CM- luego FACT- etc.
+      // Primero CM- luego RECIB- etc.
       const aIsCM = a.referencia?.startsWith('CM-');
       const bIsCM = b.referencia?.startsWith('CM-');
       if (!aIsCM && bIsCM) return -1;
@@ -585,34 +585,34 @@ export default function CajaPage() {
 
       if (isAutoAprobado) {
         if (!esAbonoDebito) {
-          // === PAGO COMPLETO: marcar todas las facturas como Pagado ===
+          // === PAGO COMPLETO: marcar todas las recibos como Pagado ===
           if (selectedRecibos.length > 0) {
             const { error: fErr } = await supabase
-              .from('facturas')
+              .from('recibos')
               .update({ estado: 'Pagado' })
               .in('referencia', selectedRecibos);
             if (fErr) throw fErr;
           }
         } else {
-          // === ABONO DÉBITO PARCIAL: descontar monto de las facturas ===
+          // === ABONO DÉBITO PARCIAL: descontar monto de las recibos ===
           let dineroDisponible = parseFloat(montoDebito);
           for (const ref of selectedRecibos) {
             const f = recibos.find(r => r.referencia === ref);
             if (!f) continue;
             const montoFac = parseFloat(getReciboMonto(f) || '0');
             if (dineroDisponible >= montoFac - 0.01) {
-              // Factura cubierta completamente
+              // Recibo cubierta completamente
               dineroDisponible = Math.max(0, dineroDisponible - montoFac);
-              const { error: fErr } = await supabase.from('facturas').update({ estado: 'Pagado' }).eq('referencia', ref);
+              const { error: fErr } = await supabase.from('recibos').update({ estado: 'Pagado' }).eq('referencia', ref);
               if (fErr) throw fErr;
             } else if (dineroDisponible > 0.01) {
               // Abono parcial: actualizar monto restante (mantener Pendiente)
               const montoRestante = (montoFac - dineroDisponible).toFixed(2);
-              const { error: fErr } = await supabase.from('facturas').update({ monto: montoRestante }).eq('referencia', ref);
+              const { error: fErr } = await supabase.from('recibos').update({ monto: montoRestante }).eq('referencia', ref);
               if (fErr) throw fErr;
               dineroDisponible = 0;
             }
-            // Si dineroDisponible <= 0, la factura queda Pendiente sin cambios
+            // Si dineroDisponible <= 0, la recibo queda Pendiente sin cambios
           }
         }
         
@@ -649,7 +649,7 @@ export default function CajaPage() {
             // Pago completo - marcar todos como Pagado
             await supabase.from('servicios_especiales').update({ estado: 'Pagado' }).in('referencia', selectedServicios);
           } else {
-            // Abono: calcular dinero restante despues de cubrir facturas
+            // Abono: calcular dinero restante despues de cubrir recibos
             let dineroPagado = 0;
             for (const ref of selectedRecibos) {
               const f = recibos.find(r => r.referencia === ref);
@@ -783,7 +783,7 @@ export default function CajaPage() {
         
         // Update items to 'Por Verificar'
         if (selectedRecibos.length > 0 && !esAbono) {
-          await supabase.from('facturas').update({ estado: 'Por Verificar' }).in('referencia', selectedRecibos);
+          await supabase.from('recibos').update({ estado: 'Por Verificar' }).in('referencia', selectedRecibos);
         }
         
         if (selectedCuotas.length > 0) {
@@ -817,7 +817,7 @@ export default function CajaPage() {
           await supabase.from('servicios_especiales').update({ estado: 'Por Verificar' }).in('referencia', selectedServicios);
         }
 
-        setSuccessMsg(`${paymentMethod} registrado(a). Ha sido enviado(a) al módulo de Facturación para su conciliación automática o manual.`);
+        setSuccessMsg(`${paymentMethod} registrado(a). Ha sido enviado(a) al módulo de Emisión de recibos para su conciliación automática o manual.`);
       }
 
       // Agregar al historial de la sesión
@@ -1087,7 +1087,7 @@ export default function CajaPage() {
                     return (
                       <>
                         {totalMMV.toFixed(2)} MMV (Tarifa) Ã— {currentBcvRate.toFixed(2)} Bs/MMV (Tasa BCV) = {(totalMMV * currentBcvRate).toFixed(2)} Bs Mensuales.
-                        <span className="block text-[9px] text-slate-400 mt-0.5">* Las facturas previas se están recalculando con la tasa manual asignada.</span>
+                        <span className="block text-[9px] text-slate-400 mt-0.5">* Las recibos previas se están recalculando con la tasa manual asignada.</span>
                       </>
                     );
                   }

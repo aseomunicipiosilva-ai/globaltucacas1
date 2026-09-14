@@ -54,13 +54,13 @@ export default function HerramientasPage() {
         .order('contribuyente');
       if (e1) throw e1;
 
-      // 2. Cargar TODAS las facturas CM- pendientes con paginacion (limite 1000 filas de Supabase)
+      // 2. Cargar TODAS las recibos CM- pendientes con paginacion (limite 1000 filas de Supabase)
       let allFacts: any[] = [];
       let page = 0;
       const PAGE_SIZE = 1000;
       while (true) {
         const { data: pageFacts, error: e2 } = await supabase
-          .from('facturas')
+          .from('recibos')
           .select('referencia, identidad, monto, emision, estado')
           .like('referencia', 'CM-%')
           .eq('estado', 'Pendiente')
@@ -73,7 +73,7 @@ export default function HerramientasPage() {
         page++;
       }
 
-      // Agrupar facturas por identidad
+      // Agrupar recibos por identidad
       const factsByIdent: Record<string, any[]> = {};
       for (const f of allFacts) {
         const k = (f.identidad || '').trim();
@@ -102,22 +102,22 @@ export default function HerramientasPage() {
       const result: ContribGroup[] = Object.values(mapa).map((g: any) => {
         const unidades = g.rows.reduce((s: number, r: any) => s + parseFloat(r.cant_inmuebles || 1), 0);
         const isCondominio = g.rows.length > 1 || unidades > 1;
-        const facturas = factsByIdent[g.identidad] || [];
+        const recibos = factsByIdent[g.identidad] || [];
 
-        // FUENTE DE VERDAD: contar facturas CM- pendientes
-        const mesesAdeudados = facturas.length;
+        // FUENTE DE VERDAD: contar recibos CM- pendientes
+        const mesesAdeudados = recibos.length;
 
         return {
           ...g, unidades, isCondominio,
           mesesAdeudados,
-          mesesDetalle: facturas, // las facturas ya son los meses
-          facturasPendientes: facturas,
+          mesesDetalle: recibos, // las recibos ya son los meses
+          facturasPendientes: recibos,
         };
       });
 
       result.sort((a, b) => b.mesesAdeudados - a.mesesAdeudados || b.totalDeudaMMV - a.totalDeudaMMV);
       setGrupos(result);
-      setMsg(`${result.filter(g => g.mesesAdeudados > 0).length} contribuyentes con facturas pendientes de ${result.length} total.`);
+      setMsg(`${result.filter(g => g.mesesAdeudados > 0).length} contribuyentes con recibos pendientes de ${result.length} total.`);
     } catch (e: any) {
       setMsg('Error: ' + e.message);
     }
@@ -141,14 +141,14 @@ export default function HerramientasPage() {
 
   const marcarPagadas = async (g: ContribGroup) => {
     const sel = seleccionados[g.identidad] || new Set();
-    if (sel.size === 0) { alert('Selecciona al menos una factura.'); return; }
+    if (sel.size === 0) { alert('Selecciona al menos una recibo.'); return; }
     setSaving(true);
     setMsg('');
     try {
       const refs = Array.from(sel).map(i => g.facturasPendientes[i].referencia);
-      const { error } = await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', refs);
+      const { error } = await supabase.from('recibos').update({ estado: 'Pagado' }).in('referencia', refs);
       if (error) throw error;
-      setMsg(`Marcadas como pagadas: ${refs.length} facturas de ${g.contribuyente}`);
+      setMsg(`Marcadas como pagadas: ${refs.length} recibos de ${g.contribuyente}`);
       setSeleccionados(prev => ({ ...prev, [g.identidad]: new Set() }));
       await cargarDatos();
     } catch (e: any) {
@@ -164,11 +164,11 @@ export default function HerramientasPage() {
       <div className="bg-gradient-to-r from-indigo-900 to-indigo-700 rounded-2xl p-6 text-white">
         <div className="flex items-center gap-3 mb-2">
           <BarChart3 size={28} />
-          <h1 className="text-2xl font-black">Deuda por Meses — Facturas Pendientes</h1>
+          <h1 className="text-2xl font-black">Deuda por Meses — Recibos Pendientes</h1>
         </div>
         <p className="text-indigo-200 text-sm">
-          Muestra las facturas individuales por mes ya generadas. Cada tarjeta = 1 mes adeudado.<br />
-          Las facturas CM- en estado "Pendiente" son la fuente de verdad de la deuda.
+          Muestra las recibos individuales por mes ya generadas. Cada tarjeta = 1 mes adeudado.<br />
+          Las recibos CM- en estado "Pendiente" son la fuente de verdad de la deuda.
         </p>
         <div className="mt-3 flex items-center gap-2">
           <span className="text-indigo-300 text-xs">TCMMV:</span>
@@ -180,7 +180,7 @@ export default function HerramientasPage() {
       <div className="bg-white rounded-xl border p-4 flex flex-wrap gap-3 items-center justify-between">
         <button onClick={cargarDatos} disabled={loading} className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold rounded-lg text-sm">
           {loading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
-          {loading ? 'Cargando...' : 'Cargar Facturas Pendientes'}
+          {loading ? 'Cargando...' : 'Cargar Recibos Pendientes'}
         </button>
         {grupos.length > 0 && (
           <div className="flex gap-2">
@@ -197,7 +197,7 @@ export default function HerramientasPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { l: 'Contribuyentes', v: grupos.length, c: 'indigo' },
-            { l: 'Con Facturas Pendientes', v: grupos.filter(g => g.mesesAdeudados > 0).length, c: 'red' },
+            { l: 'Con Recibos Pendientes', v: grupos.filter(g => g.mesesAdeudados > 0).length, c: 'red' },
             { l: 'Total Meses Adeudados', v: grupos.reduce((s, g) => s + g.mesesAdeudados, 0), c: 'orange' },
             { l: 'Solventes', v: grupos.filter(g => g.mesesAdeudados === 0).length, c: 'green' },
           ].map(({ l, v, c }) => (
@@ -253,7 +253,7 @@ export default function HerramientasPage() {
               {isOpen && g.mesesAdeudados > 0 && (
                 <div className="border-t border-slate-100 px-4 py-4 bg-slate-50">
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-bold text-slate-600 uppercase">Facturas pendientes por mes:</p>
+                    <p className="text-xs font-bold text-slate-600 uppercase">Recibos pendientes por mes:</p>
                     <button onClick={() => toggleTodos(g.identidad, g.facturasPendientes.length)} className="text-xs text-indigo-600 font-semibold flex items-center gap-1">
                       {sel.size === g.facturasPendientes.length ? <CheckSquare size={13} /> : <Square size={13} />}
                       {sel.size === g.facturasPendientes.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
@@ -291,7 +291,7 @@ export default function HerramientasPage() {
                 </div>
               )}
               {isOpen && g.mesesAdeudados === 0 && (
-                <div className="border-t px-4 py-4 bg-green-50 text-center text-green-700 font-medium text-sm">✅ Solvente — sin facturas CM- pendientes.</div>
+                <div className="border-t px-4 py-4 bg-green-50 text-center text-green-700 font-medium text-sm">✅ Solvente — sin recibos CM- pendientes.</div>
               )}
             </div>
           );

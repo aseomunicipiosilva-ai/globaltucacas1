@@ -19,23 +19,23 @@ export default function DondePagarPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<{type: 'success' | 'approved' | 'error', msg: string} | null>(null);
 
-  const { facturas, convenios, setFacturas } = useAppContext();
+  const { recibos, convenios, setFacturas } = useAppContext();
   const [deudas, setDeudas] = useState<any[]>([]);
 
   useEffect(() => {
     const portalDoc = localStorage.getItem('portal_doc') || '';
     const portalUser = localStorage.getItem('portal_user') || '';
 
-    const facturasPendientes = facturas
+    const facturasPendientes = recibos
       .filter((f: any) => (f.estado === 'Pendiente') && 
         (f.contribuyente === portalUser || f.contribuyente === portalDoc))
       .map((f: any) => ({
         id: f.id,
         dbId: f.id,
-        concepto: `Factura ${f.referencia} - ${f.emision}`,
+        concepto: `Recibo ${f.referencia} - ${f.emision}`,
         monto: parseFloat((f.monto || '0').toString().replace(/[^\d.,]/g, '').replace(',', '.')) || 0,
         seleccionado: false,
-        tipo: 'factura'
+        tipo: 'recibo'
       }));
 
     const conveniosActivos = convenios
@@ -51,7 +51,7 @@ export default function DondePagarPage() {
       }));
 
     setDeudas([...facturasPendientes, ...conveniosActivos]);
-  }, [facturas, convenios]);
+  }, [recibos, convenios]);
 
   const bancos = [
     '100% Banco', 'Bancamiga', 'Bancaribe', 'Banco Activo', 'Banco Bicentenario',
@@ -112,7 +112,7 @@ export default function DondePagarPage() {
     setResult(null);
 
     const seleccionadas = deudas.filter(d => d.seleccionado);
-    const facturaIds = seleccionadas.filter(d => d.tipo === 'factura').map(d => d.dbId);
+    const facturaIds = seleccionadas.filter(d => d.tipo === 'recibo').map(d => d.dbId);
     const convenioIds = seleccionadas.filter(d => d.tipo === 'convenio').map(d => d.dbId);
     const identidad = localStorage.getItem('portal_doc') || '';
 

@@ -6,30 +6,30 @@ const resend = new Resend(process.env.RESEND_API_KEY || 're_123456789');
 
 export async function POST(request: Request) {
   try {
-    const { facturas } = await request.json();
+    const { recibos } = await request.json();
 
-    if (!facturas || !Array.isArray(facturas) || facturas.length === 0) {
-      return NextResponse.json({ error: 'No se enviaron facturas válidas' }, { status: 400 });
+    if (!recibos || !Array.isArray(recibos) || recibos.length === 0) {
+      return NextResponse.json({ error: 'No se enviaron recibos válidas' }, { status: 400 });
     }
 
     // Insertar masivamente en supabase
     const { data: result, error } = await supabase
-      .from('facturas')
-      .insert(facturas)
+      .from('recibos')
+      .insert(recibos)
       .select('*, inmuebles!facturas_identidad_fkey(correo_electronico)');
 
     if (error) {
       console.error("Insert error:", error);
-      return NextResponse.json({ error: 'Error al insertar facturas en la base de datos', details: error }, { status: 500 });
+      return NextResponse.json({ error: 'Error al insertar recibos en la base de datos', details: error }, { status: 500 });
     }
 
     // Si todo salió bien, enviamos los correos en segundo plano
     enviarCorreos(result || []);
 
-    return NextResponse.json({ success: true, count: facturas.length });
+    return NextResponse.json({ success: true, count: recibos.length });
 
   } catch (err) {
-    console.error("Facturacion Masiva Error:", err);
+    console.error("Emision de recibos Masiva Error:", err);
     return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
   }
 }
@@ -46,11 +46,11 @@ async function enviarCorreos(facturasGeneradas: any[]) {
         <div style="font-family: Arial, sans-serif; color: #333; max-w: 600px; margin: 0 auto; border: 1px solid #eaeaea; border-radius: 8px; overflow: hidden;">
           <div style="background-color: #0f172a; padding: 20px; text-align: center;">
             <h1 style="color: #4ade80; margin: 0; font-size: 24px;">GLOBAL <span style="color: white;">REC</span></h1>
-            <p style="color: #94a3b8; margin-top: 5px; font-size: 14px;">Nueva Factura Generada</p>
+            <p style="color: #94a3b8; margin-top: 5px; font-size: 14px;">Nueva Recibo Generada</p>
           </div>
           <div style="padding: 30px;">
             <h2 style="color: #1e293b; margin-top: 0;">¡Hola ${f.contribuyente}!</h2>
-            <p>Se ha generado una nueva factura en su cuenta con la siguiente información:</p>
+            <p>Se ha generado una nueva recibo en su cuenta con la siguiente información:</p>
             <ul>
               <li><strong>Referencia:</strong> ${f.referencia}</li>
               <li><strong>Monto (Bs):</strong> ${parseFloat(f.monto || '0').toFixed(2)}</li>
@@ -80,12 +80,12 @@ async function enviarCorreos(facturasGeneradas: any[]) {
         await resend.emails.send({
           from: 'Global Rec <aseo.municipiosilva@globalgreenca.com>',
           to: emailDestino,
-          subject: `Nueva Factura Generada - ${f.referencia}`,
+          subject: `Nueva Recibo Generada - ${f.referencia}`,
           html: emailHtml,
         });
       }
     } catch (e) {
-      console.error(`Error enviando correo para factura ${f.referencia}:`, e);
+      console.error(`Error enviando correo para recibo ${f.referencia}:`, e);
     }
   }
 }

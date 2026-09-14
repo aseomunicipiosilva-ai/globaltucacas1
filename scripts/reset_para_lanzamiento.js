@@ -15,12 +15,12 @@ async function run() {
   const { error: e1 } = await supabase.from('pagos_reportados').delete().neq('id','00000000-0000-0000-0000-000000000000');
   console.log(e1 ? '   ERROR: ' + e1.message : '   OK\n');
 
-  // 2. Restaurar facturas Pagado -> Pendiente
-  console.log('2) Restaurando facturas Pagadas...');
-  const { data: pagadas } = await supabase.from('facturas').select('id').eq('estado','Pagado');
-  console.log('   Facturas pagadas:', (pagadas||[]).length);
+  // 2. Restaurar recibos Pagado -> Pendiente
+  console.log('2) Restaurando recibos Pagadas...');
+  const { data: pagadas } = await supabase.from('recibos').select('id').eq('estado','Pagado');
+  console.log('   Recibos pagadas:', (pagadas||[]).length);
   if ((pagadas||[]).length > 0) {
-    const { error: e2 } = await supabase.from('facturas').update({estado:'Pendiente'}).in('id', pagadas.map(f=>f.id));
+    const { error: e2 } = await supabase.from('recibos').update({estado:'Pendiente'}).in('id', pagadas.map(f=>f.id));
     console.log(e2 ? '   ERROR: ' + e2.message : '   OK: restauradas\n');
   } else console.log('   OK: ninguna\n');
 
@@ -38,13 +38,13 @@ async function run() {
   } else console.log('   OK: ninguno\n');
 
   // 5. Resumen
-  const { data: res } = await supabase.from('facturas').select('estado, referencia');
+  const { data: res } = await supabase.from('recibos').select('estado, referencia');
   const est = (res||[]).reduce((a,f)=>({...a,[f.estado]:(a[f.estado]||0)+1}),{});
   console.log('=== RESUMEN FINAL ===');
   console.log('Estados:', JSON.stringify(est));
   console.log('CM- mensuales:', (res||[]).filter(f=>f.referencia?.startsWith('CM-')).length);
-  console.log('FACT- acumuladas:', (res||[]).filter(f=>f.referencia?.startsWith('FACT-')).length);
-  console.log('Total facturas:', (res||[]).length);
+  console.log('RECIB- acumuladas:', (res||[]).filter(f=>f.referencia?.startsWith('RECIB-')).length);
+  console.log('Total recibos:', (res||[]).length);
   console.log('\n=== LISTO PARA LANZAMIENTO ===');
 }
 run().catch(e=>{console.error('ERROR FATAL:',e.message);process.exit(1);});

@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     return new Response('Unauthorized', { status: 401 });
   }
 
-  // ── Verificar si hoy es el día correcto para facturar ──
+  // ── Verificar si hoy es el día correcto para recibir ──
   const hoy = simDateStr ? new Date(simDateStr + 'T12:00:00') : new Date();
   const lastDayOfMonth = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
   const diaFacturacion = Math.min(30, lastDayOfMonth);
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
   if (!testMode && hoy.getDate() !== diaFacturacion) {
     return NextResponse.json({
       skipped: true,
-      reason: `Hoy es día ${hoy.getDate()}, el día de facturación es el ${diaFacturacion}. No se procesó.`
+      reason: `Hoy es día ${hoy.getDate()}, el día de emisión de recibos es el ${diaFacturacion}. No se procesó.`
     });
   }
 
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
     const eurData = await eurRes.json();
     const tcmmv: number = eurData.promedio;
 
-    // El cron corre el día 30 → genera facturas del MES SIGUIENTE
+    // El cron corre el día 30 → genera recibos del MES SIGUIENTE
     const ahora = simDateStr ? new Date(simDateStr + 'T12:00:00') : new Date();
     const mesFacturacionDate = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 1);
     const mesMM = String(mesFacturacionDate.getMonth() + 1).padStart(2, '0');
@@ -70,13 +70,13 @@ export async function GET(request: Request) {
       .map((inm: any) => `CM-${inm.cod_cont}-${periodoKey}`);
 
     const { data: existentes } = await supabase
-      .from('facturas')
+      .from('recibos')
       .select('referencia')
       .in('referencia', todasLasRefs);
 
     const refsExistentes = new Set((existentes || []).map((e: any) => e.referencia));
 
-    // ── PASO 3: Construir batch de facturas nuevas ──
+    // ── PASO 3: Construir batch de recibos nuevas ──
     const facturasNuevas: any[] = [];
     const inmueblesAActualizar: { id: string; nuevaDeudaMmv: number }[] = [];
 
@@ -110,7 +110,7 @@ export async function GET(request: Request) {
     if (facturasNuevas.length === 0) {
       return NextResponse.json({
         success: true,
-        message: `Todas las facturas de ${mesFacturado} ya existían.${modoTexto}`,
+        message: `Todas las recibos de ${mesFacturado} ya existían.${modoTexto}`,
         procesados: 0,
         omitidos,
         periodo: periodoKey,
@@ -121,7 +121,7 @@ export async function GET(request: Request) {
 
     // ── PASO 4: UPSERT masivo — ignora duplicados automáticamente ──
     const { error: insertError } = await supabase
-      .from('facturas')
+      .from('recibos')
       .upsert(facturasNuevas, { onConflict: 'referencia', ignoreDuplicates: true });
 
     if (insertError) throw insertError;
@@ -146,7 +146,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `Facturación mensual completada — ${mesFacturado}${modoTexto}`,
+      message: `Emisión de recibos mensual completada — ${mesFacturado}${modoTexto}`,
       procesados: facturasNuevas.length,
       omitidos,
       montoTotal,

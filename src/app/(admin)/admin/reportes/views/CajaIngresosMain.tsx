@@ -139,7 +139,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
       <div style={S.secHdr}>DEBITO</div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr>{(showDT ? ['#','Fecha/Hora','Tipo','Cajero','Contribuyente','Factura','Banco','Aprobacion','Lote','Monto'] : ['#','Fecha','Tipo','Cajero','Contribuyente','Factura','Banco','Aprobacion','Lote','Monto']).map(h => <th key={h} style={S.th}>{h}</th>)}</tr></thead>
+          <thead><tr>{(showDT ? ['#','Fecha/Hora','Tipo','Cajero','Contribuyente','Recibo','Banco','Aprobacion','Lote','Monto'] : ['#','Fecha','Tipo','Cajero','Contribuyente','Recibo','Banco','Aprobacion','Lote','Monto']).map(h => <th key={h} style={S.th}>{h}</th>)}</tr></thead>
           <tbody>{debitos.map((p, i) => { const det = parseDet(p); const recs: string[] = det.recibos || []; return (<tr key={p.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9fafe' }}>
             <td style={S.td}>{i + 1}</td><td style={S.td}>{showDT ? fmtDT(p.created_at) : fmtDate(p.created_at)}</td>
             <td style={{ ...S.td, fontWeight: 700 }}>{p.tipo}</td><td style={S.td}>{det.cajero || '-'}</td>
@@ -159,7 +159,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
       <div style={S.secHdr}>TRANSFERENCIA</div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr>{(showDT ? ['#','Fecha/Hora','Fecha Bco','Tipo','Fecha Libro','Cajero','Contribuyente','Factura','Banco','Referencia','Banco Destino','Referencia','Monto'] : ['#','Conciliado','Registro','Tipo','Cajero','Contribuyente','Factura','Banco','Referencia','Banco Empresa','Referencia','Monto Reportado','Monto Conciliado']).map(h => <th key={h} style={S.th}>{h}</th>)}</tr></thead>
+          <thead><tr>{(showDT ? ['#','Fecha/Hora','Fecha Bco','Tipo','Fecha Libro','Cajero','Contribuyente','Recibo','Banco','Referencia','Banco Destino','Referencia','Monto'] : ['#','Conciliado','Registro','Tipo','Cajero','Contribuyente','Recibo','Banco','Referencia','Banco Empresa','Referencia','Monto Reportado','Monto Conciliado']).map(h => <th key={h} style={S.th}>{h}</th>)}</tr></thead>
           <tbody>{transferencias.map((p, i) => {
             const det = parseDet(p); const recs: string[] = det.recibos || [];
             const mC = parseFloat(det.monto_conciliado || p.monto) || 0;

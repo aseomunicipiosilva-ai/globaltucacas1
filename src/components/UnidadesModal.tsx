@@ -149,7 +149,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
   const [statusModal, setStatusModal] = useState<{ type: string, u: any } | null>(null);
   const [statusNota, setStatusNota] = useState('');
   const [isProcessingStatus, setIsProcessingStatus] = useState(false);
-  const { facturas, addAuditLog } = useAppContext();
+  const { recibos, addAuditLog } = useAppContext();
 
   const handleStatusSubmit = async () => {
     if (!statusModal || !statusNota.trim()) {
@@ -252,9 +252,9 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
 
   
   // Logic to check if the entire Condominio is solvent (no pending invoices)
-  // Searches by identidad AND by nombre because facturas may store either
+  // Searches by identidad AND by nombre because recibos may store either
   const hasCondominioDebt = React.useMemo(() => {
-    const pendingFacturas = (facturas || []).filter((f: any) => {
+    const pendingFacturas = (recibos || []).filter((f: any) => {
       if (f.estado !== 'Pendiente') return false;
       const contrib = (f.contribuyente || '').toLowerCase().trim();
       const identMatch = condominioIdentidad && contrib === condominioIdentidad.toLowerCase().trim();
@@ -262,7 +262,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
       return identMatch || nombreMatch;
     });
     return pendingFacturas.length > 0;
-  }, [facturas, condominioIdentidad, condominioNombre]);
+  }, [recibos, condominioIdentidad, condominioNombre]);
 
   // Helper to load image as base64
   const loadImage = async (src: string): Promise<string> => {
@@ -287,7 +287,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
   };
 
   const emitirSolvencia = async (unidad: any) => {
-    const isUnitSolvent = !hasCondominioDebt; // Real debt check — cannot emit solvencia with pending facturas
+    const isUnitSolvent = !hasCondominioDebt; // Real debt check — cannot emit solvencia with pending recibos
     if (!isUnitSolvent) {
       alert("No se puede emitir solvencia porque la unidad o el condominio presenta deudas pendientes.");
       return;
@@ -838,11 +838,11 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                               <button
                                 onClick={async () => {
                                   try {
-                                    const factCondominio = (facturas || []).filter((f: any) =>
+                                    const factCondominio = (recibos || []).filter((f: any) =>
                                       f.contribuyente === condominioIdentidad || f.contribuyente === condominioNombre
                                     );
                                     if (factCondominio.length === 0) {
-                                      alert("No hay facturas registradas para emitir estado de cuenta.");
+                                      alert("No hay recibos registradas para emitir estado de cuenta.");
                                       return;
                                     }
                                     const { exportToExcelWithLogos } = await import('@/lib/excelExport');
@@ -866,7 +866,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                               </button>
                             </div>
                             {(() => {
-                              const factCondominio = (facturas || []).filter((f: any) =>
+                              const factCondominio = (recibos || []).filter((f: any) =>
                                 f.contribuyente === condominioIdentidad || f.contribuyente === condominioNombre
                               );
                               const pendientes = factCondominio.filter((f: any) => f.estado === 'Pendiente');
@@ -923,7 +923,7 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
                                       </table>
                                     </div>
                                   ) : (
-                                    <p className="text-xs text-slate-400 text-center py-4">No hay facturas registradas para este condominio.</p>
+                                    <p className="text-xs text-slate-400 text-center py-4">No hay recibos registradas para este condominio.</p>
                                   )}
                                 </div>
                               );

@@ -38,14 +38,14 @@ async function run() {
     const meses = parseInt(row.Meses) || 0;
 
     if (saldo > 0 && meses > 0) {
-      // Verificar si ya hay facturas para no duplicar (usando un prefijo en la referencia)
-      const { data: facturasExistentes } = await supabase.from('facturas')
+      // Verificar si ya hay recibos para no duplicar (usando un prefijo en la referencia)
+      const { data: facturasExistentes } = await supabase.from('recibos')
         .select('id')
         .eq('identidad', row.Identidad)
         .like('referencia', 'CM-%');
 
       if (facturasExistentes && facturasExistentes.length > 0) {
-        console.log(`El contribuyente ${row.Identidad} ya tiene facturas generadas. Saltando.`);
+        console.log(`El contribuyente ${row.Identidad} ya tiene recibos generadas. Saltando.`);
         continue;
       }
 
@@ -69,11 +69,11 @@ async function run() {
         });
       }
 
-      const { error } = await supabase.from('facturas').insert(nuevasFacturas);
+      const { error } = await supabase.from('recibos').insert(nuevasFacturas);
       if (error) {
-        console.error(`Error insertando facturas para ${row.Identidad}:`, error);
+        console.error(`Error insertando recibos para ${row.Identidad}:`, error);
       } else {
-        console.log(`Insertadas ${meses} facturas para ${row.Contribuyente}`);
+        console.log(`Insertadas ${meses} recibos para ${row.Contribuyente}`);
       }
     }
   }

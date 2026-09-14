@@ -11,7 +11,7 @@ import {
 import { useAppContext } from '@/store/AppContext';
 
 export default function DashboardAdministrativo() {
-  const { facturas, inmuebles } = useAppContext();
+  const { recibos, inmuebles } = useAppContext();
   const [currency, setCurrency] = useState<'Bs' | 'MMV'>('Bs');
   const [tcmmv, setTcmmv] = useState<number>(1);
   const [loading, setLoading] = useState(true);
@@ -37,7 +37,7 @@ export default function DashboardAdministrativo() {
     if (!loading) {
       calculateStats();
     }
-  }, [facturas, inmuebles, loading, tcmmv]);
+  }, [recibos, inmuebles, loading, tcmmv]);
 
   const fetchTCMMV = async () => {
     try {
@@ -71,7 +71,7 @@ export default function DashboardAdministrativo() {
     const currentMonth = hoyObj.getMonth();
     const currentYear = hoyObj.getFullYear();
 
-    facturas.forEach((f: any) => {
+    recibos.forEach((f: any) => {
       const montoMatch = String(f.monto).match(/[\d.]+/);
       const monto = montoMatch ? parseFloat(montoMatch[0]) : 0;
       
@@ -180,7 +180,7 @@ export default function DashboardAdministrativo() {
         <div className="flex items-center gap-2">
           <PieChartIcon className="w-6 h-6 text-slate-700" />
           <h1 className="text-2xl font-bold text-slate-800 uppercase tracking-wide">
-            Dashboard Administrativo
+            Panel Administrativo
           </h1>
         </div>
         
@@ -251,7 +251,7 @@ export default function DashboardAdministrativo() {
             <p className="text-sm font-medium text-slate-500 mb-1">Tasa de Morosidad</p>
             <h3 className="text-2xl font-bold text-slate-800">{morosidadRate.toFixed(1)}%</h3>
             <span className="text-xs font-medium text-amber-600 flex items-center gap-1 mt-1">
-              <TrendingUp size={14} /> Facturas vs Pagos
+              <TrendingUp size={14} /> Recibos vs Pagos
             </span>
           </div>
           <div className="bg-amber-100 p-3 rounded-lg text-amber-600">

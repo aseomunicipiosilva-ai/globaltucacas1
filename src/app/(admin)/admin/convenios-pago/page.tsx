@@ -6,7 +6,7 @@ import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
 
 export default function ConveniosPagoPage() {
-  const { convenios, inmuebles, facturas, tcmmv } = useAppContext();
+  const { convenios, inmuebles, recibos, tcmmv } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewCuotasModal, setViewCuotasModal] = useState<{isOpen: boolean, convenio: any}>({isOpen: false, convenio: null});
   const [searchDoc, setSearchDoc] = useState('');
@@ -109,9 +109,9 @@ export default function ConveniosPagoPage() {
   const handleSearch = () => {
     const userInmuebles = inmuebles.filter(i => i.identidad === searchDoc || i.cod_cont === searchDoc);
     
-    // Also find pending facturas
+    // Also find pending recibos
     const cleanSearchDoc = searchDoc.replace(/-/g, '').toUpperCase();
-    const userFacturas = (facturas || []).filter(f => {
+    const userFacturas = (recibos || []).filter(f => {
       const idCleanFactura = (f.identidad || '').replace(/-/g, '').toUpperCase();
       const belongsToUser = idCleanFactura === cleanSearchDoc || (userInmuebles.length > 0 && f.contribuyente === userInmuebles[0].contribuyente);
       return belongsToUser && f.estado === 'Pendiente';
@@ -129,7 +129,7 @@ export default function ConveniosPagoPage() {
         identidad,
         contribuyente,
         inmuebles: userInmuebles,
-        facturas: userFacturas,
+        recibos: userFacturas,
         totalMMV,
         totalCongelada,
         totalFacturasBs,
@@ -202,11 +202,11 @@ export default function ConveniosPagoPage() {
         }
       }
 
-      // Actualizar facturas incluidas
-      if (foundUser.facturas && foundUser.facturas.length > 0) {
-        const referencias = foundUser.facturas.map((f: any) => f.referencia);
+      // Actualizar recibos incluidas
+      if (foundUser.recibos && foundUser.recibos.length > 0) {
+        const referencias = foundUser.recibos.map((f: any) => f.referencia);
         await supabase
-          .from('facturas')
+          .from('recibos')
           .update({ estado: 'Refinanciado' })
           .in('referencia', referencias);
       }
@@ -307,7 +307,7 @@ export default function ConveniosPagoPage() {
                       <span>{foundUser.totalMMV} MMV</span>
                     </p>
                     <p className="flex justify-between items-center text-slate-600 font-medium mt-1">
-                      <span>Deuda por Recibos (Facturas):</span>
+                      <span>Deuda por Recibos (Recibos):</span>
                       <span>{foundUser.totalFacturasBs?.toFixed(2)} Bs</span>
                     </p>
                     <p className="flex justify-between items-center text-emerald-700 font-bold text-lg mt-1 pt-1 border-t border-blue-200/50">

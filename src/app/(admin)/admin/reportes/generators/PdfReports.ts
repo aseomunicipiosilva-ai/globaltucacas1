@@ -156,12 +156,12 @@ export const generarCorteCajaPDF = (
   drawSubTable(
     "TRANSACCIONES CON TARJETA DE DEBITO", 
     debitos, 
-    ["FECHA/HORA", "TIPO", "CONTRIBUYENTE", "FACTURA", "BANCO", "APROBACION", "LOTE", "MONTO"],
+    ["FECHA/HORA", "TIPO", "CONTRIBUYENTE", "RECIBO", "BANCO", "APROBACION", "LOTE", "MONTO"],
     (p, c) => [
       new Date(p.created_at).toLocaleString('es-VE', {hour12: false, day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}),
       p.tipo.substring(0,3).toUpperCase(),
       (c.Contribuyente || p.identidad).substring(0,35), // Truncate
-      p.factura_ref || p.referencia || 'N/A', // O factura
+      p.factura_ref || p.referencia || 'N/A', // O recibo
       p.banco_origen || 'N/A',
       p.referencia || 'N/A',
       '0390', // Default lote or from data
@@ -358,7 +358,7 @@ export const generarIngresoBancarioPDF = (
   drawSubTable(
     "DEBITO", 
     debitos, 
-    ["FECHA/HORA", "TIPO", "CONTRIBUYENTE", "FACTURA", "BANCO", "APROBACION", "LOTE", "MONTO"],
+    ["FECHA/HORA", "TIPO", "CONTRIBUYENTE", "RECIBO", "BANCO", "APROBACION", "LOTE", "MONTO"],
     (p, c) => [
       new Date(p.created_at).toLocaleString('es-VE', {hour12: false, day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) || 'N/A',
       p.tipo.substring(0,3).toUpperCase(),
@@ -376,7 +376,7 @@ export const generarIngresoBancarioPDF = (
   drawSubTable(
     "TRANSFERENCIAS", 
     transferencias, 
-    ["FECHA/HORA", "TIPO", "CONTRIBUYENTE", "FACTURA", "BANCO ORIGEN", "REFERENCIA", "MONTO"],
+    ["FECHA/HORA", "TIPO", "CONTRIBUYENTE", "RECIBO", "BANCO ORIGEN", "REFERENCIA", "MONTO"],
     (p, c) => [
       new Date(p.created_at).toLocaleString('es-VE', {hour12: false, day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) || 'N/A',
       p.tipo.substring(0,3).toUpperCase(),

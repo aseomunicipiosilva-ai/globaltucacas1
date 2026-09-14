@@ -29,7 +29,7 @@ const preRegistros = Array.from({ length: 15 }).map((_, i) => ({
   fiscalizado: i % 2
 }));
 
-const facturas = Array.from({ length: 10 }).map((_, i) => ({
+const recibos = Array.from({ length: 10 }).map((_, i) => ({
   referencia: `FAC-00${i + 1}`,
   identidad: `J-${312097920 + i}`,
   contribuyente: `EMPRESA DE PRUEBA ${i + 1} C.A.`,
@@ -94,8 +94,8 @@ async function seed() {
   await supabase.from('pre_registros').insert(preRegistros);
   console.log("Pre-Registros insertados");
   
-  await supabase.from('facturas').insert(facturas);
-  console.log("Facturas insertadas");
+  await supabase.from('recibos').insert(recibos);
+  console.log("Recibos insertadas");
   
   await supabase.from('documentos').insert(documentos);
   console.log("Documentos insertados");

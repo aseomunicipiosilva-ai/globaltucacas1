@@ -6,7 +6,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function restore() {
   const { data, error } = await supabase
-    .from('facturas')
+    .from('recibos')
     .insert([
       {
         referencia: 'HIST-' + Math.floor(Math.random() * 1000000) + '-RESTORED',

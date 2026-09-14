@@ -27,7 +27,7 @@ async function importData() {
   console.log('=== INICIANDO IMPORTACION DE DATA (FASE 3) ===');
 
   const { data: dbInmuebles } = await supabase.from('inmuebles').select('identidad');
-  const { data: dbFacturas } = await supabase.from('facturas').select('identidad, monto, referencia').eq('estado', 'Pendiente');
+  const { data: dbFacturas } = await supabase.from('recibos').select('identidad, monto, referencia').eq('estado', 'Pendiente');
   
   const existingInmuebles = new Set((dbInmuebles || []).map(i => i.identidad));
   const existingDebt = new Map();
@@ -75,11 +75,11 @@ async function importData() {
       if (Math.abs(currentDebt - saldo) > 0.01) {
         const toDelete = (dbFacturas || []).filter(f => f.identidad === identidad);
         for (const f of toDelete) {
-          await supabase.from('facturas').delete().eq('referencia', f.referencia);
+          await supabase.from('recibos').delete().eq('referencia', f.referencia);
         }
         
         const ref = 'FAC-CON-' + Date.now().toString().slice(-6) + '-' + Math.floor(Math.random()*1000);
-        await supabase.from('facturas').insert({
+        await supabase.from('recibos').insert({
           referencia: ref, identidad: identidad, contribuyente: contribuyente,
           monto: saldo.toFixed(2) + ' Bs', emision: '2026-09-04', vencimiento: '2026-10-04',
           estado: 'Pendiente', nota: 'Deuda Consolidada Importada'
@@ -118,7 +118,7 @@ async function importData() {
 
   console.log('=== IMPORTACION COMPLETADA ===');
   console.log('Usuarios nuevos añadidos: ' + usersAdded);
-  console.log('Facturas consolidadas ajustadas: ' + facturasAdjusted);
+  console.log('Recibos consolidadas ajustadas: ' + facturasAdjusted);
   console.log('Convenios activos importados: ' + conveniosAdded);
 }
 importData();

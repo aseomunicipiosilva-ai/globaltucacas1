@@ -21,7 +21,7 @@ async function run() {
     return;
   }
 
-  const facturas = inmuebles.map((inm, index) => {
+  const recibos = inmuebles.map((inm, index) => {
     return {
       referencia: `HIST-${Date.now().toString().slice(-6)}-${index}`,
       identidad: inm.identidad,
@@ -33,11 +33,11 @@ async function run() {
     };
   });
 
-  console.log(`Se migraran ${facturas.length} deudas históricas a facturas. Insertando en lotes...`);
+  console.log(`Se migraran ${recibos.length} deudas históricas a recibos. Insertando en lotes...`);
   
-  for (let i = 0; i < facturas.length; i += 500) {
-    const batch = facturas.slice(i, i + 500);
-    const { error: errInsert } = await supabase.from('facturas').insert(batch);
+  for (let i = 0; i < recibos.length; i += 500) {
+    const batch = recibos.slice(i, i + 500);
+    const { error: errInsert } = await supabase.from('recibos').insert(batch);
     if (errInsert) {
       console.error(`Error en el lote ${i}:`, errInsert);
     } else {
