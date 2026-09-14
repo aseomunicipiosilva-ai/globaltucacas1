@@ -70,7 +70,7 @@ export async function GET(request: Request) {
       .map((inm: any) => `CM-${inm.cod_cont}-${periodoKey}`);
 
     const { data: existentes } = await supabase
-      .from('recibos')
+      .from('facturas')
       .select('referencia')
       .in('referencia', todasLasRefs);
 
@@ -121,7 +121,7 @@ export async function GET(request: Request) {
 
     // ── PASO 4: UPSERT masivo — ignora duplicados automáticamente ──
     const { error: insertError } = await supabase
-      .from('recibos')
+      .from('facturas')
       .upsert(facturasNuevas, { onConflict: 'referencia', ignoreDuplicates: true });
 
     if (insertError) throw insertError;

@@ -57,7 +57,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       let from = 0;
       let step = 999;
       while (fetchMore) {
-        const { data: chunk } = await supabase.from('recibos').select('*').range(from, from + step);
+        const { data: chunk } = await supabase.from('facturas').select('*').range(from, from + step);
         if (chunk && chunk.length > 0) {
           allFacturas = [...allFacturas, ...chunk];
           from += step + 1;
@@ -365,7 +365,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const addFactura = async (data: any) => {
     try {
       const { data: result, error } = await supabase
-        .from('recibos')
+        .from('facturas')
         .insert([{
           referencia: data.referencia || `RECIB-${Math.floor(Math.random() * 1000000)}`,
           contribuyente: data.contribuyente,

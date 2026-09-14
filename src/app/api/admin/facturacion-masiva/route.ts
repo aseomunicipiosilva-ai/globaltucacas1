@@ -14,7 +14,7 @@ export async function POST(request: Request) {
 
     // Insertar masivamente en supabase
     const { data: result, error } = await supabase
-      .from('recibos')
+      .from('facturas')
       .insert(recibos)
       .select('*, inmuebles!facturas_identidad_fkey(correo_electronico)');
 

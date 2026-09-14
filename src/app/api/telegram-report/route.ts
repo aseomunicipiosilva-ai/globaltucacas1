@@ -86,7 +86,7 @@ async function generarReporte(request?: Request) {
 
     // ── 4. Deuda total del sistema (recibos Pendiente) ─────────
     const { data: facturasPend } = await supabase
-      .from('recibos')
+      .from('facturas')
       .select('monto')
       .eq('estado', 'Pendiente');
 

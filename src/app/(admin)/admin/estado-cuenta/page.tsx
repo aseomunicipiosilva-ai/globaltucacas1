@@ -46,7 +46,7 @@ export default function EstadoCuentaPage() {
       let more = true;
       while (more) {
         const { data: chunk, error } = await supabase
-          .from('recibos')
+          .from('facturas')
           .select('*')
           .order('created_at', { ascending: false }) // orden consistente en cada chunk
           .range(from, from + step);
@@ -146,7 +146,7 @@ export default function EstadoCuentaPage() {
       if (accion === 'Rechazar') {
         // Simple revert to Pendiente
         if (detalles.recibos && detalles.recibos.length > 0) {
-          await supabase.from('recibos').update({ estado: 'Pendiente' }).in('referencia', detalles.recibos);
+          await supabase.from('facturas').update({ estado: 'Pendiente' }).in('referencia', detalles.recibos);
         }
         if (detalles.cuotas && detalles.cuotas.length > 0) {
           const { data: convs } = await supabase.from('convenios').select('*');
@@ -175,7 +175,7 @@ export default function EstadoCuentaPage() {
         if (!esAbono) {
           // Pago completo normal
           if (detalles.recibos && detalles.recibos.length > 0) {
-            await supabase.from('recibos').update({ estado: 'Pagado' }).in('referencia', detalles.recibos);
+            await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', detalles.recibos);
           }
           if (detalles.cuotas && detalles.cuotas.length > 0) {
             const { data: convs } = await supabase.from('convenios').select('*');
@@ -208,19 +208,19 @@ export default function EstadoCuentaPage() {
 
           // 1. Process Recibos first
           if (detalles.recibos && detalles.recibos.length > 0) {
-            const { data: facturasData } = await supabase.from('recibos').select('*').in('referencia', detalles.recibos).order('emision', { ascending: true });
+            const { data: facturasData } = await supabase.from('facturas').select('*').in('referencia', detalles.recibos).order('emision', { ascending: true });
             if (facturasData) {
               for (const f of facturasData) {
                 const montoFac = parseFloat((f.monto || '0').replace(/[^\d.]/g, ''));
                 if (dineroDisponible >= montoFac) {
                   dineroDisponible -= montoFac;
-                  await supabase.from('recibos').update({ estado: 'Pagado' }).eq('id', f.id);
+                  await supabase.from('facturas').update({ estado: 'Pagado' }).eq('id', f.id);
                 } else if (dineroDisponible > 0) {
                   const montoRestante = (montoFac - dineroDisponible).toFixed(2);
-                  await supabase.from('recibos').update({ estado: 'Pendiente', monto: `${montoRestante} Bs` }).eq('id', f.id);
+                  await supabase.from('facturas').update({ estado: 'Pendiente', monto: `${montoRestante} Bs` }).eq('id', f.id);
                   dineroDisponible = 0;
                 } else {
-                  await supabase.from('recibos').update({ estado: 'Pendiente' }).eq('id', f.id);
+                  await supabase.from('facturas').update({ estado: 'Pendiente' }).eq('id', f.id);
                 }
               }
             }
@@ -631,7 +631,7 @@ export default function EstadoCuentaPage() {
     // Para simplificar enviamos de 500 en 500
     for(let i=0; i<nuevasFacturas.length; i+=500){
       const chunk = nuevasFacturas.slice(i, i+500);
-      await supabase.from('recibos').insert(chunk);
+      await supabase.from('facturas').insert(chunk);
     }
 
     alert(`Se han generado ${nuevasFacturas.length} recibos exitosamente.`);
@@ -658,7 +658,7 @@ export default function EstadoCuentaPage() {
         fecha_accion: new Date().toISOString(),
         referencia_original: actionModal.recibo.referencia,
       });
-      const { error } = await supabase.from('recibos').update({
+      const { error } = await supabase.from('facturas').update({
         estado: nuevoEstado,
         detalles: nuevoDetalles
       }).eq('id', actionModal.recibo.id);

@@ -206,7 +206,7 @@ export default function ConveniosPagoPage() {
       if (foundUser.recibos && foundUser.recibos.length > 0) {
         const referencias = foundUser.recibos.map((f: any) => f.referencia);
         await supabase
-          .from('recibos')
+          .from('facturas')
           .update({ estado: 'Refinanciado' })
           .in('referencia', referencias);
       }

@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
       if (facturaIds && facturaIds.length > 0) {
         const { error } = await supabase
-          .from('recibos')
+          .from('facturas')
           .update({
             estado: 'Pagado',
             metodo_pago: 'Punto de Venta',
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     // TRANSFERENCIA: queda en revisión
     if (facturaIds && facturaIds.length > 0) {
       await supabase
-        .from('recibos')
+        .from('facturas')
         .update({
           estado: 'En Revisión',
           metodo_pago: banco || metodo,
