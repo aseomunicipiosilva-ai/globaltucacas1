@@ -99,16 +99,7 @@ export async function GET(request: Request) {
         monto:         deudaAgregadaBs,
         estado:        'Pendiente',
         emision:       emisionDate,
-        vencimiento:   vencimientoDate,
-        detalles:      JSON.stringify({
-          tipo:          'Cobro Mensual Automático',
-          periodo:       mesFacturado,
-          periodo_key:   periodoKey,
-          tasa_tcmmv:    tcmmv,
-          mmv_aplicado:  mmv,
-          cant_inmuebles: cant,
-          generado_en:   new Date().toISOString()
-        })
+        vencimiento:   vencimientoDate
       });
 
       inmueblesAActualizar.push({ id: inm.id, nuevaDeudaMmv });
