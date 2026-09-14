@@ -37,6 +37,7 @@ export default function CensoMobilePage() {
     IdentidadTipo: 'V',
     IdentidadNumero: '',
     Contribuyente: '',
+    NombreComercial: '',
     telefonoPrefijo: '0414',
     telefonoNumero: '',
     correoNombre: '',
@@ -184,11 +185,12 @@ export default function CensoMobilePage() {
       const fullTelefono = formData.telefonoPrefijo + formData.telefonoNumero;
       const fullCorreo = formData.correoDominio === 'Otro' ? formData.correoNombre + formData.correoDominioOtro : formData.correoNombre + formData.correoDominio;
       const act = formData.Clasificacion === 'Residencial' ? formData.TipoResidencia : formData.ActividadComercial;
+      const finalContribuyente = (formData.NombreComercial && formData.NombreComercial.trim()) ? `${formData.Contribuyente} | Comercial: ${formData.NombreComercial}` : formData.Contribuyente;
 
       // Save to pre_registros with advanced fields
       const { error } = await supabase.from('pre_registros').insert([{
         identidad: `${formData.IdentidadTipo || 'V'}${formData.IdentidadNumero || ''}`,
-        contribuyente: formData.Contribuyente,
+        contribuyente: finalContribuyente,
         registro: fullTelefono,
         tipo: formData.Clasificacion,
         actividad: act,

@@ -38,6 +38,7 @@ export default function RegistroPublico() {
     identidadPrefijo: 'V',
     identidadNumero: '',
     Contribuyente: '',
+    NombreComercial: '',
     Direccion: '',
     DireccionExacta: '',
     telefonoPrefijo: '0414',
@@ -66,9 +67,13 @@ export default function RegistroPublico() {
       const finalDireccion = formData.DireccionExacta ? `${formData.Direccion} | Exacta: ${formData.DireccionExacta}` : formData.Direccion;
       const finalActividad = formData.Clasificacion === 'Residencial' ? formData.TipoResidencia : formData.ActividadComercial;
 
+      const finalContribuyente = formData.NombreComercial.trim() 
+        ? `${formData.Contribuyente} | Comercial: ${formData.NombreComercial}` 
+        : formData.Contribuyente;
+
       const dataToSave: any = {
         identidad: finalIdentidad,
-        contribuyente: formData.Contribuyente,
+        contribuyente: finalContribuyente,
         registro: finalTelefono,
         tipo: formData.Clasificacion,
         actividad: finalActividad,
@@ -167,6 +172,14 @@ export default function RegistroPublico() {
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-2">Nombre del Contribuyente o Razón Social</label>
                 <input type="text" name="Contribuyente" required placeholder="Ej: Juan Perez / Empresa C.A." value={formData.Contribuyente} onChange={handleChange} className="w-full border-2 border-slate-200 rounded-lg px-4 py-3 text-sm font-semibold text-slate-700 outline-none focus:border-emerald-500" />
+              </div>
+            </div>
+
+            {/* Nombre Comercial */}
+            <div className="grid grid-cols-1 gap-6">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-2">Nombre Comercial (Si aplica)</label>
+                <input type="text" name="NombreComercial" placeholder="Ej: Abasto La Bendición" value={formData.NombreComercial} onChange={handleChange} className="w-full border-2 border-slate-200 rounded-lg px-4 py-3 text-sm font-semibold text-slate-700 outline-none focus:border-emerald-500" />
               </div>
             </div>
 
