@@ -835,6 +835,11 @@ function ContribuyentesPageContent() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (isNew && !uploadDocs.cedula.url) {
+      alert("Es OBLIGATORIO adjuntar la Copia de Cédula / RIF en el Expediente Digitalizado.");
+      return;
+    }
+
     // Validar Notas si cambió tarifa/actividad
     if (!isNew && originalData) {
       const changedActividad = formData.ActividadComercial !== originalData.ActividadComercial;
@@ -983,7 +988,7 @@ function ContribuyentesPageContent() {
             <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Cédula / RIF */}
               <div>
-                <label className="block text-[10px] font-semibold text-slate-600 mb-1">Copia de Cédula / RIF</label>
+                <label className="block text-[10px] font-semibold text-slate-600 mb-1">Copia de Cédula / RIF <span className="text-red-500">*</span></label>
                 <label className="block border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-colors">
                   {uploadDocs.cedula.uploading ? (
                     <span className="text-xs text-blue-500 animate-pulse">â ³ Subiendo...</span>
