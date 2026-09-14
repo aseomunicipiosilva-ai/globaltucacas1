@@ -101,7 +101,8 @@ export default function EstadoCuentaPage() {
     }
     return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
   };
-\n  // Filtrar recibos del usuario
+
+  // Filtrar recibos del usuario
   const misFact = useMemo(() => recibos.filter((f: any) => {
     const contrib = (f.contribuyente || f.identidad || '').replace(/-/g, '').toUpperCase();
     return portalDoc && (contrib === docNorm || contrib.includes(soloNum));
