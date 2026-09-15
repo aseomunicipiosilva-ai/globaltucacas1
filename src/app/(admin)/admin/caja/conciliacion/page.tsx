@@ -496,6 +496,13 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
     setIsProcessing(true);
     try {
       const montoConciliadoNum = parseFloat(montoConciliado) || 0;
+  const deudaFacturas = recibos.reduce((s, ref) => {
+    const found = (det.recibos || []).find((r: any) => (typeof r === 'string' ? r : r.referencia || r.ref) === ref);
+    return s;
+  }, 0);
+  // Diferencia = deuda total contribuyente - monto conciliado (si monto < deuda)
+  const deudaTotalContrib = contribInfo?.DeudaTotal ? parseFloat(String(contribInfo.DeudaTotal).replace(/[^0-9.]/g,'')) : 0;
+  const diferenciaPendiente = montoConciliadoNum > 0 && deudaTotalContrib > 0 ? Math.max(0, deudaTotalContrib - montoConciliadoNum) : 0;
       const updatedDet = {
         ...det,
         correo: correoResponsable,
@@ -519,40 +526,52 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
       }).eq('id', pago.id);
       if (error) throw error;
 
-      // Aprobado: marcar recibos como Pagado o aplicar abono
+      // Aprobado: marcar recibos como Pagado o aplicar abono proporcional
       if (estatus === 'Aprobado' && recibos.length > 0) {
-        if (det.es_abono && montoConciliadoNum > 0) {
-          // Es un abono parcial (Pago MÃºltiple)
-          const { data: facs } = await supabase.from('facturas').select('*').in('referencia', recibos);
-          if (facs && facs.length > 0) {
-            // Ordenar por fecha (las mÃ¡s antiguas primero)
-            facs.sort((a, b) => new Date(a.fecha_emision || 0).getTime() - new Date(b.fecha_emision || 0).getTime());
+        const { data: facs } = await supabase.from('facturas').select('*').in('referencia', recibos);
+        if (facs && facs.length > 0) {
+          // Calcular deuda total de los recibos seleccionados
+          const deudaTotal = facs.reduce((s, f) => s + parseFloat(f.monto || '0'), 0);
+          const esAbonoParcial = det.es_abono || (montoConciliadoNum > 0 && montoConciliadoNum < deudaTotal - 0.01);
+
+          if (esAbonoParcial && montoConciliadoNum > 0) {
+            // Distribuir el monto entre facturas (mas antiguas primero)
+            facs.sort((a, b) => new Date(a.emision || a.created_at || 0).getTime() - new Date(b.emision || b.created_at || 0).getTime());
             let dineroDisponible = montoConciliadoNum;
-            
+
             for (const fac of facs) {
               const montoFac = parseFloat(fac.monto || '0');
               if (dineroDisponible >= montoFac - 0.01) {
-                // Se paga completa
+                // Cubre la factura completa
                 dineroDisponible = Math.max(0, dineroDisponible - montoFac);
                 await supabase.from('facturas').update({ estado: 'Pagado' }).eq('referencia', fac.referencia);
               } else if (dineroDisponible > 0.01) {
-                // Abono parcial
-                const montoRestante = (montoFac - dineroDisponible).toFixed(2);
+                // Abono parcial: actualizar monto restante
+                const montoRestante = parseFloat((montoFac - dineroDisponible).toFixed(2));
                 await supabase.from('facturas').update({ monto: montoRestante, estado: 'Abonado' }).eq('referencia', fac.referencia);
                 dineroDisponible = 0;
               } else {
-                // No queda dinero, regresarla a Pendiente
+                // Sin dinero: dejar pendiente
                 await supabase.from('facturas').update({ estado: 'Pendiente' }).eq('referencia', fac.referencia);
               }
             }
+
+            // Si sobro saldo despues de pagar todo, registrar como saldo a favor
+            if (dineroDisponible > 0.01) {
+              const { data: inmList } = await supabase.from('inmuebles').select('id, saldo_favor_bs').eq('identidad', pago.identidad);
+              if (inmList && inmList.length > 0) {
+                const saldoActual = parseFloat(inmList[0].saldo_favor_bs || '0') || 0;
+                await supabase.from('inmuebles').update({ saldo_favor_bs: saldoActual + dineroDisponible }).eq('id', inmList[0].id);
+              }
+            }
+          } else {
+            // Pago completo: marcar todas como Pagado
+            await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', recibos);
           }
-        } else {
-          // Pago completo normal
-          await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', recibos);
         }
       }
 
-      // Con Diferencia: agregar monto de diferencia como saldo a favor
+ agregar monto de diferencia como saldo a favor
       if (estatus === 'Con Diferencia' && montoConciliadoNum > 0) {
         // Buscar inmueble del contribuyente para actualizar saldo_favor_bs
         const { data: inmList } = await supabase
@@ -804,6 +823,13 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                 <span className="font-bold text-slate-800">Total a Pagar</span>
                 <span className="font-bold text-slate-800">{fmt(montoReportadoNum)}</span>
               </div>
+              {/* Diferencia pendiente cuando monto conciliado < deuda total */}
+              {estatus === 'Aprobado' && montoConciliadoNum > 0 && montoReportadoNum < deudaTotalContrib - 0.01 && (
+                <div className="flex justify-between text-sm border-t pt-2 mt-1">
+                  <span className="text-red-700 font-bold">⚠ Diferencia Pendiente (Saldo Negativo)</span>
+                  <span className="text-red-700 font-bold">- {fmt(deudaTotalContrib - montoReportadoNum)}</span>
+                </div>
+              )}
               {estatus === 'Con Diferencia' && parseFloat(montoConciliado) > 0 && (
                 <div className="flex justify-between text-sm border-t pt-1 mt-1 text-amber-700 font-bold">
                   <span>Saldo a Favor a Acreditar</span>
