@@ -1,4 +1,6 @@
-'use client';
+const fs = require('fs');
+
+const content = `'use client';
 import { useState, useEffect, useRef } from 'react';
 import { Search, Camera, CreditCard, Landmark, CheckCircle2, XCircle, AlertCircle, ChevronLeft, Send, Upload, ArrowRight } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
@@ -46,8 +48,8 @@ export default function CobroMovilPage() {
   const camRef = useRef(null);
 
   const getReciboMonto = (r) => {
-    if (r.estado === 'Abonado') return parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
-    if (!tcmmv || tcmmv <= 0) return parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
+    if (r.estado === 'Abonado') return parseFloat(String(r.monto || '0').replace(/[^\\d.]/g, '')) || 0;
+    if (!tcmmv || tcmmv <= 0) return parseFloat(String(r.monto || '0').replace(/[^\\d.]/g, '')) || 0;
     if (r.referencia?.startsWith('CM-')) {
       const matched = userInms.find(i => i.inmueble && r.referencia.includes(i.inmueble));
       if (matched) {
@@ -61,7 +63,7 @@ export default function CobroMovilPage() {
         return s + (mmv > 0 ? cant * mmv * tcmmv : 0);
       }, 0);
     }
-    return parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
+    return parseFloat(String(r.monto || '0').replace(/[^\\d.]/g, '')) || 0;
   };
 
   useEffect(() => {
@@ -387,3 +389,7 @@ export default function CobroMovilPage() {
     </div>
   );
 }
+`;
+
+fs.writeFileSync('c:/Users/david/Desktop/tucacas/global_green_tucacas/src/app/cobro-movil/page.tsx', content);
+console.log('✅ cobro-movil/page.tsx rewritten with full mobile optimization');
