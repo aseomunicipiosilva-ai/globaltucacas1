@@ -484,11 +484,6 @@ function ContribuyentesPageContent() {
       doc.setFontSize(9);
       doc.setTextColor(220, 38, 38);
       doc.text(`TASA VIGENTE HASTA: ${tasaVigente}`, 105, 23, { align: 'center' });
-      doc.setFontSize(7.5);
-      doc.setFont('helvetica', 'bolditalic');
-      doc.text('⚠ NOTA: El monto calculado es válido ÚNICAMENTE para la fecha de emisión de este documento.', 105, 28, { align: 'center' });
-      doc.text('La tasa de cambio BCV varía diariamente. Consulte con la administración para actualizar el monto.', 105, 32, { align: 'center' });
-      doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0);
 
       // ── LÍNEA ──
@@ -665,6 +660,21 @@ function ContribuyentesPageContent() {
       y += 6;
       doc.setFont('helvetica', 'italic');
       doc.text('Pagos a nombre de: INST SOC MUN PARA EL AMBIENTE R.I.F.: G-200076739', 14, y);
+      // ── NOTA DE VIGENCIA DE TASA (PIE DE PÁGINA) ──
+      y += 10;
+      doc.setLineWidth(0.3);
+      doc.setDrawColor(220, 38, 38);
+      doc.line(14, y, 196, y);
+      y += 5;
+      doc.setDrawColor(0, 0, 0);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bolditalic');
+      doc.setTextColor(220, 38, 38);
+      doc.text('IMPORTANTE: Los montos indicados en este estado de cuenta son validos UNICAMENTE para la fecha de emision del presente documento.', 105, y, { align: 'center' });
+      y += 5;
+      doc.text('La tasa de cambio BCV varia diariamente. Para cancelar en una fecha posterior, solicite un nuevo estado de cuenta actualizado.', 105, y, { align: 'center' });
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
 
       doc.save(`Estado_Cuenta_${viewData.Identidad}_${codInm}_${Date.now()}.pdf`);
     }
