@@ -63,6 +63,10 @@ export default function CajaPage() {
 
   // Recibo imprimible post-pago
   const [reciboData, setReciboData] = React.useState<any>(null);
+  // Filtro de meses para el recibo
+  const [reciboFiltro, setReciboFiltro] = React.useState<'todos' | 'rango'>('todos');
+  const [reciboDesde, setReciboDesde] = React.useState<string>('');   // 'YYYY-MM' e.g. '2026-07'
+  const [reciboHasta, setReciboHasta] = React.useState<string>('');
 
   // Notas de Crédito â€” carga directa desde Supabase
   const [notasCredito, setNotasCredito] = useState<any[]>([]);
