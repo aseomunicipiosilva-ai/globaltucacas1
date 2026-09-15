@@ -467,10 +467,25 @@ function ContribuyentesPageContent() {
     const tasaVigente = today.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const cajero = typeof window !== 'undefined' ? (localStorage.getItem('adminUser') || 'Administrador') : 'Administrador';
 
-    // Usar solo el primer inmueble para los datos del PDF
-    // (todos los meses pendientes ya están en `deudas` sin filtrar por inmueble)
-    const inm = inmsToProcess[0];
-    {
+    // Si hay múltiples inmuebles → 1 PDF por inmueble (estados de cuenta separados)
+    // Si hay 1 solo inmueble → 1 PDF con todos los meses pendientes
+    // Función que filtra las facturas para cada inmueble por código en la referencia
+    const getFacturasParaInmueble = (inm: any, allDeudas: any[], totalInms: number): any[] => {
+      if (totalInms <= 1) return allDeudas; // único inmueble: mostrar todos
+      const codInmueble = (inm.inmueble || '').toString();
+      if (!codInmueble || codInmueble === 'Principal') return allDeudas;
+      // Filtrar facturas cuya referencia contiene el código del inmueble
+      const matched = allDeudas.filter((f: any) => f.referencia && f.referencia.includes(codInmueble));
+      // Si no hubo match para este inmueble, asignar las no-matcheadas al primero
+      return matched.length > 0 ? matched : [];
+    };
+
+    for (const inm of inmsToProcess) {
+      // Obtener facturas de este inmueble
+      const inmDeudas = getFacturasParaInmueble(inm, deudas, inmsToProcess.length);
+      // Si hay múltiples inmuebles y este no tiene facturas, skip
+      if (inmsToProcess.length > 1 && inmDeudas.length === 0) continue;
+
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
       const docNro = Math.floor(10000 + Math.random() * 90000);
 
@@ -549,10 +564,8 @@ function ContribuyentesPageContent() {
       doc.line(14, y, 196, y);
       y += 6;
 
-      // Todos los recibos pendientes del contribuyente (ya filtrado por identidad en Supabase)
-      // NO filtramos por referencia de inmueble para incluir todos los meses
-      // sin importar qué código de inmueble esté en la referencia
-      const inmRecibos = deudas;
+      // Facturas filtradas para este inmueble específico
+      const inmRecibos = inmDeudas;
 
       // Monto usando tcmmv para recibos CM-
       const calcMonto = (f: any): number => {
@@ -677,7 +690,7 @@ function ContribuyentesPageContent() {
       doc.setTextColor(0, 0, 0);
 
       doc.save(`Estado_Cuenta_${viewData.Identidad}_${codInm}_${Date.now()}.pdf`);
-    }
+    } // end for
   };
 
   const exportarExcelContribuyentes = () => {
