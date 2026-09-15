@@ -626,7 +626,7 @@ function ContribuyentesPageContent() {
     };
 
     let isCondominio = false;
-    let locales = [];
+    let locales: { id: string; numeracion: string; uso: string; estatus: string; actividad: string; nivel: string }[] = [];
     let cantidadInmuebles = 1;
     let TipoResidencia = ordenanzaData.tiposResidenciales[0].label;
     let ActividadComercial = '';
