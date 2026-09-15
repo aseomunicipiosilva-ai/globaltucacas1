@@ -1,9 +1,12 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
-import { FileText, Building, Handshake, AlertCircle, CheckCircle2, Wrench, ClipboardCheck, ShieldCheck, FlaskConical } from 'lucide-react';
+import { Download, FileText, Building, Handshake, AlertCircle, CheckCircle2, Wrench, ClipboardCheck, ShieldCheck, FlaskConical } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
 import { formatBs } from '@/lib/formatCurrency';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { logos } from '@/lib/logosBase64';
 
 const TIPO_ICON: Record<string, any> = {
   especial: Wrench, extraordinario: FlaskConical, inspeccion: ClipboardCheck, visto_bueno: ShieldCheck
@@ -13,7 +16,7 @@ const TIPO_LABEL: Record<string, string> = {
 };
 
 export default function EstadoCuentaPage() {
-  const { inmuebles, recibos } = useAppContext();
+  const { inmuebles, recibos, contribuyentes } = useAppContext();
   const [portalDoc, setPortalDoc] = useState('');
   const [tasaBcv, setTasaBcv] = useState(0);
   const [cuotasData, setCuotasData] = useState<any[]>([]);
@@ -92,11 +95,19 @@ export default function EstadoCuentaPage() {
     // CM-
     if (r.referencia?.startsWith('CM-')) {
       let monthlyMMV = 0;
-      misInmuebles.forEach((inm: any) => {
-        const cant = parseFloat(inm.cant_inmuebles || 1);
-        const mmv  = parseFloat(inm.mmv_mes || 0);
-        if (mmv > 0) monthlyMMV += cant * mmv;
-      });
+      const matchedInmueble = misInmuebles.find((inm: any) => inm.inmueble && r.referencia.includes(inm.inmueble));
+      
+      if (matchedInmueble) {
+        const cant = parseFloat(matchedInmueble.cant_inmuebles || 1);
+        const mmv  = parseFloat(matchedInmueble.mmv_mes || 0);
+        if (mmv > 0) monthlyMMV = cant * mmv;
+      } else {
+        misInmuebles.forEach((inm: any) => {
+          const cant = parseFloat(inm.cant_inmuebles || 1);
+          const mmv  = parseFloat(inm.mmv_mes || 0);
+          if (mmv > 0) monthlyMMV += cant * mmv;
+        });
+      }
       if (monthlyMMV > 0) return (monthlyMMV * tasaBcv).toFixed(2);
     }
     return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
@@ -139,11 +150,120 @@ export default function EstadoCuentaPage() {
     return d;
   };
 
+
+  const handleDownloadPDF = () => {
+    if (!portalDoc) return;
+    const docNorm = portalDoc.replace(/-/g, '').toUpperCase();
+    const myContribuyente = contribuyentes?.find((c: any) => (c.Identidad || '').replace(/-/g, '').toUpperCase() === docNorm);
+    
+    const viewData = {
+      Contribuyente: myContribuyente?.Contribuyente || 'N/A',
+      Identidad: portalDoc,
+      Telefono: myContribuyente?.Telefono || 'N/A',
+      Direccion: myContribuyente?.Direccion || 'N/A'
+    };
+
+    const doc = new jsPDF();
+    
+    // Add Logos
+    try {
+      doc.addImage(logos.alcaldia, 'JPEG', 14, 10, 25, 25);
+      doc.addImage(logos.isma, 'JPEG', 42, 10, 25, 25);
+      doc.addImage(logos.global_rec, 'JPEG', 145, 10, 25, 25);
+      doc.addImage(logos.basura_cero, 'JPEG', 173, 10, 25, 25);
+    } catch(e) { console.warn("Error loading logos", e); }
+
+    // Title & Taxpayer Info
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("ESTADO DE CUENTA", 105, 20, { align: "center" });
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Razón Social: ${viewData.Contribuyente}`, 14, 40);
+    doc.text(`R.I.F / C.I: ${viewData.Identidad}`, 14, 46);
+    doc.text(`Teléfono: ${viewData.Telefono}`, 14, 52);
+    
+    const splitDireccion = doc.splitTextToSize(`Dirección: ${viewData.Direccion}`, 180);
+    doc.text(splitDireccion, 14, 58);
+    
+    let currentY = 58 + (splitDireccion.length * 5) + 5;
+
+    // Desglose de Inmuebles
+    if (misInmuebles.length > 0) {
+      doc.setFont("helvetica", "bold");
+      doc.text("DESGLOSE DE INMUEBLES / ACTIVIDADES", 14, currentY);
+      
+      const inmueblesData = misInmuebles.map((i: any) => [
+        i.inmueble || i.cod_cont || '-',
+        i.cant_inmuebles || '1',
+        i.tipo || 'N/A',
+        i.actividad_principal || 'Residencial',
+        i.direccion || 'N/A'
+      ]);
+
+      try {
+        autoTable(doc, {
+          startY: currentY + 3,
+          head: [['Inmueble', 'Cant.', 'Clasif.', 'Actividad', 'Dirección']],
+          body: inmueblesData,
+          theme: 'grid',
+          headStyles: { fillColor: [51, 65, 85] },
+          styles: { fontSize: 8 }
+        });
+        currentY = (doc as any).lastAutoTable.finalY + 10;
+      } catch (e) {}
+    }
+
+    doc.setFont("helvetica", "bold");
+    doc.text("RECIBOS PENDIENTES (DEUDA)", 14, currentY);
+
+    const tableData = pendientes.map((d: any) => {
+      return [
+        d.referencia,
+        mesLabel(d.emision).toUpperCase(),
+        d.vencimiento || 'N/A',
+        `${parseFloat(getReciboMonto(d)).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs.`
+      ];
+    });
+
+    tableData.push(["", "", "TOTAL DEUDA:", `${totalPendBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs.`]);
+
+    try {
+      autoTable(doc, {
+        startY: currentY + 3,
+        head: [['Referencia', 'Período', 'Vencimiento', 'Monto']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [220, 38, 38] },
+        styles: { fontSize: 9 },
+        columnStyles: { 3: { halign: 'right', fontStyle: 'bold' } }
+      });
+      currentY = (doc as any).lastAutoTable.finalY + 12;
+    } catch (e: any) {
+      console.error(e);
+    }
+
+    doc.save(`Estado_Cuenta_${viewData.Identidad}_${Date.now()}.pdf`);
+  };
+
   if (isLoading) return <div className="flex items-center justify-center py-20 text-slate-400 text-sm">Cargando estado de cuenta...</div>;
 
   return (
     <div className="space-y-5 max-w-4xl mx-auto pb-16">
       
+      
+      <div className="flex justify-between items-center mb-2">
+        <h1 className="text-xl font-bold text-slate-800">Mi Estado de Cuenta</h1>
+        <button 
+          onClick={handleDownloadPDF}
+          className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-700 transition-colors shadow-sm"
+        >
+          <Download className="w-4 h-4" />
+          Descargar PDF
+        </button>
+      </div>
+
       {/* Resumen Financiero */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <div className="bg-white rounded-xl border border-slate-200 p-4 text-center shadow-sm">

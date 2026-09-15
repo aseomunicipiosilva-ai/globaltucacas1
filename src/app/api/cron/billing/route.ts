@@ -56,7 +56,7 @@ export async function GET(request: Request) {
     // ── PASO 1: Obtener todos los inmuebles activos de una sola vez ──
     const { data: inmuebles, error: inmueblesError } = await supabase
       .from('inmuebles')
-      .select('id, identidad, contribuyente, cod_cont, mmv_mes, cant_inmuebles, deuda_mmv')
+      .select('id, identidad, contribuyente, cod_cont, inmueble, mmv_mes, cant_inmuebles, deuda_mmv')
       .gt('mmv_mes', 0);
 
     if (inmueblesError) throw inmueblesError;
@@ -65,9 +65,10 @@ export async function GET(request: Request) {
     }
 
     // ── PASO 2: Obtener referencias ya existentes para este período (batch) ──
+    // Nuevo formato: CM-I-000001-09-2026 (un recibo por inmueble)
     const todasLasRefs = inmuebles
-      .filter((inm: any) => inm.cod_cont)
-      .map((inm: any) => `CM-${inm.cod_cont}-${periodoKey}`);
+      .filter((inm: any) => inm.inmueble)
+      .map((inm: any) => `CM-${inm.inmueble}-${periodoKey}`);
 
     const { data: existentes } = await supabase
       .from('facturas')
@@ -81,12 +82,12 @@ export async function GET(request: Request) {
     const inmueblesAActualizar: { id: string; nuevaDeudaMmv: number }[] = [];
 
     for (const inm of inmuebles) {
-      if (!inm.cod_cont) continue;
+      if (!inm.inmueble) continue; // Usar código de inmueble individual
       const cant = parseFloat(inm.cant_inmuebles) || 1;
       const mmv  = parseFloat(inm.mmv_mes) || 0;
       if (mmv <= 0) continue;
 
-      const refFactura = `CM-${inm.cod_cont}-${periodoKey}`;
+      const refFactura = `CM-${inm.inmueble}-${periodoKey}`; // CM-I-000001-09-2026
       if (refsExistentes.has(refFactura)) continue; // ya existe
 
       const deudaAgregadaBs = parseFloat((cant * mmv * tcmmv).toFixed(2));

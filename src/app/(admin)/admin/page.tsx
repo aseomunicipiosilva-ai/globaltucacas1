@@ -1,4 +1,4 @@
-import { MapPin, Phone, Mail, FileText, Download } from 'lucide-react';
+import { MapPin, Phone, Mail, FileText, Download, Smartphone } from 'lucide-react';
 import MapWrapper from '@/components/MapWrapper';
 import { supabase } from '@/lib/supabase';
 import ManualBCVRateEditor from '@/components/ManualBCVRateEditor';
@@ -48,6 +48,19 @@ export default async function AdminHome() {
       </div>
 
       <div className="grid grid-cols-1 gap-6">
+        {/* Cobro Móvil Card */}
+        <a href="/admin/cobro-movil" className="block">
+          <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-xl shadow-lg border border-emerald-500/30 p-6 flex items-center gap-5 hover:from-emerald-500 hover:to-emerald-600 transition-all cursor-pointer group">
+            <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <Smartphone className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h2 className="text-white font-bold text-lg">Cobro Móvil</h2>
+              <p className="text-emerald-100/80 text-sm">Busca contribuyentes, revisa su estado de cuenta y procesa cobros desde el campo con tu teléfono.</p>
+            </div>
+            <div className="ml-auto text-white/60 group-hover:text-white transition-colors text-2xl">→</div>
+          </div>
+        </a>
         {/* Widget Recaudación */}
         <RecaudacionWidget />
 

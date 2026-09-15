@@ -1,5 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config({ path: 'C:/Users/david/Desktop/tucacas/global_green_tucacas/.env.local' });
+require('dotenv').config({ path: '.env.local' });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -11,7 +11,7 @@ async function checkSeptBills() {
   console.log('Checking bills for September...');
   
   const { data, error, count } = await supabase
-    .from('recibos')
+    .from('facturas')
     .select('*', { count: 'exact' })
     .like('referencia', '%-09-2026%');
 
@@ -25,7 +25,6 @@ async function checkSeptBills() {
   if (count === 0) {
     console.log('No bills found for September. Generating them now using the logic from cron...');
     
-    // Simulate cron logic for September bills
     try {
       const eurRes = await fetch('https://ve.dolarapi.com/v1/euros/oficial');
       const eurData = await eurRes.json();
@@ -71,11 +70,10 @@ async function checkSeptBills() {
       
       console.log(`Inserting ${facturasNuevas.length} new bills...`);
       
-      // Insert in chunks to avoid payload size issues
       const chunkSize = 100;
       for (let i = 0; i < facturasNuevas.length; i += chunkSize) {
         const chunk = facturasNuevas.slice(i, i + chunkSize);
-        const { error: insertError } = await supabase.from('recibos').insert(chunk);
+        const { error: insertError } = await supabase.from('facturas').insert(chunk);
         if (insertError) {
           console.error(`Error inserting chunk ${i}:`, insertError);
         } else {

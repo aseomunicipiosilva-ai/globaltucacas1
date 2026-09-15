@@ -1,5 +1,5 @@
 'use client';
-import { Home, Search, FileText, FlaskConical, Wrench, UserPlus, Users, FileSpreadsheet, History, Award, Clock, Building2, AlertTriangle, Handshake, LayoutDashboard, Mail, User, PieChart, Truck, Inbox, Calculator, Briefcase, Landmark, BookOpen, Car, Map, Bus, TreePine, ShieldAlert, DollarSign, Wallet, FileCheck, Package, ShoppingCart, Target, BarChart3, ClipboardCheck } from 'lucide-react';
+import { Home, Search, FileText, FlaskConical, Wrench, UserPlus, Users, FileSpreadsheet, History, Award, Clock, Building2, AlertTriangle, Handshake, LayoutDashboard, Mail, User, PieChart, Truck, Inbox, Calculator, Briefcase, Landmark, BookOpen, Car, Map, Bus, TreePine, ShieldAlert, DollarSign, Wallet, FileCheck, Package, ShoppingCart, Target, BarChart3, ClipboardCheck, Smartphone } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
@@ -39,6 +39,7 @@ export default function Sidebar() {
     { icon: PieChart, name: 'Reportes Generales', href: '/admin/reportes' },
     { icon: Mail, name: 'Correos Informativos', href: '/admin/correos' },
     { icon: UserPlus, name: 'Trabajadores Aseo', href: '/admin/trabajadores' },
+    { icon: Smartphone, name: 'Cobro Móvil', href: '/admin/cobro-movil' },
     { icon: ShieldAlert, name: 'Auditoría', href: '/admin/auditoria' }
   ];
 

@@ -532,7 +532,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
               } else if (dineroDisponible > 0.01) {
                 // Abono parcial
                 const montoRestante = (montoFac - dineroDisponible).toFixed(2);
-                await supabase.from('facturas').update({ monto: montoRestante, estado: 'Pendiente' }).eq('referencia', fac.referencia);
+                await supabase.from('facturas').update({ monto: montoRestante, estado: 'Abonado' }).eq('referencia', fac.referencia);
                 dineroDisponible = 0;
               } else {
                 // No queda dinero, regresarla a Pendiente

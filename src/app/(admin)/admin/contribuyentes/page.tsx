@@ -618,6 +618,47 @@ function ContribuyentesPageContent() {
       }
     }
 
+    const parseAreaToLevel = (areaNum: number) => {
+      if (!areaNum || areaNum <= 50) return '0 - 50 m²';
+      if (areaNum <= 100) return '51 - 100 m²';
+      if (areaNum <= 200) return '101 - 200 m²';
+      return 'Mayor a 201 m²';
+    };
+
+    let isCondominio = false;
+    let locales = [];
+    let cantidadInmuebles = 1;
+    let TipoResidencia = ordenanzaData.tiposResidenciales[0].label;
+    let ActividadComercial = '';
+    let NivelMetraje = ordenanzaData.nivelesMetraje[0];
+
+    const misInmuebles = inmuebles.filter((i: any) => i.identidad === row.Identidad);
+    
+    if (misInmuebles.length > 0) {
+      if (misInmuebles.length > 1 || (parseInt(misInmuebles[0].cant_inmuebles) || 1) > 1 || autoClasificacion === 'Condominio') {
+        isCondominio = true;
+        autoClasificacion = 'Condominio';
+        cantidadInmuebles = misInmuebles.length > 1 ? misInmuebles.length : (parseInt(misInmuebles[0].cant_inmuebles) || 1);
+        
+        locales = misInmuebles.map((inm, idx) => ({
+          id: `local-${idx}-${Date.now()}`,
+          numeracion: inm.inmueble || `Inmueble ${idx + 1}`,
+          uso: inm.clasificacion === 'Comercial' || inm.clasificacion === 'Industrial' ? 'Comercial' : 'Residencial',
+          estatus: 'Ocupado',
+          actividad: inm.clasificacion === 'Residencial' ? '' : (inm.actividad_principal || ''),
+          nivel: parseAreaToLevel(parseFloat(inm.area) || 0)
+        }));
+      } else {
+        const principal = misInmuebles[0];
+        if (principal.clasificacion === 'Residencial') {
+          TipoResidencia = principal.actividad_principal || TipoResidencia;
+        } else {
+          ActividadComercial = principal.actividad_principal || '';
+          NivelMetraje = parseAreaToLevel(parseFloat(principal.area) || 0);
+        }
+      }
+    }
+
     setFormData({ 
       ...row,
       Clasificacion: autoClasificacion,
@@ -625,9 +666,16 @@ function ContribuyentesPageContent() {
       telefonoNumero,
       correoNombre,
       correoDominio,
-      correoDominioOtro
+      correoDominioOtro,
+      TipoResidencia,
+      ActividadComercial,
+      NivelMetraje,
+      isCondominio,
+      cantidadInmuebles,
+      locales,
+      Nota: ''
     });
-    setOriginalData({ ...row, Clasificacion: autoClasificacion });
+    setOriginalData({ ...row, Clasificacion: autoClasificacion, ActividadComercial, TipoResidencia });
     setEditingId(row.Identidad);
     setIsNew(false);
     setShowSuccess(false);

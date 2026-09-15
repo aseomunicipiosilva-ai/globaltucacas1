@@ -239,6 +239,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateContribuyente = async (id: string, data: any) => {
     try {
+      const parseLevelToArea = (nivel: string) => {
+        if (!nivel) return null;
+        if (nivel.includes('0 - 50')) return 50;
+        if (nivel.includes('51 - 100')) return 100;
+        if (nivel.includes('101 - 200')) return 200;
+        if (nivel.includes('201')) return 201;
+        return null;
+      };
+
+      const isComercial = data.Clasificacion === 'Comercial' || data.Clasificacion === 'Industrial';
+
       const { error } = await supabase
         .from('inmuebles')
         .update({
@@ -248,6 +259,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           direccion: data.DireccionExacta ? `${data.Direccion} | Exacta: ${data.DireccionExacta}` : data.Direccion,
           clasificacion: data.Clasificacion || 'Residencial',
           actividad_principal: data.Clasificacion === 'Residencial' ? data.TipoResidencia : data.ActividadComercial,
+          area: isComercial ? parseLevelToArea(data.NivelMetraje) : null,
           mmv_mes: calcularMmvMes(data, ordenanzasConfig)
         })
         .eq('identidad', id);
