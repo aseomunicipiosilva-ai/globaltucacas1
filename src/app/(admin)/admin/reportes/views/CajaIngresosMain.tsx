@@ -74,7 +74,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
         if (tipoFilter !== 'REC' && p.tipo !== tipoFilter) return false;
       }
       if (subTipo === 'Corte de Caja') {
-        if (!isDebito(p) && p.estado !== 'Aprobado' && p.estado !== 'Con Diferencia') return false;
+        // Incluye debitos Y todas las transferencias del cajero (cualquier estado excepto anuladas/reversadas ya filtradas)
       }
       return true;
     });
@@ -463,6 +463,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
     </div>
   );
 }
+
 
 
 

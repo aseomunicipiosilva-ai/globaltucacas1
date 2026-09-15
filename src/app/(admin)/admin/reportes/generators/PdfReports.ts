@@ -1,4 +1,4 @@
-import jsPDF from 'jspdf';
+﻿import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { logos } from '@/lib/logosBase64';
 
@@ -79,7 +79,7 @@ export const generarCorteCajaPDF = (
   doc.text("Debito", 40, 155);
   doc.text(formatBs(totalDebito), pageWidth - 40, 155, { align: 'right' });
 
-  doc.text("Transferencias Conciliadas", 40, 170);
+  doc.text("TRANSFERENCIAS REGISTRADAS POR EL CAJERO", 40, 170);
   doc.text(formatBs(totalTransf), pageWidth - 40, 170, { align: 'right' });
 
   doc.text("Saldo a Favor", 40, 185);
@@ -173,7 +173,7 @@ export const generarCorteCajaPDF = (
 
   // 2. Transferencias
   drawSubTable(
-    "TRANSFERENCIAS CONCILIADAS", 
+    "TRANSFERENCIAS REGISTRADAS POR EL CAJERO", 
     transferencias, 
     ["FECHA/HORA", "FECHA BCO", "TIPO", "FECHA LIBRO", "DOCUMENTO", "BANCO ORIGEN", "REFERENCIA", "BANCO DESTINO", "REF. DESTINO", "MONTO"],
     (p, c) => [
@@ -409,3 +409,4 @@ export const generarIngresoBancarioPDF = (
 
   doc.save(`Ingreso_Bancario_${tipo}_${new Date().getTime()}.pdf`);
 };
+
