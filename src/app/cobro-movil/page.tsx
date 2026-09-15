@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState, useEffect, useRef } from 'react';
 import { Search, Camera, CreditCard, Landmark, CheckCircle2, XCircle, AlertCircle, ChevronLeft, Send, Upload, ArrowRight, FileDown } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
@@ -17,8 +17,8 @@ interface Contribuyente { Contribuyente: string; Identidad: string; Telefono?: s
 
 const BANCOS = [
   'Banco de Venezuela','Banesco','Mercantil','BBVA Provincial',
-  'Bicentenario','Venezolano de Crédito','Sofitasa','Bancaribe',
-  'BNC','Del Tesoro','Agrícola de Venezuela','Exterior','Otro'
+  'Bicentenario','Venezolano de CrÃ©dito','Sofitasa','Bancaribe',
+  'BNC','Del Tesoro','AgrÃ­cola de Venezuela','Exterior','Otro'
 ];
 const MESES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
 const mesLabel = (d: string) => {
@@ -89,10 +89,10 @@ export default function CobroMovilPage() {
     const MESES_FULL = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
     const getMes = (d: string) => {
       const p = d?.split('-');
-      return p?.length >= 2 ? `${MESES_FULL[parseInt(p[1])-1]}-${p[0]}` : d || '—';
+      return p?.length >= 2 ? `${MESES_FULL[parseInt(p[1])-1]}-${p[0]}` : d || 'â€”';
     };
 
-    // ── Consultar TODOS los meses pendientes directamente en Supabase ──
+    // â”€â”€ Consultar TODOS los meses pendientes directamente en Supabase â”€â”€
     let todasDeudas: Recibo[] = [];
     try {
       const idOrig = (foundUser.Identidad || '').trim();
@@ -119,7 +119,7 @@ export default function CobroMovilPage() {
       todasDeudas = recibos;
     }
 
-    // ── Usar solo el primer inmueble para el encabezado ──
+    // â”€â”€ Usar solo el primer inmueble para el encabezado â”€â”€
     const inm = userInms.length > 0
       ? userInms[0]
       : { inmueble: 'Principal', tipo: 'Residencial', cant_inmuebles: 1, mmv_mes: 0 } as Inmueble;
@@ -139,21 +139,21 @@ export default function CobroMovilPage() {
     doc.text(`Nro.: ${docNro}`, 196, 38, { align: 'right' });
     doc.line(14, 41, 196, 41);
     const uso = inm.clasificacion || inm.tipo || 'Residencial';
-    const area = (inm as any).area ? `${(inm as any).area} Mt2` : '—';
+    const area = (inm as any).area ? `${(inm as any).area} Mt2` : 'â€”';
     const codInm = inm.inmueble || 'Principal';
     doc.setFontSize(9);
-    doc.text('Código:', 14, 47); doc.setFont('helvetica', 'bold'); doc.text(codInm, 30, 47);
+    doc.text('CÃ³digo:', 14, 47); doc.setFont('helvetica', 'bold'); doc.text(codInm, 30, 47);
     doc.setFont('helvetica', 'normal'); doc.text('Uso:', 65, 47);
     doc.setFont('helvetica', 'bold'); doc.text(uso, 76, 47);
-    doc.setFont('helvetica', 'normal'); doc.text('Área Operativa:', 115, 47);
+    doc.setFont('helvetica', 'normal'); doc.text('Ãrea Operativa:', 115, 47);
     doc.setFont('helvetica', 'bold'); doc.text(area, 142, 47);
     doc.setFont('helvetica', 'normal'); doc.text('Identidad:', 162, 47);
     doc.setFont('helvetica', 'bold'); doc.text(foundUser.Identidad, 180, 47);
-    doc.setFont('helvetica', 'normal'); doc.text('Nombre o Razón Social:', 14, 54);
+    doc.setFont('helvetica', 'normal'); doc.text('Nombre o RazÃ³n Social:', 14, 54);
     doc.setFont('helvetica', 'bold'); doc.text(foundUser.Contribuyente, 62, 54);
     doc.setFont('helvetica', 'normal');
     const dirInm = (inm as any).direccion || foundUser.Direccion || '';
-    const splitDir = doc.splitTextToSize(`Dirección Inmueble: ${dirInm}`, 182);
+    const splitDir = doc.splitTextToSize(`DirecciÃ³n Inmueble: ${dirInm}`, 182);
     doc.text(splitDir, 14, 60);
     let y = 60 + splitDir.length * 5 + 4;
     doc.line(14, y, 196, y); y += 6;
@@ -173,11 +173,11 @@ export default function CobroMovilPage() {
 
     const totalInm = todasDeudas.reduce((s, f) => s + calcM(f), 0);
     const mesesArr = [...new Set(todasDeudas.map(f => getMes(f.emision)))];
-    const periodosLabel = mesesArr.join(', ') || '—';
+    const periodosLabel = mesesArr.join(', ') || 'â€”';
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
     [
-      [`Períodos Calculados (${todasDeudas.length}):`, periodosLabel],
-      ['Monto Recolección Aseo Urbano Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
+      [`PerÃ­odos Calculados (${todasDeudas.length}):`, periodosLabel],
+      ['Monto RecolecciÃ³n Aseo Urbano Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
       ['Total Exento Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
       ['Base Imponible Bs.', 'Bs. 0,00'],
       ['IVA (16.00%) Bs.', 'Bs. 0,00'],
@@ -198,11 +198,11 @@ export default function CobroMovilPage() {
     try {
       autoTable(doc, {
         startY: y,
-        head: [['PERIODO', 'DETALLE', 'RECOLECCIÓN', 'INT REC', 'MULTA', 'IVA', 'TOTAL BS']],
+        head: [['PERIODO', 'DETALLE', 'RECOLECCIÃ“N', 'INT REC', 'MULTA', 'IVA', 'TOTAL BS']],
         body: todasDeudas.map(f => {
           const m = calcM(f);
           const det = (inm as any).actividad_principal ? `Aseo ${(inm.tipo || 'residencial').toLowerCase()}` : 'Aseo residencial';
-          return [f.emision || '—', det, m.toLocaleString('es-VE', {minimumFractionDigits:2}), '0,00','0,00','0,00', m.toLocaleString('es-VE', {minimumFractionDigits:2})];
+          return [f.emision || 'â€”', det, m.toLocaleString('es-VE', {minimumFractionDigits:2}), '0,00','0,00','0,00', m.toLocaleString('es-VE', {minimumFractionDigits:2})];
         }),
         theme: 'grid',
         headStyles: { fillColor: [255,255,255], textColor: [0,0,0], fontStyle: 'bold', lineColor:[0,0,0], lineWidth:0.3, halign:'center' },
@@ -212,7 +212,7 @@ export default function CobroMovilPage() {
       y = (doc as any).lastAutoTable.finalY + 8;
     } catch(e) {}
     doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-    doc.text('INFORMACIÓN PARA PAGOS Y TRANSFERENCIAS', 105, y, { align: 'center' });
+    doc.text('INFORMACIÃ“N PARA PAGOS Y TRANSFERENCIAS', 105, y, { align: 'center' });
     y += 4; doc.line(14, y, 196, y); y += 5;
     doc.setFont('helvetica', 'normal');
     doc.text('Banco:  BANESCO (0134)', 14, y); y += 5;
@@ -220,7 +220,7 @@ export default function CobroMovilPage() {
     doc.setFont('helvetica', 'italic');
     doc.text('Pagos a nombre de: INST SOC MUN PARA EL AMBIENTE R.I.F.: G-200076739', 14, y);
 
-    // ── NOTA EN ROJO AL PIE ──
+    // â”€â”€ NOTA EN ROJO AL PIE â”€â”€
     y += 10;
     doc.setLineWidth(0.3); doc.setDrawColor(220, 38, 38);
     doc.line(14, y, 196, y); y += 5;
@@ -272,7 +272,7 @@ export default function CobroMovilPage() {
     setFoundUser({ ...user, SaldoFavor: saldoFavor });
     setUserInms((inmsDB || []) as Inmueble[]);
 
-    // 4. Buscar facturas — misma lógica exacta que Caja
+    // 4. Buscar facturas â€” misma lÃ³gica exacta que Caja
     const identidadClean = (user.Identidad || '').replace(/-/g, '').toUpperCase();
     const { data: allUserFacturas } = await supabase
       .from('facturas')
@@ -292,13 +292,13 @@ export default function CobroMovilPage() {
         .order('emision', { ascending: true });
       if (fByName && fByName.length > 0) {
         fallbackFacturas = fByName as Recibo[];
-        // Backfill identidad para búsquedas futuras
+        // Backfill identidad para bÃºsquedas futuras
         const idsToUpdate = fByName.map((f: any) => f.id);
         await supabase.from('facturas').update({ identidad: user.Identidad }).in('id', idsToUpdate);
       }
     }
 
-    // 6. Combinar y ordenar: RECIB- primero, CM- después (igual que Caja)
+    // 6. Combinar y ordenar: RECIB- primero, CM- despuÃ©s (igual que Caja)
     const combined = [...(allUserFacturas || []), ...fallbackFacturas] as Recibo[];
     combined.sort((a, b) => {
       const aIsCM = a.referencia?.startsWith('CM-');
@@ -322,7 +322,7 @@ export default function CobroMovilPage() {
   };
 
   const handlePay = async () => {
-    if (!referencia.trim()) { setPayError('Ingrese el número de referencia'); return; }
+    if (!referencia.trim()) { setPayError('Ingrese el nÃºmero de referencia'); return; }
     if (!montoIngresado || isNaN(parseFloat(montoIngresado))) { setPayError('Ingrese el monto cobrado'); return; }
     if (!foundUser) return;
     setPayError(''); setIsProcessing(true);
@@ -353,10 +353,10 @@ export default function CobroMovilPage() {
       } else {
         if (selectedRefs.length > 0) await supabase.from('facturas').update({ estado: 'Por Verificar' }).in('referencia', selectedRefs);
       }
-      logAudit('Cobro desde Cobro Móvil', {
+      logAudit('Cobro desde Cobro MÃ³vil', {
         contribuyente: foundUser?.Contribuyente,
         identidad: foundUser?.Identidad,
-        monto_bs: monto,
+        monto_bs: montoReal,
         metodo: payMethod,
         meses: selectedRefs.length,
         referencias: selectedRefs,
@@ -387,7 +387,7 @@ export default function CobroMovilPage() {
               <Search className="w-8 h-8 text-emerald-400" />
             </div>
             <h1 className="text-white text-xl font-bold">Buscar Contribuyente</h1>
-            <p className="text-slate-400 text-sm mt-1">Cédula, RIF o nombre</p>
+            <p className="text-slate-400 text-sm mt-1">CÃ©dula, RIF o nombre</p>
           </div>
           <div className="flex gap-2">
             <select value={docType} onChange={e => setDocType(e.target.value)}
@@ -396,7 +396,7 @@ export default function CobroMovilPage() {
             </select>
             <input type="text" value={docNumber} onChange={e => setDocNumber(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              placeholder="Número o nombre..." className={inp} autoComplete="off" />
+              placeholder="NÃºmero o nombre..." className={inp} autoComplete="off" />
           </div>
           {searchError && (
             <div className="flex items-center gap-2 text-red-400 bg-red-400/10 rounded-2xl px-4 py-3 text-sm">
@@ -452,7 +452,7 @@ export default function CobroMovilPage() {
                   const monto = getReciboMonto(r);
                   const sel = selectedRefs.includes(r.referencia);
                   const inm = userInms.find(i => i.inmueble && r.referencia.includes(i.inmueble));
-                  const inDesc = inm ? [inm.tipo, inm.actividad_principal].filter(Boolean).join(' · ') || inm.clasificacion || '' : '';
+                  const inDesc = inm ? [inm.tipo, inm.actividad_principal].filter(Boolean).join(' Â· ') || inm.clasificacion || '' : '';
                   return (
                     <button key={r.referencia} onClick={() => toggleRef(r.referencia)}
                       className={'w-full flex items-center gap-4 px-4 py-4 rounded-2xl border active:scale-[0.98] text-left ' +
@@ -464,7 +464,7 @@ export default function CobroMovilPage() {
                       <div className="flex-1 min-w-0">
                         <div className="text-white font-mono text-sm font-semibold truncate">{r.referencia}</div>
                         <div className="text-slate-400 text-xs mt-0.5">{mesLabel(r.emision)}</div>
-                        {inm && <div className="text-emerald-400 text-[11px] mt-0.5 truncate">{inm.inmueble}{inDesc ? ' · ' + inDesc : ''}</div>}
+                        {inm && <div className="text-emerald-400 text-[11px] mt-0.5 truncate">{inm.inmueble}{inDesc ? ' Â· ' + inDesc : ''}</div>}
                       </div>
                       <div className={'text-base font-bold shrink-0 ' + (sel ? 'text-emerald-400' : 'text-white')}>
                         {fmtBs(monto)}
@@ -503,17 +503,17 @@ export default function CobroMovilPage() {
             <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-5">
               <div className="text-emerald-400 text-xs font-bold uppercase tracking-wide truncate">{foundUser.Contribuyente}</div>
               <div className="text-white font-black mt-1" style={{ fontSize: 28 }}>Bs. {fmtBs(totalSel)}</div>
-              <div className="text-slate-400 text-xs mt-1">{selectedRefs.length} recibo(s) · Tasa {tcmmv?.toFixed(2)}</div>
+              <div className="text-slate-400 text-xs mt-1">{selectedRefs.length} recibo(s) Â· Tasa {tcmmv?.toFixed(2)}</div>
             </div>
             <div>
-              <label className="text-slate-400 text-xs font-bold uppercase tracking-wide block mb-2">Método de Pago</label>
+              <label className="text-slate-400 text-xs font-bold uppercase tracking-wide block mb-2">MÃ©todo de Pago</label>
               <div className="grid grid-cols-2 gap-3">
                 {(['Debito', 'Transferencia'] as PayMethod[]).map(m => (
                   <button key={m} onClick={() => setPayMethod(m)}
                     className={'flex flex-col items-center gap-2 py-5 rounded-2xl border text-sm font-bold active:scale-95 ' +
                       (payMethod === m ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-slate-800 border-slate-700 text-slate-300')}>
                     {m === 'Debito' ? <CreditCard className="w-6 h-6" /> : <Landmark className="w-6 h-6" />}
-                    {m === 'Debito' ? 'Débito' : 'Transferencia'}
+                    {m === 'Debito' ? 'DÃ©bito' : 'Transferencia'}
                   </button>
                 ))}
               </div>
@@ -525,7 +525,7 @@ export default function CobroMovilPage() {
               </select>
             </div>
             <div>
-              <label className="text-slate-400 text-xs font-bold uppercase tracking-wide block mb-2">Nº de Referencia</label>
+              <label className="text-slate-400 text-xs font-bold uppercase tracking-wide block mb-2">NÂº de Referencia</label>
               <input type="tel" value={referencia} onChange={e => setReferencia(e.target.value)}
                 placeholder="Ej. 00012345" className={inp} style={{ fontSize: 20 }} />
             </div>
@@ -535,7 +535,7 @@ export default function CobroMovilPage() {
                 placeholder={totalSel.toFixed(2)} className={inp} style={{ fontSize: 24, fontWeight: 700 }} />
             </div>
             <div>
-              <label className="text-slate-400 text-xs font-bold uppercase tracking-wide block mb-2">Fecha de Transacción</label>
+              <label className="text-slate-400 text-xs font-bold uppercase tracking-wide block mb-2">Fecha de TransacciÃ³n</label>
               <input type="date" value={fechaTx} onChange={e => setFechaTx(e.target.value)} className={inp} style={{ fontSize: 16 }} />
             </div>
             <div>
@@ -547,7 +547,7 @@ export default function CobroMovilPage() {
                 </button>
                 <button type="button" onClick={() => fileRef.current?.click()}
                   className="flex flex-col items-center gap-2 bg-slate-800 border border-slate-700 rounded-2xl py-5 text-slate-300 text-sm font-semibold active:bg-slate-700">
-                  <Upload className="w-7 h-7" />Galería
+                  <Upload className="w-7 h-7" />GalerÃ­a
                 </button>
               </div>
               <input ref={camRef} type="file" accept="image/*" capture="environment" onChange={handleFile} className="hidden" />
@@ -568,7 +568,7 @@ export default function CobroMovilPage() {
               </div>
             )}
             {payMethod === 'Transferencia' && (
-              <p className="text-slate-500 text-xs text-center">La transferencia será revisada en Conciliación Bancaria.</p>
+              <p className="text-slate-500 text-xs text-center">La transferencia serÃ¡ revisada en ConciliaciÃ³n Bancaria.</p>
             )}
           </div>
           <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-sm border-t border-slate-700 px-5 py-4">
@@ -577,7 +577,7 @@ export default function CobroMovilPage() {
                 className="w-full bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold py-5 rounded-2xl text-lg active:scale-95 flex items-center justify-center gap-2">
                 {isProcessing
                   ? <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  : <><Send className="w-5 h-5" />{payMethod === 'Debito' ? 'Confirmar Cobro' : 'Enviar a Verificación'}</>}
+                  : <><Send className="w-5 h-5" />{payMethod === 'Debito' ? 'Confirmar Cobro' : 'Enviar a VerificaciÃ³n'}</>}
               </button>
             </div>
           </div>
@@ -592,12 +592,12 @@ export default function CobroMovilPage() {
               <CheckCircle2 className="w-12 h-12 text-emerald-400" />
             </div>
             <h2 className="text-white text-2xl font-black text-center">
-              {successData.estado === 'Aprobado' ? '¡Cobro Exitoso!' : 'Enviado a Verificación'}
+              {successData.estado === 'Aprobado' ? 'Â¡Cobro Exitoso!' : 'Enviado a VerificaciÃ³n'}
             </h2>
             <p className="text-slate-400 text-sm text-center max-w-xs">
               {successData.estado === 'Aprobado'
                 ? 'El pago fue registrado y los recibos actualizados.'
-                : 'La transferencia será revisada por el administrador.'}
+                : 'La transferencia serÃ¡ revisada por el administrador.'}
             </p>
             <div className="w-full bg-slate-800 rounded-2xl p-5 border border-slate-700 flex flex-col gap-4">
               {([
@@ -623,3 +623,4 @@ export default function CobroMovilPage() {
     </div>
   );
 }
+
