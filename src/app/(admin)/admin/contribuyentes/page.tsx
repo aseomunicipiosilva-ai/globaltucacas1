@@ -401,153 +401,235 @@ function ContribuyentesPageContent() {
 
   const imprimirEstadoDeCuenta = async () => {
     if (!viewData) return;
+
+    const idLimpio = (viewData.Identidad || '').replace(/-/g, '').toUpperCase();
+
+    // Get pending receipts
     const deudas = (recibos || [])
-      .filter((f: any) => f.contribuyente === viewData.Contribuyente || f.contribuyente === viewData.Identidad)
-      .filter((f: any) => f.estado === 'Pendiente' || f.estado === 'Abonado');
+      .filter((f: any) => {
+        const fid = (f.identidad || f.contribuyente || '').replace(/-/g, '').toUpperCase();
+        return fid === idLimpio || fid === viewData.Identidad || f.contribuyente === viewData.Contribuyente;
+      })
+      .filter((f: any) => f.estado === 'Pendiente' || f.estado === 'Abonado')
+      .sort((a: any, b: any) => new Date(a.emision).getTime() - new Date(b.emision).getTime());
 
-    // Fetch pagos realizados (abonos + pagos completos)
-    let pagosRealizados: any[] = [];
-    try {
-      const idLimpio = (viewData.Identidad || '').replace(/-/g, '');
-      const { data: pagosData } = await supabase
-        .from('pagos_reportados')
-        .select('*')
-        .or(`identidad.eq.${viewData.Identidad},identidad.eq.${idLimpio}`)
-        .order('created_at', { ascending: false });
-      if (pagosData) pagosRealizados = pagosData;
-    } catch(e) {}
-      
-    const inmueblesContribuyente = (inmuebles || []).filter((i: any) => i.identidad === viewData.Identidad);
-    
-    const doc = new jsPDF();
-    
-    // Add Logos
-          doc.addImage(logos.alcaldia, 'JPEG', 14, 10, 25, 25);
-      doc.addImage(logos.isma, 'JPEG', 42, 10, 25, 25);
-      doc.addImage(logos.global_rec, 'JPEG', 145, 10, 25, 25);
-      doc.addImage(logos.basura_cero, 'JPEG', 173, 10, 25, 25);
-
-    // Title & Taxpayer Info
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    doc.text("ESTADO DE CUENTA", 105, 20, { align: "center" });
-    
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Razón Social: ${viewData.Contribuyente}`, 14, 40);
-    doc.text(`R.I.F / C.I: ${viewData.Identidad}`, 14, 46);
-    doc.text(`Teléfono: ${viewData.Telefono || 'N/A'}`, 14, 52);
-    
-    const splitDireccion = doc.splitTextToSize(`Dirección: ${viewData.Direccion || 'N/A'}`, 180);
-    doc.text(splitDireccion, 14, 58);
-    
-    let currentY = 58 + (splitDireccion.length * 5) + 5;
-
-    // Desglose de Inmuebles
-    if (inmueblesContribuyente.length > 0) {
-      doc.setFont("helvetica", "bold");
-      doc.text("DESGLOSE DE INMUEBLES / ACTIVIDADES", 14, currentY);
-      
-      const inmueblesData = inmueblesContribuyente.map((i: any) => [
-        i.Inmueble,
-        i.cant_inmuebles || '1',
-        i.Clasificacion || 'N/A',
-        i['Actividad Principal'] || 'N/A',
-        i.Direccion || 'N/A'
-      ]);
-
-      try {
-        autoTable(doc, {
-          startY: currentY + 3,
-          head: [['Inmueble', 'Cant.', 'Clasif.', 'Actividad', 'Dirección']],
-          body: inmueblesData,
-          theme: 'grid',
-          headStyles: { fillColor: [51, 65, 85] }, // Slate-700
-          styles: { fontSize: 8 }
-        });
-        currentY = (doc as any).lastAutoTable.finalY + 10;
-      } catch (e) {}
-    }
-
-    doc.setFont("helvetica", "bold");
-    doc.text("RECIBOS PENDIENTES (DEUDA)", 14, currentY);
+    const inmueblesContribuyente = (inmuebles || []).filter((i: any) => {
+      const iid = (i.identidad || '').replace(/-/g, '').toUpperCase();
+      return iid === idLimpio || iid === viewData.Identidad;
+    });
 
     const getMesTexto = (fecha: string) => {
       if (!fecha) return 'N/A';
       const parts = fecha.split('-');
-      if(parts.length >= 2) {
-        const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
-        return `${meses[parseInt(parts[1]) - 1]} ${parts[0]}`;
+      if (parts.length >= 2) {
+        const meses = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+        return `${meses[parseInt(parts[1]) - 1]}-${parts[0]}`;
       }
       return fecha;
     };
 
-    const tableData = deudas.map((d: any) => {
-      let montoNum = parseFloat((d.monto || '0').toString().replace(/[^\d.]/g, ''));
-      return [
-        d.referencia,
-        getMesTexto(d.emision),
-        d.vencimiento || 'N/A',
-        `${montoNum.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs.`
-      ];
-    });
+    const inmsToProcess = inmueblesContribuyente.length > 0
+      ? inmueblesContribuyente
+      : [{ inmueble: 'Principal', tipo: 'Residencial', cant_inmuebles: 1, area: '' }];
 
-    const totalBs = deudas.reduce((acc: number, f: any) => acc + parseFloat((f.monto || '0').toString().replace(/[^\d.]/g, '')), 0);
+    const today = new Date();
+    const tasaVigente = today.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const cajero = typeof window !== 'undefined' ? (localStorage.getItem('adminUser') || 'Administrador') : 'Administrador';
 
-    tableData.push(["", "", "TOTAL DEUDA:", `${totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs.`]);
+    for (const inm of inmsToProcess) {
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const docNro = Math.floor(10000 + Math.random() * 90000);
 
-    try {
-      autoTable(doc, {
-        startY: currentY + 3,
-        head: [['Referencia', 'Período', 'Vencimiento', 'Monto']],
-        body: tableData,
-        theme: 'striped',
-        headStyles: { fillColor: [220, 38, 38] },
-        styles: { fontSize: 9 },
-        columnStyles: { 3: { halign: 'right', fontStyle: 'bold' } }
+      // ── LOGO ISMA (solo ISMA, lado izquierdo) ──
+      try { doc.addImage(logos.isma, 'JPEG', 14, 8, 42, 22); } catch(e) {}
+
+      // ── TÍTULO ──
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ESTADO DE CUENTA', 105, 16, { align: 'center' });
+      doc.setFontSize(9);
+      doc.setTextColor(220, 38, 38);
+      doc.text(`TASA VIGENTE HASTA: ${tasaVigente}`, 105, 23, { align: 'center' });
+      doc.setTextColor(0, 0, 0);
+
+      // ── LÍNEA ──
+      doc.setLineWidth(0.3);
+      doc.line(14, 32, 196, 32);
+
+      // ── GENERADO POR / NRO ──
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'italic');
+      doc.text(`Generado por: ${cajero}`, 14, 38);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Nro.: ${docNro}`, 196, 38, { align: 'right' });
+
+      // ── LÍNEA ──
+      doc.line(14, 41, 196, 41);
+
+      // ── DATOS DEL INMUEBLE ──
+      const uso = inm.clasificacion || inm.tipo || 'Residencial';
+      const area = inm.area ? `${inm.area} Mt2` : '—';
+      const codInm = inm.inmueble || 'Principal';
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Código:', 14, 47);
+      doc.setFont('helvetica', 'bold');
+      doc.text(codInm, 30, 47);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Uso:', 65, 47);
+      doc.setFont('helvetica', 'bold');
+      doc.text(uso, 76, 47);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Área Operativa:', 115, 47);
+      doc.setFont('helvetica', 'bold');
+      doc.text(area, 142, 47);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Identidad:', 162, 47);
+      doc.setFont('helvetica', 'bold');
+      doc.text(viewData.Identidad, 180, 47);
+
+      // ── NOMBRE / RAZÓN SOCIAL ──
+      doc.setFont('helvetica', 'normal');
+      doc.text('Nombre o Razón Social:', 14, 54);
+      doc.setFont('helvetica', 'bold');
+      doc.text(viewData.Contribuyente || '', 62, 54);
+
+      // ── DIRECCIÓN ──
+      doc.setFont('helvetica', 'normal');
+      const dirInm = inm.direccion || viewData.Direccion || '';
+      const splitDir = doc.splitTextToSize(`Dirección Inmueble: ${dirInm}`, 182);
+      doc.text(splitDir, 14, 60);
+
+      let y = 60 + splitDir.length * 5 + 4;
+
+      // ── LÍNEA ──
+      doc.line(14, y, 196, y);
+      y += 6;
+
+      // ── ESTADO DE CUENTA RESUMIDO ──
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text('ESTADO DE CUENTA RESUMIDO', 105, y, { align: 'center' });
+      y += 2;
+      doc.line(14, y, 196, y);
+      y += 6;
+
+      // Recibos de este inmueble
+      const inmRecibos = deudas.filter((f: any) => {
+        if (inm.inmueble) return f.referencia && f.referencia.includes(inm.inmueble);
+        return true;
       });
-      currentY = (doc as any).lastAutoTable.finalY + 12;
-    } catch (e: any) {
-      alert("Error al exportar PDF: " + e.message);
-      console.error(e);
-      return;
-    }
 
-    // ===== PAGOS REALIZADOS / ABONOS =====
-    if (pagosRealizados.length > 0) {
-      doc.setFont("helvetica", "bold");
+      // Monto usando tcmmv para recibos CM-
+      const calcMonto = (f: any): number => {
+        if (f.estado === 'Abonado') return parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
+        if (f.referencia?.startsWith('CM-') && tcmmv && tcmmv > 0) {
+          const cant = parseFloat(inm.cant_inmuebles || 1);
+          const mmv = parseFloat(inm.mmv_mes || 0);
+          if (mmv > 0) return parseFloat((cant * mmv * tcmmv).toFixed(2));
+        }
+        return parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
+      };
+
+      const totalInm = inmRecibos.reduce((s: number, f: any) => s + calcMonto(f), 0);
+      const mesesArr = [...new Set(inmRecibos.map((f: any) => getMesTexto(f.emision)))];
+      const periodosLabel = mesesArr.join(', ') || '—';
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+
+      const resumenRows = [
+        [`Períodos Calculados (${inmRecibos.length}):`, periodosLabel],
+        ['Monto Recolección Aseo Urbano Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
+        ['Total Exento Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
+        ['Base Imponible Bs.', 'Bs. 0,00'],
+        ['IVA (16.00%) Bs.', 'Bs. 0,00'],
+        ['Total estado de cuenta Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
+      ];
+
+      resumenRows.forEach(([label, value]) => {
+        doc.setFont('helvetica', 'normal');
+        doc.text(label, 14, y);
+        doc.setFont('helvetica', 'bold');
+        doc.text(value, 196, y, { align: 'right' });
+        y += 6;
+      });
+
+      // ── LÍNEA ──
+      doc.line(14, y, 196, y);
+      y += 6;
+
+      // ── TOTAL A PAGAR ──
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text('TOTAL A PAGAR', 14, y);
+      doc.text(`Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`, 196, y, { align: 'right' });
+      y += 2;
+      doc.line(14, y, 196, y);
+      y += 8;
+
+      // ── ESTADO DE CUENTA DETALLADO ──
+      doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
-      doc.text("HISTORIAL DE PAGOS REALIZADOS", 14, currentY);
+      doc.text('ESTADO DE CUENTA DETALLADO', 105, y, { align: 'center' });
+      y += 4;
 
-      const pagosTableData = pagosRealizados.map((p: any) => {
-        let det: any = {};
-        try { det = JSON.parse(p.detalles || '{}'); } catch(e) {}
-        const esAbono = det.es_abono === true;
-        const metodo = p.tipo === 'Debito' ? 'Punto de Venta' : p.tipo || '---';
-        const fecha = p.created_at ? new Date(p.created_at).toLocaleDateString('es-VE') : '---';
+      const detalleRows = inmRecibos.map((f: any) => {
+        const monto = calcMonto(f);
+        const det = inm.actividad_principal
+          ? `Aseo ${(inm.tipo || inm.clasificacion || 'residencial').toLowerCase()}`
+          : 'Aseo residencial';
         return [
-          fecha,
-          `${Number(p.monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})} Bs.`,
-          metodo,
-          esAbono ? 'ABONO PARCIAL' : 'PAGO COMPLETO',
-          p.estado || '---'
+          f.emision || '—',
+          det,
+          monto.toLocaleString('es-VE', { minimumFractionDigits: 2 }),
+          '0,00', '0,00', '0,00',
+          monto.toLocaleString('es-VE', { minimumFractionDigits: 2 })
         ];
       });
 
       try {
         autoTable(doc, {
-          startY: currentY + 3,
-          head: [['Fecha', 'Monto Pagado', 'Método', 'Tipo', 'Estado']],
-          body: pagosTableData,
-          theme: 'striped',
-          headStyles: { fillColor: [79, 70, 229] },
-          styles: { fontSize: 9 },
-          columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } }
+          startY: y,
+          head: [['PERIODO', 'DETALLE', 'RECOLECCIÓN', 'INT REC', 'MULTA', 'IVA', 'TOTAL BS']],
+          body: detalleRows,
+          theme: 'grid',
+          headStyles: {
+            fillColor: [255, 255, 255], textColor: [0, 0, 0],
+            fontStyle: 'bold', lineColor: [0, 0, 0], lineWidth: 0.3, halign: 'center'
+          },
+          styles: { fontSize: 8, cellPadding: 2 },
+          columnStyles: {
+            0: { cellWidth: 25 },
+            1: { cellWidth: 48 },
+            2: { halign: 'right' },
+            3: { halign: 'right' },
+            4: { halign: 'right' },
+            5: { halign: 'right' },
+            6: { halign: 'right', fontStyle: 'bold' }
+          }
         });
-      } catch (e) {}
-    }
+        y = (doc as any).lastAutoTable.finalY + 8;
+      } catch(e) {}
 
-    doc.save(`Estado_Cuenta_${viewData.Identidad}_${new Date().getTime()}.pdf`);
+      // ── INFORMACIÓN DE PAGO ──
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text('INFORMACIÓN PARA PAGOS Y TRANSFERENCIAS', 105, y, { align: 'center' });
+      y += 4;
+      doc.line(14, y, 196, y);
+      y += 5;
+      doc.setFont('helvetica', 'normal');
+      doc.text('Banco:  BANESCO (0134)', 14, y);
+      y += 5;
+      doc.text('Cta:    01340415144151031715', 14, y);
+      y += 6;
+      doc.setFont('helvetica', 'italic');
+      doc.text('Pagos a nombre de: INST SOC MUN PARA EL AMBIENTE R.I.F.: G-200076739', 14, y);
+
+      doc.save(`Estado_Cuenta_${viewData.Identidad}_${codInm}_${Date.now()}.pdf`);
+    }
   };
 
   const exportarExcelContribuyentes = () => {
