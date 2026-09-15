@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import React from 'react';
 import { formatBs } from '@/lib/formatCurrency';
 
@@ -102,6 +102,18 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
           color: #64748b;
           white-space: nowrap;
           font-family: Arial, sans-serif;
+        }
+        /* Ocultar el area de impresion duplicada en pantalla */
+        .recibo-print-area {
+          display: none;
+        }
+        @media print {
+          .recibo-print-area {
+            display: block;
+          }
+          .recibo-preview-wrapper {
+            display: none;
+          }
         }
       `}</style>
 
@@ -301,3 +313,4 @@ function ReciboContenido({
     </div>
   );
 }
+
