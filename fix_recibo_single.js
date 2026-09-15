@@ -1,4 +1,6 @@
-'use client';
+const fs = require('fs');
+
+const content = `'use client';
 import React from 'react';
 import { formatBs } from '@/lib/formatCurrency';
 
@@ -51,7 +53,7 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
 
   return (
     <>
-      <style>{`
+      <style>{\`
         @media print {
           @page { size: Letter landscape; margin: 6mm; }
           body * { visibility: hidden; }
@@ -63,9 +65,9 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
             width: 49%;
           }
           .recibo-bloque { break-inside: avoid; }
-          .print\:hidden { display: none !important; }
+          .print\\:hidden { display: none !important; }
         }
-      `}</style>
+      \`}</style>
 
       <div className="recibo-print-area">
         <div
@@ -95,7 +97,7 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
           {/* DATOS CONTRIBUYENTE */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr auto', borderBottom:'1px solid #000' }}>
             <div style={{ padding:'3px 6px', borderRight:'1px solid #000', lineHeight:1.55, fontSize:9 }}>
-              <div><strong>Fecha de Emisión:</strong> {data.fechaEmision}{data.tasaBcv ? ` | Tasa BCV: Bs. ${data.tasaBcv}` : ''}</div>
+              <div><strong>Fecha de Emisión:</strong> {data.fechaEmision}{data.tasaBcv ? \` | Tasa BCV: Bs. \${data.tasaBcv}\` : ''}</div>
               <div><strong>Cod. Contribuyente:</strong> {data.codContribuyente}</div>
               <div><strong>Razón Social/Nombre:</strong> {data.razonSocial}</div>
               <div><strong>Domicilio Fiscal:</strong> <span style={{ fontSize:8 }}>{data.domicilioFiscal}</span></div>
@@ -216,3 +218,7 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
     </>
   );
 }
+`;
+
+fs.writeFileSync('c:/Users/david/Desktop/tucacas/global_green_tucacas/src/components/ReciboImprimible.tsx', content);
+console.log('✅ ReciboImprimible: 1 sola copia, media hoja landscape (2 recibos distintos caben en 1 hoja)');
