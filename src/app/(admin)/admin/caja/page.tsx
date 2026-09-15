@@ -6,6 +6,7 @@ import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
 import { formatBs } from '@/lib/formatCurrency';
 import { ReciboImprimible } from '@/components/ReciboImprimible';
+import { logAudit } from '@/lib/audit';
 
 export default function CajaPage() {
   const { inmuebles, convenios, contribuyentes, documentos, tcmmv } = useAppContext();
@@ -732,6 +733,30 @@ export default function CajaPage() {
           ? `Abono de Bs. ${formatBs(montoReal)} procesado. La deuda restante quedó actualizada.`
           : `Pago procesado exitosamente por ${paymentMethod}. La deuda ha sido conciliada automáticamente.`
         );
+        // ── AUDITORÍA: Cobro completado ──
+        logAudit(
+          esAbonoDebito ? 'Abono Parcial en Caja' : `Cobro por ${paymentMethod} en Caja`,
+          {
+            contribuyente: foundUser.Contribuyente,
+            identidad: foundUser.Identidad,
+            monto_bs: montoReal,
+            metodo: paymentMethod,
+            referencias: selectedRecibos,
+            servicios: selectedServicios,
+            cuotas: selectedCuotas.map((c: any) => c.convId),
+            tasa_bcv: currentBcvRate,
+            referencia_pago: reqRef ? referencia : referenciaDebito,
+            es_abono: esAbonoDebito,
+          },
+          'COBRO'
+        );
+        if (justificacionBcv) {
+          logAudit('Tasa BCV Modificada en Caja', {
+            contribuyente: foundUser.Identidad,
+            tasa_aplicada: customBcvRate,
+            justificacion: justificacionBcv,
+          }, 'TASA');
+        }
 
         // ── RECIBO AUTOMÁTICO DESPUÉS DEL PAGO DÉBITO ──
         if (!esAbonoDebito) {
@@ -878,6 +903,17 @@ export default function CajaPage() {
         }
 
         setSuccessMsg(`${paymentMethod} registrado(a). Ha sido enviado(a) al módulo de Emisión de recibos para su conciliación automática o manual.`);
+        // ── AUDITORÍA: Transferencia registrada ──
+        logAudit(`${paymentMethod} Registrada (Por Verificar)`, {
+          contribuyente: foundUser.Contribuyente,
+          identidad: foundUser.Identidad,
+          monto_bs: montoReal,
+          banco: banco,
+          referencia: referencia,
+          fecha_transaccion: fechaTransaccion,
+          referencias_facturas: selectedRecibos,
+          es_abono: esAbono,
+        }, 'TRANSFERENCIA');
       }
 
       // Agregar al historial de la sesión

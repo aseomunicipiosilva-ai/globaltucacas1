@@ -4,6 +4,7 @@ import { Search, Camera, CreditCard, Landmark, CheckCircle2, XCircle, AlertCircl
 import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
 import jsPDF from 'jspdf';
+import { logAudit } from '@/lib/audit';
 import autoTable from 'jspdf-autotable';
 import { logos } from '@/lib/logosBase64';
 
@@ -352,6 +353,14 @@ export default function CobroMovilPage() {
       } else {
         if (selectedRefs.length > 0) await supabase.from('facturas').update({ estado: 'Por Verificar' }).in('referencia', selectedRefs);
       }
+      logAudit('Cobro desde Cobro Móvil', {
+        contribuyente: foundUser?.Contribuyente,
+        identidad: foundUser?.Identidad,
+        monto_bs: monto,
+        metodo: payMethod,
+        meses: selectedRefs.length,
+        referencias: selectedRefs,
+      }, 'COBRO');
       setSuccessData({ monto: montoReal, referencia, estado, banco }); setStep('success');
     } catch (err: unknown) {
       setPayError('Error: ' + (err instanceof Error ? err.message : 'desconocido'));

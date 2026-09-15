@@ -319,7 +319,7 @@ export default function EstadoCuentaPage() {
         }
       }
 
-      logAudit(`Pago ${accion} (Estado Cuenta)`, { id: pago.id, monto: pago.monto, referencia: pago.referencia });
+      logAudit(`Pago ${accion} (Estado Cuenta)`, { id: pago.id, monto: pago.monto, referencia: pago.referencia, banco: pago.banco, tipo: pago.tipo, identidad: pago.identidad }, 'TRANSFERENCIA');
       alert(`Pago ${accion.toLowerCase()}o exitosamente.`);
       window.location.reload();
     } catch (e: any) {

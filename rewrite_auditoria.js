@@ -1,4 +1,6 @@
-'use client';
+const fs = require('fs');
+
+const content = `'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { ShieldCheck, Download, RefreshCw, Search, Filter, X, User, Calendar } from 'lucide-react';
@@ -259,3 +261,10 @@ export default function AuditoriaPage() {
     </div>
   );
 }
+`;
+
+fs.writeFileSync(
+  'c:/Users/david/Desktop/tucacas/global_green_tucacas/src/app/(admin)/admin/auditoria/page.tsx',
+  content, 'utf8'
+);
+console.log('✅ auditoria/page.tsx reescrito con filtros completos y categorias');
