@@ -537,6 +537,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
         enviar_correo: enviarCorreo,
         cod_inmueble: det.cod_inmueble || pago.cod_inmueble || contribInfo?.codigo,
         analista: typeof window !== 'undefined' ? localStorage.getItem('adminUser') || 'Administrador' : 'Administrador',
+        cajero: typeof window !== 'undefined' ? localStorage.getItem('adminUser') || 'Administrador' : 'Administrador',
         banco_destino: bancoReceptor,
         tasa_bcv: tasaParaGuardar,
         tasa_bcv_conciliacion: tasaParaGuardar,
@@ -1049,6 +1050,7 @@ export default function ConciliacionPage() {
     </div>
   );
 }
+
 
 
 

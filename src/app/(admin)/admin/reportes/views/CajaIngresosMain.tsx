@@ -61,7 +61,9 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
       if (p.estado === 'Anulado' || p.estado === 'Reversado' || p.estado === 'Condonado') return false;
       const d = new Date(p.created_at);
       if (d < s || d > e) return false;
-      const det = parseDet(p); const cajero = det.cajero || '';
+      const det = parseDet(p);
+      // Para debitos: det.cajero. Para transferencias conciliadas: det.analista o det.cajero
+      const cajero = det.cajero || det.analista || '';
       if (!isAdmin && cajero !== currentUser) return false;
       if (isAdmin && selectedCajas.length > 0 && !selectedCajas.includes(cajero)) return false;
       if (subTipo === 'Ingresos por Banco' && bancFilter) {
@@ -79,7 +81,6 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
       return true;
     });
   }, [showReport, pagos, fechaInicio, fechaFin, selectedCajas, tipoFilter, bancFilter, subTipo, isAdmin, currentUser]);
-
   const debitos = pagosFiltrados.filter(p => isDebito(p));
   const transferencias = pagosFiltrados.filter(p => !isDebito(p));
   const totalDebito = debitos.reduce((s, p) => s + (parseFloat(p.monto) || 0), 0);
@@ -463,6 +464,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
     </div>
   );
 }
+
 
 
 
