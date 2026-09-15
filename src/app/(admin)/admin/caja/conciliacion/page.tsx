@@ -570,8 +570,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
           }
         }
       }
-
- agregar monto de diferencia como saldo a favor
+      // Con Diferencia: agregar monto de diferencia como saldo a favor
       if (estatus === 'Con Diferencia' && montoConciliadoNum > 0) {
         // Buscar inmueble del contribuyente para actualizar saldo_favor_bs
         const { data: inmList } = await supabase
@@ -994,5 +993,6 @@ export default function ConciliacionPage() {
     </div>
   );
 }
+
 
 
