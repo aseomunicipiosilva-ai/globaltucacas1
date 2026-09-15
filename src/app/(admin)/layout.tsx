@@ -1,4 +1,5 @@
 import Sidebar from "@/components/Sidebar";
+import TransferenciaAlarm from "@/components/TransferenciaAlarm";
 import Header from "@/components/Header";
 import { AppProvider } from "@/store/AppContext";
 import AdminAuthWrapper from "@/components/AdminAuthWrapper";
@@ -16,6 +17,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </main>
           </div>
         </div>
+        <TransferenciaAlarm />
       </AppProvider>
     </AdminAuthWrapper>
   );
