@@ -502,9 +502,71 @@ export default function EstadoCuentaPage() {
       }
     } catch { /* usar fallback */ }
 
-    const descripcionConcepto = esAbono
-      ? `ABONO PARCIAL - Aseo Residencial/Comercial. Mes: ${mesTexto}`
-      : `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${mesTexto}`;
+    // ── Construir conceptos con TODOS los meses del contribuyente ──
+    // Si el recibo ya fue pagado o es abono, mostrar solo ese mes
+    // Si es Pendiente/Por Verificar, mostrar todos los meses pendientes del contribuyente
+    const MESES_TXT = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+    const getMesTxt = (emision: string) => {
+      if (!emision) return '---';
+      const parts = emision.split('-');
+      if (parts.length >= 2) return `${MESES_TXT[parseInt(parts[1])-1]} ${parts[0]}`;
+      return emision;
+    };
+
+    let conceptos: { descripcion: string; precioUnit: number; total: number }[] = [];
+    let totalConceptos = montoNumerico;
+
+    if (!esAbono && (row.estado === 'Pendiente' || row.estado === 'Por Verificar' || row.estado === 'Abonado')) {
+      // Buscar TODOS los meses pendientes del mismo contribuyente
+      try {
+        const idBusc = (row.identidad || '').trim();
+        const idClean = idBusc.replace(/-/g, '').toUpperCase();
+        const { data: todasFacturas } = await supabase
+          .from('facturas')
+          .select('*')
+          .in('estado', ['Pendiente', 'Por Verificar', 'Abonado'])
+          .or(`identidad.eq.${idBusc},identidad.eq.${idClean}`)
+          .order('emision', { ascending: true });
+
+        if (todasFacturas && todasFacturas.length > 0) {
+          // Calcular monto para cada factura usando tcmmv si está disponible
+          const userInmsForAll = (inmuebles as any[]).filter((inm: any) =>
+            (inm.identidad || '').replace(/-/g,'').toUpperCase() === idClean
+          );
+          conceptos = todasFacturas.map((f: any) => {
+            let mF = parseFloat(String(f.monto || '0').replace(/[^d.]/g, '')) || 0;
+            if (tcmmv && tcmmv > 0 && userInmsForAll.length > 0) {
+              if (f.referencia?.startsWith('CM-')) {
+                let mmv = 0;
+                userInmsForAll.forEach((inm: any) => {
+                  mmv += parseFloat(inm.cant_inmuebles || 1) * parseFloat(inm.mmv_mes || 0);
+                });
+                if (mmv > 0) mF = parseFloat((mmv * tcmmv).toFixed(2));
+              } else if (f.referencia?.startsWith('RECIB-')) {
+                let deuda = 0;
+                userInmsForAll.forEach((inm: any) => { deuda += parseFloat(inm.deuda_mmv || 0); });
+                if (deuda > 0) mF = parseFloat((deuda * tcmmv).toFixed(2));
+              }
+            }
+            return {
+              descripcion: `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${getMesTxt(f.emision)}`,
+              precioUnit: mF,
+              total: mF
+            };
+          });
+          totalConceptos = conceptos.reduce((s, cp) => s + cp.total, 0);
+        }
+      } catch(e) { console.warn('Error cargando todos los meses:', e); }
+    }
+
+    // Fallback si no se cargaron meses: usar solo el mes del recibo clickeado
+    if (conceptos.length === 0) {
+      const descripcionConcepto = esAbono
+        ? `ABONO PARCIAL - Aseo Residencial/Comercial. Mes: ${mesTexto}`
+        : `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${mesTexto}`;
+      conceptos = [{ descripcion: descripcionConcepto, precioUnit: montoNumerico, total: montoNumerico }];
+      totalConceptos = montoNumerico;
+    }
 
     setSelectedRecibo({
       reciboNo: row.referencia ? row.referencia.split('-').pop()?.padStart(7, '0') : '0000001',
@@ -515,15 +577,11 @@ export default function EstadoCuentaPage() {
       domicilioFiscal: direccionFiscal,
       rifCi: rifCiReal,
       caja: cajeroActivo,
-      conceptos: [{
-        descripcion: descripcionConcepto,
-        precioUnit: montoNumerico,
-        total: montoNumerico
-      }],
-      subTotal: montoNumerico,
-      exento: montoNumerico,
+      conceptos,
+      subTotal: totalConceptos,
+      exento: totalConceptos,
       iva: 0,
-      total: montoNumerico,
+      total: totalConceptos,
       formaPago: formaPagoStr,
       banco: bancoReal,
       referencia: referenciaReal,
