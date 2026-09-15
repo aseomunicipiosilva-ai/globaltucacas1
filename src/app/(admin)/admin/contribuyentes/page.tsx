@@ -139,15 +139,15 @@ function ContribuyentesPageContent() {
     setIsProcessingAction(true);
     try {
       const nuevoEstado = actionModal.type === 'Anular' ? 'Anulado' : 'Reversado';
+
       const cajeroUser = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'Administrador';
-      let detActuales: any = {};
-      try { detActuales = JSON.parse(actionModal.recibo.detalles || '{}'); } catch(_e) {}
-      const nuevoDetalles = JSON.stringify({ ...detActuales, nota_anulacion: actionNota.trim(), accion: actionModal.type, usuario_accion: cajeroUser, fecha_accion: new Date().toISOString() });
+      // Solo actualizar estado - facturas no tiene columna detalles ni nota
       const { error } = await supabase
         .from('facturas')
-        .update({ estado: nuevoEstado, detalles: nuevoDetalles })
+        .update({ estado: nuevoEstado })
         .eq('referencia', actionModal.recibo.referencia);
-            if (error) throw error;
+      // Guardar motivo en audit_logs
+      try { await supabase.from('audit_logs').insert({ usuario: cajeroUser, accion: 'FACTURA_' + actionModal.type.toUpperCase(), detalles: 'Recibo ' + actionModal.recibo.referencia + ' - ' + nuevoEstado + '. Motivo: ' + actionNota.trim() }); } catch(_ae) {}
       if (actionModal.type === 'Reversar') {
         const montoPagado = parseFloat((actionModal.recibo.monto || '0').toString().replace(/[^\d.]/g, ''));
         if (montoPagado > 0) {
@@ -2838,6 +2838,7 @@ export default function ContribuyentesPage() {
     </Suspense>
   );
 }
+
 
 
 

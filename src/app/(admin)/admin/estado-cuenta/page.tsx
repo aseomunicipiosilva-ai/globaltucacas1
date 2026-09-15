@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import React, { useState, useEffect } from 'react';
 import { DataTable } from '@/components/DataTable';
 import { FileSpreadsheet, Download, Filter, RefreshCw, Zap, Printer, X, CheckCircle, XCircle } from 'lucide-react';
@@ -734,22 +734,22 @@ export default function EstadoCuentaPage() {
     try {
       const nuevoEstado = actionModal.action === 'Condonar' ? 'Condonado' : actionModal.action === 'Anular' ? 'Anulado' : 'Reversado';
       const cajero = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'Administrador';
-      let detallesActuales: any = {};
-      try { detallesActuales = JSON.parse(actionModal.recibo.detalles || '{}'); } catch(e) {}
-      const nuevoDetalles = JSON.stringify({
-        ...detallesActuales,
-        nota_anulacion: actionModal.nota,
-        accion: actionModal.action,
-        usuario_accion: cajero,
-        fecha_accion: new Date().toISOString(),
-        referencia_original: actionModal.recibo.referencia,
-      });
+
+      // Solo actualizar estado - facturas no tiene columna detalles
       const { error } = await supabase.from('facturas').update({
         estado: nuevoEstado,
-        detalles: nuevoDetalles
       }).eq('id', actionModal.recibo.id);
-      
+
+
+
+
+
+
+
+
+
       if (error) throw error;
+
       
       try { await supabase.from('audit_logs').insert({ usuario: cajero, accion: `FACTURA_${actionModal.action.toUpperCase()}`, detalles: `Recibo ${actionModal.recibo.referencia} ${nuevoEstado.toLowerCase()}. Motivo: ${actionModal.nota}` }); } catch(ae) {}
       
@@ -1313,3 +1313,4 @@ export default function EstadoCuentaPage() {
     </div>
   );
 }
+
