@@ -1193,6 +1193,18 @@ export default function CajaPage() {
                                 return p.length >= 2 ? `${M[parseInt(p[1])-1] || p[1]} ${p[0]}` : r.emision;
                               })()}
                             </p>
+                            {(() => {
+                              const userInms = inmuebles.filter((i: any) => {
+                                if (!foundUser) return false;
+                                const id = (i.identidad || '').replace(/-/g,'').toUpperCase();
+                                const fid = (foundUser.Identidad || '').replace(/-/g,'').toUpperCase();
+                                return id === fid;
+                              });
+                              const matchedInm = userInms.find((i: any) => i.inmueble && r.referencia.includes(i.inmueble));
+                              if (!matchedInm) return null;
+                              const desc = [matchedInm.tipo, matchedInm.actividad_principal].filter(Boolean).join(' · ') || matchedInm.clasificacion || '';
+                              return <p className="text-[10px] text-emerald-700 font-semibold mt-0.5 truncate max-w-[220px]">{matchedInm.inmueble}{desc ? ` · ${desc}` : ''}</p>;
+                            })()}
                           </div>
                         </div>
                         <span className="font-bold text-emerald-700">{getReciboMonto(r)}</span>

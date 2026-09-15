@@ -409,14 +409,27 @@ export default function EstadoCuentaPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {pendientes.sort((a: any, b: any) => new Date(a.emision).getTime() - new Date(b.emision).getTime()).map((f: any, i: number) => (
+                {pendientes.sort((a: any, b: any) => new Date(a.emision).getTime() - new Date(b.emision).getTime()).map((f: any, i: number) => {
+                  const matchedInm = misInmuebles.find((inm: any) => inm.inmueble && f.referencia.includes(inm.inmueble));
+                  const inmuDesc = matchedInm
+                    ? [matchedInm.tipo, matchedInm.actividad_principal].filter(Boolean).join(' · ') || matchedInm.clasificacion || ''
+                    : '';
+                  return (
                   <tr key={i} className="hover:bg-red-50/20 transition-colors">
-                    <td className="px-4 py-3 font-mono text-slate-700">{f.referencia}</td>
-                    <td className="px-4 py-3 font-medium">{mesLabel(f.emision)}</td>
+                    <td className="px-4 py-3 font-mono text-slate-700 text-xs">{f.referencia}</td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-sm">{mesLabel(f.emision)}</div>
+                      {matchedInm && (
+                        <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">
+                          {matchedInm.inmueble}{inmuDesc ? ` · ${inmuDesc}` : ''}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-center text-red-600 text-xs">{f.vencimiento || 'N/A'}</td>
-                    <td className="px-4 py-3 text-right font-bold text-red-700">{getReciboMonto(f)}</td>
+                    <td className="px-4 py-3 text-right font-bold text-red-700">Bs. {parseFloat(getReciboMonto(f)).toLocaleString('es-VE', {minimumFractionDigits:2,maximumFractionDigits:2})}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
