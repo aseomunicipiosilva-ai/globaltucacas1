@@ -38,6 +38,8 @@ export default function ReportesPage() {
   const [currentUser, setCurrentUser] = useState('');
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
+  const [morososData, setMorososData] = useState<{total: number; deudaTotal: number} | null>(null);
+  const [loadingMorosos, setLoadingMorosos] = useState(false);
 
   useEffect(() => {
     const user = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || '';
@@ -169,8 +171,7 @@ export default function ReportesPage() {
     </div>
   );
 
-  const [morososData, setMorososData] = useState<{total: number; deudaTotal: number} | null>(null);
-  const [loadingMorosos, setLoadingMorosos] = useState(false);
+
 
   const cargarMorosos = async () => {
     setLoadingMorosos(true);
