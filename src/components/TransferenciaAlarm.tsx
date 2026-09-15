@@ -56,11 +56,38 @@ export default function TransferenciaAlarm() {
     return () => events.forEach(e => document.removeEventListener(e, handler));
   }, [unlockAudio]);
 
-  // ── Reproducir alarma usando AudioContext pre-desbloqueado ──
-  const playAlarm = useCallback(() => {
+  // ── Voz con SpeechSynthesis ──
+  const speakAlert = useCallback((texto: string) => {
     if (silenced) return;
     try {
-      // Intentar con el contexto guardado primero
+      if (!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(texto);
+      utter.lang = 'es-VE';
+      utter.rate = 0.92;
+      utter.pitch = 1.0;
+      utter.volume = 1.0;
+      // Precargar voces y elegir española
+      const setVoice = () => {
+        const voces = window.speechSynthesis.getVoices();
+        const vozEs = voces.find(v => v.lang.startsWith('es')) || null;
+        if (vozEs) utter.voice = vozEs;
+        window.speechSynthesis.speak(utter);
+      };
+      if (window.speechSynthesis.getVoices().length > 0) {
+        setVoice();
+      } else {
+        window.speechSynthesis.onvoiceschanged = setVoice;
+      }
+    } catch (e) {
+      console.warn('SpeechSynthesis no disponible:', e);
+    }
+  }, [silenced]);
+
+  // ── Reproducir alarma: pitidos + voz ──
+  const playAlarm = useCallback((alerta?: Alerta) => {
+    if (silenced) return;
+    try {
       let ctx = audioCtxRef.current;
       if (!ctx || ctx.state === 'closed') {
         ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -82,17 +109,26 @@ export default function TransferenciaAlarm() {
         osc.stop(ctx!.currentTime + start + dur + 0.05);
       };
 
-      // Alarma: 3 pitidos dobles urgentes
+      // Pitidos urgentes
       playTone(1046, 0.00, 0.12);
       playTone(784,  0.14, 0.12);
       playTone(1046, 0.40, 0.12);
       playTone(784,  0.54, 0.12);
       playTone(1046, 0.80, 0.12);
       playTone(784,  0.94, 0.12);
+
+      // Voz después de los pitidos
+      const montoFmt = alerta
+        ? Number(alerta.monto).toLocaleString('es-VE', { minimumFractionDigits: 2 })
+        : '';
+      const mensaje = alerta
+        ? `Atención. Transferencia pendiente por conciliar. Contribuyente: ${alerta.identidad}. Monto: ${montoFmt} bolívares.`
+        : 'Atención. Transferencia pendiente por conciliar.';
+      setTimeout(() => speakAlert(mensaje), 1300);
     } catch (e) {
       console.warn('Error reproduciendo alarma:', e);
     }
-  }, [silenced]);
+  }, [silenced, speakAlert]);
 
   const triggerAlarm = useCallback((pago: Alerta) => {
     if (seenIds.current.has(pago.id)) return;
@@ -103,9 +139,9 @@ export default function TransferenciaAlarm() {
     setPulsing(true);
     setTimeout(() => setPulsing(false), 3000);
 
-    playAlarm();
+    playAlarm(pago);
     if (alarmInterval.current) clearInterval(alarmInterval.current);
-    alarmInterval.current = setInterval(playAlarm, 8000);
+    alarmInterval.current = setInterval(() => playAlarm(pago), 8000);
   }, [playAlarm]);
 
   const stopAlarm = useCallback(() => {
@@ -207,7 +243,7 @@ export default function TransferenciaAlarm() {
 
         {/* Botón probar sonido */}
         <button
-          onClick={() => { unlockAudio(); setTimeout(playAlarm, 100); }}
+          onClick={() => { unlockAudio(); setTimeout(() => playAlarm(undefined), 100); }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100 shadow transition-all"
           title="Probar sonido de alarma"
         >
