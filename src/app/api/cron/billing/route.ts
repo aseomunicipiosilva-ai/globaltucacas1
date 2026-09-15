@@ -77,6 +77,16 @@ export async function GET(request: Request) {
 
     const refsExistentes = new Set((existentes || []).map((e: any) => e.referencia));
 
+    // ── PROTECCIÓN ANTI-DUPLICADO: también verificar por identidad+mes ──
+    // Evita crear CM-I-XXXXX si ya existe CM-C-XXXXX para el mismo contribuyente y mismo período
+    const { data: yaFacturados } = await supabase
+      .from('facturas')
+      .select('identidad')
+      .eq('emision', emisionDate)
+      .not('estado', 'eq', 'Pagado');
+
+    const identidadesYaFacturadas = new Set((yaFacturados || []).map((e: any) => e.identidad));
+
     // ── PASO 3: Construir batch de recibos nuevas ──
     const facturasNuevas: any[] = [];
     const inmueblesAActualizar: { id: string; nuevaDeudaMmv: number }[] = [];
@@ -88,7 +98,18 @@ export async function GET(request: Request) {
       if (mmv <= 0) continue;
 
       const refFactura = `CM-${inm.inmueble}-${periodoKey}`; // CM-I-000001-09-2026
-      if (refsExistentes.has(refFactura)) continue; // ya existe
+      // Saltar si ya existe por referencia exacta
+      if (refsExistentes.has(refFactura)) continue;
+
+      // ── PROTECCIÓN ANTI-DUPLICADO: verificar si ya existe factura para este inmueble
+      // Esto cubre el caso donde el mismo inmueble tiene factura CM-C- antigua
+      const codigoInmueble = inm.inmueble; // Ej: I-000306
+      const refAlternativa  = `CM-C-${inm.cod_cont}-${periodoKey}`; // formato viejo
+      if (refsExistentes.has(refAlternativa)) {
+        // Ya tiene factura en formato viejo CM-C-, no duplicar
+        refsExistentes.add(refFactura); // marcar para no crear
+        continue;
+      }
 
       const deudaAgregadaBs = parseFloat((cant * mmv * tcmmv).toFixed(2));
       const nuevaDeudaMmv   = (parseFloat(inm.deuda_mmv) || 0) + (cant * mmv);
@@ -103,6 +124,8 @@ export async function GET(request: Request) {
         vencimiento:   vencimientoDate
       });
 
+      // Agregar al Set para evitar duplicados dentro de la misma ejecución
+      refsExistentes.add(refFactura);
       inmueblesAActualizar.push({ id: inm.id, nuevaDeudaMmv });
     }
 
