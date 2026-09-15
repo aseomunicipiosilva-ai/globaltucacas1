@@ -1,12 +1,12 @@
-'use client';
+﻿'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { ShieldCheck, Download, RefreshCw, Search, Filter, X, User, Calendar } from 'lucide-react';
 import * as xlsx from 'xlsx';
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 const CATEGORIAS = ['TODAS', 'SESION', 'COBRO', 'TRANSFERENCIA', 'TASA', 'CONTRIBUYENTE', 'FACTURA', 'REPORTE', 'CONFIGURACION', 'CONVENIO', 'SISTEMA'];
@@ -25,15 +25,15 @@ const CAT_COLORS = {
 };
 
 export default function AuditoriaPage() {
-  const [logs, setLogs] = useState([]);
+  const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('TODAS');
   const [filterUser, setFilterUser] = useState('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
-  const [selectedLog, setSelectedLog] = useState(null);
-  const [usuarios, setUsuarios] = useState([]);
+  const [selectedLog, setSelectedLog] = useState<any>(null);
+  const [usuarios, setUsuarios] = useState<string[]>([]);
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -201,13 +201,13 @@ export default function AuditoriaPage() {
                         <div className="font-medium text-slate-700 text-xs">{fecha.toLocaleDateString('es-VE')}</div>
                         <div className="text-[11px] text-slate-400">{fecha.toLocaleTimeString('es-VE')}</div>
                       </td>
-                      <td className="px-4 py-3 font-bold text-slate-800">{l.usuario || '—'}</td>
+                      <td className="px-4 py-3 font-bold text-slate-800">{l.usuario || 'â€”'}</td>
                       <td className="px-4 py-3">
                         <span className={"px-2 py-0.5 rounded text-[10px] font-black " + (CAT_COLORS[cat] || 'bg-gray-100 text-gray-700')}>{cat}</span>
                       </td>
                       <td className="px-4 py-3 font-medium text-slate-700 max-w-[200px]">{l.accion}</td>
                       <td className="px-4 py-3 text-slate-400 text-xs font-mono truncate max-w-[120px]" title={l.modulo}>
-                        {l.modulo ? l.modulo.replace('/admin/','').replace('/','') : '—'}
+                        {l.modulo ? l.modulo.replace('/admin/','').replace('/','') : 'â€”'}
                       </td>
                       <td className="px-4 py-3 max-w-[260px]">
                         <div className="flex flex-wrap gap-1">
@@ -242,7 +242,7 @@ export default function AuditoriaPage() {
                 <div><span className="text-slate-400 text-xs block">Categoria</span>
                   <span className={"px-2 py-0.5 rounded text-[11px] font-black " + (CAT_COLORS[selectedLog.categoria || 'SISTEMA'] || 'bg-gray-100')}>{selectedLog.categoria || 'SISTEMA'}</span>
                 </div>
-                <div><span className="text-slate-400 text-xs block">Modulo</span><span className="font-mono text-xs">{selectedLog.modulo || '—'}</span></div>
+                <div><span className="text-slate-400 text-xs block">Modulo</span><span className="font-mono text-xs">{selectedLog.modulo || 'â€”'}</span></div>
               </div>
               <div><span className="text-slate-400 text-xs block mb-1">Accion</span>
                 <div className="bg-slate-50 rounded-lg px-4 py-2.5 font-semibold text-slate-800">{selectedLog.accion}</div>
@@ -259,3 +259,4 @@ export default function AuditoriaPage() {
     </div>
   );
 }
+
