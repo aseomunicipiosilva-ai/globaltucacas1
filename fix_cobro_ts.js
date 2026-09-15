@@ -1,4 +1,6 @@
-'use client';
+const fs = require('fs');
+
+const content = `'use client';
 import { useState, useEffect, useRef } from 'react';
 import { Search, Camera, CreditCard, Landmark, CheckCircle2, XCircle, AlertCircle, ChevronLeft, Send, Upload, ArrowRight } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
@@ -20,7 +22,7 @@ const MESES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV'
 const mesLabel = (d: string) => {
   if (!d) return '';
   const p = d.split('-');
-  return p.length >= 2 ? `${MESES[parseInt(p[1]) - 1]} ${p[0]}` : d;
+  return p.length >= 2 ? \`\${MESES[parseInt(p[1]) - 1]} \${p[0]}\` : d;
 };
 const fmtBs = (n: number) => n.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -50,8 +52,8 @@ export default function CobroMovilPage() {
   const camRef = useRef<HTMLInputElement>(null);
 
   const getReciboMonto = (r: Recibo): number => {
-    if (r.estado === 'Abonado') return parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
-    if (!tcmmv || tcmmv <= 0) return parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
+    if (r.estado === 'Abonado') return parseFloat(String(r.monto || '0').replace(/[^\\d.]/g, '')) || 0;
+    if (!tcmmv || tcmmv <= 0) return parseFloat(String(r.monto || '0').replace(/[^\\d.]/g, '')) || 0;
     if (r.referencia?.startsWith('CM-')) {
       const matched = userInms.find(i => i.inmueble && r.referencia.includes(i.inmueble));
       if (matched) {
@@ -65,7 +67,7 @@ export default function CobroMovilPage() {
         return s + (mmv > 0 ? cant * mmv * tcmmv : 0);
       }, 0);
     }
-    return parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
+    return parseFloat(String(r.monto || '0').replace(/[^\\d.]/g, '')) || 0;
   };
 
   useEffect(() => {
@@ -88,18 +90,18 @@ export default function CobroMovilPage() {
     }) || null;
     if (!user) {
       const { data } = await supabase.from('inmuebles').select('*')
-        .or(`identidad.eq.${fullDoc},identidad.eq.${idLimpio}`).limit(1).maybeSingle();
+        .or(\`identidad.eq.\${fullDoc},identidad.eq.\${idLimpio}\`).limit(1).maybeSingle();
       if (data) user = { Identidad: data.identidad, Contribuyente: data.contribuyente, Telefono: data.telefono };
     }
     if (!user) { setSearchError('Contribuyente no encontrado'); setIsSearching(false); return; }
     const { data: inmsDB } = await supabase.from('inmuebles').select('*')
-      .or(`identidad.eq.${user.Identidad},identidad.eq.${fullDoc}`);
+      .or(\`identidad.eq.\${user.Identidad},identidad.eq.\${fullDoc}\`);
     const saldoFavor = (inmsDB || []).reduce((s: number, i: any) => s + (parseFloat(i.saldo_favor_bs || '0') || 0), 0);
     setFoundUser({ ...user, SaldoFavor: saldoFavor });
     setUserInms((inmsDB || []) as Inmueble[]);
     const { data: facts } = await supabase.from('facturas').select('*')
       .in('estado', ['Pendiente', 'Abonado', 'Por Verificar'])
-      .or(`identidad.eq.${user.Identidad},identidad.eq.${fullDoc},identidad.eq.${idLimpio}`)
+      .or(\`identidad.eq.\${user.Identidad},identidad.eq.\${fullDoc},identidad.eq.\${idLimpio}\`)
       .order('emision', { ascending: true });
     setRecibos((facts || []) as Recibo[]);
     setStep('account'); setIsSearching(false);
@@ -124,7 +126,7 @@ export default function CobroMovilPage() {
       let comprobanteUrl = '';
       if (comprobante) {
         const ext = comprobante.name.split('.').pop() || 'jpg';
-        const fp = `comprobantes/movil_${(foundUser.Identidad || 'x').replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.${ext}`;
+        const fp = \`comprobantes/movil_\${(foundUser.Identidad || 'x').replace(/[^a-zA-Z0-9]/g, '_')}_\${Date.now()}.\${ext}\`;
         const { data: up, error: upE } = await supabase.storage.from('comprobantes').upload(fp, comprobante, { upsert: true });
         if (!upE && up) comprobanteUrl = supabase.storage.from('comprobantes').getPublicUrl(fp).data?.publicUrl || '';
       }
@@ -401,3 +403,7 @@ export default function CobroMovilPage() {
     </div>
   );
 }
+`;
+
+fs.writeFileSync('c:/Users/david/Desktop/tucacas/global_green_tucacas/src/app/cobro-movil/page.tsx', content);
+console.log('✅ cobro-movil/page.tsx rewritten with full TypeScript types');
