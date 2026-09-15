@@ -34,7 +34,7 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
     const resetTimer = () => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
-        logAudit('Logout (Inactividad 5m)');
+        logAudit('Logout (Inactividad 5m)', {}, 'SESION');
         localStorage.removeItem('admin_auth_andministrador');
         localStorage.removeItem('admin_user_data');
         localStorage.removeItem('adminUser');
@@ -66,7 +66,7 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
       localStorage.setItem('adminUser', 'dzara');
       setIsAuthenticated(true);
       setIsAuthenticating(false);
-      logAudit('Login Exitoso (Master)', { usuario: 'dzara' });
+      logAudit('Login Exitoso (Master)', { usuario: 'dzara' }, 'SESION');
       return;
     }
 
@@ -89,10 +89,10 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
         localStorage.setItem('admin_user_data', JSON.stringify(data));
         localStorage.setItem('adminUser', data.usuario);
         setIsAuthenticated(true);
-        logAudit('Login Exitoso', { usuario: data.usuario, rol: data.rol });
+        logAudit('Login Exitoso', { usuario: data.usuario, rol: data.rol }, 'SESION');
       } else {
         setError('Contraseña incorrecta');
-        logAudit('Intento de Login Fallido', { usuario: username, error: 'Contraseña incorrecta' });
+        logAudit('Intento de Login Fallido', { usuario: username, error: 'Contrasena incorrecta' }, 'SESION');
       }
     } catch (err) {
       console.error(err);
@@ -181,3 +181,4 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
 
   return <>{children}</>;
 }
+
