@@ -10,6 +10,7 @@ import { generarCorteCajaPDF, generarIngresoBancarioPDF } from './generators/Pdf
 import { generarEmpleadosExcel } from './generators/Empleados';
 import { generarFiscalizacionExcel } from './generators/Fiscalizacion';
 import { generarCuadreCajaPDF } from './generators/CuadreCaja';
+import { generarMorososExcel, generarMorososPDF } from './generators/Morosos';
 import CajaIngresosMain from './views/CajaIngresosMain';
 import CuadreCaja from './views/CuadreCaja';
 
@@ -17,7 +18,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-type ActiveView = null | 'ingresos' | 'corte' | 'libro-ventas' | 'fiscalizacion' | 'empleados' | 'saldos' | 'ingreso-bancario';
+type ActiveView = null | 'ingresos' | 'corte' | 'libro-ventas' | 'fiscalizacion' | 'empleados' | 'saldos' | 'ingreso-bancario' | 'morosos';
 
 const CARDS = [
   { id: 'ingresos' as ActiveView,       label: 'Caja - Ingresos',         emoji: '🖨️',  desc: 'General de Ingresos, Corte, Libro de Ventas', adminOnly: false },
@@ -25,6 +26,7 @@ const CARDS = [
   { id: 'fiscalizacion' as ActiveView,  label: 'Fiscalizacion',           emoji: '🛡️',  desc: 'Reporte de contribuyentes fiscalizados',       adminOnly: true  },
   { id: 'saldos' as ActiveView,         label: 'Saldo a Favor',           emoji: '💳',  desc: 'Contribuyentes con saldo a favor vigente',     adminOnly: true  },
   { id: 'empleados' as ActiveView,      label: 'Gestion Empleados',       emoji: '👥',  desc: 'Reporte mensual del personal',                 adminOnly: true  },
+  { id: 'morosos' as ActiveView,        label: 'Reporte Morosos',         emoji: '🔴',  desc: 'Contribuyentes con deuda pendiente',           adminOnly: true  },
 ];
 
 export default function ReportesPage() {
@@ -163,6 +165,81 @@ export default function ReportesPage() {
       </div>
       <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm max-w-md">
         <button onClick={generarEmpleados} className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-orange-50 border border-slate-100 rounded-lg text-sm font-semibold text-slate-700 transition-colors">Reporte Mensual (Excel) <Download className="w-4 h-4 text-orange-500" /></button>
+      </div>
+    </div>
+  );
+
+  const [morososData, setMorososData] = useState<{total: number; deudaTotal: number} | null>(null);
+  const [loadingMorosos, setLoadingMorosos] = useState(false);
+
+  const cargarMorosos = async () => {
+    setLoadingMorosos(true);
+    try {
+      let all: any[] = []; let from = 0;
+      while (true) {
+        const { data: chunk } = await supabase.from('facturas').select('*')
+          .in('estado', ['Pendiente', 'Abonado']).range(from, from + 999);
+        if (!chunk || chunk.length === 0) break;
+        all = [...all, ...chunk];
+        from += 1000;
+        if (chunk.length < 1000) break;
+      }
+      const ids = new Set(all.map((f: any) => (f.identidad || '').replace(/-/g,'').toUpperCase()).filter(Boolean));
+      const totalDeuda = all.reduce((s: number, f: any) => s + (parseFloat(String(f.monto || '0').replace(/[^\d.]/g,'')) || 0), 0);
+      setMorososData({ total: ids.size, deudaTotal: totalDeuda });
+      return all;
+    } catch(e) { console.error(e); return []; }
+    finally { setLoadingMorosos(false); }
+  };
+
+  const exportarMorososExcel = async () => {
+    const facturas = await cargarMorosos();
+    if (facturas.length > 0) await generarMorososExcel(facturas, contribuyentes, tcmmv || 0);
+  };
+
+  const exportarMorososPDF = async () => {
+    const facturas = await cargarMorosos();
+    if (facturas.length > 0) await generarMorososPDF(facturas, contribuyentes, tcmmv || 0);
+  };
+
+  if (activeView === 'morosos') return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <button onClick={() => setActiveView(null)} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium">← Regresar</button>
+        <span className="text-slate-300">|</span>
+        <h1 className="text-lg font-bold text-slate-800">🔴 Reporte de Morosos</h1>
+      </div>
+      <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm max-w-lg space-y-4">
+        <p className="text-sm text-slate-600">Genera el listado de todos los contribuyentes con facturas <strong>Pendiente</strong> o <strong>Abonado</strong>, ordenados por mayor deuda y meses adeudados.</p>
+        {morososData && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 grid grid-cols-2 gap-4">
+            <div className="text-center">
+              <div className="text-3xl font-black text-red-700">{morososData.total}</div>
+              <div className="text-xs text-red-600 mt-1 font-medium">Contribuyentes Morosos</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-black text-red-700">Bs. {morososData.deudaTotal.toLocaleString('es-VE', { minimumFractionDigits: 2 })}</div>
+              <div className="text-xs text-red-600 mt-1 font-medium">Deuda Total Pendiente</div>
+            </div>
+          </div>
+        )}
+        <div className="space-y-3">
+          <button
+            onClick={exportarMorososExcel}
+            disabled={loadingMorosos}
+            className="w-full flex items-center justify-between px-4 py-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg text-sm font-semibold text-emerald-800 transition-colors disabled:opacity-50"
+          >
+            {loadingMorosos ? 'Generando...' : 'Exportar a Excel (.xlsx)'} <Download className="w-4 h-4 text-emerald-600" />
+          </button>
+          <button
+            onClick={exportarMorososPDF}
+            disabled={loadingMorosos}
+            className="w-full flex items-center justify-between px-4 py-3 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg text-sm font-semibold text-red-800 transition-colors disabled:opacity-50"
+          >
+            {loadingMorosos ? 'Generando...' : 'Exportar a PDF (landscape)'} <Download className="w-4 h-4 text-red-500" />
+          </button>
+        </div>
+        <p className="text-[11px] text-slate-400">* Los contribuyentes con 3+ meses aparecen destacados en rojo en el PDF.</p>
       </div>
     </div>
   );
