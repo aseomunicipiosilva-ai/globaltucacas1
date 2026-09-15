@@ -329,6 +329,34 @@ export default function EstadoCuentaPage() {
 
   const handleOpenRecibo = async (row: any, abonoOverride?: any) => {
     let montoNumerico = parseFloat(String(row.monto || '0').replace(/[^\d.]/g, '')) || 0;
+
+    // Calcular monto dinámico igual que Caja (CM- y RECIB-) usando tcmmv actual
+    if (tcmmv && tcmmv > 0 && row.referencia) {
+      // Obtener identidad de la factura
+      const rowId = (row.identidad || '').replace(/-/g, '').toUpperCase();
+      const userInmsForCalc = (inmuebles as any[]).filter((i: any) =>
+        (i.identidad || '').replace(/-/g, '').toUpperCase() === rowId
+      );
+      if (userInmsForCalc.length > 0) {
+        if (row.referencia.startsWith('CM-')) {
+          // CM- = 1 mes: cant_inmuebles × mmv_mes × tcmmv
+          let monthlyMMV = 0;
+          userInmsForCalc.forEach((inm: any) => {
+            const cant = parseFloat(inm.cant_inmuebles || 1);
+            const mmv  = parseFloat(inm.mmv_mes || 0);
+            if (mmv > 0) monthlyMMV += cant * mmv;
+          });
+          if (monthlyMMV > 0) montoNumerico = parseFloat((monthlyMMV * tcmmv).toFixed(2));
+        } else if (row.referencia.startsWith('RECIB-')) {
+          // RECIB- = deuda acumulada: deuda_mmv × tcmmv
+          let totalDeudaMMV = 0;
+          userInmsForCalc.forEach((inm: any) => {
+            totalDeudaMMV += parseFloat(inm.deuda_mmv || 0);
+          });
+          if (totalDeudaMMV > 0) montoNumerico = parseFloat((totalDeudaMMV * tcmmv).toFixed(2));
+        }
+      }
+    }
     let montoCancelado: number | undefined = undefined;
     let montoPendiente: number | undefined = undefined;
     let esAbono = false;
