@@ -44,11 +44,11 @@ function normalizarFormaPago(fp: string): 'PUNTO_VENTA' | 'TRANSFERENCIA' | 'EFE
   return 'OTRO';
 }
 
-// Hoja Letter Landscape: 279mm x 216mm
-// Márgenes 5mm → área útil: 269mm x 206mm
-// Media hoja (izquierda): 134mm x 206mm
-const HALF_WIDTH = '134mm';
-const HALF_HEIGHT = '206mm';
+// Hoja Letter Portrait: 216mm x 279mm
+// Márgenes 5mm → área útil: 206mm x 269mm
+// Media hoja (superior): 206mm x 134mm
+const HALF_WIDTH = '206mm';
+const HALF_HEIGHT = '134mm';
 
 export function ReciboImprimible({ data }: { data: ReciboProps }) {
   const fpNorm = normalizarFormaPago(data.formaPago);
@@ -59,7 +59,7 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
       <style>{`
         @media print {
           @page {
-            size: Letter landscape;
+            size: Letter portrait;
             margin: 5mm;
           }
           body * { visibility: hidden; }
@@ -74,14 +74,14 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
           }
         }
 
-        /* Vista previa en pantalla: media hoja horizontal */
+        /* Vista previa en pantalla: media hoja vertical (portrait) */
         .recibo-preview-wrapper {
           width: 100%;
           overflow-x: auto;
         }
         .recibo-sheet-preview {
-          /* Simulamos la media hoja landscape: proporción 134/206 ≈ 0.65 */
-          width: 720px;
+          /* Simulamos la media hoja portrait: 206mm x 134mm aprox */
+          width: 560px;
           border: 2px dashed #94a3b8;
           background: #f8fafc;
           padding: 4px;
@@ -89,15 +89,15 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
         }
         .recibo-cut-line {
           position: absolute;
-          top: 0; right: 0; bottom: 0;
-          width: 2px;
-          background: repeating-linear-gradient(to bottom, #64748b 0, #64748b 6px, transparent 6px, transparent 12px);
+          left: 0; right: 0; bottom: 0;
+          height: 2px;
+          background: repeating-linear-gradient(to right, #64748b 0, #64748b 6px, transparent 6px, transparent 12px);
         }
         .recibo-cut-label {
           position: absolute;
-          top: 50%;
-          right: -36px;
-          transform: translateY(-50%) rotate(90deg);
+          bottom: -18px;
+          left: 50%;
+          transform: translateX(-50%);
           font-size: 10px;
           color: #64748b;
           white-space: nowrap;
@@ -109,7 +109,7 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
       <div className="recibo-preview-wrapper">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
           <span style={{ fontSize: 11, color: '#64748b', fontFamily: 'Arial,sans-serif' }}>
-            📄 Vista previa — Media hoja Letter landscape (134mm × 206mm) · La otra mitad queda libre para otro recibo
+            📄 Vista previa — Media hoja Letter portrait (206mm × 134mm) · La mitad inferior queda libre
           </span>
         </div>
         <div className="recibo-sheet-preview">
