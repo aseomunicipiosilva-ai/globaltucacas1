@@ -404,14 +404,45 @@ function ContribuyentesPageContent() {
 
     const idLimpio = (viewData.Identidad || '').replace(/-/g, '').toUpperCase();
 
-    // Get pending receipts
-    const deudas = (recibos || [])
-      .filter((f: any) => {
-        const fid = (f.identidad || f.contribuyente || '').replace(/-/g, '').toUpperCase();
-        return fid === idLimpio || fid === viewData.Identidad || f.contribuyente === viewData.Contribuyente;
-      })
-      .filter((f: any) => f.estado === 'Pendiente' || f.estado === 'Abonado')
-      .sort((a: any, b: any) => new Date(a.emision).getTime() - new Date(b.emision).getTime());
+    // Consultar DIRECTAMENTE en Supabase para garantizar todos los meses
+    // (el array local `recibos` puede estar incompleto si no se recargó)
+    let deudas: any[] = [];
+    try {
+      const identidadOriginal = (viewData.Identidad || '').trim();
+      const identidadSinGuiones = idLimpio;
+      // OR multi-variante: con guiones, sin guiones y por nombre contribuyente
+      let orFiltros = [`identidad.eq.${identidadOriginal}`];
+      if (identidadSinGuiones !== identidadOriginal) orFiltros.push(`identidad.eq.${identidadSinGuiones}`);
+
+      const { data: facturasDB } = await supabase
+        .from('facturas')
+        .select('*')
+        .or(orFiltros.join(','))
+        .in('estado', ['Pendiente', 'Abonado'])
+        .order('emision', { ascending: true });
+
+      if (facturasDB && facturasDB.length > 0) {
+        deudas = facturasDB;
+      } else {
+        // fallback por nombre de contribuyente si no hay match por identidad
+        const { data: fallback } = await supabase
+          .from('facturas')
+          .select('*')
+          .eq('contribuyente', viewData.Contribuyente || '')
+          .in('estado', ['Pendiente', 'Abonado'])
+          .order('emision', { ascending: true });
+        if (fallback) deudas = fallback;
+      }
+    } catch (e) {
+      // Si falla la query, usar el store local como respaldo
+      deudas = (recibos || [])
+        .filter((f: any) => {
+          const fid = (f.identidad || f.contribuyente || '').replace(/-/g, '').toUpperCase();
+          return fid === idLimpio || fid === viewData.Identidad || f.contribuyente === viewData.Contribuyente;
+        })
+        .filter((f: any) => f.estado === 'Pendiente' || f.estado === 'Abonado')
+        .sort((a: any, b: any) => new Date(a.emision).getTime() - new Date(b.emision).getTime());
+    }
 
     const inmueblesContribuyente = (inmuebles || []).filter((i: any) => {
       const iid = (i.identidad || '').replace(/-/g, '').toUpperCase();
