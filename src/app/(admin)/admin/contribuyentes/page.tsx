@@ -2474,59 +2474,85 @@ function ContribuyentesPageContent() {
                         <thead className="bg-slate-100 text-slate-500 font-medium text-[10px] uppercase">
                           <tr>
                             <th className="px-4 py-2">Referencia</th>
+                            <th className="px-4 py-2">Período</th>
+                            <th className="px-4 py-2">Fecha Pago</th>
+                            <th className="px-4 py-2">Cajero / Operador</th>
                             <th className="px-4 py-2">Estado</th>
                             <th className="px-4 py-2">Monto (Bs)</th>
                             <th className="px-4 py-2 text-center">Acciones</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {procesadas.map((d: any, idx: number) => (
-                            <tr key={idx} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                              <td className="px-4 py-2 font-medium text-slate-700">{d.referencia}</td>
-                              <td className="px-4 py-2">
-                                <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                                  d.estado === 'Pagado' ? 'bg-emerald-100 text-emerald-800' :
-                                  d.estado === 'Por Verificar' ? 'bg-orange-100 text-orange-800' :
-                                  'bg-red-100 text-red-800'
-                                }`}>
-                                  {d.estado}
-                                </span>
-                              </td>
-                              <td className="px-4 py-2 font-bold text-slate-800">
-                                {(() => {
-                                  let finalMonto = Number(parseFloat(String(d.monto || '0').replace(/[^\d.]/g, '')));
-                                  if (d.estado === 'Pagado') {
-                                    const pRel = viewPagos.filter((p: any) => {
-                                      const pDet = typeof p.detalles === 'string' ? (() => { try { return JSON.parse(p.detalles); } catch(e){return {}}})() : p.detalles;
-                                      return JSON.stringify(pDet || {}).includes(d.referencia);
-                                    });
-                                    if (pRel.length > 1) {
-                                      finalMonto = pRel.reduce((s: number, p: any) => s + (parseFloat(String(p.monto || '0').replace(/[^\d.]/g, '')) || 0), 0);
-                                    }
-                                  }
-                                  return finalMonto.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2});
-                                })()}
-                              </td>
-                              <td className="px-4 py-2 flex justify-center gap-2">
-                                {(d.estado === 'Pagado' || d.estado === 'Por Verificar') && (
-                                  <>
-                                    <button 
-                                      onClick={() => setActionModal({ type: 'Reversar', recibo: d })}
-                                      className="text-orange-600 bg-orange-50 hover:bg-orange-100 px-2 py-1 rounded text-xs font-medium transition-colors"
-                                    >
-                                      Reversar
-                                    </button>
-                                    <button 
-                                      onClick={() => setActionModal({ type: 'Anular', recibo: d })}
-                                      className="text-red-600 bg-red-50 hover:bg-red-100 px-2 py-1 rounded text-xs font-medium transition-colors"
-                                    >
-                                      Anular
-                                    </button>
-                                  </>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
+                          {procesadas.map((d: any, idx: number) => {
+                            // Buscar pago relacionado para obtener cajero y fecha
+                            const pagoRel = viewPagos.find((p: any) => {
+                              const pDet = typeof p.detalles === 'string' ? (() => { try { return JSON.parse(p.detalles); } catch(e){return {};} })() : (p.detalles || {});
+                              return JSON.stringify(pDet).includes(d.referencia);
+                            });
+                            let cajeroNombre = '—';
+                            let fechaPago = '—';
+                            if (pagoRel) {
+                              try {
+                                const pDet = typeof pagoRel.detalles === 'string' ? JSON.parse(pagoRel.detalles) : (pagoRel.detalles || {});
+                                cajeroNombre = pDet.cajero || pDet.usuario || pDet.operador || pagoRel.cajero || '—';
+                              } catch(e){}
+                              fechaPago = pagoRel.created_at ? new Date(pagoRel.created_at).toLocaleDateString('es-VE') : '—';
+                            }
+                            // Período desde la emisión de la factura
+                            const MESES_NOM = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+                            const getMesFull = (fecha: string) => {
+                              if (!fecha) return '—';
+                              const p = fecha.split('-');
+                              return p.length >= 2 ? `${MESES_NOM[parseInt(p[1])-1]} ${p[0]}` : fecha;
+                            };
+                            const periodoLabel = getMesFull(d.emision);
+                            let finalMonto = Number(parseFloat(String(d.monto || '0').replace(/[^\d.]/g, '')));
+                            if (d.estado === 'Pagado') {
+                              const pRel = viewPagos.filter((p: any) => {
+                                const pDet = typeof p.detalles === 'string' ? (() => { try { return JSON.parse(p.detalles); } catch(e){return {};} })() : p.detalles;
+                                return JSON.stringify(pDet || {}).includes(d.referencia);
+                              });
+                              if (pRel.length > 1) finalMonto = pRel.reduce((s: number, p: any) => s + (parseFloat(String(p.monto || '0').replace(/[^\d.]/g, '')) || 0), 0);
+                            }
+                            return (
+                              <tr key={idx} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                                <td className="px-4 py-2 font-medium text-slate-700 text-xs">{d.referencia}</td>
+                                <td className="px-4 py-2 font-semibold text-slate-800">{periodoLabel}</td>
+                                <td className="px-4 py-2 text-slate-500 text-xs">{fechaPago}</td>
+                                <td className="px-4 py-2">
+                                  <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] font-semibold">{cajeroNombre}</span>
+                                </td>
+                                <td className="px-4 py-2">
+                                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                    d.estado === 'Pagado' ? 'bg-emerald-100 text-emerald-800' :
+                                    d.estado === 'Por Verificar' ? 'bg-orange-100 text-orange-800' :
+                                    'bg-red-100 text-red-800'
+                                  }`}>{d.estado}</span>
+                                </td>
+                                <td className="px-4 py-2 font-bold text-slate-800">
+                                  {finalMonto.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}
+                                </td>
+                                <td className="px-4 py-2 flex justify-center gap-2">
+                                  {(d.estado === 'Pagado' || d.estado === 'Por Verificar') && (
+                                    <>
+                                      <button 
+                                        onClick={() => setActionModal({ type: 'Reversar', recibo: d })}
+                                        className="text-orange-600 bg-orange-50 hover:bg-orange-100 px-2 py-1 rounded text-xs font-medium transition-colors"
+                                      >
+                                        Reversar
+                                      </button>
+                                      <button 
+                                        onClick={() => setActionModal({ type: 'Anular', recibo: d })}
+                                        className="text-red-600 bg-red-50 hover:bg-red-100 px-2 py-1 rounded text-xs font-medium transition-colors"
+                                      >
+                                        Anular
+                                      </button>
+                                    </>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     );
@@ -2552,6 +2578,7 @@ function ContribuyentesPageContent() {
                           <th className="px-3 py-2">Monto (Bs)</th>
                           <th className="px-3 py-2">Método</th>
                           <th className="px-3 py-2">Tipo</th>
+                          <th className="px-3 py-2">Cajero / Operador</th>
                           <th className="px-3 py-2">Estado</th>
                         </tr>
                       </thead>
@@ -2561,6 +2588,7 @@ function ContribuyentesPageContent() {
                           try { det = JSON.parse(p.detalles || '{}'); } catch(e){}
                           const esAbono = det.es_abono === true;
                           const metodo = p.tipo === 'Debito' ? 'Punto de Venta' : p.tipo || '---';
+                          const cajeroNombre = det.cajero || det.usuario || det.operador || p.cajero || '—';
                           return (
                             <tr key={idx} className={`border-b border-slate-100 last:border-0 hover:bg-indigo-50/20 ${esAbono ? 'bg-amber-50/20' : ''}`}>
                               <td className="px-3 py-2 text-slate-500 text-xs">{p.created_at ? new Date(p.created_at).toLocaleDateString('es-VE') : '---'}</td>
@@ -2578,6 +2606,9 @@ function ContribuyentesPageContent() {
                                 ) : (
                                   <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-700">COMPLETO</span>
                                 )}
+                              </td>
+                              <td className="px-3 py-2">
+                                <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] font-semibold">{cajeroNombre}</span>
                               </td>
                               <td className="px-3 py-2">
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
