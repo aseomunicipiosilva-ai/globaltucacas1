@@ -11,7 +11,7 @@ const supabase = createClient(
 
 const CATEGORIAS = ['TODAS', 'SESION', 'COBRO', 'TRANSFERENCIA', 'TASA', 'CONTRIBUYENTE', 'FACTURA', 'REPORTE', 'CONFIGURACION', 'CONVENIO', 'SISTEMA'];
 
-const CAT_COLORS = {
+const CAT_COLORS: Record<string,string> = {
   SESION:        'bg-blue-100 text-blue-800',
   COBRO:         'bg-emerald-100 text-emerald-800',
   TRANSFERENCIA: 'bg-purple-100 text-purple-800',
@@ -84,7 +84,7 @@ export default function AuditoriaPage() {
     xlsx.writeFile(wb, 'Auditoria_' + new Date().getTime() + '.xlsx');
   };
 
-  const parseDetalles = (raw) => {
+  const parseDetalles = (raw: any): any => {
     if (!raw) return {};
     if (typeof raw === 'string') { try { return JSON.parse(raw); } catch(e){ return { texto: raw }; } }
     return raw;
@@ -259,4 +259,5 @@ export default function AuditoriaPage() {
     </div>
   );
 }
+
 
