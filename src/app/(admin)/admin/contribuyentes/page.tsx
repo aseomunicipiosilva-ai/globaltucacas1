@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
@@ -139,14 +139,15 @@ function ContribuyentesPageContent() {
     setIsProcessingAction(true);
     try {
       const nuevoEstado = actionModal.type === 'Anular' ? 'Anulado' : 'Reversado';
+      const cajeroUser = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'Administrador';
+      let detActuales: any = {};
+      try { detActuales = JSON.parse(actionModal.recibo.detalles || '{}'); } catch(_e) {}
+      const nuevoDetalles = JSON.stringify({ ...detActuales, nota_anulacion: actionNota.trim(), accion: actionModal.type, usuario_accion: cajeroUser, fecha_accion: new Date().toISOString() });
       const { error } = await supabase
         .from('facturas')
-        .update({ estado: nuevoEstado, nota: actionNota.trim() })
+        .update({ estado: nuevoEstado, detalles: nuevoDetalles })
         .eq('referencia', actionModal.recibo.referencia);
-        
-      if (error) throw error;
-      
-      // Si es Reversar: devolver el monto como saldo a favor en inmuebles
+            if (error) throw error;
       if (actionModal.type === 'Reversar') {
         const montoPagado = parseFloat((actionModal.recibo.monto || '0').toString().replace(/[^\d.]/g, ''));
         if (montoPagado > 0) {
@@ -164,7 +165,7 @@ function ContribuyentesPageContent() {
       }
       
       // Update local state
-      setFacturas(prev => prev.map(f => f.referencia === actionModal.recibo.referencia ? { ...f, estado: nuevoEstado, nota: actionNota.trim() } : f));
+      setFacturas(prev => prev.map(f => f.referencia === actionModal.recibo.referencia ? { ...f, estado: nuevoEstado } : f));
       
       setActionModal(null);
       setActionNota('');

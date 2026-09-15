@@ -57,6 +57,8 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
     if (!showReport) return [];
     const s = new Date(fechaInicio), e = new Date(fechaFin);
     return pagos.filter(p => {
+      // Excluir pagos anulados, reversados o condonados de todos los reportes
+      if (p.estado === 'Anulado' || p.estado === 'Reversado' || p.estado === 'Condonado') return false;
       const d = new Date(p.created_at);
       if (d < s || d > e) return false;
       const det = parseDet(p); const cajero = det.cajero || '';
@@ -461,5 +463,6 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
     </div>
   );
 }
+
 
 

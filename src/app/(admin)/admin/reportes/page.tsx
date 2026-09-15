@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useAppContext } from '@/store/AppContext';
@@ -56,7 +56,7 @@ export default function ReportesPage() {
     setIsAdmin(adminCheck);
 
     const loadPagos = async () => {
-      const { data } = await supabase.from('pagos_reportados').select('*').order('created_at', { ascending: false });
+      const { data } = await supabase.from('pagos_reportados').select('*').not('estado','in','(Anulado,Reversado,Condonado)').order('created_at', { ascending: false });
       if (data) {
         setPagos(data);
         const cajerosSet = new Set<string>();
@@ -304,3 +304,4 @@ export default function ReportesPage() {
     </div>
   );
 }
+
