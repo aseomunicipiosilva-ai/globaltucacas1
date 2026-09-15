@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState, useMemo } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { generarCorteCajaPDF } from '../generators/PdfReports';
@@ -44,6 +44,9 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
   const [fechaFin, setFechaFin] = useState(today + 'T23:59');
   const [showReport, setShowReport] = useState(false);
   const [showCajaDD, setShowCajaDD] = useState(false);
+  const [cerrando, setCerrando] = useState(false);
+  const [cajaCerrada, setCajaCerrada] = useState(false);
+  const [showConfirmCierre, setShowConfirmCierre] = useState(false);
 
   const toggleCaja = (c: string) => {
     if (c === '__todos__') { setSelectedCajas([]); return; }
@@ -128,9 +131,9 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
 
   const IconsTop = ({ showExcel }: { showExcel?: boolean }) => (
     <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: 4 }}>
-      <button onClick={() => generarCorteCajaPDF(pagosFiltrados, contribuyentes, fechaInicio, fechaFin)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }} title="PDF">🖨</button>
-      <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }} title="Columnas">≡</button>
-      {showExcel && <button onClick={() => generarLibroVentas(pagosFiltrados, contribuyentes, 'Diario', fechaInicio, fechaFin)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }} title="Excel">🟩</button>}
+      <button onClick={() => generarCorteCajaPDF(pagosFiltrados, contribuyentes, fechaInicio, fechaFin)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }} title="PDF">ðŸ–¨</button>
+      <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }} title="Columnas">â‰¡</button>
+      {showExcel && <button onClick={() => generarLibroVentas(pagosFiltrados, contribuyentes, 'Diario', fechaInicio, fechaFin)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }} title="Excel">ðŸŸ©</button>}
     </div>
   );
 
@@ -183,10 +186,27 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
 
   const EmptyMsg = () => <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>No se encontraron registros.</div>;
 
+  const handleCerrarCaja = async () => {
+    setCerrando(true);
+    setShowConfirmCierre(false);
+    try {
+      // Mostrar el reporte automaticamente
+      setShowReport(true);
+      await new Promise(r => setTimeout(r, 400));
+      // Descargar PDF del Corte de Caja
+      generarCorteCajaPDF(pagosFiltrados, contribuyentes, fechaInicio, fechaFin);
+      setCajaCerrada(true);
+    } catch (e) {
+      alert('Error al cerrar caja: ' + (e as Error).message);
+    } finally {
+      setCerrando(false);
+    }
+  };
+
   return (
     <div style={{ fontFamily: 'Arial, sans-serif', fontSize: 13 }}>
-      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>🖨 Caja - Ingresos</div>
-      <button onClick={onBack} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#2a5298', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 12 }}>← Regresar</button>
+      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>ðŸ–¨ Caja - Ingresos</div>
+      <button onClick={onBack} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#2a5298', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 12 }}>â† Regresar</button>
 
       <div style={S.hdr}>
         <div style={{ fontSize: 11, fontWeight: 700, color: '#444', textTransform: 'uppercase', letterSpacing: 1 }}>{subTipo}</div>
@@ -204,9 +224,9 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
               <div onClick={() => isAdmin && setShowCajaDD(!showCajaDD)}
                 style={{ ...S.fi, cursor: isAdmin ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 4, minWidth: 200, flexWrap: 'wrap' }}>
                 {!isAdmin
-                  ? <span style={{ background: '#e3eaff', border: '1px solid #aac', borderRadius: 3, padding: '1px 7px', fontSize: 11 }}>× {currentUser}</span>
+                  ? <span style={{ background: '#e3eaff', border: '1px solid #aac', borderRadius: 3, padding: '1px 7px', fontSize: 11 }}>Ã— {currentUser}</span>
                   : selectedCajas.length === 0 ? <span style={{ color: '#888', fontSize: 12 }}>Todos</span>
-                  : selectedCajas.map(c => <span key={c} style={{ background: '#e3eaff', border: '1px solid #aac', borderRadius: 3, padding: '1px 7px', fontSize: 11, marginRight: 2 }}>× {c}</span>)}
+                  : selectedCajas.map(c => <span key={c} style={{ background: '#e3eaff', border: '1px solid #aac', borderRadius: 3, padding: '1px 7px', fontSize: 11, marginRight: 2 }}>Ã— {c}</span>)}
                 {isAdmin && <ChevronDown size={12} style={{ marginLeft: 'auto', color: '#666' }} />}
               </div>
               {showCajaDD && isAdmin && (
@@ -253,8 +273,73 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
             </div>
           )}
           <button onClick={() => { setShowReport(true); setShowCajaDD(false); }} style={S.btnGen}>Generar Reporte</button>
+          <button
+            onClick={() => setShowConfirmCierre(true)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: cajaCerrada ? '#166534' : '#dc2626',
+              color: '#fff', border: 'none', borderRadius: 6,
+              padding: '8px 18px', fontWeight: 700, fontSize: 13,
+              cursor: cerrando ? 'not-allowed' : 'pointer',
+              opacity: cerrando ? 0.7 : 1,
+              boxShadow: '0 2px 8px rgba(220,38,38,0.35)',
+              transition: 'all 0.2s',
+              letterSpacing: 0.3,
+            }}
+            disabled={cerrando}
+          >
+            {cajaCerrada ? 'âœ… Caja Cerrada' : cerrando ? 'â³ Cerrando...' : 'ðŸ”’ Cerrar Caja'}
+          </button>
         </div>
       </div>
+
+      {/* Modal de confirmacion de cierre de caja */}
+      {showConfirmCierre && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: 12, padding: 32, maxWidth: 420, width: '90%',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.4)', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>ðŸ”’</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>
+              Â¿Cerrar Caja?
+            </div>
+            <div style={{ fontSize: 13, color: '#64748b', marginBottom: 20, lineHeight: 1.6 }}>
+              Se generarÃ¡ y descargarÃ¡ automÃ¡ticamente el{' '}
+              <b>Reporte de Corte de Caja</b> en PDF para el perÃ­odo seleccionado.
+              <br />
+              <span style={{ color: '#dc2626', fontWeight: 600 }}>
+                Cajero: {cajeroLabel}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button
+                onClick={() => setShowConfirmCierre(false)}
+                style={{
+                  padding: '10px 24px', borderRadius: 6, border: '1px solid #cbd5e1',
+                  background: '#f8fafc', color: '#475569', fontWeight: 600, fontSize: 13,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCerrarCaja}
+                style={{
+                  padding: '10px 28px', borderRadius: 6, border: 'none',
+                  background: '#dc2626', color: '#fff', fontWeight: 700, fontSize: 13,
+                  cursor: 'pointer', boxShadow: '0 2px 8px rgba(220,38,38,0.4)',
+                }}
+              >
+                ðŸ”’ Confirmar Cierre
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showReport && subTipo === 'General de Ingresos' && (
         <div style={S.rptBox}>
@@ -271,7 +356,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
             </tbody>
           </table>
           <div style={{ textAlign: 'right', padding: '8px 12px' }}>
-            <button style={{ background: '#f5e6c8', border: '1px solid #e0c080', color: '#7a5500', padding: '6px 16px', borderRadius: 4, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>≡ Ver Desglose Detallado por Documento</button>
+            <button style={{ background: '#f5e6c8', border: '1px solid #e0c080', color: '#7a5500', padding: '6px 16px', borderRadius: 4, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>â‰¡ Ver Desglose Detallado por Documento</button>
           </div>
           {pagosFiltrados.length === 0 && <EmptyMsg />}
         </div>
@@ -300,8 +385,8 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
           <div style={{ ...S.secHdr, fontSize: 15, padding: '10px 0' }}>
             LIBRO DE VENTAS
             <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: 4 }}>
-              <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>📄</button>
-              <button onClick={() => generarLibroVentas(pagosFiltrados, contribuyentes, 'Diario', fechaInicio, fechaFin)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>📊</button>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>ðŸ“„</button>
+              <button onClick={() => generarLibroVentas(pagosFiltrados, contribuyentes, 'Diario', fechaInicio, fechaFin)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>ðŸ“Š</button>
             </div>
           </div>
           <div style={{ padding: '8px 14px', fontSize: 12, borderBottom: '1px solid #eee' }}>
@@ -344,7 +429,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
           <div style={{ ...S.secHdr, fontSize: 15, padding: '10px 0' }}>
             RESUMEN LIBRO DE VENTAS
             <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>
-              <button onClick={() => generarLibroVentas(pagos, contribuyentes, 'Mensual', fechaInicio, fechaFin)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>📊</button>
+              <button onClick={() => generarLibroVentas(pagos, contribuyentes, 'Mensual', fechaInicio, fechaFin)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>ðŸ“Š</button>
             </div>
           </div>
           <div style={{ padding: '6px 14px', fontSize: 12, borderBottom: '1px solid #eee' }}>
@@ -375,3 +460,4 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
     </div>
   );
 }
+
