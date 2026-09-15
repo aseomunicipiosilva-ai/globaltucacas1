@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { logos } from '@/lib/logosBase64';
@@ -113,6 +113,7 @@ export default function Home() {
           gap: 28px;
           width: 100%; max-width: 1080px; justify-content: center;
         }
+        .cards-grid-4 { grid-template-columns: repeat(4, minmax(200px, 280px)); }
         .cards-grid-3 { grid-template-columns: repeat(3, minmax(240px, 340px)); }
         .cards-grid-2 { grid-template-columns: repeat(2, minmax(260px, 380px)); }
         .cards-grid-1 { grid-template-columns: minmax(300px, 420px); }
@@ -185,6 +186,7 @@ export default function Home() {
           .center { padding: 36px 20px 44px; }
           .section-title { margin-bottom: 40px; }
 
+          .cards-grid-4,
           .cards-grid-3,
           .cards-grid-2 { grid-template-columns: 1fr; max-width: 420px; }
           .cards-grid-1 { grid-template-columns: 1fr; max-width: 420px; }
@@ -237,7 +239,7 @@ export default function Home() {
             <div className="title-line" />
           </div>
 
-          <div className={`cards-grid ${showContribuyente && showWorkers ? 'cards-grid-3' : showWorkers ? 'cards-grid-2' : 'cards-grid-1'}`}>
+          <div className={`cards-grid ${showContribuyente && showWorkers ? 'cards-grid-4' : showWorkers ? 'cards-grid-3' : 'cards-grid-1'}`}>
 
             {showContribuyente && (
               <Link href="/portal" className="card">
@@ -262,6 +264,19 @@ export default function Home() {
                 <h3 className="card-title"><b style={{ fontWeight:800 }}>Soy</b>{' '}<span style={{ fontWeight:400 }}>Funcionario</span></h3>
                 <p className="card-desc">Acceso el sistema administrativo para gestión de recaudación y reportes de aseo.</p>
                 <DotRow label="Acceder al Sistema" />
+              </Link>
+            )}
+
+            {showWorkers && (
+              <Link href="/admin/cobro-movil" className="card">
+                <div className="icon-bubble">
+                  <svg width="34" height="34" fill="none" viewBox="0 0 24 24" stroke="#B8CD29" strokeWidth="1.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 8.25h3m-3 3h3m-3 3h3" />
+                  </svg>
+                </div>
+                <h3 className="card-title"><b style={{ fontWeight:800 }}>Cobrador</b>{' '}<span style={{ fontWeight:400 }}>Móvil</span></h3>
+                <p className="card-desc">Módulo móvil para cobro en campo. Busca contribuyentes, revisa deudas y procesa pagos.</p>
+                <DotRow label="Ingresar Móvil" />
               </Link>
             )}
 
