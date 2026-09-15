@@ -1,4 +1,6 @@
-'use client';
+const fs = require('fs');
+
+const content = `'use client';
 import React from 'react';
 import { formatBs } from '@/lib/formatCurrency';
 
@@ -87,7 +89,7 @@ function ReciboBloque({ data }: { data: ReciboProps }) {
       {/* DATOS CONTRIBUYENTE */}
       <div style={s.grid2}>
         <div style={s.leftCell}>
-          <div><strong>Fecha de Emisión:</strong> {data.fechaEmision}{data.tasaBcv ? ` | Tasa BCV: Bs. ${data.tasaBcv}` : ''}</div>
+          <div><strong>Fecha de Emisión:</strong> {data.fechaEmision}{data.tasaBcv ? \` | Tasa BCV: Bs. \${data.tasaBcv}\` : ''}</div>
           <div><strong>Cod. Contribuyente:</strong> {data.codContribuyente}</div>
           <div><strong>Razón Social/Nombre:</strong> {data.razonSocial}</div>
           <div><strong>Domicilio Fiscal:</strong> <span style={{ fontSize: 8 }}>{data.domicilioFiscal}</span></div>
@@ -205,7 +207,7 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
   return (
     <>
       <style>{
-        `@media print {
+        \`@media print {
           @page { size: Letter landscape; margin: 6mm; }
           body * { visibility: hidden; }
           .recibo-print-area, .recibo-print-area * { visibility: visible; }
@@ -216,7 +218,7 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
         }
         .recibo-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
         .recibo-copy-label { display: block; text-align: center; font-size: 8px; font-weight: bold; color: #64748b; margin-bottom: 2px; }
-        @media (max-width: 800px) { .recibo-row { grid-template-columns: 1fr; } }`
+        @media (max-width: 800px) { .recibo-row { grid-template-columns: 1fr; } }\`
       }</style>
       <div className="recibo-print-area">
         <div className="recibo-row">
@@ -233,3 +235,7 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
     </>
   );
 }
+`;
+
+fs.writeFileSync('c:/Users/david/Desktop/tucacas/global_green_tucacas/src/components/ReciboImprimible.tsx', content);
+console.log('✅ ReciboImprimible reescrito: formato horizontal, 2 copias por hoja, desglose por mes');
