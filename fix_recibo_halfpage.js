@@ -1,4 +1,6 @@
-'use client';
+const fs = require('fs');
+
+const content = `'use client';
 import React from 'react';
 import { formatBs } from '@/lib/formatCurrency';
 
@@ -56,7 +58,7 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
 
   return (
     <>
-      <style>{`
+      <style>{\`
         @media print {
           @page {
             size: Letter landscape;
@@ -68,8 +70,8 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
             position: fixed;
             top: 0;
             left: 0;
-            width: ${HALF_WIDTH};
-            max-height: ${HALF_HEIGHT};
+            width: \${HALF_WIDTH};
+            max-height: \${HALF_HEIGHT};
             overflow: hidden;
           }
         }
@@ -103,7 +105,7 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
           white-space: nowrap;
           font-family: Arial, sans-serif;
         }
-      `}</style>
+      \`}</style>
 
       {/* Vista previa en pantalla */}
       <div className="recibo-preview-wrapper">
@@ -301,3 +303,7 @@ function ReciboContenido({
     </div>
   );
 }
+`;
+
+fs.writeFileSync('c:/Users/david/Desktop/tucacas/global_green_tucacas/src/components/ReciboImprimible.tsx', content);
+console.log('✅ ReciboImprimible: 1 recibo, media hoja Letter landscape (134mm x 206mm), línea de corte visible en pantalla');
