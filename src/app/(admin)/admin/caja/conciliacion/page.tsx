@@ -491,18 +491,13 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
 
   const recibos: string[] = det.recibos || [];
   const periodos = det.periodos || (recibos.length > 0 ? recibos.join(' | ') : '---');
+  // Vars usadas tanto en handleConciliar como en el render
+  const montoConciliadoNum = parseFloat(montoConciliado) || 0;
+  const deudaTotalContrib = contribInfo?._deudaTotal ? parseFloat(String(contribInfo._deudaTotal).replace(/[^0-9.]/g,'')) : 0;
 
   const handleConciliar = async () => {
     setIsProcessing(true);
     try {
-      const montoConciliadoNum = parseFloat(montoConciliado) || 0;
-  const deudaFacturas = recibos.reduce((s, ref) => {
-    const found = (det.recibos || []).find((r: any) => (typeof r === 'string' ? r : r.referencia || r.ref) === ref);
-    return s;
-  }, 0);
-  // Diferencia = deuda total contribuyente - monto conciliado (si monto < deuda)
-  const deudaTotalContrib = contribInfo?.DeudaTotal ? parseFloat(String(contribInfo.DeudaTotal).replace(/[^0-9.]/g,'')) : 0;
-  const diferenciaPendiente = montoConciliadoNum > 0 && deudaTotalContrib > 0 ? Math.max(0, deudaTotalContrib - montoConciliadoNum) : 0;
       const updatedDet = {
         ...det,
         correo: correoResponsable,
@@ -993,6 +988,8 @@ export default function ConciliacionPage() {
     </div>
   );
 }
+
+
 
 
 
