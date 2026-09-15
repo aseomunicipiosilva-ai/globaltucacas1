@@ -1,6 +1,6 @@
 ﻿'use client';
 import { useState, useMemo } from 'react';
-import { ChevronDown, Lock, CheckCircle, Loader2 } from 'lucide-react';
+import { ChevronDown, Lock, CheckCircle, Loader2, Printer, ArrowLeft, FileSpreadsheet, FileText } from 'lucide-react';
 import { generarCorteCajaPDF } from '../generators/PdfReports';
 import { generarLibroVentas } from '../generators/LibroVentas';
 
@@ -131,9 +131,9 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
 
   const IconsTop = ({ showExcel }: { showExcel?: boolean }) => (
     <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: 4 }}>
-      <button onClick={() => generarCorteCajaPDF(pagosFiltrados, contribuyentes, fechaInicio, fechaFin)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }} title="PDF">≡ƒû¿</button>
-      <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }} title="Columnas">Γëí</button>
-      {showExcel && <button onClick={() => generarLibroVentas(pagosFiltrados, contribuyentes, 'Diario', fechaInicio, fechaFin)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }} title="Excel">≡ƒƒ⌐</button>}
+      <button onClick={() => generarCorteCajaPDF(pagosFiltrados, contribuyentes, fechaInicio, fechaFin)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c0392b', padding: '2px 6px' }} title="PDF"><Printer size={15}/></button>
+      <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#555', padding: '2px 6px' }} title="Columnas"><span style={{fontSize:14, fontWeight:700}}>|||</span></button>
+      {showExcel && <button onClick={() => generarLibroVentas(pagosFiltrados, contribuyentes, 'Diario', fechaInicio, fechaFin)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#166534', padding: '2px 6px' }} title="Excel"><FileSpreadsheet size={15}/></button>}
     </div>
   );
 
@@ -203,8 +203,8 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
 
   return (
     <div style={{ fontFamily: 'Arial, sans-serif', fontSize: 13 }}>
-      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>≡ƒû¿ Caja - Ingresos</div>
-      <button onClick={onBack} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#2a5298', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 12 }}>ΓåÉ Regresar</button>
+      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}><Printer size={16}/>Caja - Ingresos</div>
+      <button onClick={onBack} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#2a5298', background: 'none', border: 'none', cursor: 'pointer', marginBottom: 12 }}><ArrowLeft size={13}/> Regresar</button>
 
       <div style={S.hdr}>
         <div style={{ fontSize: 11, fontWeight: 700, color: '#444', textTransform: 'uppercase', letterSpacing: 1 }}>{subTipo}</div>
@@ -222,9 +222,9 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
               <div onClick={() => isAdmin && setShowCajaDD(!showCajaDD)}
                 style={{ ...S.fi, cursor: isAdmin ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 4, minWidth: 200, flexWrap: 'wrap' }}>
                 {!isAdmin
-                  ? <span style={{ background: '#e3eaff', border: '1px solid #aac', borderRadius: 3, padding: '1px 7px', fontSize: 11 }}>├ù {currentUser}</span>
+                  ? <span style={{ background: '#e3eaff', border: '1px solid #aac', borderRadius: 3, padding: '1px 7px', fontSize: 11 }}>x {currentUser}</span>
                   : selectedCajas.length === 0 ? <span style={{ color: '#888', fontSize: 12 }}>Todos</span>
-                  : selectedCajas.map(c => <span key={c} style={{ background: '#e3eaff', border: '1px solid #aac', borderRadius: 3, padding: '1px 7px', fontSize: 11, marginRight: 2 }}>├ù {c}</span>)}
+                  : selectedCajas.map(c => <span key={c} style={{ background: '#e3eaff', border: '1px solid #aac', borderRadius: 3, padding: '1px 7px', fontSize: 11, marginRight: 2 }}>x {c}</span>)}
                 {isAdmin && <ChevronDown size={12} style={{ marginLeft: 'auto', color: '#666' }} />}
               </div>
               {showCajaDD && isAdmin && (
@@ -357,7 +357,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
             </tbody>
           </table>
           <div style={{ textAlign: 'right', padding: '8px 12px' }}>
-            <button style={{ background: '#f5e6c8', border: '1px solid #e0c080', color: '#7a5500', padding: '6px 16px', borderRadius: 4, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>Γëí Ver Desglose Detallado por Documento</button>
+            <button style={{ background: '#f5e6c8', border: '1px solid #e0c080', color: '#7a5500', padding: '6px 16px', borderRadius: 4, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>Ver Desglose Detallado por Documento</button>
           </div>
           {pagosFiltrados.length === 0 && <EmptyMsg />}
         </div>
@@ -386,8 +386,8 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
           <div style={{ ...S.secHdr, fontSize: 15, padding: '10px 0' }}>
             LIBRO DE VENTAS
             <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: 4 }}>
-              <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>≡ƒôä</button>
-              <button onClick={() => generarLibroVentas(pagosFiltrados, contribuyentes, 'Diario', fechaInicio, fechaFin)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>≡ƒôè</button>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c0392b', padding: '2px 6px' }} title="PDF"><FileText size={15}/></button>
+              <button onClick={() => generarLibroVentas(pagosFiltrados, contribuyentes, 'Diario', fechaInicio, fechaFin)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#166534', padding: '2px 6px' }} title="Excel"><FileSpreadsheet size={15}/></button>
             </div>
           </div>
           <div style={{ padding: '8px 14px', fontSize: 12, borderBottom: '1px solid #eee' }}>
@@ -430,7 +430,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
           <div style={{ ...S.secHdr, fontSize: 15, padding: '10px 0' }}>
             RESUMEN LIBRO DE VENTAS
             <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)' }}>
-              <button onClick={() => generarLibroVentas(pagos, contribuyentes, 'Mensual', fechaInicio, fechaFin)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>≡ƒôè</button>
+              <button onClick={() => generarLibroVentas(pagos, contribuyentes, 'Mensual', fechaInicio, fechaFin)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#166534', padding: '2px 6px' }} title="Excel"><FileSpreadsheet size={15}/></button>
             </div>
           </div>
           <div style={{ padding: '6px 14px', fontSize: 12, borderBottom: '1px solid #eee' }}>
