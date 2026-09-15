@@ -467,7 +467,10 @@ function ContribuyentesPageContent() {
     const tasaVigente = today.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const cajero = typeof window !== 'undefined' ? (localStorage.getItem('adminUser') || 'Administrador') : 'Administrador';
 
-    for (const inm of inmsToProcess) {
+    // Usar solo el primer inmueble para los datos del PDF
+    // (todos los meses pendientes ya están en `deudas` sin filtrar por inmueble)
+    const inm = inmsToProcess[0];
+    {
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
       const docNro = Math.floor(10000 + Math.random() * 90000);
 
@@ -546,11 +549,10 @@ function ContribuyentesPageContent() {
       doc.line(14, y, 196, y);
       y += 6;
 
-      // Recibos de este inmueble
-      const inmRecibos = deudas.filter((f: any) => {
-        if (inm.inmueble) return f.referencia && f.referencia.includes(inm.inmueble);
-        return true;
-      });
+      // Todos los recibos pendientes del contribuyente (ya filtrado por identidad en Supabase)
+      // NO filtramos por referencia de inmueble para incluir todos los meses
+      // sin importar qué código de inmueble esté en la referencia
+      const inmRecibos = deudas;
 
       // Monto usando tcmmv para recibos CM-
       const calcMonto = (f: any): number => {
