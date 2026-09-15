@@ -1,10 +1,11 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { exportToExcelWithLogos } from '@/lib/excelExport';
-import { TreePine, Search, CreditCard, Landmark, CheckCircle, XCircle, FileText, Handshake, Calendar as CalendarIcon, Wrench, ShieldCheck, ClipboardCheck, FlaskConical } from 'lucide-react';
+import { TreePine, Search, CreditCard, Landmark, CheckCircle, XCircle, FileText, Handshake, Calendar as CalendarIcon, Wrench, ShieldCheck, ClipboardCheck, FlaskConical, Printer, X } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
 import { formatBs } from '@/lib/formatCurrency';
+import { ReciboImprimible } from '@/components/ReciboImprimible';
 
 export default function CajaPage() {
   const { inmuebles, convenios, contribuyentes, documentos, tcmmv } = useAppContext();
@@ -59,6 +60,9 @@ export default function CajaPage() {
 
   // Historial de pagos de la sesión actual
   const [sessionPagos, setSessionPagos] = useState<any[]>([]);
+
+  // Recibo imprimible post-pago
+  const [reciboData, setReciboData] = React.useState<any>(null);
 
   // Notas de Crédito â€” carga directa desde Supabase
   const [notasCredito, setNotasCredito] = useState<any[]>([]);
@@ -724,6 +728,54 @@ export default function CajaPage() {
           ? `Abono de Bs. ${formatBs(montoReal)} procesado. La deuda restante quedó actualizada.`
           : `Pago procesado exitosamente por ${paymentMethod}. La deuda ha sido conciliada automáticamente.`
         );
+
+        // ── RECIBO AUTOMÁTICO DESPUÉS DEL PAGO DÉBITO ──
+        if (!esAbonoDebito) {
+          try {
+            const cajeroRecibo = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'Administrador';
+            const letraRecibo = (typeof window !== 'undefined' ? localStorage.getItem('adminLetra') : null);
+            const cajero_id_recibo = letraRecibo && cajeroRecibo !== 'Administrador' ? `${letraRecibo}-${cajeroRecibo}` : cajeroRecibo;
+            const userInmsRec = (inmuebles as any[]).filter((i: any) =>
+              (i.identidad || '').replace(/-/g,'').toUpperCase() === (foundUser.Identidad || '').replace(/-/g,'').toUpperCase()
+            );
+            const primerInm = userInmsRec[0];
+            const MESES_REC = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+            const getMesRec = (emision: string) => {
+              if (!emision) return '---';
+              const p = emision.split('-');
+              return p.length >= 2 ? `${MESES_REC[parseInt(p[1])-1]} ${p[0]}` : emision;
+            };
+            const conceptos = selectedRecibos.map((ref: string) => {
+              const f = recibos.find((r: any) => r.referencia === ref);
+              const montoF = f ? parseFloat(getReciboMonto(f) || '0') : 0;
+              return {
+                descripcion: `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${getMesRec(f?.emision || '')}`,
+                precioUnit: montoF,
+                total: montoF
+              };
+            });
+            const totalConceptos = conceptos.reduce((s: number, cpt: any) => s + cpt.total, 0);
+            setReciboData({
+              reciboNo: selectedRecibos[0]?.split('-').pop()?.padStart(7, '0') || '0000001',
+              controlWeb: 'WEB-0000001',
+              fechaEmision: new Date().toISOString().split('T')[0],
+              codContribuyente: primerInm?.cod_cont || foundUser.Identidad,
+              razonSocial: primerInm?.contribuyente || foundUser.Contribuyente || '',
+              domicilioFiscal: ((primerInm?.direccion || 'TUCACAS MUNICIPIO SILVA, FALCÓN') as string).toUpperCase(),
+              rifCi: foundUser.Identidad,
+              caja: cajero_id_recibo,
+              conceptos,
+              subTotal: totalConceptos,
+              exento: totalConceptos,
+              iva: 0,
+              total: montoReal,
+              formaPago: 'PUNTO DE VENTA',
+              banco: 'Debito',
+              referencia: reqRef ? referencia : referenciaDebito,
+              tasaBcv: currentBcvRate || tcmmv || undefined,
+            });
+          } catch(rErr) { console.warn('Error al generar recibo automático:', rErr); }
+        }
 
         
       } else {
@@ -1735,9 +1787,37 @@ export default function CajaPage() {
           </div>
         </div>
       )}
+
+      {/* ── MODAL RECIBO AUTOMÁTICO POST-PAGO ── */}
+      {reciboData && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center overflow-y-auto py-6 px-2 print:bg-white print:items-start print:py-0">
+          <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full print:shadow-none print:rounded-none">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50 rounded-t-xl print:hidden">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="w-6 h-6 text-emerald-600" />
+                <span className="text-slate-800 font-bold text-lg">¡Pago Procesado! — Recibo</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+                >
+                  <Printer className="w-4 h-4" /> Imprimir
+                </button>
+                <button
+                  onClick={() => setReciboData(null)}
+                  className="flex items-center gap-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+                >
+                  <X className="w-4 h-4" /> Cerrar
+                </button>
+              </div>
+            </div>
+            <div className="p-4">
+              <ReciboImprimible data={reciboData} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-
-
