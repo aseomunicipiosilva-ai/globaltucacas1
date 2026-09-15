@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   CheckCheck, RefreshCw, Filter, Landmark, Eye, Download, X,
@@ -67,7 +67,7 @@ function parseDetalles(raw: any): any {
   try { return JSON.parse(raw); } catch { return {}; }
 }
 
-// ─── MODAL COMPROBANTE ──────────────────────────────────
+// â”€â”€â”€ MODAL COMPROBANTE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ModalComprobante({ pago, onClose }: { pago: Pago; onClose: () => void }) {
   const det = parseDetalles(pago.detalles);
   const [archivos, setArchivos] = useState<{ name: string; url: string }[]>([]);
@@ -98,15 +98,17 @@ function ModalComprobante({ pago, onClose }: { pago: Pago; onClose: () => void }
 
   const label = (det.cod_inmueble || pago.cod_inmueble || '') + '-' + (pago.contribuyente || pago.identidad || '');
 
+  const isImg = (url: string) => /\.(jpg|jpeg|png|gif|webp|bmp)(\?|$)/i.test(url);
+
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h2 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Detalles de la Conciliación</h2>
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
+          <h2 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Detalles de la ConciliaciÃ³n</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
         </div>
-        <div className="p-6">
-          <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="overflow-y-auto flex-1 p-6">
+          <div className="grid grid-cols-2 gap-4 mb-4">
             <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
               <p className="text-xs font-bold text-slate-500 uppercase mb-1">Monto Reportado</p>
               <p className="text-lg font-black text-slate-800">
@@ -122,43 +124,47 @@ function ModalComprobante({ pago, onClose }: { pago: Pago; onClose: () => void }
           </div>
           <h3 className="text-sm font-bold text-slate-800 uppercase mb-3">Archivos Adjuntos ({label})</h3>
           {loading ? (
-            <div className="text-center py-8 text-slate-400">Cargando archivos...</div>
+            <div className="text-center py-8 text-slate-400">Cargando comprobantes...</div>
           ) : archivos.length === 0 ? (
-            <div className="text-center py-8 text-slate-400">No hay archivos adjuntos para este pago.</div>
+            <div className="text-center py-10 text-slate-400 border-2 border-dashed border-slate-200 rounded-lg">
+              <p className="mt-2">No hay comprobante adjunto para este pago.</p>
+            </div>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-900 text-white">
-                  <th className="px-4 py-2 text-left w-12">#</th>
-                  <th className="px-4 py-2 text-left">Nombre del Archivo</th>
-                  <th className="px-4 py-2 text-center">Descargar</th>
-                  <th className="px-4 py-2 text-center">Visualizar</th>
-                </tr>
-              </thead>
-              <tbody>
-                {archivos.map((arch, i) => (
-                  <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="px-4 py-3 text-slate-500">{i + 1}</td>
-                    <td className="px-4 py-3 text-blue-600 font-mono text-xs">{arch.name}</td>
-                    <td className="px-4 py-3 text-center">
+            <div className="space-y-4">
+              {archivos.map((arch, i) => (
+                <div key={i} className="border border-slate-200 rounded-xl overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-200">
+                    <span className="text-xs font-mono text-slate-600 truncate max-w-[260px]">{arch.name}</span>
+                    <div className="flex items-center gap-3 shrink-0">
                       <a href={arch.url} download target="_blank" rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center text-blue-600 hover:text-blue-800">
-                        <Download size={20} />
+                        className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs font-semibold">
+                        <Download size={14} /> Descargar
                       </a>
-                    </td>
-                    <td className="px-4 py-3 text-center">
                       <a href={arch.url} target="_blank" rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center text-blue-600 hover:text-blue-800">
-                        <Eye size={20} />
+                        className="flex items-center gap-1 text-slate-500 hover:text-slate-700 text-xs font-semibold">
+                        <Eye size={14} /> Nueva pestaña
                       </a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+                  {isImg(arch.url) ? (
+                    <div className="bg-slate-900 flex items-center justify-center p-4 min-h-[200px]">
+                      <img src={arch.url} alt="Comprobante" className="max-w-full max-h-[500px] object-contain rounded shadow-lg" />
+                    </div>
+                  ) : (
+                    <div className="p-6 text-center text-slate-500">
+                      <p className="text-sm mb-3">Archivo PDF u otro formato.</p>
+                      <a href={arch.url} target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold hover:bg-blue-700">
+                        <Eye size={14} /> Ver documento
+                      </a>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           )}
         </div>
-        <div className="flex justify-end px-6 pb-4">
+        <div className="flex justify-end px-6 py-3 border-t border-slate-200 shrink-0">
           <button onClick={onClose} className="px-5 py-2 border border-red-400 text-red-600 hover:bg-red-50 rounded font-semibold text-sm flex items-center gap-2">
             <X size={14} /> Cerrar
           </button>
@@ -168,7 +174,7 @@ function ModalComprobante({ pago, onClose }: { pago: Pago; onClose: () => void }
   );
 }
 
-// ─── MODAL ESTADO DE CUENTA ──────────────────────────────
+// â”€â”€â”€ MODAL ESTADO DE CUENTA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void }) {
   const [recibos, setFacturas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -181,7 +187,7 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
       setLoading(true);
       try {
         const idLimpio = (pago.identidad || '').replace(/-/g, '');
-        // Buscar por identidad en inmuebles (campo real: identidad minúscula)
+        // Buscar por identidad en inmuebles (campo real: identidad minÃºscula)
         const { data: inms } = await supabase
           .from('inmuebles')
           .select('*')
@@ -247,19 +253,19 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
                 </div>
                 <div className="grid grid-cols-2 gap-0 text-sm">
                   <div className="border-b border-r border-slate-100 px-3 py-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">RIF / Cédula</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">RIF / CÃ©dula</span>
                     <span className="font-semibold text-slate-800">{pago.identidad || '---'}</span>
                   </div>
                   <div className="border-b border-slate-100 px-3 py-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Código Inmueble</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">CÃ³digo Inmueble</span>
                     <span className="font-semibold text-slate-800">{inmueble?.cod_cont || det.cod_inmueble || pago.cod_inmueble || '---'}</span>
                   </div>
                   <div className="border-b border-r border-slate-100 px-3 py-2 col-span-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Nombre / Razón Social</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Nombre / RazÃ³n Social</span>
                     <span className="font-bold text-slate-900 text-base">{inmueble?.contribuyente || pago.contribuyente || '---'}</span>
                   </div>
                   <div className="border-b border-r border-slate-100 px-3 py-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Clasificación / Uso</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">ClasificaciÃ³n / Uso</span>
                     <span className="text-slate-700">{inmueble?.clasificacion || '---'}</span>
                   </div>
                   <div className="border-b border-slate-100 px-3 py-2">
@@ -267,24 +273,24 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
                     <span className="text-slate-700">{inmueble?.actividad_principal || '---'}</span>
                   </div>
                   <div className="border-b border-r border-slate-100 px-3 py-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Teléfono</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">TelÃ©fono</span>
                     <span className="text-slate-700">{inmueble?.telefono || '---'}</span>
                   </div>
                   <div className="border-b border-slate-100 px-3 py-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Correo Electrónico</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Correo ElectrÃ³nico</span>
                     <span className="text-slate-700 text-xs">{inmueble?.correo_electronico || inmueble?.correo || '---'}</span>
                   </div>
                   <div className="border-b border-slate-100 px-3 py-2 col-span-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Dirección del Inmueble</span>
-                    <span className="text-slate-700">{inmueble?.direccion || 'Tucacas Municipio Silva, Falcón'}</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">DirecciÃ³n del Inmueble</span>
+                    <span className="text-slate-700">{inmueble?.direccion || 'Tucacas Municipio Silva, FalcÃ³n'}</span>
                   </div>
                   <div className="border-r border-slate-100 px-3 py-2">
                     <span className="text-[10px] font-bold text-slate-500 uppercase block">Estado</span>
                     <span className={`font-bold ${inmueble?.estado === 'Activo' ? 'text-green-700' : 'text-red-600'}`}>{inmueble?.estado || 'Activo'}</span>
                   </div>
                   <div className="px-3 py-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Área (Mt²)</span>
-                    <span className="text-slate-700">{inmueble?.area_m2 ? inmueble.area_m2 + ' Mt²' : '---'}</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Ãrea (MtÂ²)</span>
+                    <span className="text-slate-700">{inmueble?.area_m2 ? inmueble.area_m2 + ' MtÂ²' : '---'}</span>
                   </div>
                 </div>
                 {/* Resumen financiero total del contribuyente */}
@@ -363,11 +369,11 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
   );
 }
 
-// ─── MODAL CONCILIACION ──────────────────────────────────
+// â”€â”€â”€ MODAL CONCILIACION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: () => void; onSuccess: () => void }) {
   const det = parseDetalles(pago.detalles);
 
-  // Información del contribuyente cargada desde Supabase (solo lectura)
+  // InformaciÃ³n del contribuyente cargada desde Supabase (solo lectura)
   const [contribInfo, setContribInfo] = useState<any>(null);
   const [loadingContrib, setLoadingContrib] = useState(true);
 
@@ -411,7 +417,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
       setLoadingContrib(true);
       try {
         const idLimpio = (pago.identidad || '').replace(/-/g, '');
-        // Buscar en inmuebles - puede haber múltiples registros (varios inmuebles)
+        // Buscar en inmuebles - puede haber mÃºltiples registros (varios inmuebles)
         const { data: inms } = await supabase
           .from('inmuebles')
           .select('*')
@@ -480,7 +486,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
     } else if (val === 'Rechazado') {
       setMontoConciliado('0.00');
     }
-    // 'Con Diferencia' → el usuario ingresa manualmente el monto de diferencia
+    // 'Con Diferencia' â†’ el usuario ingresa manualmente el monto de diferencia
   };
 
   const recibos: string[] = det.recibos || [];
@@ -516,10 +522,10 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
       // Aprobado: marcar recibos como Pagado o aplicar abono
       if (estatus === 'Aprobado' && recibos.length > 0) {
         if (det.es_abono && montoConciliadoNum > 0) {
-          // Es un abono parcial (Pago Múltiple)
+          // Es un abono parcial (Pago MÃºltiple)
           const { data: facs } = await supabase.from('facturas').select('*').in('referencia', recibos);
           if (facs && facs.length > 0) {
-            // Ordenar por fecha (las más antiguas primero)
+            // Ordenar por fecha (las mÃ¡s antiguas primero)
             facs.sort((a, b) => new Date(a.fecha_emision || 0).getTime() - new Date(b.fecha_emision || 0).getTime());
             let dineroDisponible = montoConciliadoNum;
             
@@ -566,13 +572,13 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
             estado: 'Vigente',
             detalles: JSON.stringify({
               monto: montoConciliadoNum.toFixed(2),
-              origen_referencia: `Conciliación con diferencia. Referencia: ${pago.referencia || pago.id}`,
+              origen_referencia: `ConciliaciÃ³n con diferencia. Referencia: ${pago.referencia || pago.id}`,
               fecha_emision: new Date().toISOString(),
               analista: updatedDet.analista,
             })
           }]);
         }
-        // Marcar recibos como Pagado también (el pago se concilia aunque con diferencia)
+        // Marcar recibos como Pagado tambiÃ©n (el pago se concilia aunque con diferencia)
         if (recibos.length > 0) {
           await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', recibos);
         }
@@ -617,11 +623,11 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
           </div>
           <div className="p-6 space-y-4">
 
-            {/* INFO CONTRIBUYENTE — Solo lectura - TODOS los datos */}
+            {/* INFO CONTRIBUYENTE â€” Solo lectura - TODOS los datos */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-bold text-blue-700 uppercase tracking-wide flex items-center gap-2">
-                  <Building2 size={14}/> Información del Contribuyente
+                  <Building2 size={14}/> InformaciÃ³n del Contribuyente
                   {loadingContrib && <span className="text-[10px] text-blue-400 font-normal animate-pulse">(cargando...)</span>}
                 </p>
                 <div className="flex gap-2 text-[10px]">
@@ -631,19 +637,19 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className={lc}>RIF / Cédula</label>
+                  <label className={lc}>RIF / CÃ©dula</label>
                   <input value={identidad} readOnly className={icRO}/>
                 </div>
                 <div>
-                  <label className={lc}>Nombre / Razón Social</label>
+                  <label className={lc}>Nombre / RazÃ³n Social</label>
                   <input value={nombreContrib} readOnly className={icRO}/>
                 </div>
                 <div>
-                  <label className={lc}>Código Inmueble</label>
+                  <label className={lc}>CÃ³digo Inmueble</label>
                   <input value={codInmueble} readOnly className={icRO}/>
                 </div>
                 <div>
-                  <label className={lc}>Clasificación</label>
+                  <label className={lc}>ClasificaciÃ³n</label>
                   <input value={clasificacion} readOnly className={icRO}/>
                 </div>
                 <div>
@@ -655,15 +661,15 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                   <input value={estadoCont} readOnly className={`${icRO} ${estadoCont === 'Activo' ? 'text-green-700' : 'text-red-700'} font-bold`}/>
                 </div>
                 <div className="col-span-2">
-                  <label className={lc}>Dirección</label>
+                  <label className={lc}>DirecciÃ³n</label>
                   <input value={direccion} readOnly className={icRO}/>
                 </div>
                 <div>
-                  <label className={lc}>Teléfono</label>
+                  <label className={lc}>TelÃ©fono</label>
                   <input value={telefono} readOnly className={icRO}/>
                 </div>
                 <div className="col-span-2">
-                  <label className={lc}>Correo Electrónico</label>
+                  <label className={lc}>Correo ElectrÃ³nico</label>
                   <input value={correo} readOnly className={icRO}/>
                 </div>
               </div>
@@ -701,7 +707,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                   {BANCOS_DESTINO.filter(b=>b!=='Todos').map(b=><option key={b}>{b}</option>)}
                 </select>
               </div>
-              <div><label className={lc}>Fecha Transacción</label>
+              <div><label className={lc}>Fecha TransacciÃ³n</label>
                 <input type="date" value={fechaTransaccion} onChange={e=>setFechaTransaccion(e.target.value)} className={ic}/>
               </div>
               <div><label className={lc}>Fecha en Banco</label>
@@ -709,7 +715,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
               </div>
             </div>
 
-            {/* CONCILIACIÓN */}
+            {/* CONCILIACIÃ“N */}
             <div className="grid grid-cols-4 gap-4">
               <div>
                 <label className={lc}>Monto Reportado</label>
@@ -720,7 +726,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                 <input value={det.tasa_bcv ? 'Bs. ' + Number(det.tasa_bcv).toFixed(2) : '---'} readOnly className={icRO + ' text-slate-600'}/>
               </div>
               <div>
-                <label className={lc}>Estatus de Conciliación</label>
+                <label className={lc}>Estatus de ConciliaciÃ³n</label>
                 <select
                   value={estatus}
                   onChange={e => handleEstatusChange(e.target.value)}
@@ -730,13 +736,13 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                 </select>
                 {estatus === 'Con Diferencia' && (
                   <p className="text-[10px] text-amber-600 mt-1 font-medium">
-                    ⚠️ El monto ingresado se agregará como saldo a favor del contribuyente.
+                    âš ï¸ El monto ingresado se agregarÃ¡ como saldo a favor del contribuyente.
                   </p>
                 )}
               </div>
               <div>
                 <label className={lc}>
-                  {estatus === 'Con Diferencia' ? 'Monto de Diferencia (→ Saldo a Favor)' : 'Monto Conciliado'}
+                  {estatus === 'Con Diferencia' ? 'Monto de Diferencia (â†’ Saldo a Favor)' : 'Monto Conciliado'}
                 </label>
                 <input
                   value={montoConciliado}
@@ -760,7 +766,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                 </div>
               </div>
               <div>
-                <label className={lc}>Teléfono Responsable</label>
+                <label className={lc}>TelÃ©fono Responsable</label>
                 <input value={telefonoResponsable} onChange={e=>setTelefonoResponsable(e.target.value)} className={ic}/>
               </div>
             </div>
@@ -827,7 +833,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
   );
 }
 
-// ─── PAGINA PRINCIPAL ────────────────────────────────────
+// â”€â”€â”€ PAGINA PRINCIPAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function ConciliacionPage() {
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [loading, setLoading] = useState(false);
@@ -903,7 +909,7 @@ export default function ConciliacionPage() {
           <div className="flex items-center justify-end gap-2">
             <span>{fmt(m)}</span>
             {esPendiente && <button onClick={()=>abrir(pago,'conciliar')} title="Conciliar pago" className="text-slate-500 hover:text-blue-700 transition-colors"><Landmark size={18}/></button>}
-            {esAprobado && det.comprobante_url && <button onClick={()=>abrir(pago,'comprobante')} title="Ver comprobante" className="text-blue-600 hover:text-blue-800 transition-colors"><Eye size={18}/></button>}
+            {det.comprobante_url && <button onClick={()=>abrir(pago,'comprobante')} title="Ver comprobante" className="text-blue-600 hover:text-blue-800 transition-colors"><Eye size={18}/></button>}
             {esAprobado && !det.comprobante_url && <button onClick={()=>abrir(pago,'conciliar')} title="Editar" className="text-green-600 hover:text-green-800 transition-colors"><Pencil size={16}/></button>}
           </div>
         </td>
@@ -962,3 +968,5 @@ export default function ConciliacionPage() {
     </div>
   );
 }
+
+
