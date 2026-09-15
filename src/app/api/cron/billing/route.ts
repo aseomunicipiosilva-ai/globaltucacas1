@@ -64,52 +64,58 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, procesados: 0, omitidos: 0, message: 'No hay inmuebles activos' });
     }
 
-    // ── PASO 2: Obtener referencias ya existentes para este período (batch) ──
-    // Nuevo formato: CM-I-000001-09-2026 (un recibo por inmueble)
+    // ── PASO 2: Obtener TODAS las referencias existentes para este período ──
+    // Incluye tanto formato nuevo (CM-I-) como viejo (CM-C-) para evitar duplicados
     const todasLasRefs = inmuebles
       .filter((inm: any) => inm.inmueble)
       .map((inm: any) => `CM-${inm.inmueble}-${periodoKey}`);
 
-    const { data: existentes } = await supabase
+    // Buscar referencias que ya existen (formato CM-I-)
+    const { data: existentesNuevo } = await supabase
       .from('facturas')
-      .select('referencia')
+      .select('referencia, identidad')
       .in('referencia', todasLasRefs);
 
-    const refsExistentes = new Set((existentes || []).map((e: any) => e.referencia));
-
-    // ── PROTECCIÓN ANTI-DUPLICADO: también verificar por identidad+mes ──
-    // Evita crear CM-I-XXXXX si ya existe CM-C-XXXXX para el mismo contribuyente y mismo período
-    const { data: yaFacturados } = await supabase
+    // Buscar referencias en formato viejo (CM-C-{cod_cont}) para el mismo período
+    const { data: existentesViejo } = await supabase
       .from('facturas')
-      .select('identidad')
-      .eq('emision', emisionDate)
+      .select('referencia, identidad')
+      .like('referencia', `CM-C-%-${periodoKey}`)
       .not('estado', 'eq', 'Pagado');
 
-    const identidadesYaFacturadas = new Set((yaFacturados || []).map((e: any) => e.identidad));
+    // Construir Set de identidades ya cubiertas por factura vieja CM-C- (1 factura por contribuyente)
+    // Solo aplica si el contribuyente tiene UN SOLO inmueble activo
+    const identidadesConFacturaVieja = new Set((existentesViejo || []).map((e: any) => e.identidad));
+
+    // Contar inmuebles activos por identidad (para saber si es multi-local)
+    const inmueblesXidentidad: Record<string, number> = {};
+    inmuebles.forEach((inm: any) => {
+      if (inm.inmueble && parseFloat(inm.mmv_mes) > 0) {
+        inmueblesXidentidad[inm.identidad] = (inmueblesXidentidad[inm.identidad] || 0) + 1;
+      }
+    });
+
+    const refsExistentes = new Set((existentesNuevo || []).map((e: any) => e.referencia));
 
     // ── PASO 3: Construir batch de recibos nuevas ──
     const facturasNuevas: any[] = [];
     const inmueblesAActualizar: { id: string; nuevaDeudaMmv: number }[] = [];
 
     for (const inm of inmuebles) {
-      if (!inm.inmueble) continue; // Usar código de inmueble individual
+      if (!inm.inmueble) continue;
       const cant = parseFloat(inm.cant_inmuebles) || 1;
       const mmv  = parseFloat(inm.mmv_mes) || 0;
       if (mmv <= 0) continue;
 
-      const refFactura = `CM-${inm.inmueble}-${periodoKey}`; // CM-I-000001-09-2026
-      // Saltar si ya existe por referencia exacta
+      const refFactura = `CM-${inm.inmueble}-${periodoKey}`;
+
+      // Skip si ya existe en formato nuevo CM-I-
       if (refsExistentes.has(refFactura)) continue;
 
-      // ── PROTECCIÓN ANTI-DUPLICADO: verificar si ya existe factura para este inmueble
-      // Esto cubre el caso donde el mismo inmueble tiene factura CM-C- antigua
-      const codigoInmueble = inm.inmueble; // Ej: I-000306
-      const refAlternativa  = `CM-C-${inm.cod_cont}-${periodoKey}`; // formato viejo
-      if (refsExistentes.has(refAlternativa)) {
-        // Ya tiene factura en formato viejo CM-C-, no duplicar
-        refsExistentes.add(refFactura); // marcar para no crear
-        continue;
-      }
+      // Skip si existe factura vieja CM-C- Y el contribuyente tiene un solo inmueble
+      // (la factura vieja ya lo cubre todo)
+      const esUnicoLocal = (inmueblesXidentidad[inm.identidad] || 0) === 1;
+      if (esUnicoLocal && identidadesConFacturaVieja.has(inm.identidad)) continue;
 
       const deudaAgregadaBs = parseFloat((cant * mmv * tcmmv).toFixed(2));
       const nuevaDeudaMmv   = (parseFloat(inm.deuda_mmv) || 0) + (cant * mmv);
