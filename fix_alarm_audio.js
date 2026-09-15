@@ -1,4 +1,8 @@
-'use client';
+const fs = require('fs');
+
+const componentPath = 'c:/Users/david/Desktop/tucacas/global_green_tucacas/src/components/TransferenciaAlarm.tsx';
+
+const componentContent = `'use client';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { BellRing, X, CheckCircle, ChevronRight, Volume2, VolumeX } from 'lucide-react';
@@ -193,16 +197,16 @@ export default function TransferenciaAlarm() {
         {/* Botón silenciar/activar */}
         <button
           onClick={() => { setSilenced(s => !s); unlockAudio(); }}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shadow transition-all ${
+          className={\`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shadow transition-all \${
             silenced
               ? 'bg-slate-200 text-slate-500 hover:bg-slate-300'
               : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-          }`}
+          }\`}
           title={silenced ? 'Activar alarma' : 'Silenciar alarma'}
         >
           {silenced ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
           {silenced ? 'Alarma silenciada' : 'Alarma activa'}
-          <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-500' : 'bg-yellow-400'} animate-pulse`} />
+          <span className={\`w-1.5 h-1.5 rounded-full \${connected ? 'bg-emerald-500' : 'bg-yellow-400'} animate-pulse\`} />
         </button>
 
         {/* Botón probar sonido */}
@@ -229,9 +233,9 @@ export default function TransferenciaAlarm() {
       {/* Panel de alarma */}
       {visible && alertas.length > 0 && (
         <div className="fixed top-4 right-4 z-[9999] w-[400px] max-w-[95vw]">
-          <div className={`rounded-xl shadow-2xl overflow-hidden border-2 ${pulsing ? 'border-yellow-300' : 'border-orange-400'}`}>
+          <div className={\`rounded-xl shadow-2xl overflow-hidden border-2 \${pulsing ? 'border-yellow-300' : 'border-orange-400'}\`}>
             {/* Header */}
-            <div className={`bg-orange-600 px-4 py-3 flex items-center gap-3 ${pulsing ? 'animate-pulse' : ''}`}>
+            <div className={\`bg-orange-600 px-4 py-3 flex items-center gap-3 \${pulsing ? 'animate-pulse' : ''}\`}>
               <div className="bg-white/20 rounded-full p-2">
                 <BellRing className="w-5 h-5 text-white animate-bounce" />
               </div>
@@ -247,7 +251,7 @@ export default function TransferenciaAlarm() {
             {/* Lista */}
             <div className="bg-white max-h-[280px] overflow-y-auto divide-y divide-orange-50">
               {alertas.map((a, i) => (
-                <div key={a.id} className={`px-4 py-3 ${i === 0 ? 'bg-yellow-50' : ''}`}>
+                <div key={a.id} className={\`px-4 py-3 \${i === 0 ? 'bg-yellow-50' : ''}\`}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
@@ -299,3 +303,7 @@ export default function TransferenciaAlarm() {
     </>
   );
 }
+`;
+
+fs.writeFileSync(componentPath, componentContent, 'utf8');
+console.log('✅ TransferenciaAlarm.tsx reescrito con AudioContext desbloqueado + polling fallback');
