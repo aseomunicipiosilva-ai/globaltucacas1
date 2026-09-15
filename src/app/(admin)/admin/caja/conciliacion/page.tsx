@@ -403,6 +403,10 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
   const [isProcessing, setIsProcessing] = useState(false);
   const [showComp, setShowComp] = useState(false);
   const [showEdo, setShowEdo] = useState(false);
+  // Tasa personalizada para recalculo exclusivo de esta conciliacion
+  const tasaOriginal = det.tasa_bcv ? Number(det.tasa_bcv) : 0;
+  const [tasaCustom, setTasaCustom] = useState<string>(tasaOriginal ? tasaOriginal.toFixed(2) : '');
+  const [facturasParaConciliar, setFacturasParaConciliar] = useState<any[]>([]);
 
   const bancosVenezuela = [
     '100% Banco','Bancamiga','Bancaribe','Banco Activo','Banco Agricola de Venezuela',
@@ -477,6 +481,29 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
     })();
   }, [pago.identidad]);
 
+  // Cargar facturas de los recibos seleccionados para recalculo con nueva tasa
+  const recibosParaCalc: string[] = det.recibos || [];
+  useEffect(() => {
+    if (recibosParaCalc.length === 0) return;
+    (async () => {
+      const { data: facs } = await supabase.from('facturas')
+        .select('referencia, monto, emision, mmv_mes, cant_inmuebles')
+        .in('referencia', recibosParaCalc);
+      setFacturasParaConciliar(facs || []);
+    })();
+  }, []);
+
+  // Recalcular deuda cuando cambia la tasa
+  const tasaNum = parseFloat(tasaCustom) || 0;
+  const tasaCambio = tasaOriginal > 0 && tasaNum > 0 ? tasaNum / tasaOriginal : 1;
+  const deudaRecalculada = facturasParaConciliar.length > 0 && tasaNum > 0 && tasaOriginal > 0
+    ? facturasParaConciliar.reduce((sum, f) => {
+        const montoOriginal = parseFloat(f.monto || '0');
+        return sum + parseFloat((montoOriginal * tasaCambio).toFixed(2));
+      }, 0)
+    : 0;
+  const hayRecalculo = tasaNum > 0 && tasaOriginal > 0 && Math.abs(tasaNum - tasaOriginal) > 0.01;
+
   // Auto-fill monto conciliado cuando cambia estatus
   const handleEstatusChange = (val: string) => {
     setEstatus(val);
@@ -498,6 +525,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
   const handleConciliar = async () => {
     setIsProcessing(true);
     try {
+      const tasaParaGuardar = parseFloat(tasaCustom) || tasaOriginal;
       const updatedDet = {
         ...det,
         correo: correoResponsable,
@@ -510,7 +538,20 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
         cod_inmueble: det.cod_inmueble || pago.cod_inmueble || contribInfo?.codigo,
         analista: typeof window !== 'undefined' ? localStorage.getItem('adminUser') || 'Administrador' : 'Administrador',
         banco_destino: bancoReceptor,
+        tasa_bcv: tasaParaGuardar,
+        tasa_bcv_conciliacion: tasaParaGuardar,
+        tasa_bcv_original: tasaOriginal || undefined,
       };
+
+      // Si la tasa cambió, actualizar montos de las facturas seleccionadas
+      if (estatus === 'Aprobado' && hayRecalculo && facturasParaConciliar.length > 0) {
+        const tasaCambioFinal = tasaParaGuardar / (tasaOriginal || tasaParaGuardar);
+        for (const fac of facturasParaConciliar) {
+          const montoOriginal = parseFloat(fac.monto || '0');
+          const nuevoMonto = parseFloat((montoOriginal * tasaCambioFinal).toFixed(2));
+          await supabase.from('facturas').update({ monto: nuevoMonto }).eq('referencia', fac.referencia);
+        }
+      }
 
       // Actualizar el pago
       const { error } = await supabase.from('pagos_reportados').update({
@@ -691,6 +732,11 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                 <div className="bg-red-50 border border-red-200 rounded p-2 text-center">
                   <p className="text-[10px] text-red-500 font-bold uppercase">Deuda Total en Sistema</p>
                   <p className="text-sm font-black text-red-700">Bs. {fmt(parseFloat(deudaTotal))}</p>
+                  {hayRecalculo && deudaRecalculada > 0 && (
+                    <p className="text-[10px] font-bold text-amber-700 mt-0.5 border-t border-red-200 pt-0.5">
+                      ⚡ Con tasa {tasaNum.toFixed(2)}: Bs. {fmt(deudaRecalculada)}
+                    </p>
+                  )}
                 </div>
                 <div className="bg-green-50 border border-green-200 rounded p-2 text-center">
                   <p className="text-[10px] text-green-500 font-bold uppercase">Saldo a Favor</p>
@@ -735,8 +781,23 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                 <input value={fmt(montoReportadoNum)} readOnly className={icRO + ' font-bold text-slate-800'}/>
               </div>
               <div>
-                <label className={lc}>Tasa Utilizada</label>
-                <input value={det.tasa_bcv ? 'Bs. ' + Number(det.tasa_bcv).toFixed(2) : '---'} readOnly className={icRO + ' text-slate-600'}/>
+                <label className={lc}>
+                  Tasa BCV (editable)
+                  {hayRecalculo && <span className="ml-1 text-amber-600 font-bold text-[10px]">⚡ RECALCULANDO</span>}
+                </label>
+                <div className="relative">
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">Bs.</span>
+                  <input
+                    value={tasaCustom}
+                    onChange={e => setTasaCustom(e.target.value)}
+                    className={ic + ' pl-7 ' + (hayRecalculo ? 'border-amber-400 bg-amber-50 font-bold text-amber-800' : '')}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder={tasaOriginal ? tasaOriginal.toFixed(2) : 'Ingrese tasa...'}
+                  />
+                </div>
+                {tasaOriginal > 0 && <p className="text-[10px] text-slate-400 mt-0.5">Original: Bs. {tasaOriginal.toFixed(2)}</p>}
               </div>
               <div>
                 <label className={lc}>Estatus de ConciliaciÃ³n</label>
