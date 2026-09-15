@@ -39,7 +39,7 @@ export default function Sidebar() {
     { icon: PieChart, name: 'Reportes Generales', href: '/admin/reportes' },
     { icon: Mail, name: 'Correos Informativos', href: '/admin/correos' },
     { icon: UserPlus, name: 'Trabajadores Aseo', href: '/admin/trabajadores' },
-    { icon: Smartphone, name: 'Cobro Móvil', href: '/admin/cobro-movil' },
+    { icon: Smartphone, name: 'Cobro Móvil', href: '/cobro-movil' },
     { icon: ShieldAlert, name: 'Auditoría', href: '/admin/auditoria' }
   ];
 

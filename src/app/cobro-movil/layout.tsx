@@ -80,9 +80,8 @@ export default function CobroMovilLayout({ children }: { children: React.ReactNo
       setNombreCobrador(data.nombre || data.usuario);
       setIsAuth(true);
 
-      // Also set admin auth so AppContext works
-      localStorage.setItem('admin_auth_andministrador', 'true');
-      localStorage.setItem('admin_user_data', JSON.stringify(data));
+      // Store cobrador data for AppContext
+      localStorage.setItem('cobro_movil_user_data', JSON.stringify(data));
     } catch(err) {
       setError('Error de conexión. Intenta de nuevo.');
     }
