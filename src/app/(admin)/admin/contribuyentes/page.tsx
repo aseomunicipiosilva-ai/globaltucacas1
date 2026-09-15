@@ -484,11 +484,16 @@ function ContribuyentesPageContent() {
       doc.setFontSize(9);
       doc.setTextColor(220, 38, 38);
       doc.text(`TASA VIGENTE HASTA: ${tasaVigente}`, 105, 23, { align: 'center' });
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'bolditalic');
+      doc.text('⚠ NOTA: El monto calculado es válido ÚNICAMENTE para la fecha de emisión de este documento.', 105, 28, { align: 'center' });
+      doc.text('La tasa de cambio BCV varía diariamente. Consulte con la administración para actualizar el monto.', 105, 32, { align: 'center' });
+      doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0);
 
       // ── LÍNEA ──
       doc.setLineWidth(0.3);
-      doc.line(14, 32, 196, 32);
+      doc.line(14, 36, 196, 36);
 
       // ── GENERADO POR / NRO ──
       doc.setFontSize(9);
