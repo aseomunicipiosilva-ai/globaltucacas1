@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { Power } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { logAudit } from '@/lib/audit';
@@ -18,13 +18,17 @@ export default function Header() {
         <button 
           onClick={() => {
             logAudit('Logout (Cierre Manual)', {}, 'SESION');
+            // Eliminar TODOS los tokens - siempre pedirá contraseña al volver
+            localStorage.removeItem('admin_auth_andministrador');
+            localStorage.removeItem('admin_user_data');
             localStorage.removeItem('adminUser');
             localStorage.removeItem('adminLetra');
             localStorage.removeItem('adminToken');
-            router.push('/');
+            // Redirigir al login admin
+            window.location.href = '/admin';
           }}
           className="p-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-full transition-colors"
-          title="Cerrar sesiÃ³n"
+          title="Cerrar sesión"
         >
           <Power className="w-5 h-5" />
         </button>

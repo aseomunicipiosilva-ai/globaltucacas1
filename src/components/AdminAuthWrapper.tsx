@@ -34,7 +34,7 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
     const resetTimer = () => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
-        logAudit('Logout (Inactividad 5m)', {}, 'SESION');
+        logAudit('Logout (Inactividad 7m)', {}, 'SESION');
         localStorage.removeItem('admin_auth_andministrador');
         localStorage.removeItem('admin_user_data');
         localStorage.removeItem('adminUser');
@@ -42,7 +42,7 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
         localStorage.removeItem('adminToken');
         setIsAuthenticated(false);
         window.location.href = '/admin'; // Force full reload to login screen
-      }, 300000); // 5 minutes
+      }, 420000); // 7 minutes
     };
 
     const events = ['mousemove', 'keydown', 'mousedown', 'touchstart', 'scroll'];
@@ -181,4 +181,5 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
 
   return <>{children}</>;
 }
+
 
