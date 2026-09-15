@@ -1189,7 +1189,7 @@ export default function EstadoCuentaPage() {
             <p className="p-8 text-center text-slate-400 text-sm">No hay pagos registrados.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
+              <table className="w-full text-sm text-left" style={{minWidth:'950px'}}>
                 <thead className="bg-indigo-50 text-indigo-700 font-medium text-[11px] uppercase">
                   <tr>
                     <th className="px-4 py-3">Fecha</th>

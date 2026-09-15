@@ -2459,7 +2459,7 @@ function ContribuyentesPageContent() {
                   <FileText className="w-5 h-5 text-slate-600" />
                   <h4 className="font-bold text-slate-800">Historial de Recibos Procesados</h4>
                 </div>
-                <div className="p-0 bg-white">
+                <div className="p-0 bg-white overflow-x-auto">
                   {(() => {
                     const procesadas = (recibos || [])
                       .filter((f: any) => f.identidad === viewData.Identidad || f.contribuyente === viewData.Contribuyente || f.contribuyente === viewData.Identidad)
@@ -2470,7 +2470,7 @@ function ContribuyentesPageContent() {
                     }
 
                     return (
-                      <table className="w-full text-sm text-left">
+                      <table className="w-full text-sm text-left" style={{minWidth:'850px'}}>
                         <thead className="bg-slate-100 text-slate-500 font-medium text-[10px] uppercase">
                           <tr>
                             <th className="px-4 py-2">Referencia</th>
@@ -2571,7 +2571,7 @@ function ContribuyentesPageContent() {
                   <p className="p-4 text-sm text-slate-500 text-center">No hay pagos registrados para este contribuyente.</p>
                 ) : (
                   <div className="bg-white overflow-x-auto">
-                    <table className="w-full text-sm text-left">
+                    <table className="w-full text-sm text-left" style={{minWidth: '700px'}}>
                       <thead className="bg-indigo-50 text-indigo-700 font-medium text-[10px] uppercase">
                         <tr>
                           <th className="px-3 py-2">Fecha</th>
