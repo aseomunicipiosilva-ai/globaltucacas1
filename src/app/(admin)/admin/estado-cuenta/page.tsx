@@ -1195,8 +1195,10 @@ export default function EstadoCuentaPage() {
                     <th className="px-4 py-3">Fecha</th>
                     <th className="px-4 py-3">Contribuyente</th>
                     <th className="px-4 py-3">Monto (Bs)</th>
-                    <th className="px-4 py-3">M├⌐todo de Pago</th>
+                    <th className="px-4 py-3">Método de Pago</th>
                     <th className="px-4 py-3">Tipo</th>
+                    <th className="px-4 py-3">Cajero / Operador</th>
+                    <th className="px-4 py-3">Meses Pagados</th>
                     <th className="px-4 py-3">Estado</th>
                     <th className="px-4 py-3">Referencia</th>
                   </tr>
@@ -1206,6 +1208,21 @@ export default function EstadoCuentaPage() {
                     const det = parseDetalles(pago.detalles);
                     const esAbono = det.es_abono === true;
                     const metodo = pago.tipo === 'Debito' ? 'Punto de Venta' : pago.tipo || '---';
+                    const cajeroNombre = det.cajero || det.usuario || det.operador || pago.cajero || '—';
+                    // Meses pagados: extraer períodos de las referencias en detalles.recibos
+                    const MESES_ABR = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+                    const getMesAbr = (ref: string) => {
+                      // Formato referencia: CM-X-000000-MM-YYYY
+                      const parts = ref?.split('-') || [];
+                      if (parts.length >= 5) {
+                        const mm = parseInt(parts[parts.length - 2]);
+                        const yyyy = parts[parts.length - 1];
+                        if (!isNaN(mm) && mm >= 1 && mm <= 12) return `${MESES_ABR[mm-1]}-${yyyy}`;
+                      }
+                      return null;
+                    };
+                    const recibosRefs: string[] = det.recibos || [];
+                    const mesesPagados = recibosRefs.map(getMesAbr).filter(Boolean) as string[];
                     return (
                       <tr key={idx} className={`border-b border-slate-100 last:border-0 hover:bg-indigo-50/30 ${esAbono ? 'bg-amber-50/30' : ''}`}>
                         <td className="px-4 py-3 text-slate-500 text-xs">{pago.created_at ? new Date(pago.created_at).toLocaleDateString('es-VE') : '---'}</td>
@@ -1224,6 +1241,18 @@ export default function EstadoCuentaPage() {
                           ) : (
                             <span className="px-2 py-1 rounded text-[11px] font-semibold bg-emerald-100 text-emerald-700">PAGO COMPLETO</span>
                           )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[11px] font-semibold">{cajeroNombre}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {mesesPagados.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {mesesPagados.map((m, i) => (
+                                <span key={i} className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[10px] font-mono font-semibold">{m}</span>
+                              ))}
+                            </div>
+                          ) : <span className="text-slate-400 text-xs">—</span>}
                         </td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 rounded text-[11px] font-bold ${
