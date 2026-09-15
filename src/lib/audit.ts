@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+﻿import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,13 +31,14 @@ export const logAudit = async (
       if (u) usuario = l ? `${l}-${u}` : u;
       modulo = window.location.pathname;
     }
+    // Guardar categoria y modulo DENTRO de detalles (columnas aun no creadas en la BD)
     await supabase.from('auditoria').insert([{
       usuario,
       accion,
-      categoria,
-      modulo,
       detalles: {
         ...detalles,
+        _categoria: categoria,
+        _modulo: modulo,
         _hora: new Date().toLocaleTimeString('es-VE'),
         _fecha: new Date().toLocaleDateString('es-VE'),
         _ts: new Date().toISOString(),
