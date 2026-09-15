@@ -1,4 +1,8 @@
-'use client';
+const fs = require('fs');
+
+const layoutPath = 'c:/Users/david/Desktop/tucacas/global_green_tucacas/src/app/(admin)/admin/cobro-movil/layout.tsx';
+
+const layoutContent = `'use client';
 import { useState, useEffect } from 'react';
 import { AppProvider } from '@/store/AppContext';
 import { Smartphone, Lock, User, Eye, EyeOff, AlertCircle } from 'lucide-react';
@@ -207,3 +211,7 @@ export default function CobroMovilLayout({ children }: { children: React.ReactNo
     </AppProvider>
   );
 }
+`;
+
+fs.writeFileSync(layoutPath, layoutContent);
+console.log('✅ cobro-movil/layout.tsx updated with standalone login');
