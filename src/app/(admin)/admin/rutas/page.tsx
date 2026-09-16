@@ -104,6 +104,7 @@ export default function RutasCamionesPage() {
       const { data, error } = await supabase
         .from('rutas')
         .insert([{
+          id: idStr,
           nombre: nuevaRuta.nombre,
           frecuencia: nuevaRuta.frecuencia,
           sectores: nuevaRuta.sectores,
