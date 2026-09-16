@@ -2,7 +2,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { useAppContext } from '@/store/AppContext';
 
 function parseMonto(val: any): number {
   if (!val) return 0;
@@ -40,10 +39,10 @@ function getRange(p: Periodo) {
 
 export default function PresidenciaDashboard() {
   const router = useRouter();
-  const { inmuebles } = useAppContext();
   const [nombre, setNombre] = useState('');
   const [periodo, setPeriodo] = useState<Periodo>('mes');
   const [pagos, setPagos] = useState<any[]>([]);
+  const [inmuebles, setInmuebles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState('');
 
@@ -53,7 +52,6 @@ export default function PresidenciaDashboard() {
     if (!auth) { router.replace('/presidencia/login'); return; }
     try {
       const d = JSON.parse(auth);
-      // Session expires 8 hours
       if (Date.now() - d.ts > 8 * 60 * 60 * 1000) {
         sessionStorage.removeItem('presidencia_auth');
         router.replace('/presidencia/login');
@@ -62,6 +60,12 @@ export default function PresidenciaDashboard() {
       setNombre(d.nombre || 'Presidente');
     } catch { router.replace('/presidencia/login'); }
   }, [router]);
+
+  // Load inmuebles once for sector mapping
+  useEffect(() => {
+    supabase.from('inmuebles').select('identidad,actividad_principal').limit(1000)
+      .then(({ data }) => setInmuebles(data || []));
+  }, []);
 
   const fetchPagos = async () => {
     setLoading(true);
@@ -86,7 +90,7 @@ export default function PresidenciaDashboard() {
     return () => clearInterval(interval);
   }, [periodo]);
 
-  // Sector map
+  // Sector map built from locally fetched inmuebles
   const sectorMap = useMemo(() => {
     const m = new Map<string, string>();
     inmuebles.forEach((inm: any) => {
@@ -107,11 +111,11 @@ export default function PresidenciaDashboard() {
   })), [pagos, sectorMap]);
 
   const total = pagosEnr.reduce((s, p) => s + parseMonto(p.monto), 0);
-  const res = pagosEnr.filter(p => p.sector === 'Residencial').reduce((s, p) => s + parseMonto(p.monto), 0);
-  const com = pagosEnr.filter(p => p.sector === 'Comercial').reduce((s, p) => s + parseMonto(p.monto), 0);
-  const ind = pagosEnr.filter(p => p.sector === 'Industrial').reduce((s, p) => s + parseMonto(p.monto), 0);
-  const tra = pagosEnr.filter(p => p.tipo === 'Transferencia').reduce((s, p) => s + parseMonto(p.monto), 0);
-  const deb = pagosEnr.filter(p => p.tipo === 'Debito' || p.tipo === 'Punto de Venta').reduce((s, p) => s + parseMonto(p.monto), 0);
+  const res   = pagosEnr.filter(p => p.sector === 'Residencial').reduce((s, p) => s + parseMonto(p.monto), 0);
+  const com   = pagosEnr.filter(p => p.sector === 'Comercial').reduce((s, p) => s + parseMonto(p.monto), 0);
+  const ind   = pagosEnr.filter(p => p.sector === 'Industrial').reduce((s, p) => s + parseMonto(p.monto), 0);
+  const tra   = pagosEnr.filter(p => p.tipo === 'Transferencia').reduce((s, p) => s + parseMonto(p.monto), 0);
+  const deb   = pagosEnr.filter(p => p.tipo === 'Debito' || p.tipo === 'Punto de Venta').reduce((s, p) => s + parseMonto(p.monto), 0);
 
   const lbl: Record<Periodo, string> = { hoy: 'Hoy', semana: 'Esta semana', mes: 'Este mes', mes_pasado: 'Mes pasado' };
 
@@ -125,10 +129,7 @@ export default function PresidenciaDashboard() {
   );
 
   const Card = ({ label, value, color, bg }: { label: string, value: string, color: string, bg: string }) => (
-    <div style={{
-      background: bg, borderRadius: 16, padding: '16px', textAlign: 'center',
-      border: `1px solid ${color}30`
-    }}>
+    <div style={{ background: bg, borderRadius: 16, padding: '16px', textAlign: 'center', border: `1px solid ${color}30` }}>
       <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: 0.8 }}>{label}</p>
       <p style={{ margin: '6px 0 0', fontSize: 17, fontWeight: 800, color, lineHeight: 1.2 }}>{value}</p>
     </div>
@@ -148,15 +149,13 @@ export default function PresidenciaDashboard() {
       }}>
         <div>
           <p style={{ margin: 0, fontSize: 10, color: '#B8CD29', fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>Modulo Presidencia</p>
-          <p style={{ margin: '2px 0 0', fontSize: 16, fontWeight: 800 }}>Hola, {nombre} 👋</p>
+          <p style={{ margin: '2px 0 0', fontSize: 16, fontWeight: 800 }}>Hola, {nombre}</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button onClick={fetchPagos} style={{
             background: 'rgba(184,205,41,.15)', border: '1px solid rgba(184,205,41,.3)',
             borderRadius: 10, padding: '8px 12px', color: '#B8CD29', cursor: 'pointer', fontSize: 12, fontWeight: 600
-          }}>
-            {loading ? '⟳' : '↻'} Actualizar
-          </button>
+          }}>{loading ? '...' : 'Actualizar'}</button>
           <button onClick={() => { sessionStorage.removeItem('presidencia_auth'); router.replace('/presidencia/login'); }}
             style={{ background: 'rgba(220,38,38,.15)', border: '1px solid rgba(220,38,38,.3)', borderRadius: 10, padding: '8px 12px', color: '#fca5a5', cursor: 'pointer', fontSize: 12 }}>
             Salir
@@ -170,7 +169,7 @@ export default function PresidenciaDashboard() {
           {(['hoy','semana','mes','mes_pasado'] as Periodo[]).map(p => <BtnPeriodo key={p} p={p} />)}
         </div>
 
-        {/* Total grande */}
+        {/* Total */}
         <div style={{
           background: 'linear-gradient(135deg, rgba(184,205,41,.15), rgba(93,177,48,.1))',
           border: '1px solid rgba(184,205,41,.3)', borderRadius: 20, padding: '24px',
@@ -182,34 +181,29 @@ export default function PresidenciaDashboard() {
           <p style={{ margin: '8px 0 4px', fontSize: 36, fontWeight: 900, color: '#B8CD29', lineHeight: 1 }}>
             {loading ? '...' : fmt(total)}
           </p>
-          <p style={{ margin: 0, fontSize: 12, color: 'rgba(200,230,200,.6)' }}>
-            {pagosEnr.length} transacciones aprobadas
-          </p>
+          <p style={{ margin: 0, fontSize: 12, color: 'rgba(200,230,200,.6)' }}>{pagosEnr.length} transacciones aprobadas</p>
           {lastUpdate && (
             <p style={{ margin: '6px 0 0', fontSize: 11, color: 'rgba(200,230,200,.4)' }}>
-              Actualizado: {lastUpdate}  · Auto-actualiza cada 60s
+              Actualizado: {lastUpdate} · Auto-actualiza cada 60s
             </p>
           )}
         </div>
 
-        {/* Método de pago */}
         <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, color: 'rgba(200,230,200,.5)', textTransform: 'uppercase', letterSpacing: 1 }}>Por Metodo de Pago</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
           <Card label="Transferencias" value={fmt(tra)} color="#a855f7" bg="rgba(168,85,247,.08)" />
           <Card label="Debito / POS" value={fmt(deb)} color="#f97316" bg="rgba(249,115,22,.08)" />
         </div>
 
-        {/* Por sector */}
         <p style={{ margin: '0 0 10px', fontSize: 11, fontWeight: 700, color: 'rgba(200,230,200,.5)', textTransform: 'uppercase', letterSpacing: 1 }}>Por Sector</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 28 }}>
           <Card label="Residencial" value={fmt(res)} color="#3b82f6" bg="rgba(59,130,246,.08)" />
-          <Card label="Comercial" value={fmt(com)} color="#f59e0b" bg="rgba(245,158,11,.08)" />
-          <Card label="Industrial" value={fmt(ind)} color="#6366f1" bg="rgba(99,102,241,.08)" />
+          <Card label="Comercial"   value={fmt(com)} color="#f59e0b" bg="rgba(245,158,11,.08)" />
+          <Card label="Industrial"  value={fmt(ind)} color="#6366f1" bg="rgba(99,102,241,.08)" />
         </div>
 
-        {/* Ultimas transacciones */}
         <p style={{ margin: '0 0 12px', fontSize: 11, fontWeight: 700, color: 'rgba(200,230,200,.5)', textTransform: 'uppercase', letterSpacing: 1 }}>
-          Ultimas Transacciones ({Math.min(pagosEnr.length, 15)})
+          Ultimas Transacciones
         </p>
         {loading ? (
           <div style={{ textAlign: 'center', color: 'rgba(200,230,200,.4)', padding: 40 }}>Cargando...</div>
@@ -224,24 +218,17 @@ export default function PresidenciaDashboard() {
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center'
               }}>
                 <div>
-                  <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#fff' }}>
-                    {p.tipo} · {p.banco || 'N/A'}
-                  </p>
-                  <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(200,230,200,.5)' }}>
-                    Ref: {p.referencia || '—'}  · {p.sector}
-                  </p>
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#fff' }}>{p.tipo} · {p.banco || 'N/A'}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(200,230,200,.5)' }}>Ref: {p.referencia || '—'} · {p.sector}</p>
                   <p style={{ margin: '2px 0 0', fontSize: 10, color: 'rgba(200,230,200,.35)' }}>
                     {new Date(p.created_at).toLocaleString('es-VE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit', hour12:false })}
                   </p>
                 </div>
-                <p style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#B8CD29' }}>
-                  {fmt(parseMonto(p.monto))}
-                </p>
+                <p style={{ margin: 0, fontSize: 16, fontWeight: 800, color: '#B8CD29' }}>{fmt(parseMonto(p.monto))}</p>
               </div>
             ))}
           </div>
         )}
-
         <div style={{ height: 40 }} />
       </div>
     </div>
