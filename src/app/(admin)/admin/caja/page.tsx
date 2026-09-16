@@ -823,7 +823,9 @@ export default function CajaPage() {
         // Transferencia / PagoMovil -> Enviar a Verificación
         // Upload comprobante to Supabase Storage if present
         let comprobanteUrl = '';
+        let comprobanteB64 = '';
         if (comprobante) {
+          // Try Storage first
           try {
             const ext = comprobante.name.split('.').pop() || 'jpg';
             const filePath = `comprobantes/${(foundUser.Identidad || 'x').replace(/[^a-zA-Z0-9]/g,'_')}_${Date.now()}.${ext}`;
@@ -834,7 +836,18 @@ export default function CajaPage() {
               const { data: pubData } = supabase.storage.from('comprobantes').getPublicUrl(filePath);
               comprobanteUrl = pubData?.publicUrl || '';
             }
-          } catch(e) { console.warn('No se pudo subir comprobante:', e); }
+          } catch(e) { /* Storage no disponible, usar base64 */ }
+          // Fallback: base64 (siempre, garantiza visualizacion aunque falle Storage)
+          if (!comprobanteUrl && comprobante.size < 5 * 1024 * 1024) { // max 5MB
+            try {
+              comprobanteB64 = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(comprobante);
+              });
+            } catch(e) { console.warn('No se pudo convertir comprobante a base64:', e); }
+          }
         }
 
         const { error: pErr } = await supabase.from('pagos_reportados').insert({
@@ -858,6 +871,7 @@ export default function CajaPage() {
             deuda_total_sistema: foundUser.DeudaTotal,
             comprobante_nombre: comprobante?.name || '',
             comprobante_url: comprobanteUrl,
+            comprobante_b64: comprobanteB64 || undefined,
             fecha_transaccion: fechaTransaccion,
             tasa_bcv_aplicada: customBcvRate ? customBcvRate : undefined,
             nota_cambio_tasa: justificacionBcv ? justificacionBcv : undefined

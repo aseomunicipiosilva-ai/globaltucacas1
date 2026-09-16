@@ -80,6 +80,10 @@ function ModalComprobante({ pago, onClose }: { pago: Pago; onClose: () => void }
       if (det.comprobante_url) {
         urls.push({ name: det.comprobante_nombre || 'comprobante.jpg', url: det.comprobante_url });
       }
+      // 2. Fallback: comprobante_b64 (base64 guardado cuando Storage no disponible)
+      if (urls.length === 0 && det.comprobante_b64) {
+        urls.push({ name: det.comprobante_nombre || 'comprobante', url: det.comprobante_b64 });
+      }
       try {
         const { data: files } = await supabase.storage
           .from('comprobantes').list('pagos/' + pago.id, { limit: 20 });
@@ -98,7 +102,7 @@ function ModalComprobante({ pago, onClose }: { pago: Pago; onClose: () => void }
 
   const label = (det.cod_inmueble || pago.cod_inmueble || '') + '-' + (pago.contribuyente || pago.identidad || '');
 
-  const isImg = (url: string) => /\.(jpg|jpeg|png|gif|webp|bmp)(\?|$)/i.test(url);
+  const isImg = (url: string) => url.startsWith('data:image') || /\.(jpg|jpeg|png|gif|webp|bmp)(\?|$)/i.test(url);
 
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -881,9 +885,17 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
               </div>
               {/* Diferencia pendiente cuando monto conciliado < deuda total */}
               {estatus === 'Aprobado' && montoConciliadoNum > 0 && montoReportadoNum < deudaTotalContrib - 0.01 && (
-                <div className="flex justify-between text-sm border-t pt-2 mt-1">
-                  <span className="text-red-700 font-bold">⚠ Diferencia Pendiente (Saldo Negativo)</span>
-                  <span className="text-red-700 font-bold">- {fmt(deudaTotalContrib - montoReportadoNum)}</span>
+                <div className="border-t pt-2 mt-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-red-700 font-bold">⚠ Diferencia Pendiente (Saldo Negativo)</span>
+                    <span className="text-red-700 font-bold">- {fmt(deudaTotalContrib - montoReportadoNum)}</span>
+                  </div>
+                  {det.nota_cambio_tasa && (
+                    <p className="text-xs text-amber-700 mt-1 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                      ⚡ Ajuste por cambio de tasa BCV: {det.nota_cambio_tasa}. Tasa aplicada: {det.tasa_bcv_aplicada || det.tasa_bcv} Bs/€.
+                    </p>
+                  )}
+                  <p className="text-xs text-slate-500 mt-1">El contribuyente tiene facturas adicionales pendientes no incluidas en este pago.</p>
                 </div>
               )}
               {estatus === 'Con Diferencia' && parseFloat(montoConciliado) > 0 && (
@@ -1050,6 +1062,7 @@ export default function ConciliacionPage() {
     </div>
   );
 }
+
 
 
 
