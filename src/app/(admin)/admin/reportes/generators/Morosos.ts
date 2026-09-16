@@ -1,4 +1,4 @@
-import * as xlsx from 'xlsx';
+﻿import * as xlsx from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -82,84 +82,91 @@ export async function generarMorososPDF(
     }
     grouped[id].facturas.push(f);
   }
-  const MESES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
-  const getMes = (d: string) => {
-    const p = d?.split('-');
-    return p?.length >= 2 ? `${MESES[parseInt(p[1])-1]}-${p[0]}` : d || '—';
-  };
+
   const rows = Object.values(grouped)
     .filter(g => g.facturas.length > 0)
     .map(g => {
       const { facturas, contrib } = g;
       let totalDeudaBs = 0;
       for (const f of facturas) totalDeudaBs += parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
-      const periodos = facturas
-        .sort((a: any, b: any) => new Date(a.emision).getTime() - new Date(b.emision).getTime())
-        .map((f: any) => getMes(f.emision)).join(', ');
       return {
-        cod_cont: contrib?.CodCont || '—',
-        contribuyente: contrib?.Contribuyente || facturas[0]?.contribuyente || '—',
-        identidad: contrib?.Identidad || facturas[0]?.identidad || '—',
-        clasificacion: contrib?.Clasificacion || '—',
+        contribuyente:   contrib?.Contribuyente || facturas[0]?.contribuyente || 'N/D',
+        identidad:       contrib?.Identidad     || facturas[0]?.identidad     || 'N/D',
+        telefono:        contrib?.Telefono      || contrib?.telefono           || 'N/D',
         mesesPendientes: facturas.length,
-        periodos,
         totalDeudaBs,
       };
     })
     .sort((a, b) => b.mesesPendientes - a.mesesPendientes || b.totalDeudaBs - a.totalDeudaBs);
 
-  const today = new Date();
-  const todayStr = today.toLocaleDateString('es-VE', { day:'2-digit', month:'2-digit', year:'numeric' });
-  const doc = new jsPDF({ unit:'mm', format:'a4', orientation:'landscape' });
-
-  doc.setFontSize(16); doc.setFont('helvetica', 'bold');
-  doc.text('REPORTE DE MOROSOS', 148, 14, { align:'center' });
-  doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-  doc.text('INSTITUTO SOCIAL MUNICIPAL DEL AMBIENTE (ISMA) — MUNICIPIO SILVA', 148, 20, { align:'center' });
-  doc.setTextColor(100,100,100); doc.setFontSize(8);
-  doc.text(`Fecha: ${todayStr}  |  Tasa BCV: ${tcmmv ? tcmmv + ' Bs/EUR' : 'N/D'}  |  Total morosos: ${rows.length}`, 148, 25, { align:'center' });
-  doc.setTextColor(0,0,0); doc.setLineWidth(0.5); doc.line(14, 28, 282, 28);
-
+  const todayStr = new Date().toLocaleDateString('es-VE', { day:'2-digit', month:'2-digit', year:'numeric' });
   const totalDeuda = rows.reduce((s, r) => s + r.totalDeudaBs, 0);
 
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+  const pageW = 210;
+
+  // Header
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, pageW, 22, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(14);
+  doc.text('LISTA DE COBRANZAS', pageW / 2, 10, { align: 'center' });
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text('ISMA - Municipio Silva', pageW / 2, 16, { align: 'center' });
+
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(8);
+  doc.text('Fecha: ' + todayStr, 14, 28);
+  doc.text('Total morosos: ' + rows.length, pageW / 2, 28, { align: 'center' });
+  doc.text('Deuda total: Bs. ' + totalDeuda.toLocaleString('es-VE', { minimumFractionDigits: 2 }), pageW - 14, 28, { align: 'right' });
+  doc.setDrawColor(200, 200, 200);
+  doc.line(14, 30, pageW - 14, 30);
+
   autoTable(doc, {
-    startY: 32,
-    head: [['N°','CÓDIGO','CONTRIBUYENTE / RAZÓN SOCIAL','IDENTIDAD','CLASIFICACIÓN','MESES\nPENDIENTES','PERÍODOS ADEUDADOS','DEUDA TOTAL (Bs)']],
-    body: [
-      ...rows.map((r, i) => [
-        i+1, r.cod_cont, r.contribuyente, r.identidad, r.clasificacion,
-        r.mesesPendientes, r.periodos,
-        r.totalDeudaBs.toLocaleString('es-VE', { minimumFractionDigits:2 }),
-      ]),
-      ['','','','','',
-        { content: `TOTAL: ${rows.length} morosos`, colSpan:2, styles:{ fontStyle:'bold', halign:'right' } },
-        { content: `Bs. ${totalDeuda.toLocaleString('es-VE', { minimumFractionDigits:2 })}`, styles:{ fontStyle:'bold', halign:'right', textColor:[220,38,38] } }
-      ],
-    ],
+    startY: 33,
+    margin: { left: 10, right: 10 },
+    head: [['N', 'CONTRIBUYENTE / RAZON SOCIAL', 'IDENTIDAD', 'TELEFONO', 'MESES', 'DEUDA (Bs)']],
+    body: rows.map((r, i) => [
+      i + 1,
+      r.contribuyente,
+      r.identidad,
+      r.telefono,
+      r.mesesPendientes,
+      r.totalDeudaBs.toLocaleString('es-VE', { minimumFractionDigits: 2 }),
+    ]),
     theme: 'striped',
-    headStyles: { fillColor:[15,23,42], textColor:[255,255,255], fontStyle:'bold', fontSize:8, halign:'center' },
-    styles: { fontSize:7.5, cellPadding:2 },
+    headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5, halign: 'center' },
+    styles: { fontSize: 7, cellPadding: 1.8 },
     columnStyles: {
-      0:{ cellWidth:8, halign:'center' },
-      1:{ cellWidth:20 },
-      2:{ cellWidth:70 },
-      3:{ cellWidth:22 },
-      4:{ cellWidth:22 },
-      5:{ cellWidth:16, halign:'center', fontStyle:'bold' },
-      6:{ cellWidth:70 },
-      7:{ cellWidth:30, halign:'right', fontStyle:'bold' },
+      0: { cellWidth: 8,  halign: 'center' },
+      1: { cellWidth: 72 },
+      2: { cellWidth: 28 },
+      3: { cellWidth: 28 },
+      4: { cellWidth: 12, halign: 'center', fontStyle: 'bold' },
+      5: { cellWidth: 30, halign: 'right',  fontStyle: 'bold' },
     },
+    foot: [[
+      '', '', '', '',
+      { content: rows.length + ' morosos', styles: { fontStyle: 'bold', halign: 'right', textColor: [15,23,42] } },
+      { content: 'Bs. ' + totalDeuda.toLocaleString('es-VE', { minimumFractionDigits: 2 }), styles: { fontStyle: 'bold', halign: 'right', textColor: [185,28,28] } },
+    ]],
+    footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold', fontSize: 7.5 },
     didParseCell: (data) => {
       if (data.section === 'body' && data.row.index < rows.length) {
         const r = rows[data.row.index];
-        if (r && r.mesesPendientes >= 3) data.cell.styles.textColor = [185, 28, 28];
+        if (r && r.mesesPendientes >= 3) {
+          data.cell.styles.textColor = [185, 28, 28];
+          data.cell.styles.fontStyle = 'bold';
+        }
       }
     },
   });
 
-  const finalY = (doc as any).lastAutoTable.finalY + 6;
-  doc.setFontSize(7); doc.setFont('helvetica','italic'); doc.setTextColor(100,100,100);
-  doc.text('* Contribuyentes en rojo tienen 3 o más meses pendientes.', 14, finalY);
-  doc.text(`Generado: ${todayStr} | Sistema ISMA`, 282, finalY, { align:'right' });
-  doc.save(`Morosos_${todayStr.replace(/\//g, '-')}.pdf`);
+  const finalY = (doc as any).lastAutoTable.finalY + 5;
+  doc.setFontSize(6.5); doc.setFont('helvetica', 'italic'); doc.setTextColor(130, 130, 130);
+  doc.text('* En rojo: 3 o mas meses pendientes.', 14, finalY);
+  doc.text('Sistema ISMA  |  ' + todayStr, pageW - 14, finalY, { align: 'right' });
+  doc.save('CobranzasMorosos_' + todayStr.replace(/\//g, '-') + '.pdf');
 }

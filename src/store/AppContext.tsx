@@ -57,7 +57,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       let from = 0;
       let step = 999;
       while (fetchMore) {
-        const { data: chunk } = await supabase.from('facturas').select('*').range(from, from + step);
+        const { data: chunk } = await supabase.from('facturas').select('*')
+          .in('estado', ['Pendiente', 'Abonado', 'Por Verificar']) // Solo facturas activas - excluye Pagado/Anulado/Reversado
+          .range(from, from + step);
         if (chunk && chunk.length > 0) {
           allFacturas = [...allFacturas, ...chunk];
           from += step + 1;
