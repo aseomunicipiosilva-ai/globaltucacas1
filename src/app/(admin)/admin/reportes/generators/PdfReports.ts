@@ -11,7 +11,8 @@ export const generarCorteCajaPDF = (
   pagosFiltrados: any[], 
   contribuyentes: any[], 
   fechaInicio: string,
-  fechaFin: string
+  fechaFin: string,
+  tasaEuro: number = 0
 ) => {
   if (pagosFiltrados.length === 0) {
     alert("No hay pagos en el rango de fechas seleccionado.");
@@ -175,19 +176,24 @@ export const generarCorteCajaPDF = (
   drawSubTable(
     "TRANSFERENCIAS REGISTRADAS POR EL CAJERO", 
     transferencias, 
-    ["FECHA/HORA", "FECHA BCO", "TIPO", "FECHA LIBRO", "DOCUMENTO", "BANCO ORIGEN", "REFERENCIA", "BANCO DESTINO", "REF. DESTINO", "MONTO"],
-    (p, c) => [
-      new Date(p.created_at).toLocaleString('es-VE', {hour12: false, day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}),
-      new Date(p.fecha_pago || p.created_at).toLocaleDateString('es-VE', {day:'2-digit', month:'2-digit', year:'numeric'}),
-      p.tipo.substring(0,3).toUpperCase(),
-      "NO FACTURADO",
-      p.referencia_bancaria || p.referencia || 'N/A',
-      (p.banco_origen || 'N/A').substring(0,15),
-      p.referencia || 'N/A',
-      (p.banco_destino || 'N/A').substring(0,15),
-      p.referencia || 'N/A',
-      parseFloat(p.monto).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    ],
+    ["FECHA/HORA", "BANCO ORIGEN", "BANCO DESTINO", "REFERENCIA", "MONTO Bs.", "MONTO EUR"],
+    (p, c) => {
+      let det: any = {};
+      try { det = (typeof p.detalles === 'string' ? JSON.parse(p.detalles) : p.detalles) || {}; } catch(e) {}
+      const bancoOrigen = (p.banco || det.banco_origen || det.banco_emisor || 'N/A').substring(0,22);
+      const bancoDestino = (det.banco_destino || det.banco_receptor || 'N/A').substring(0,22);
+      const montoNum = parseFloat(det.monto_conciliado || p.monto || '0');
+      const tasaPagoEuro = det.tasa_euro || det.tasa_bcv_conciliacion || tasaEuro || 0;
+      const montoEur = tasaPagoEuro > 0 ? (montoNum / tasaPagoEuro).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A';
+      return [
+        new Date(p.created_at).toLocaleString('es-VE', {hour12: false, day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}),
+        bancoOrigen,
+        bancoDestino,
+        p.referencia || 'N/A',
+        montoNum.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        montoEur
+      ];
+    },
     totalTransf,
     "Total Transferencias:"
   );
@@ -409,4 +415,5 @@ export const generarIngresoBancarioPDF = (
 
   doc.save(`Ingreso_Bancario_${tipo}_${new Date().getTime()}.pdf`);
 };
+
 

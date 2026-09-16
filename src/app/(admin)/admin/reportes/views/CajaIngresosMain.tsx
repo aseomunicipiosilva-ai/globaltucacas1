@@ -1,5 +1,5 @@
 ﻿'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { ChevronDown, Lock, CheckCircle, Loader2, Printer, ArrowLeft, FileSpreadsheet, FileText } from 'lucide-react';
 import { generarCorteCajaPDF } from '../generators/PdfReports';
 import { generarLibroVentas } from '../generators/LibroVentas';
@@ -47,6 +47,15 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
   const [cerrando, setCerrando] = useState(false);
   const [cajaCerrada, setCajaCerrada] = useState(false);
   const [showConfirmCierre, setShowConfirmCierre] = useState(false);
+  const [tasaEuro, setTasaEuro] = useState(0);
+
+  // Cargar tasa Euro del BCV
+  useEffect(() => {
+    fetch('https://ve.dolarapi.com/v1/euros/oficial')
+      .then(r => r.json())
+      .then(d => { if (d?.promedio > 0) setTasaEuro(d.promedio); })
+      .catch(() => {});
+  }, []);
 
   const toggleCaja = (c: string) => {
     if (c === '__todos__') { setSelectedCajas([]); return; }
@@ -134,7 +143,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
 
   const IconsTop = ({ showExcel }: { showExcel?: boolean }) => (
     <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: 4 }}>
-      <button onClick={() => generarCorteCajaPDF(pagosFiltrados, contribuyentes, fechaInicio, fechaFin)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c0392b', padding: '2px 6px' }} title="PDF"><Printer size={15}/></button>
+      <button onClick={() => generarCorteCajaPDF(pagosFiltrados, contribuyentes, fechaInicio, fechaFin, tasaEuro)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c0392b', padding: '2px 6px' }} title="PDF"><Printer size={15}/></button>
       <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#555', padding: '2px 6px' }} title="Columnas"><span style={{fontSize:14, fontWeight:700}}>|||</span></button>
       {showExcel && <button onClick={() => generarLibroVentas(pagosFiltrados, contribuyentes, 'Diario', fechaInicio, fechaFin)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#166534', padding: '2px 6px' }} title="Excel"><FileSpreadsheet size={15}/></button>}
     </div>
@@ -195,7 +204,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
     try {
       setShowReport(true);
       await new Promise(r => setTimeout(r, 400));
-      generarCorteCajaPDF(pagosFiltrados, contribuyentes, fechaInicio, fechaFin);
+      generarCorteCajaPDF(pagosFiltrados, contribuyentes, fechaInicio, fechaFin, tasaEuro);
       setCajaCerrada(true);
     } catch (e) {
       alert('Error al cerrar caja: ' + (e as Error).message);
@@ -464,6 +473,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
     </div>
   );
 }
+
 
 
 
