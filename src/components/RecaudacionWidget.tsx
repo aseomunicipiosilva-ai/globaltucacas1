@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { TrendingUp, FileSpreadsheet, Calendar, RefreshCw, Filter, Building, Home, Briefcase } from 'lucide-react';
@@ -57,20 +57,28 @@ export default function RecaudacionWidget() {
   const [isLoading, setIsLoading] = useState(false);
   const [sectorFiltro, setSectorFiltro] = useState<Sector>('Todos');
 
-  // Normaliza clasificacion a sector estandar
-  const normSector = (s: string) => {
-    const l = (s || '').toLowerCase();
-    if (l.includes('industrial')) return 'Industrial';
-    if (l.includes('comercial') || l.includes('institucional')) return 'Comercial';
+  // Normaliza actividad_principal a sector real (Residencial/Comercial/Industrial)
+  const normSector = (actividad: string, clasificacion: string) => {
+    const a = (actividad || '').toLowerCase();
+    const c = (clasificacion || '').toLowerCase();
+    if (a.includes('fabrica') || a.includes('industrial') || a.includes('embotelladora') ||
+        a.includes('concretera') || a.includes('almacen') || a.includes('taller') ||
+        c.includes('industrial')) return 'Industrial';
+    if (a.includes('residencial') || a.includes('condominio') || a.includes('apartamento') ||
+        a.includes('casa') || a.includes('vivienda')) return 'Residencial';
+    if (a.length > 3) return 'Comercial';
     return 'Residencial';
   };
 
-  // Mapa identidad -> sector normalizado
+  // Mapa identidad -> sector usando actividad_principal
   const sectorMap = useMemo(() => {
     const m = new Map<string, string>();
     inmuebles.forEach((inm: any) => {
       const id = (inm.identidad || '').replace(/-/g, '').toUpperCase();
-      if (id && !m.has(id)) m.set(id, normSector(inm.Clasificacion || inm.clasificacion || ''));
+      if (id && !m.has(id)) m.set(id, normSector(
+        inm.actividad_principal || inm.ActividadPrincipal || '',
+        inm.clasificacion || inm.Clasificacion || ''
+      ));
     });
     return m;
   }, [inmuebles]);
@@ -108,6 +116,7 @@ export default function RecaudacionWidget() {
   const tot = pagosConSector.reduce((a, p) => a + parseMonto(p.monto), 0);
   const totFilt = pagosFiltrados.reduce((a, p) => a + parseMonto(p.monto), 0);
   const tra = pagosConSector.filter(p => p.tipo === 'Transferencia').reduce((a, p) => a + parseMonto(p.monto), 0);
+  const deb = pagosConSector.filter(p => p.tipo === 'Debito' || p.tipo === 'Punto de Venta' || p.tipo === 'REC').reduce((a, p) => a + parseMonto(p.monto), 0);
 
   const contadores = useMemo(() => ({
     Residencial: pagosConSector.filter(p => p.sector === 'Residencial').reduce((a, p) => a + parseMonto(p.monto), 0),
@@ -198,7 +207,7 @@ export default function RecaudacionWidget() {
 
       <div className="p-6">
         {/* Tarjetas resumen */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols-6 gap-3 mb-5">
           <div className="col-span-2 sm:col-span-1 bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-center">
             <p className="text-[10px] text-emerald-600 font-semibold uppercase mb-1">Total {lbl[periodo]}</p>
             <p className="text-xl font-black text-emerald-700">Bs. {formatBs(tot)}</p>
@@ -215,6 +224,10 @@ export default function RecaudacionWidget() {
           <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-center">
             <p className="text-[10px] text-indigo-500 font-semibold uppercase mb-1 flex items-center justify-center gap-1"><Briefcase className="w-3 h-3" /> Industrial</p>
             <p className="text-sm font-bold text-indigo-700">Bs. {formatBs(contadores.Industrial)}</p>
+          </div>
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-center">
+            <p className="text-[10px] text-orange-500 font-semibold uppercase mb-1">Debito / POS</p>
+            <p className="text-sm font-bold text-orange-700">Bs. {formatBs(deb)}</p>
           </div>
           <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-center">
             <p className="text-[10px] text-purple-500 font-semibold uppercase mb-1">Transferencias</p>
@@ -264,3 +277,4 @@ export default function RecaudacionWidget() {
     </div>
   );
 }
+
