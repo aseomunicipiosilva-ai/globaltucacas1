@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { Download, FileText, Building, Handshake, AlertCircle, CheckCircle2, Wrench, ClipboardCheck, ShieldCheck, FlaskConical } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
@@ -16,7 +16,7 @@ const TIPO_LABEL: Record<string, string> = {
 };
 
 export default function EstadoCuentaPage() {
-  const { inmuebles, recibos, contribuyentes } = useAppContext();
+  const { inmuebles, recibos, contribuyentes, tcmmv } = useAppContext();
   const [portalDoc, setPortalDoc] = useState('');
   const [tasaBcv, setTasaBcv] = useState(0);
   const [cuotasData, setCuotasData] = useState<any[]>([]);
@@ -29,9 +29,8 @@ export default function EstadoCuentaPage() {
 
     const fetchAll = async () => {
       try {
-        const bcvRes = await fetch('/api/bcv?t=' + Date.now(), { cache: 'no-store' });
-        const bcvData = await bcvRes.json();
-        setTasaBcv(bcvData.tcmmv || 0);
+        // Usar tcmmv de AppContext para garantizar misma tasa que admin
+        setTasaBcv(tcmmv || 0);
 
         if (fullDoc) {
           const idLimpio = fullDoc.replace(/-/g, '').toUpperCase();
@@ -619,3 +618,4 @@ export default function EstadoCuentaPage() {
     </div>
   );
 }
+
