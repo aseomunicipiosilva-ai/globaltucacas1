@@ -103,7 +103,11 @@ export default function CajaPage() {
   const currentBcvRate = customBcvRate && !isNaN(parseFloat(customBcvRate)) ? parseFloat(customBcvRate) : tcmmv;
 
   const isItemPending = (ref: string) => {
-    // Bloquear si esta referencia ya tiene un pago Por Verificar pendiente de conciliar
+    // Bloquear si la propia factura ya está marcada como Por Verificar
+    const factura = recibos.find((r: any) => r.referencia === ref);
+    if (factura?.estado === 'Por Verificar') return true;
+
+    // Bloquear si existe un pago Por Verificar en pagos_reportados que cubra esta referencia
     return pagosPendientes.some((p: any) => {
       let det: any = {};
       try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}

@@ -96,6 +96,13 @@ export async function POST(request: Request) {
           fecha_transaccion: fechaPago
         })
       });
+
+      // Marcar facturas como Por Verificar para que Caja las bloquee automaticamente
+      if (facturaIds && facturaIds.length > 0) {
+        await supabase.from('facturas')
+          .update({ estado: 'Por Verificar' })
+          .in('id', facturaIds);
+      }
     }
 
     return NextResponse.json({
