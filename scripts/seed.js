@@ -94,7 +94,7 @@ async function seed() {
   await supabase.from('pre_registros').insert(preRegistros);
   console.log("Pre-Registros insertados");
   
-  await supabase.from('recibos').insert(recibos);
+  await supabase.from('facturas').insert(recibos);
   console.log("Recibos insertadas");
   
   await supabase.from('documentos').insert(documentos);

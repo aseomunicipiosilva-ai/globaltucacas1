@@ -203,7 +203,7 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
           let deudaTotal = 0;
           try {
             const { data: facs } = await supabase
-              .from('recibos')
+              .from('facturas')
               .select('monto')
               .or(`identidad.eq.${pago.identidad},identidad.eq.${idLimpio}`)
               .in('estado', ['Pendiente', 'Por Verificar']);
@@ -219,7 +219,7 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
             : inms[0];
           setInmueble({ ...inmPrincipal, _deudaTotal: deudaTotal, _saldoFavor: saldoFavor, _todos: inms });
         }
-        const { data: facs } = await supabase.from('recibos').select('*')
+        const { data: facs } = await supabase.from('facturas').select('*')
           .or(`identidad.eq.${pago.identidad},identidad.eq.${idLimpio}`)
           .order('emision', { ascending: true });
         setFacturas(facs || []);
@@ -448,7 +448,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
           let deudaTotal = 0;
           try {
             const { data: facs } = await supabase
-              .from('recibos')
+              .from('facturas')
               .select('monto')
               .or(`identidad.eq.${pago.identidad},identidad.eq.${idLimpio}`)
               .in('estado', ['Pendiente', 'Por Verificar']);
@@ -473,7 +473,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
         } else {
           // Fallback: buscar recibo por identidad para obtener nombre
           const { data: fac } = await supabase
-            .from('recibos')
+            .from('facturas')
             .select('contribuyente, identidad')
             .eq('identidad', pago.identidad)
             .limit(1)
@@ -490,7 +490,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
   useEffect(() => {
     if (recibosParaCalc.length === 0) return;
     (async () => {
-      const { data: facs } = await supabase.from('recibos')
+      const { data: facs } = await supabase.from('facturas')
         .select('referencia, monto, emision, mmv_mes, cant_inmuebles')
         .in('referencia', recibosParaCalc);
       setFacturasParaConciliar(facs || []);
@@ -554,7 +554,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
         for (const fac of facturasParaConciliar) {
           const montoOriginal = parseFloat(fac.monto || '0');
           const nuevoMonto = parseFloat((montoOriginal * tasaCambioFinal).toFixed(2));
-          await supabase.from('recibos').update({ monto: nuevoMonto }).eq('referencia', fac.referencia);
+          await supabase.from('facturas').update({ monto: nuevoMonto }).eq('referencia', fac.referencia);
         }
       }
 
@@ -569,7 +569,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
 
       // Aprobado: marcar recibos como Pagado o aplicar abono proporcional
       if (estatus === 'Aprobado' && recibos.length > 0) {
-        const { data: facs } = await supabase.from('recibos').select('*').in('referencia', recibos);
+        const { data: facs } = await supabase.from('facturas').select('*').in('referencia', recibos);
         if (facs && facs.length > 0) {
           // Calcular deuda total de los recibos seleccionados
           const deudaTotal = facs.reduce((s, f) => s + parseFloat(f.monto || '0'), 0);
@@ -585,15 +585,15 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
               if (dineroDisponible >= montoFac - 0.01) {
                 // Cubre la recibo completa
                 dineroDisponible = Math.max(0, dineroDisponible - montoFac);
-                await supabase.from('recibos').update({ estado: 'Pagado' }).eq('referencia', fac.referencia);
+                await supabase.from('facturas').update({ estado: 'Pagado' }).eq('referencia', fac.referencia);
               } else if (dineroDisponible > 0.01) {
                 // Abono parcial: actualizar monto restante
                 const montoRestante = parseFloat((montoFac - dineroDisponible).toFixed(2));
-                await supabase.from('recibos').update({ monto: montoRestante, estado: 'Abonado' }).eq('referencia', fac.referencia);
+                await supabase.from('facturas').update({ monto: montoRestante, estado: 'Abonado' }).eq('referencia', fac.referencia);
                 dineroDisponible = 0;
               } else {
                 // Sin dinero: dejar pendiente
-                await supabase.from('recibos').update({ estado: 'Pendiente' }).eq('referencia', fac.referencia);
+                await supabase.from('facturas').update({ estado: 'Pendiente' }).eq('referencia', fac.referencia);
               }
             }
 
@@ -607,7 +607,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
             }
           } else {
             // Pago completo: marcar todas como Pagado
-            await supabase.from('recibos').update({ estado: 'Pagado' }).in('referencia', recibos);
+            await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', recibos);
           }
         }
       }
@@ -639,7 +639,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
         }
         // Marcar recibos como Pagado tambiÃ©n (el pago se concilia aunque con diferencia)
         if (recibos.length > 0) {
-          await supabase.from('recibos').update({ estado: 'Pagado' }).in('referencia', recibos);
+          await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', recibos);
         }
       }
 

@@ -39,7 +39,7 @@ async function run() {
 
     if (saldo > 0 && meses > 0) {
       // Verificar si ya hay recibos para no duplicar (usando un prefijo en la referencia)
-      const { data: facturasExistentes } = await supabase.from('recibos')
+      const { data: facturasExistentes } = await supabase.from('facturas')
         .select('id')
         .eq('identidad', row.Identidad)
         .like('referencia', 'CM-%');
@@ -69,7 +69,7 @@ async function run() {
         });
       }
 
-      const { error } = await supabase.from('recibos').insert(nuevasFacturas);
+      const { error } = await supabase.from('facturas').insert(nuevasFacturas);
       if (error) {
         console.error(`Error insertando recibos para ${row.Identidad}:`, error);
       } else {

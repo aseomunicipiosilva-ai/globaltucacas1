@@ -37,7 +37,7 @@ async function run() {
   
   for (let i = 0; i < recibos.length; i += 500) {
     const batch = recibos.slice(i, i + 500);
-    const { error: errInsert } = await supabase.from('recibos').insert(batch);
+    const { error: errInsert } = await supabase.from('facturas').insert(batch);
     if (errInsert) {
       console.error(`Error en el lote ${i}:`, errInsert);
     } else {

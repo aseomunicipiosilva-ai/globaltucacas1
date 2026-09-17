@@ -143,7 +143,7 @@ function ContribuyentesPageContent() {
       const cajeroUser = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'Administrador';
       // Solo actualizar estado - recibos no tiene columna detalles ni nota
       const { error } = await supabase
-        .from('recibos')
+        .from('facturas')
         .update({ estado: nuevoEstado })
         .eq('referencia', actionModal.recibo.referencia);
       // Guardar motivo en audit_logs
@@ -326,7 +326,7 @@ function ContribuyentesPageContent() {
       // Cargar recibos frescas desde Supabase (evitar discrepancias con el contexto React)
       const identidadClean = (viewData.Identidad || '').replace(/-/g, '').toUpperCase();
       supabase
-        .from('recibos')
+        .from('facturas')
         .select('*')
         .in('estado', ['Pendiente', 'Por Verificar', 'Abonado'])
         .or(`identidad.eq.${viewData.Identidad},identidad.eq.${identidadClean}`)
@@ -335,7 +335,7 @@ function ContribuyentesPageContent() {
           // fallback por nombre si no hay resultados por identidad (cubre RECIB- con identidad en otro formato)
           if (!facData || facData.length === 0) {
             supabase
-              .from('recibos')
+              .from('facturas')
               .select('*')
               .in('estado', ['Pendiente', 'Por Verificar', 'Abonado'])
               .eq('contribuyente', viewData.Contribuyente)
@@ -369,7 +369,7 @@ function ContribuyentesPageContent() {
     }
 
     try {
-      const { error } = await supabase.from('recibos').delete().eq('id', recibo.id);
+      const { error } = await supabase.from('facturas').delete().eq('id', recibo.id);
       if (error) throw error;
       
       setFacturas(recibos.filter((f: any) => f.id !== recibo.id));
@@ -416,7 +416,7 @@ function ContribuyentesPageContent() {
       if (identidadSinGuiones !== identidadOriginal) orFiltros.push(`identidad.eq.${identidadSinGuiones}`);
 
       const { data: facturasDB } = await supabase
-        .from('recibos')
+        .from('facturas')
         .select('*')
         .or(orFiltros.join(','))
         .in('estado', ['Pendiente', 'Abonado'])
@@ -427,7 +427,7 @@ function ContribuyentesPageContent() {
       } else {
         // fallback por nombre de contribuyente si no hay match por identidad
         const { data: fallback } = await supabase
-          .from('recibos')
+          .from('facturas')
           .select('*')
           .eq('contribuyente', viewData.Contribuyente || '')
           .in('estado', ['Pendiente', 'Abonado'])
@@ -987,7 +987,7 @@ function ContribuyentesPageContent() {
 
       // Delete all pending recibos for this taxpayer
       const { error: errDelete } = await supabase
-        .from('recibos')
+        .from('facturas')
         .delete()
         .eq('contribuyente', formData.Contribuyente)
         .eq('estado', 'Pendiente');
@@ -1008,7 +1008,7 @@ function ContribuyentesPageContent() {
           vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           estado: 'Pendiente'
         };
-        const { error: errInsert } = await supabase.from('recibos').insert([facturaData]);
+        const { error: errInsert } = await supabase.from('facturas').insert([facturaData]);
         if (errInsert) throw errInsert;
       }
 

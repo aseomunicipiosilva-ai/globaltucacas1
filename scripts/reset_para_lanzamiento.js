@@ -17,10 +17,10 @@ async function run() {
 
   // 2. Restaurar recibos Pagado -> Pendiente
   console.log('2) Restaurando recibos Pagadas...');
-  const { data: pagadas } = await supabase.from('recibos').select('id').eq('estado','Pagado');
+  const { data: pagadas } = await supabase.from('facturas').select('id').eq('estado','Pagado');
   console.log('   Recibos pagadas:', (pagadas||[]).length);
   if ((pagadas||[]).length > 0) {
-    const { error: e2 } = await supabase.from('recibos').update({estado:'Pendiente'}).in('id', pagadas.map(f=>f.id));
+    const { error: e2 } = await supabase.from('facturas').update({estado:'Pendiente'}).in('id', pagadas.map(f=>f.id));
     console.log(e2 ? '   ERROR: ' + e2.message : '   OK: restauradas\n');
   } else console.log('   OK: ninguna\n');
 
@@ -38,7 +38,7 @@ async function run() {
   } else console.log('   OK: ninguno\n');
 
   // 5. Resumen
-  const { data: res } = await supabase.from('recibos').select('estado, referencia');
+  const { data: res } = await supabase.from('facturas').select('estado, referencia');
   const est = (res||[]).reduce((a,f)=>({...a,[f.estado]:(a[f.estado]||0)+1}),{});
   console.log('=== RESUMEN FINAL ===');
   console.log('Estados:', JSON.stringify(est));

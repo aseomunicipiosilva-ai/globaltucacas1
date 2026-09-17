@@ -178,7 +178,7 @@ export default function ReportesPage() {
     try {
       let all: any[] = []; let from = 0;
       while (true) {
-        const { data: chunk } = await supabase.from('recibos').select('*')
+        const { data: chunk } = await supabase.from('facturas').select('*')
           .in('estado', ['Pendiente', 'Abonado']).range(from, from + 999);
         if (!chunk || chunk.length === 0) break;
         all = [...all, ...chunk];

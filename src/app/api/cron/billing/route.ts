@@ -72,13 +72,13 @@ export async function GET(request: Request) {
 
     // Buscar referencias que ya existen (formato CM-I-)
     const { data: existentesNuevo } = await supabase
-      .from('recibos')
+      .from('facturas')
       .select('referencia, identidad')
       .in('referencia', todasLasRefs);
 
     // Buscar referencias en formato viejo (CM-C-{cod_cont}) para el mismo período
     const { data: existentesViejo } = await supabase
-      .from('recibos')
+      .from('facturas')
       .select('referencia, identidad')
       .like('referencia', `CM-C-%-${periodoKey}`)
       .not('estado', 'eq', 'Pagado');
@@ -151,7 +151,7 @@ export async function GET(request: Request) {
 
     // ── PASO 4: UPSERT masivo — ignora duplicados automáticamente ──
     const { error: insertError } = await supabase
-      .from('recibos')
+      .from('facturas')
       .upsert(facturasNuevas, { onConflict: 'referencia', ignoreDuplicates: true });
 
     if (insertError) throw insertError;

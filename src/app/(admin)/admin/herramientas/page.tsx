@@ -60,7 +60,7 @@ export default function HerramientasPage() {
       const PAGE_SIZE = 1000;
       while (true) {
         const { data: pageFacts, error: e2 } = await supabase
-          .from('recibos')
+          .from('facturas')
           .select('referencia, identidad, monto, emision, estado')
           .like('referencia', 'CM-%')
           .eq('estado', 'Pendiente')
@@ -146,7 +146,7 @@ export default function HerramientasPage() {
     setMsg('');
     try {
       const refs = Array.from(sel).map(i => g.facturasPendientes[i].referencia);
-      const { error } = await supabase.from('recibos').update({ estado: 'Pagado' }).in('referencia', refs);
+      const { error } = await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', refs);
       if (error) throw error;
       setMsg(`Marcadas como pagadas: ${refs.length} recibos de ${g.contribuyente}`);
       setSeleccionados(prev => ({ ...prev, [g.identidad]: new Set() }));

@@ -250,7 +250,7 @@ export default function PreRegistrosPage() {
           vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           estado: 'Pendiente'
         };
-        const { data: newFactura, error: err2 } = await supabase.from('recibos').insert([facturaData]).select().single();
+        const { data: newFactura, error: err2 } = await supabase.from('facturas').insert([facturaData]).select().single();
         if (err2) throw err2;
         if (newFactura) setFacturas([newFactura, ...recibos]);
       }
