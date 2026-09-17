@@ -998,6 +998,21 @@ export default function CajaPage() {
       setSessionPagos(prev => [{
         contribuyente: foundUser?.Contribuyente || '',
         identidad: foundUser?.Identidad || '',
+        inmueble: (() => {
+          // Extraer inmuebles únicos de los recibos seleccionados
+          const inmsSet = new Set<string>();
+          selectedRecibos.forEach((ref: string) => {
+            const f = recibos.find((r: any) => r.referencia === ref);
+            if (f?.inmueble) inmsSet.add(f.inmueble);
+          });
+          if (inmsSet.size === 0) {
+            // Fallback: extraer del código de referencia CM-I-000663-09-2026
+            const firstRef = selectedRecibos[0] || '';
+            const m = firstRef.match(/CM-(I-\d+)-/);
+            if (m) inmsSet.add(m[1]);
+          }
+          return [...inmsSet].join(', ');
+        })(),
         monto: montoReal,
         metodo: paymentMethod,
         referencia: reqRef ? referencia : referenciaDebito,
@@ -1689,7 +1704,8 @@ export default function CajaPage() {
                   {sessionPagos.map((p, i) => (
                     <div key={i} className="flex justify-between items-start text-xs bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
                       <div>
-                        <div className="font-bold text-slate-700 truncate max-w-[140px]">{p.contribuyente}</div>
+                        <div className="font-bold text-slate-700 truncate max-w-[180px]">{p.contribuyente}</div>
+                        {p.inmueble && <div className="text-slate-500 font-medium">{p.inmueble}</div>}
                         <div className="text-slate-500">{p.metodo} · {p.hora}</div>
                         {p.referencia && <div className="text-slate-400">Ref: {p.referencia}</div>}
                         {p.esAbono && <span className="text-orange-600 font-semibold">Abono</span>}
