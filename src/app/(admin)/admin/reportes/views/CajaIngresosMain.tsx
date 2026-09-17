@@ -30,6 +30,14 @@ function parseDet(p: any): any {
   try { return JSON.parse(p.detalles); } catch { return {}; }
 }
 function isDebito(p: any) { return p.tipo === 'Debito' || p.tipo === 'REC' || p.tipo === 'Punto de Venta'; }
+function getNombre(p: any, contribuyentes: any[]): string {
+  if (!p.identidad) return p.contribuyente || '';
+  const clean = (s: string) => (s || '').replace(/[-.\s]/g, '').toUpperCase();
+  const idClean = clean(p.identidad);
+  const found = contribuyentes.find((c: any) => clean(c.identidad || '') === idClean || clean(c.Identidad || '') === idClean);
+  const nombre = found?.contribuyente || found?.Contribuyente || p.contribuyente || '';
+  return nombre;
+}
 
 const SUB_TIPOS: SubTipo[] = ['General de Ingresos', 'Corte de Caja', 'Ingresos por Banco', 'Libro de Ventas', 'Resumen Libro de Ventas'];
 const BANCOS = ['BANESCO','BANCO NACIONAL CREDITO BNC','BDT','BANCO DE VENEZUELA','PROVINCIAL','MERCANTIL','BOD','BANCO DEL CARIBE','BANCO PLAZA','BANCO EXTERIOR','SOFITASA','BANCAMIGA','MIBANCO'];
@@ -158,7 +166,10 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
           <tbody>{debitos.map((p, i) => { const det = parseDet(p); const recs: string[] = det.recibos || []; return (<tr key={p.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9fafe' }}>
             <td style={S.td}>{i + 1}</td><td style={S.td}>{showDT ? fmtDT(p.created_at) : fmtDate(p.created_at)}</td>
             <td style={{ ...S.td, fontWeight: 700 }}>{p.tipo}</td><td style={S.td}>{det.cajero || '-'}</td>
-            <td style={{ ...S.td, color: '#2a5298' }}>{p.identidad}-{p.contribuyente}</td>
+            <td style={{ ...S.td, color: '#2a5298' }}>
+              <div style={{ fontWeight: 600 }}>{p.identidad}</div>
+              <div style={{ fontSize: '0.78em', color: '#555' }}>{getNombre(p, contribuyentes)}</div>
+            </td>
             <td style={S.td}>{recs[0] || p.referencia || '-'}</td><td style={S.td}>{p.banco || '-'}</td>
             <td style={S.td}>{det.aprobacion || '-'}</td><td style={S.td}>{det.lote || '-'}</td>
             <td style={{ ...S.td, textAlign: 'right', fontWeight: 700 }}>{fmtBs(parseFloat(p.monto) || 0)}</td>
@@ -183,7 +194,10 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
               <td style={S.td}>{i + 1}</td>
               {showDT ? <><td style={S.td}>{fmtDT(p.created_at)}</td><td style={S.td}>{det.fecha_banco || '-'}</td><td style={{ ...S.td, fontWeight: 700 }}>{p.tipo}</td><td style={S.td}>{det.fecha_banco ? fmtDate(det.fecha_banco) : 'NO FACTURADO'}</td></>
                 : <><td style={S.td}>{conc ? <b style={{ color: '#1a7a1a' }}>{det.fecha_banco || fmtDate(p.created_at)}</b> : <span style={{ color: '#aaa' }}>-</span>}</td><td style={S.td}>{fmtDate(p.created_at)}</td><td style={{ ...S.td, fontWeight: 700 }}>{p.tipo}</td></>}
-              <td style={S.td}>{det.cajero || '-'}</td><td style={{ ...S.td, color: '#2a5298' }}>{p.identidad}-{p.contribuyente}</td>
+              <td style={S.td}>{det.cajero || '-'}</td><td style={{ ...S.td, color: '#2a5298' }}>
+                <div style={{ fontWeight: 600 }}>{p.identidad}</div>
+                <div style={{ fontSize: '0.78em', color: '#555' }}>{getNombre(p, contribuyentes)}</div>
+              </td>
               <td style={S.td}>{recs[0] || '-'}</td><td style={S.td}>{p.banco || '-'}</td><td style={S.td}>{p.referencia || '-'}</td>
               <td style={S.td}>{det.banco_destino || det.banco_receptor || '-'}</td><td style={S.td}>{p.referencia || '-'}</td>
               {showDT ? <td style={{ ...S.td, textAlign: 'right', fontWeight: 700 }}>{fmtBs(mC)}</td>
