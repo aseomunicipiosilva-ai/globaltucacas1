@@ -85,7 +85,7 @@ export function DebtAdjustmentModal({ row, inmuebles, tcmmv, recibos, setFactura
       // Delete all existing pending invoices
       const facturasPendientes = recibos.filter((f: any) => f.contribuyente === rowContribuyente && f.estado === 'Pendiente');
       for (const fp of facturasPendientes) {
-        await supabase.from('facturas').delete().eq('id', fp.id);
+        await supabase.from('recibos').delete().eq('id', fp.id);
       }
 
       // Generate a single new invoice for the adjusted debt
@@ -101,7 +101,7 @@ export function DebtAdjustmentModal({ row, inmuebles, tcmmv, recibos, setFactura
         estado: 'Pendiente'
       };
 
-      const { data: newFactura, error: err2 } = await supabase.from('facturas').insert([facturaData]).select().single();
+      const { data: newFactura, error: err2 } = await supabase.from('recibos').insert([facturaData]).select().single();
       if (err2) throw err2;
 
       // Update state

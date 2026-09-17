@@ -7,7 +7,7 @@ export async function generarMorososExcel(
   contribuyentes: any[],
   tcmmv: number
 ): Promise<void> {
-  const grouped: Record<string, { facturas: any[]; contrib: any }> = {};
+  const grouped: Record<string, { recibos: any[]; contrib: any }> = {};
   for (const f of facturasPendientes) {
     const id = (f.identidad || '').replace(/-/g, '').toUpperCase();
     if (!id) continue;
@@ -15,9 +15,9 @@ export async function generarMorososExcel(
       const contrib = contribuyentes.find((c: any) =>
         (c.Identidad || '').replace(/-/g, '').toUpperCase() === id
       );
-      grouped[id] = { facturas: [], contrib };
+      grouped[id] = { recibos: [], contrib };
     }
-    grouped[id].facturas.push(f);
+    grouped[id].recibos.push(f);
   }
   const MESES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
   const getMes = (d: string) => {
@@ -25,20 +25,20 @@ export async function generarMorososExcel(
     return p?.length >= 2 ? `${MESES[parseInt(p[1])-1]}-${p[0]}` : d || '—';
   };
   const rows = Object.values(grouped)
-    .filter(g => g.facturas.length > 0)
+    .filter(g => g.recibos.length > 0)
     .map(g => {
-      const { facturas, contrib } = g;
+      const { recibos, contrib } = g;
       let totalDeudaBs = 0;
-      for (const f of facturas) totalDeudaBs += parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
-      const periodos = facturas
+      for (const f of recibos) totalDeudaBs += parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
+      const periodos = recibos
         .sort((a: any, b: any) => new Date(a.emision).getTime() - new Date(b.emision).getTime())
         .map((f: any) => getMes(f.emision)).join(', ');
       return {
         cod_cont: contrib?.CodCont || contrib?.cod_cont || '—',
-        contribuyente: contrib?.Contribuyente || facturas[0]?.contribuyente || '—',
-        identidad: contrib?.Identidad || facturas[0]?.identidad || '—',
+        contribuyente: contrib?.Contribuyente || recibos[0]?.contribuyente || '—',
+        identidad: contrib?.Identidad || recibos[0]?.identidad || '—',
         clasificacion: contrib?.Clasificacion || '—',
-        mesesPendientes: facturas.length,
+        mesesPendientes: recibos.length,
         periodos,
         totalDeudaBs,
       };
@@ -70,7 +70,7 @@ export async function generarMorososPDF(
   contribuyentes: any[],
   tcmmv: number
 ): Promise<void> {
-  const grouped: Record<string, { facturas: any[]; contrib: any }> = {};
+  const grouped: Record<string, { recibos: any[]; contrib: any }> = {};
   for (const f of facturasPendientes) {
     const id = (f.identidad || '').replace(/-/g, '').toUpperCase();
     if (!id) continue;
@@ -78,22 +78,22 @@ export async function generarMorososPDF(
       const contrib = contribuyentes.find((c: any) =>
         (c.Identidad || '').replace(/-/g, '').toUpperCase() === id
       );
-      grouped[id] = { facturas: [], contrib };
+      grouped[id] = { recibos: [], contrib };
     }
-    grouped[id].facturas.push(f);
+    grouped[id].recibos.push(f);
   }
 
   const rows = Object.values(grouped)
-    .filter(g => g.facturas.length > 0)
+    .filter(g => g.recibos.length > 0)
     .map(g => {
-      const { facturas, contrib } = g;
+      const { recibos, contrib } = g;
       let totalDeudaBs = 0;
-      for (const f of facturas) totalDeudaBs += parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
+      for (const f of recibos) totalDeudaBs += parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
       return {
-        contribuyente:   contrib?.Contribuyente || facturas[0]?.contribuyente || 'N/D',
-        identidad:       contrib?.Identidad     || facturas[0]?.identidad     || 'N/D',
+        contribuyente:   contrib?.Contribuyente || recibos[0]?.contribuyente || 'N/D',
+        identidad:       contrib?.Identidad     || recibos[0]?.identidad     || 'N/D',
         telefono:        contrib?.Telefono      || contrib?.telefono           || 'N/D',
-        mesesPendientes: facturas.length,
+        mesesPendientes: recibos.length,
         totalDeudaBs,
       };
     })

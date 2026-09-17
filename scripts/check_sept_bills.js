@@ -11,7 +11,7 @@ async function checkSeptBills() {
   console.log('Checking bills for September...');
   
   const { data, error, count } = await supabase
-    .from('facturas')
+    .from('recibos')
     .select('*', { count: 'exact' })
     .like('referencia', '%-09-2026%');
 
@@ -73,7 +73,7 @@ async function checkSeptBills() {
       const chunkSize = 100;
       for (let i = 0; i < facturasNuevas.length; i += chunkSize) {
         const chunk = facturasNuevas.slice(i, i + chunkSize);
-        const { error: insertError } = await supabase.from('facturas').insert(chunk);
+        const { error: insertError } = await supabase.from('recibos').insert(chunk);
         if (insertError) {
           console.error(`Error inserting chunk ${i}:`, insertError);
         } else {

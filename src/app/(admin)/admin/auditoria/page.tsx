@@ -9,7 +9,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const CATEGORIAS = ['TODAS', 'SESION', 'COBRO', 'TRANSFERENCIA', 'TASA', 'CONTRIBUYENTE', 'FACTURA', 'REPORTE', 'CONFIGURACION', 'CONVENIO', 'SISTEMA'];
+const CATEGORIAS = ['TODAS', 'SESION', 'COBRO', 'TRANSFERENCIA', 'TASA', 'CONTRIBUYENTE', 'RECIBO', 'REPORTE', 'CONFIGURACION', 'CONVENIO', 'SISTEMA'];
 
 const CAT_COLORS: Record<string, string> = {
   SESION:        'bg-blue-100 text-blue-800',
@@ -17,7 +17,7 @@ const CAT_COLORS: Record<string, string> = {
   TRANSFERENCIA: 'bg-purple-100 text-purple-800',
   TASA:          'bg-amber-100 text-amber-800',
   CONTRIBUYENTE: 'bg-sky-100 text-sky-800',
-  FACTURA:       'bg-orange-100 text-orange-800',
+  RECIBO:       'bg-orange-100 text-orange-800',
   REPORTE:       'bg-slate-100 text-slate-700',
   CONFIGURACION: 'bg-red-100 text-red-800',
   CONVENIO:      'bg-indigo-100 text-indigo-800',
@@ -130,7 +130,7 @@ export default function AuditoriaPage() {
 
       {/* Category Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {['COBRO','TRANSFERENCIA','SESION','TASA','FACTURA'].map(cat => {
+        {['COBRO','TRANSFERENCIA','SESION','TASA','RECIBO'].map(cat => {
           const count = logs.filter(l => getCategoria(l) === cat).length;
           return (
             <button key={cat}

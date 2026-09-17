@@ -100,7 +100,7 @@ export default function CobroMovilPage() {
       const orFiltros = [`identidad.eq.${idOrig}`];
       if (idClean !== idOrig) orFiltros.push(`identidad.eq.${idClean}`);
       const { data: dbFacturas } = await supabase
-        .from('facturas')
+        .from('recibos')
         .select('*')
         .or(orFiltros.join(','))
         .in('estado', ['Pendiente', 'Abonado'])
@@ -109,7 +109,7 @@ export default function CobroMovilPage() {
         todasDeudas = dbFacturas as Recibo[];
       } else {
         const { data: fb } = await supabase
-          .from('facturas').select('*')
+          .from('recibos').select('*')
           .eq('contribuyente', foundUser.Contribuyente || '')
           .in('estado', ['Pendiente', 'Abonado'])
           .order('emision', { ascending: true });
@@ -272,10 +272,10 @@ export default function CobroMovilPage() {
     setFoundUser({ ...user, SaldoFavor: saldoFavor });
     setUserInms((inmsDB || []) as Inmueble[]);
 
-    // 4. Buscar facturas â€” misma lÃ³gica exacta que Caja
+    // 4. Buscar recibos â€” misma lÃ³gica exacta que Caja
     const identidadClean = (user.Identidad || '').replace(/-/g, '').toUpperCase();
     const { data: allUserFacturas } = await supabase
-      .from('facturas')
+      .from('recibos')
       .select('*')
       .in('estado', ['Pendiente', 'Por Verificar', 'Abonado'])
       .or(`identidad.eq.${user.Identidad},identidad.eq.${fullDoc},identidad.eq.${identidadClean}`)
@@ -285,7 +285,7 @@ export default function CobroMovilPage() {
     let fallbackFacturas: Recibo[] = [];
     if ((allUserFacturas || []).length === 0 && user.Contribuyente) {
       const { data: fByName } = await supabase
-        .from('facturas')
+        .from('recibos')
         .select('*')
         .in('estado', ['Pendiente', 'Por Verificar'])
         .eq('contribuyente', user.Contribuyente)
@@ -294,7 +294,7 @@ export default function CobroMovilPage() {
         fallbackFacturas = fByName as Recibo[];
         // Backfill identidad para bÃºsquedas futuras
         const idsToUpdate = fByName.map((f: any) => f.id);
-        await supabase.from('facturas').update({ identidad: user.Identidad }).in('id', idsToUpdate);
+        await supabase.from('recibos').update({ identidad: user.Identidad }).in('id', idsToUpdate);
       }
     }
 
@@ -347,11 +347,11 @@ export default function CobroMovilPage() {
         for (const ref of selectedRefs) {
           const fac = recibos.find(r => r.referencia === ref); if (!fac) continue;
           const mFac = getReciboMonto(fac);
-          if (dinero >= mFac) { await supabase.from('facturas').update({ estado: 'Pagado' }).eq('referencia', ref); dinero -= mFac; }
-          else if (dinero > 0) { await supabase.from('facturas').update({ monto: (mFac - dinero).toFixed(2), estado: 'Abonado' }).eq('referencia', ref); dinero = 0; }
+          if (dinero >= mFac) { await supabase.from('recibos').update({ estado: 'Pagado' }).eq('referencia', ref); dinero -= mFac; }
+          else if (dinero > 0) { await supabase.from('recibos').update({ monto: (mFac - dinero).toFixed(2), estado: 'Abonado' }).eq('referencia', ref); dinero = 0; }
         }
       } else {
-        if (selectedRefs.length > 0) await supabase.from('facturas').update({ estado: 'Por Verificar' }).in('referencia', selectedRefs);
+        if (selectedRefs.length > 0) await supabase.from('recibos').update({ estado: 'Por Verificar' }).in('referencia', selectedRefs);
       }
       logAudit('Cobro desde Cobro MÃ³vil', {
         contribuyente: foundUser?.Contribuyente,

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import React, { useState, useEffect } from 'react';
 import { DataTable } from '@/components/DataTable';
 import { FileSpreadsheet, Download, Filter, RefreshCw, Zap, Printer, X, CheckCircle, XCircle } from 'lucide-react';
@@ -46,7 +46,7 @@ export default function EstadoCuentaPage() {
       let more = true;
       while (more) {
         const { data: chunk, error } = await supabase
-          .from('facturas')
+          .from('recibos')
           .select('*')
           .order('created_at', { ascending: false }) // orden consistente en cada chunk
           .range(from, from + step);
@@ -146,7 +146,7 @@ export default function EstadoCuentaPage() {
       if (accion === 'Rechazar') {
         // Simple revert to Pendiente
         if (detalles.recibos && detalles.recibos.length > 0) {
-          await supabase.from('facturas').update({ estado: 'Pendiente' }).in('referencia', detalles.recibos);
+          await supabase.from('recibos').update({ estado: 'Pendiente' }).in('referencia', detalles.recibos);
         }
         if (detalles.cuotas && detalles.cuotas.length > 0) {
           const { data: convs } = await supabase.from('convenios').select('*');
@@ -175,7 +175,7 @@ export default function EstadoCuentaPage() {
         if (!esAbono) {
           // Pago completo normal
           if (detalles.recibos && detalles.recibos.length > 0) {
-            await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', detalles.recibos);
+            await supabase.from('recibos').update({ estado: 'Pagado' }).in('referencia', detalles.recibos);
           }
           if (detalles.cuotas && detalles.cuotas.length > 0) {
             const { data: convs } = await supabase.from('convenios').select('*');
@@ -208,19 +208,19 @@ export default function EstadoCuentaPage() {
 
           // 1. Process Recibos first
           if (detalles.recibos && detalles.recibos.length > 0) {
-            const { data: facturasData } = await supabase.from('facturas').select('*').in('referencia', detalles.recibos).order('emision', { ascending: true });
+            const { data: facturasData } = await supabase.from('recibos').select('*').in('referencia', detalles.recibos).order('emision', { ascending: true });
             if (facturasData) {
               for (const f of facturasData) {
                 const montoFac = parseFloat((f.monto || '0').replace(/[^\d.]/g, ''));
                 if (dineroDisponible >= montoFac) {
                   dineroDisponible -= montoFac;
-                  await supabase.from('facturas').update({ estado: 'Pagado' }).eq('id', f.id);
+                  await supabase.from('recibos').update({ estado: 'Pagado' }).eq('id', f.id);
                 } else if (dineroDisponible > 0) {
                   const montoRestante = (montoFac - dineroDisponible).toFixed(2);
-                  await supabase.from('facturas').update({ estado: 'Pendiente', monto: `${montoRestante} Bs` }).eq('id', f.id);
+                  await supabase.from('recibos').update({ estado: 'Pendiente', monto: `${montoRestante} Bs` }).eq('id', f.id);
                   dineroDisponible = 0;
                 } else {
-                  await supabase.from('facturas').update({ estado: 'Pendiente' }).eq('id', f.id);
+                  await supabase.from('recibos').update({ estado: 'Pendiente' }).eq('id', f.id);
                 }
               }
             }
@@ -332,7 +332,7 @@ export default function EstadoCuentaPage() {
 
     // Calcular monto dinámico igual que Caja (CM- y RECIB-) usando tcmmv actual
     if (tcmmv && tcmmv > 0 && row.referencia) {
-      // Obtener identidad de la factura
+      // Obtener identidad de la recibo
       const rowId = (row.identidad || '').replace(/-/g, '').toUpperCase();
       const userInmsForCalc = (inmuebles as any[]).filter((i: any) =>
         (i.identidad || '').replace(/-/g, '').toUpperCase() === rowId
@@ -522,23 +522,38 @@ export default function EstadoCuentaPage() {
         const idBusc = (row.identidad || '').trim();
         const idClean = idBusc.replace(/-/g, '').toUpperCase();
         const { data: todasFacturas } = await supabase
-          .from('facturas')
+          .from('recibos')
           .select('*')
           .in('estado', ['Pendiente', 'Por Verificar', 'Abonado'])
           .or(`identidad.eq.${idBusc},identidad.eq.${idClean}`)
           .order('emision', { ascending: true });
 
         if (todasFacturas && todasFacturas.length > 0) {
-          // Calcular monto para cada factura usando tcmmv si está disponible
+          // Calcular monto para cada recibo usando tcmmv si está disponible
           const userInmsForAll = (inmuebles as any[]).filter((inm: any) =>
             (inm.identidad || '').replace(/-/g,'').toUpperCase() === idClean
           );
           conceptos = todasFacturas.map((f: any) => {
             let mF = parseFloat(String(f.monto || '0').replace(/[^d.]/g, '')) || 0;
+            let descripcionBase = `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${getMesTxt(f.emision)}`;
+
             if (tcmmv && tcmmv > 0 && userInmsForAll.length > 0) {
               if (f.referencia?.startsWith('CM-')) {
+                let matchedInmuebles = userInmsForAll;
+                
+                // Extraer el ID del local de la referencia (ej: I-000080 de CM-I-000080-09-2026)
+                const match = f.referencia.match(/(I-\d+|C-\d+)/);
+                if (match) {
+                  const possibleInmId = match[0];
+                  const specificInm = userInmsForAll.filter((inm: any) => inm.inmueble === possibleInmId || inm.cod_cont === possibleInmId || inm.Inmueble === possibleInmId);
+                  if (specificInm.length > 0) {
+                    matchedInmuebles = specificInm;
+                    descripcionBase += ` (Local/Inmueble: ${possibleInmId})`;
+                  }
+                }
+
                 let mmv = 0;
-                userInmsForAll.forEach((inm: any) => {
+                matchedInmuebles.forEach((inm: any) => {
                   mmv += parseFloat(inm.cant_inmuebles || 1) * parseFloat(inm.mmv_mes || 0);
                 });
                 if (mmv > 0) mF = parseFloat((mmv * tcmmv).toFixed(2));
@@ -549,7 +564,7 @@ export default function EstadoCuentaPage() {
               }
             }
             return {
-              descripcion: `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${getMesTxt(f.emision)}`,
+              descripcion: descripcionBase,
               precioUnit: mF,
               total: mF
             };
@@ -717,7 +732,7 @@ export default function EstadoCuentaPage() {
     // Para simplificar enviamos de 500 en 500
     for(let i=0; i<nuevasFacturas.length; i+=500){
       const chunk = nuevasFacturas.slice(i, i+500);
-      await supabase.from('facturas').insert(chunk);
+      await supabase.from('recibos').insert(chunk);
     }
 
     alert(`Se han generado ${nuevasFacturas.length} recibos exitosamente.`);
@@ -735,8 +750,8 @@ export default function EstadoCuentaPage() {
       const nuevoEstado = actionModal.action === 'Condonar' ? 'Condonado' : actionModal.action === 'Anular' ? 'Anulado' : 'Reversado';
       const cajero = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'Administrador';
 
-      // Solo actualizar estado - facturas no tiene columna detalles
-      const { error } = await supabase.from('facturas').update({
+      // Solo actualizar estado - recibos no tiene columna detalles
+      const { error } = await supabase.from('recibos').update({
         estado: nuevoEstado,
       }).eq('id', actionModal.recibo.id);
 

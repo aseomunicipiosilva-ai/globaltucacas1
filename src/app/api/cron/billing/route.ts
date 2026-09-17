@@ -72,18 +72,18 @@ export async function GET(request: Request) {
 
     // Buscar referencias que ya existen (formato CM-I-)
     const { data: existentesNuevo } = await supabase
-      .from('facturas')
+      .from('recibos')
       .select('referencia, identidad')
       .in('referencia', todasLasRefs);
 
     // Buscar referencias en formato viejo (CM-C-{cod_cont}) para el mismo período
     const { data: existentesViejo } = await supabase
-      .from('facturas')
+      .from('recibos')
       .select('referencia, identidad')
       .like('referencia', `CM-C-%-${periodoKey}`)
       .not('estado', 'eq', 'Pagado');
 
-    // Construir Set de identidades ya cubiertas por factura vieja CM-C- (1 factura por contribuyente)
+    // Construir Set de identidades ya cubiertas por recibo vieja CM-C- (1 recibo por contribuyente)
     // Solo aplica si el contribuyente tiene UN SOLO inmueble activo
     const identidadesConFacturaVieja = new Set((existentesViejo || []).map((e: any) => e.identidad));
 
@@ -112,8 +112,8 @@ export async function GET(request: Request) {
       // Skip si ya existe en formato nuevo CM-I-
       if (refsExistentes.has(refFactura)) continue;
 
-      // Skip si existe factura vieja CM-C- Y el contribuyente tiene un solo inmueble
-      // (la factura vieja ya lo cubre todo)
+      // Skip si existe recibo vieja CM-C- Y el contribuyente tiene un solo inmueble
+      // (la recibo vieja ya lo cubre todo)
       const esUnicoLocal = (inmueblesXidentidad[inm.identidad] || 0) === 1;
       if (esUnicoLocal && identidadesConFacturaVieja.has(inm.identidad)) continue;
 
@@ -151,7 +151,7 @@ export async function GET(request: Request) {
 
     // ── PASO 4: UPSERT masivo — ignora duplicados automáticamente ──
     const { error: insertError } = await supabase
-      .from('facturas')
+      .from('recibos')
       .upsert(facturasNuevas, { onConflict: 'referencia', ignoreDuplicates: true });
 
     if (insertError) throw insertError;

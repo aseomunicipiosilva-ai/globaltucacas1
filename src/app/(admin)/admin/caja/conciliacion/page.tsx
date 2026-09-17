@@ -203,7 +203,7 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
           let deudaTotal = 0;
           try {
             const { data: facs } = await supabase
-              .from('facturas')
+              .from('recibos')
               .select('monto')
               .or(`identidad.eq.${pago.identidad},identidad.eq.${idLimpio}`)
               .in('estado', ['Pendiente', 'Por Verificar']);
@@ -219,7 +219,7 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
             : inms[0];
           setInmueble({ ...inmPrincipal, _deudaTotal: deudaTotal, _saldoFavor: saldoFavor, _todos: inms });
         }
-        const { data: facs } = await supabase.from('facturas').select('*')
+        const { data: facs } = await supabase.from('recibos').select('*')
           .or(`identidad.eq.${pago.identidad},identidad.eq.${idLimpio}`)
           .order('emision', { ascending: true });
         setFacturas(facs || []);
@@ -448,7 +448,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
           let deudaTotal = 0;
           try {
             const { data: facs } = await supabase
-              .from('facturas')
+              .from('recibos')
               .select('monto')
               .or(`identidad.eq.${pago.identidad},identidad.eq.${idLimpio}`)
               .in('estado', ['Pendiente', 'Por Verificar']);
@@ -473,7 +473,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
         } else {
           // Fallback: buscar recibo por identidad para obtener nombre
           const { data: fac } = await supabase
-            .from('facturas')
+            .from('recibos')
             .select('contribuyente, identidad')
             .eq('identidad', pago.identidad)
             .limit(1)
@@ -485,12 +485,12 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
     })();
   }, [pago.identidad]);
 
-  // Cargar facturas de los recibos seleccionados para recalculo con nueva tasa
+  // Cargar recibos de los recibos seleccionados para recalculo con nueva tasa
   const recibosParaCalc: string[] = det.recibos || [];
   useEffect(() => {
     if (recibosParaCalc.length === 0) return;
     (async () => {
-      const { data: facs } = await supabase.from('facturas')
+      const { data: facs } = await supabase.from('recibos')
         .select('referencia, monto, emision, mmv_mes, cant_inmuebles')
         .in('referencia', recibosParaCalc);
       setFacturasParaConciliar(facs || []);
@@ -548,13 +548,13 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
         tasa_bcv_original: tasaOriginal || undefined,
       };
 
-      // Si la tasa cambió, actualizar montos de las facturas seleccionadas
+      // Si la tasa cambió, actualizar montos de las recibos seleccionadas
       if (estatus === 'Aprobado' && hayRecalculo && facturasParaConciliar.length > 0) {
         const tasaCambioFinal = tasaParaGuardar / (tasaOriginal || tasaParaGuardar);
         for (const fac of facturasParaConciliar) {
           const montoOriginal = parseFloat(fac.monto || '0');
           const nuevoMonto = parseFloat((montoOriginal * tasaCambioFinal).toFixed(2));
-          await supabase.from('facturas').update({ monto: nuevoMonto }).eq('referencia', fac.referencia);
+          await supabase.from('recibos').update({ monto: nuevoMonto }).eq('referencia', fac.referencia);
         }
       }
 
@@ -569,31 +569,31 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
 
       // Aprobado: marcar recibos como Pagado o aplicar abono proporcional
       if (estatus === 'Aprobado' && recibos.length > 0) {
-        const { data: facs } = await supabase.from('facturas').select('*').in('referencia', recibos);
+        const { data: facs } = await supabase.from('recibos').select('*').in('referencia', recibos);
         if (facs && facs.length > 0) {
           // Calcular deuda total de los recibos seleccionados
           const deudaTotal = facs.reduce((s, f) => s + parseFloat(f.monto || '0'), 0);
           const esAbonoParcial = det.es_abono || (montoConciliadoNum > 0 && montoConciliadoNum < deudaTotal - 0.01);
 
           if (esAbonoParcial && montoConciliadoNum > 0) {
-            // Distribuir el monto entre facturas (mas antiguas primero)
+            // Distribuir el monto entre recibos (mas antiguas primero)
             facs.sort((a, b) => new Date(a.emision || a.created_at || 0).getTime() - new Date(b.emision || b.created_at || 0).getTime());
             let dineroDisponible = montoConciliadoNum;
 
             for (const fac of facs) {
               const montoFac = parseFloat(fac.monto || '0');
               if (dineroDisponible >= montoFac - 0.01) {
-                // Cubre la factura completa
+                // Cubre la recibo completa
                 dineroDisponible = Math.max(0, dineroDisponible - montoFac);
-                await supabase.from('facturas').update({ estado: 'Pagado' }).eq('referencia', fac.referencia);
+                await supabase.from('recibos').update({ estado: 'Pagado' }).eq('referencia', fac.referencia);
               } else if (dineroDisponible > 0.01) {
                 // Abono parcial: actualizar monto restante
                 const montoRestante = parseFloat((montoFac - dineroDisponible).toFixed(2));
-                await supabase.from('facturas').update({ monto: montoRestante, estado: 'Abonado' }).eq('referencia', fac.referencia);
+                await supabase.from('recibos').update({ monto: montoRestante, estado: 'Abonado' }).eq('referencia', fac.referencia);
                 dineroDisponible = 0;
               } else {
                 // Sin dinero: dejar pendiente
-                await supabase.from('facturas').update({ estado: 'Pendiente' }).eq('referencia', fac.referencia);
+                await supabase.from('recibos').update({ estado: 'Pendiente' }).eq('referencia', fac.referencia);
               }
             }
 
@@ -607,7 +607,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
             }
           } else {
             // Pago completo: marcar todas como Pagado
-            await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', recibos);
+            await supabase.from('recibos').update({ estado: 'Pagado' }).in('referencia', recibos);
           }
         }
       }
@@ -639,7 +639,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
         }
         // Marcar recibos como Pagado tambiÃ©n (el pago se concilia aunque con diferencia)
         if (recibos.length > 0) {
-          await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', recibos);
+          await supabase.from('recibos').update({ estado: 'Pagado' }).in('referencia', recibos);
         }
       }
 
@@ -895,7 +895,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                       ⚡ Ajuste por cambio de tasa BCV: {det.nota_cambio_tasa}. Tasa aplicada: {det.tasa_bcv_aplicada || det.tasa_bcv} Bs/€.
                     </p>
                   )}
-                  <p className="text-xs text-slate-500 mt-1">El contribuyente tiene facturas adicionales pendientes no incluidas en este pago.</p>
+                  <p className="text-xs text-slate-500 mt-1">El contribuyente tiene recibos adicionales pendientes no incluidas en este pago.</p>
                 </div>
               )}
               {estatus === 'Con Diferencia' && parseFloat(montoConciliado) > 0 && (

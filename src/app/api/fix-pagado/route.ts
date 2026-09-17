@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 
 export async function GET() {
   const { data, error } = await supabase
-    .from('facturas')
+    .from('recibos')
     .update({ estado: 'Pagado' })
     .eq('referencia', 'CM-C-000207-09-2026')
     .select();

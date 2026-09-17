@@ -178,7 +178,7 @@ export default function ReportesPage() {
     try {
       let all: any[] = []; let from = 0;
       while (true) {
-        const { data: chunk } = await supabase.from('facturas').select('*')
+        const { data: chunk } = await supabase.from('recibos').select('*')
           .in('estado', ['Pendiente', 'Abonado']).range(from, from + 999);
         if (!chunk || chunk.length === 0) break;
         all = [...all, ...chunk];
@@ -194,13 +194,13 @@ export default function ReportesPage() {
   };
 
   const exportarMorososExcel = async () => {
-    const facturas = await cargarMorosos();
-    if (facturas.length > 0) await generarMorososExcel(facturas, contribuyentes, tcmmv || 0);
+    const recibos = await cargarMorosos();
+    if (recibos.length > 0) await generarMorososExcel(recibos, contribuyentes, tcmmv || 0);
   };
 
   const exportarMorososPDF = async () => {
-    const facturas = await cargarMorosos();
-    if (facturas.length > 0) await generarMorososPDF(facturas, contribuyentes, tcmmv || 0);
+    const recibos = await cargarMorosos();
+    if (recibos.length > 0) await generarMorososPDF(recibos, contribuyentes, tcmmv || 0);
   };
 
   if (activeView === 'morosos') return (
@@ -211,7 +211,7 @@ export default function ReportesPage() {
         <h1 className="text-lg font-bold text-slate-800">🔴 Reporte de Morosos</h1>
       </div>
       <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm max-w-lg space-y-4">
-        <p className="text-sm text-slate-600">Genera el listado de todos los contribuyentes con facturas <strong>Pendiente</strong> o <strong>Abonado</strong>, ordenados por mayor deuda y meses adeudados.</p>
+        <p className="text-sm text-slate-600">Genera el listado de todos los contribuyentes con recibos <strong>Pendiente</strong> o <strong>Abonado</strong>, ordenados por mayor deuda y meses adeudados.</p>
         {morososData && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 grid grid-cols-2 gap-4">
             <div className="text-center">

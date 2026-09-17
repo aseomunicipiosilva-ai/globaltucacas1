@@ -141,9 +141,9 @@ function ContribuyentesPageContent() {
       const nuevoEstado = actionModal.type === 'Anular' ? 'Anulado' : 'Reversado';
 
       const cajeroUser = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'Administrador';
-      // Solo actualizar estado - facturas no tiene columna detalles ni nota
+      // Solo actualizar estado - recibos no tiene columna detalles ni nota
       const { error } = await supabase
-        .from('facturas')
+        .from('recibos')
         .update({ estado: nuevoEstado })
         .eq('referencia', actionModal.recibo.referencia);
       // Guardar motivo en audit_logs
@@ -326,7 +326,7 @@ function ContribuyentesPageContent() {
       // Cargar recibos frescas desde Supabase (evitar discrepancias con el contexto React)
       const identidadClean = (viewData.Identidad || '').replace(/-/g, '').toUpperCase();
       supabase
-        .from('facturas')
+        .from('recibos')
         .select('*')
         .in('estado', ['Pendiente', 'Por Verificar', 'Abonado'])
         .or(`identidad.eq.${viewData.Identidad},identidad.eq.${identidadClean}`)
@@ -335,7 +335,7 @@ function ContribuyentesPageContent() {
           // fallback por nombre si no hay resultados por identidad (cubre RECIB- con identidad en otro formato)
           if (!facData || facData.length === 0) {
             supabase
-              .from('facturas')
+              .from('recibos')
               .select('*')
               .in('estado', ['Pendiente', 'Por Verificar', 'Abonado'])
               .eq('contribuyente', viewData.Contribuyente)
@@ -369,7 +369,7 @@ function ContribuyentesPageContent() {
     }
 
     try {
-      const { error } = await supabase.from('facturas').delete().eq('id', recibo.id);
+      const { error } = await supabase.from('recibos').delete().eq('id', recibo.id);
       if (error) throw error;
       
       setFacturas(recibos.filter((f: any) => f.id !== recibo.id));
@@ -416,7 +416,7 @@ function ContribuyentesPageContent() {
       if (identidadSinGuiones !== identidadOriginal) orFiltros.push(`identidad.eq.${identidadSinGuiones}`);
 
       const { data: facturasDB } = await supabase
-        .from('facturas')
+        .from('recibos')
         .select('*')
         .or(orFiltros.join(','))
         .in('estado', ['Pendiente', 'Abonado'])
@@ -427,7 +427,7 @@ function ContribuyentesPageContent() {
       } else {
         // fallback por nombre de contribuyente si no hay match por identidad
         const { data: fallback } = await supabase
-          .from('facturas')
+          .from('recibos')
           .select('*')
           .eq('contribuyente', viewData.Contribuyente || '')
           .in('estado', ['Pendiente', 'Abonado'])
@@ -470,21 +470,21 @@ function ContribuyentesPageContent() {
 
     // Si hay múltiples inmuebles → 1 PDF por inmueble (estados de cuenta separados)
     // Si hay 1 solo inmueble → 1 PDF con todos los meses pendientes
-    // Función que filtra las facturas para cada inmueble por código en la referencia
+    // Función que filtra las recibos para cada inmueble por código en la referencia
     const getFacturasParaInmueble = (inm: any, allDeudas: any[], totalInms: number): any[] => {
       if (totalInms <= 1) return allDeudas; // único inmueble: mostrar todos
       const codInmueble = (inm.inmueble || '').toString();
       if (!codInmueble || codInmueble === 'Principal') return allDeudas;
-      // Filtrar facturas cuya referencia contiene el código del inmueble
+      // Filtrar recibos cuya referencia contiene el código del inmueble
       const matched = allDeudas.filter((f: any) => f.referencia && f.referencia.includes(codInmueble));
       // Si no hubo match para este inmueble, asignar las no-matcheadas al primero
       return matched.length > 0 ? matched : [];
     };
 
     for (const inm of inmsToProcess) {
-      // Obtener facturas de este inmueble
+      // Obtener recibos de este inmueble
       const inmDeudas = getFacturasParaInmueble(inm, deudas, inmsToProcess.length);
-      // Si hay múltiples inmuebles y este no tiene facturas, skip
+      // Si hay múltiples inmuebles y este no tiene recibos, skip
       if (inmsToProcess.length > 1 && inmDeudas.length === 0) continue;
 
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -565,7 +565,7 @@ function ContribuyentesPageContent() {
       doc.line(14, y, 196, y);
       y += 6;
 
-      // Facturas filtradas para este inmueble específico
+      // Recibos filtradas para este inmueble específico
       const inmRecibos = inmDeudas;
 
       // Monto usando tcmmv para recibos CM-
@@ -987,7 +987,7 @@ function ContribuyentesPageContent() {
 
       // Delete all pending recibos for this taxpayer
       const { error: errDelete } = await supabase
-        .from('facturas')
+        .from('recibos')
         .delete()
         .eq('contribuyente', formData.Contribuyente)
         .eq('estado', 'Pendiente');
@@ -1008,7 +1008,7 @@ function ContribuyentesPageContent() {
           vencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           estado: 'Pendiente'
         };
-        const { error: errInsert } = await supabase.from('facturas').insert([facturaData]);
+        const { error: errInsert } = await supabase.from('recibos').insert([facturaData]);
         if (errInsert) throw errInsert;
       }
 
@@ -2499,7 +2499,7 @@ function ContribuyentesPageContent() {
                               } catch(e){}
                               fechaPago = pagoRel.created_at ? new Date(pagoRel.created_at).toLocaleDateString('es-VE') : '—';
                             }
-                            // Período desde la emisión de la factura
+                            // Período desde la emisión de la recibo
                             const MESES_NOM = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
                             const getMesFull = (fecha: string) => {
                               if (!fecha) return '—';

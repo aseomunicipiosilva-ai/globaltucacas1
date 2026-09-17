@@ -266,7 +266,7 @@ export default function CajaPage() {
       // Incluye variantes de identidad (con/sin guión) + búsqueda por nombre (recibos antiguas sin identidad)
       const identidadClean = (user.Identidad || '').replace(/-/g, '').toUpperCase();
       const { data: allUserFacturas } = await supabase
-        .from('facturas')
+        .from('recibos')
         .select('*')
         .in('estado', ['Pendiente', 'Por Verificar', 'Abonado'])
         .or(`identidad.eq.${user.Identidad},identidad.eq.${cleanFullDoc},identidad.eq.${identidadClean}`)
@@ -277,7 +277,7 @@ export default function CajaPage() {
       let fallbackFacturas: any[] = [];
       if ((allUserFacturas || []).length === 0 && user.Contribuyente) {
         const { data: fByName } = await supabase
-          .from('facturas')
+          .from('recibos')
           .select('*')
           .in('estado', ['Pendiente', 'Por Verificar'])
           .eq('contribuyente', user.Contribuyente)
@@ -288,7 +288,7 @@ export default function CajaPage() {
           // Backfill identidad en BD para que próximas búsquedas funcionen directamente
           const idsToUpdate = fByName.map((f: any) => f.id);
           await supabase
-            .from('facturas')
+            .from('recibos')
             .update({ identidad: user.Identidad })
             .in('id', idsToUpdate);
         }
@@ -601,7 +601,7 @@ export default function CajaPage() {
           // === PAGO COMPLETO: marcar todas las recibos como Pagado ===
           if (selectedRecibos.length > 0) {
             const { error: fErr } = await supabase
-              .from('facturas')
+              .from('recibos')
               .update({ estado: 'Pagado' })
               .in('referencia', selectedRecibos);
             if (fErr) throw fErr;
@@ -616,12 +616,12 @@ export default function CajaPage() {
             if (dineroDisponible >= montoFac - 0.01) {
               // Recibo cubierta completamente
               dineroDisponible = Math.max(0, dineroDisponible - montoFac);
-              const { error: fErr } = await supabase.from('facturas').update({ estado: 'Pagado' }).eq('referencia', ref);
+              const { error: fErr } = await supabase.from('recibos').update({ estado: 'Pagado' }).eq('referencia', ref);
               if (fErr) throw fErr;
             } else if (dineroDisponible > 0.01) {
               // Abono parcial: actualizar monto restante (mantener Pendiente)
               const montoRestante = (montoFac - dineroDisponible).toFixed(2);
-              const { error: fErr } = await supabase.from('facturas').update({ monto: montoRestante, estado: 'Abonado' }).eq('referencia', ref);
+              const { error: fErr } = await supabase.from('recibos').update({ monto: montoRestante, estado: 'Abonado' }).eq('referencia', ref);
               if (fErr) throw fErr;
               dineroDisponible = 0;
             }
@@ -882,7 +882,7 @@ export default function CajaPage() {
         
         // Update items to 'Por Verificar'
         if (selectedRecibos.length > 0 && !esAbono) {
-          await supabase.from('facturas').update({ estado: 'Por Verificar' }).in('referencia', selectedRecibos);
+          await supabase.from('recibos').update({ estado: 'Por Verificar' }).in('referencia', selectedRecibos);
         }
         
         if (selectedCuotas.length > 0) {

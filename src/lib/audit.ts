@@ -11,7 +11,7 @@ export type AuditCategoria =
   | 'TRANSFERENCIA'
   | 'TASA'
   | 'CONTRIBUYENTE'
-  | 'FACTURA'
+  | 'RECIBO'
   | 'REPORTE'
   | 'CONFIGURACION'
   | 'CONVENIO'
