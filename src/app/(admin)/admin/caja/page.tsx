@@ -427,19 +427,43 @@ export default function CajaPage() {
     }
 
     if (selectedRecibos.includes(ref)) {
-      // Deselecting: deselect this one and all subsequent ones to maintain order
-      const toRemove = sortedRecibos.slice(currentIndex).map(r => r.referencia);
+      // Deselecting: deselect this one and all subsequent ones del MISMO inmueble
+      const currentRef = sortedRecibos[currentIndex];
+      const refParts = (currentRef?.referencia || '').split('-');
+      const inmuebleId = refParts.length >= 3 ? `${refParts[1]}-${refParts[2]}` : null;
+
+      const toRemove = inmuebleId
+        ? sortedRecibos.slice(currentIndex).filter(r => (r.referencia || '').includes(inmuebleId)).map(r => r.referencia)
+        : sortedRecibos.slice(currentIndex).map(r => r.referencia);
       setSelectedRecibos(selectedRecibos.filter(r => !toRemove.includes(r)));
     } else {
-      // Selecting: ensure all previous ones are also selected
-      const previousRefs = sortedRecibos.slice(0, currentIndex).map(r => r.referencia);
-      const missingPrevious = previousRefs.some(pr => !selectedRecibos.includes(pr));
-      
-      if (missingPrevious) {
-        alert("¡No se puede adelantar meses! Debe seleccionar y pagar las deudas más antiguas primero.");
-        return; // Bloquea la selección
+      // Selecting: verificar orden SOLO dentro del mismo inmueble
+      const currentRef = sortedRecibos[currentIndex];
+      const refParts = (currentRef?.referencia || '').split('-');
+      const inmuebleId = refParts.length >= 3 ? `${refParts[1]}-${refParts[2]}` : null;
+
+      if (inmuebleId) {
+        // Solo verificar facturas anteriores del MISMO inmueble
+        const previousSameInmueble = sortedRecibos
+          .slice(0, currentIndex)
+          .filter(r => (r.referencia || '').includes(inmuebleId))
+          .map(r => r.referencia);
+        const missingPrevious = previousSameInmueble.some(pr => !selectedRecibos.includes(pr));
+
+        if (missingPrevious) {
+          alert('¡No se puede adelantar meses! Debe seleccionar y pagar las deudas más antiguas de este inmueble primero.');
+          return;
+        }
+      } else {
+        // Sin inmueble identificable: validación global (comportamiento original)
+        const previousRefs = sortedRecibos.slice(0, currentIndex).map(r => r.referencia);
+        const missingPrevious = previousRefs.some(pr => !selectedRecibos.includes(pr));
+        if (missingPrevious) {
+          alert('¡No se puede adelantar meses! Debe seleccionar y pagar las deudas más antiguas primero.');
+          return;
+        }
       }
-      
+
       setSelectedRecibos([...selectedRecibos, ref]);
     }
   };
