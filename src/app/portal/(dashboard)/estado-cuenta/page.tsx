@@ -129,7 +129,7 @@ export default function EstadoCuentaPage() {
   }, 0);
 
   const totalPendBs = pendientes.reduce((acc: number, f: any) => {
-    const m = calcMonto(f) || 0;
+    const m = parseFloat(getReciboMonto(f)) || 0;
     return acc + m;
   }, 0);
 
@@ -546,7 +546,7 @@ export default function EstadoCuentaPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-center text-red-600 text-xs">{f.vencimiento || 'N/A'}</td>
-                    <td className="px-4 py-3 text-right font-bold text-red-700">Bs. {calcMonto(f).toLocaleString('es-VE', {minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+                    <td className="px-4 py-3 text-right font-bold text-red-700">Bs. {parseFloat(getReciboMonto(f)).toLocaleString('es-VE', {minimumFractionDigits:2,maximumFractionDigits:2})}</td>
                   </tr>
                   );
                 })}
