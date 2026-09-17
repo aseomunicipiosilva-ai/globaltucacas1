@@ -30,6 +30,13 @@ function parseDet(p: any): any {
   try { return JSON.parse(p.detalles); } catch { return {}; }
 }
 function isDebito(p: any) { return p.tipo === 'Debito' || p.tipo === 'REC' || p.tipo === 'Punto de Venta'; }
+function getEstadoStyle(estado: string): React.CSSProperties {
+  if (estado === 'Aprobado') return { color: '#1a7a1a', fontWeight: 700 };
+  if (estado === 'Por Verificar') return { color: '#b45309', fontWeight: 700 };
+  if (estado === 'Con Diferencia') return { color: '#6d28d9', fontWeight: 700 };
+  if (estado === 'Pendiente') return { color: '#c0392b', fontWeight: 700 };
+  return { color: '#555' };
+}
 function getNombre(p: any, contribuyentes: any[]): string {
   if (!p.identidad) return p.contribuyente || '';
   const clean = (s: string) => (s || '').replace(/[-.\s]/g, '').toUpperCase();
@@ -162,7 +169,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
       <div style={S.secHdr}>DEBITO</div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr>{(showDT ? ['#','Fecha/Hora','Tipo','Cajero','Contribuyente','Recibo','Banco','Aprobacion','Lote','Monto'] : ['#','Fecha','Tipo','Cajero','Contribuyente','Recibo','Banco','Aprobacion','Lote','Monto']).map(h => <th key={h} style={S.th}>{h}</th>)}</tr></thead>
+          <thead><tr>{(showDT ? ['#','Fecha/Hora','Tipo','Operador','Contribuyente','Recibo','Banco','Aprobacion','Lote','Estado','Monto'] : ['#','Fecha','Tipo','Operador','Contribuyente','Recibo','Banco','Aprobacion','Lote','Estado','Monto']).map(h => <th key={h} style={S.th}>{h}</th>)}</tr></thead>
           <tbody>{debitos.map((p, i) => { const det = parseDet(p); const recs: string[] = det.recibos || []; return (<tr key={p.id} style={{ background: i % 2 === 0 ? '#fff' : '#f9fafe' }}>
             <td style={S.td}>{i + 1}</td><td style={S.td}>{showDT ? fmtDT(p.created_at) : fmtDate(p.created_at)}</td>
             <td style={{ ...S.td, fontWeight: 700 }}>{p.tipo}</td><td style={S.td}>{det.cajero || '-'}</td>
@@ -185,7 +192,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
       <div style={S.secHdr}>TRANSFERENCIA</div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead><tr>{(showDT ? ['#','Fecha/Hora','Fecha Bco','Tipo','Fecha Libro','Cajero','Contribuyente','Recibo','Banco','Referencia','Banco Destino','Referencia','Monto'] : ['#','Conciliado','Registro','Tipo','Cajero','Contribuyente','Recibo','Banco','Referencia','Banco Empresa','Referencia','Monto Reportado','Monto Conciliado']).map(h => <th key={h} style={S.th}>{h}</th>)}</tr></thead>
+          <thead><tr>{(showDT ? ['#','Fecha/Hora','Fecha Bco','Tipo','Fecha Libro','Operador','Contribuyente','Recibo','Banco','Referencia','Banco Destino','Referencia','Estado','Monto'] : ['#','Conciliado','Registro','Tipo','Operador','Contribuyente','Recibo','Banco','Referencia','Banco Empresa','Referencia','Estado','Monto Reportado','Monto Conciliado']).map(h => <th key={h} style={S.th}>{h}</th>)}</tr></thead>
           <tbody>{transferencias.map((p, i) => {
             const det = parseDet(p); const recs: string[] = det.recibos || [];
             const mC = parseFloat(det.monto_conciliado || p.monto) || 0;
