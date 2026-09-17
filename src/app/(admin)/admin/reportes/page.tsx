@@ -18,7 +18,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-type ActiveView = null | 'ingresos' | 'corte' | 'libro-ventas' | 'fiscalizacion' | 'empleados' | 'saldos' | 'ingreso-bancario' | 'morosos';
+type ActiveView = null | 'ingresos' | 'corte' | 'libro-ventas' | 'fiscalizacion' | 'empleados' | 'saldos' | 'ingreso-bancario' | 'morosos' | 'transferencias';
 
 const CARDS = [
   { id: 'ingresos' as ActiveView,       label: 'Caja - Ingresos',         emoji: '🖨️',  desc: 'General de Ingresos, Corte, Libro de Ventas', adminOnly: false },
@@ -27,6 +27,7 @@ const CARDS = [
   { id: 'saldos' as ActiveView,         label: 'Saldo a Favor',           emoji: '💳',  desc: 'Contribuyentes con saldo a favor vigente',     adminOnly: true  },
   { id: 'empleados' as ActiveView,      label: 'Gestion Empleados',       emoji: '👥',  desc: 'Reporte mensual del personal',                 adminOnly: true  },
   { id: 'morosos' as ActiveView,        label: 'Reporte Morosos',         emoji: '🔴',  desc: 'Contribuyentes con deuda pendiente',           adminOnly: true  },
+  { id: 'transferencias' as ActiveView,  label: 'Transferencias',          emoji: '🏦',  desc: 'Por Verificar, Pendiente, Débito y Aprobadas',  adminOnly: true  },
 ];
 
 export default function ReportesPage() {
@@ -278,6 +279,97 @@ export default function ReportesPage() {
       </div>
     </div>
   );
+
+  if (activeView === 'transferencias') {
+    const fmtBsR = (n: number) => n.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtDateR = (d: string) => { try { return new Date(d).toLocaleDateString('es-VE'); } catch { return d; } };
+    const [tfecha, setTfecha] = React.useState(new Date().toISOString().slice(0,10));
+    const [tfechaFin, setTfechaFin] = React.useState(new Date().toISOString().slice(0,10));
+    const [testado, setTestado] = React.useState('Todos');
+    const getNombreR = (p: any) => {
+      if (!p.identidad) return p.contribuyente || '';
+      const clean = (s: string) => (s||'').replace(/[-.\s]/g,'').toUpperCase();
+      const id = clean(p.identidad);
+      const f = contribuyentes.find((c: any) => clean(c.identidad||'')===id||clean(c.Identidad||'')===id);
+      return f?.contribuyente||f?.Contribuyente||p.contribuyente||'';
+    };
+    const getDetR = (p: any) => { try { return typeof p.detalles==='object'?p.detalles:JSON.parse(p.detalles||'{}'); } catch { return {}; } };
+    const isDebitoR = (p: any) => p.tipo==='Debito'||p.tipo==='REC'||p.tipo==='Punto de Venta';
+    const pagosR = pagos.filter(p => {
+      const d = new Date(p.created_at);
+      const s = new Date(tfecha+'T00:00'); const e = new Date(tfechaFin+'T23:59');
+      if (d < s || d > e) return false;
+      if (testado !== 'Todos' && p.estado !== testado) return false;
+      return true;
+    }).sort((a,b) => new Date(b.created_at).getTime()-new Date(a.created_at).getTime());
+    const totalD = pagosR.filter(isDebitoR).reduce((s,p)=>s+(parseFloat(p.monto)||0),0);
+    const totalT = pagosR.filter(p=>!isDebitoR(p)).reduce((s,p)=>s+(parseFloat(p.monto)||0),0);
+    const estados = ['Todos','Por Verificar','Aprobado','Con Diferencia','Pendiente'];
+    const getColor = (e: string) => e==='Aprobado'?'#166534':e==='Por Verificar'?'#92400e':e==='Con Diferencia'?'#5b21b6':e==='Pendiente'?'#991b1b':'#555';
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setActiveView(null)} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium">← Regresar</button>
+          <span className="text-slate-300">|</span>
+          <h1 className="text-lg font-bold text-slate-800">🏦 Reporte de Transferencias</h1>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+          <div className="flex flex-wrap gap-3 mb-4 items-end">
+            <div className="flex flex-col"><label className="text-xs text-slate-500 mb-1">Desde</label><input type="date" value={tfecha} onChange={e=>setTfecha(e.target.value)} className="border rounded-lg px-3 py-2 text-sm"/></div>
+            <div className="flex flex-col"><label className="text-xs text-slate-500 mb-1">Hasta</label><input type="date" value={tfechaFin} onChange={e=>setTfechaFin(e.target.value)} className="border rounded-lg px-3 py-2 text-sm"/></div>
+            <div className="flex flex-col"><label className="text-xs text-slate-500 mb-1">Estado</label>
+              <select value={testado} onChange={e=>setTestado(e.target.value)} className="border rounded-lg px-3 py-2 text-sm">
+                {estados.map(s=><option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="text-xs text-slate-500 self-end pb-2">
+              Débito: <b className="text-emerald-700">Bs. {fmtBsR(totalD)}</b> | Transferencia: <b className="text-blue-700">Bs. {fmtBsR(totalT)}</b> | Total registros: <b>{pagosR.length}</b>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+              <thead>
+                <tr style={{background:'#4a6fa5',color:'#fff'}}>
+                  {['#','Fecha','Tipo','Operador','RIF/CI','Contribuyente','Recibo','Banco','Referencia','Estado','Monto'].map(h=>(
+                    <th key={h} style={{padding:'6px 8px',textAlign:'left',whiteSpace:'nowrap',borderRight:'1px solid #3a5a90'}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {pagosR.map((p,i)=>{
+                  const det = getDetR(p);
+                  let recs: string[] = [];
+                  try { recs = det.recibos||[]; } catch{}
+                  const cajero = det.cajero||det.analista||'-';
+                  return (
+                    <tr key={p.id} style={{background:i%2===0?'#fff':'#f9fafe'}}>
+                      <td style={{padding:'5px 8px',borderBottom:'1px solid #f0f0f0'}}>{i+1}</td>
+                      <td style={{padding:'5px 8px',borderBottom:'1px solid #f0f0f0',whiteSpace:'nowrap'}}>{fmtDateR(p.created_at)}</td>
+                      <td style={{padding:'5px 8px',borderBottom:'1px solid #f0f0f0',fontWeight:700}}>{isDebitoR(p)?'Débito':'Transf.'}</td>
+                      <td style={{padding:'5px 8px',borderBottom:'1px solid #f0f0f0',color:'#444'}}>{cajero}</td>
+                      <td style={{padding:'5px 8px',borderBottom:'1px solid #f0f0f0',color:'#2a5298',fontWeight:600}}>{p.identidad||'-'}</td>
+                      <td style={{padding:'5px 8px',borderBottom:'1px solid #f0f0f0',maxWidth:160,overflow:'hidden',textOverflow:'ellipsis'}}>{getNombreR(p)||'-'}</td>
+                      <td style={{padding:'5px 8px',borderBottom:'1px solid #f0f0f0',whiteSpace:'nowrap'}}>{recs[0]||p.referencia||'-'}</td>
+                      <td style={{padding:'5px 8px',borderBottom:'1px solid #f0f0f0'}}>{p.banco||'-'}</td>
+                      <td style={{padding:'5px 8px',borderBottom:'1px solid #f0f0f0'}}>{p.referencia||'-'}</td>
+                      <td style={{padding:'5px 8px',borderBottom:'1px solid #f0f0f0',fontWeight:700,color:getColor(p.estado)}}>{p.estado||'-'}</td>
+                      <td style={{padding:'5px 8px',borderBottom:'1px solid #f0f0f0',textAlign:'right',fontWeight:700}}>{fmtBsR(parseFloat(p.monto)||0)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr style={{background:'#f0f4f8',fontWeight:700}}>
+                  <td colSpan={10} style={{padding:'5px 8px'}}>Total: {pagosR.length} registros</td>
+                  <td style={{padding:'5px 8px',textAlign:'right'}}>Bs. {fmtBsR(totalD+totalT)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // --- Main landing: Cards ---
   const visibleCards = CARDS.filter(c => isAdmin || !c.adminOnly);
