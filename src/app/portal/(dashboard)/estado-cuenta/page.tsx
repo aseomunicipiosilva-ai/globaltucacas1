@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { Download, FileText, Building, Handshake, AlertCircle, CheckCircle2, Wrench, ClipboardCheck, ShieldCheck, FlaskConical } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
@@ -21,6 +21,7 @@ export default function EstadoCuentaPage() {
   const [tasaBcv, setTasaBcv] = useState(0);
   const [cuotasData, setCuotasData] = useState<any[]>([]);
   const [serviciosEsp, setServiciosEsp] = useState<any[]>([]);
+  const [pagosPorVerificar, setPagosPorVerificar] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -61,6 +62,14 @@ export default function EstadoCuentaPage() {
             .or('identidad.eq.' + idFmt + ',identidad.eq.' + idLimpio + ',identidad.eq.' + fullDoc.toUpperCase() + ',identidad.eq.' + soloNum)
             .not('estado', 'eq', 'Pagado');
           setServiciosEsp(servs || []);
+
+          // Pagos Por Verificar: mostrar al usuario que su pago está en proceso
+          const { data: pagosVerif } = await supabase.from('pagos_reportados')
+            .select('referencia, monto, detalles, created_at')
+            .or('identidad.eq.' + idFmt + ',identidad.eq.' + idLimpio + ',identidad.eq.' + fullDoc.toUpperCase() + ',identidad.eq.' + soloNum)
+            .eq('estado', 'Por Verificar')
+            .order('created_at', { ascending: false });
+          setPagosPorVerificar(pagosVerif || []);
         }
       } catch (e) { console.error(e); }
       setIsLoading(false);
@@ -118,7 +127,7 @@ export default function EstadoCuentaPage() {
     return portalDoc && (contrib === docNorm || contrib.includes(soloNum));
   }), [recibos, portalDoc, docNorm, soloNum]);
 
-  const pendientes = misFact.filter((f: any) => f.estado === 'Pendiente' || f.estado === 'Abonado');
+  const pendientes = misFact.filter((f: any) => f.estado === 'Pendiente' || f.estado === 'Abonado' || f.estado === 'Por Verificar');
   const pagadas = misFact.filter((f: any) => f.estado === 'Pagada' || f.estado === 'Pagado').slice(0, 10);
 
   // Calculos
@@ -410,10 +419,19 @@ export default function EstadoCuentaPage() {
             {serviciosPendientes.length > 0 ? "Bs. " + formatBs(totalServiciosBs) : "Sin pendientes"}
           </div>
         </div>
-        <div className={"col-span-2 lg:col-span-1 rounded-xl border p-4 text-center shadow-sm " + (deudaTotalEstimada > 0 ? "bg-red-600 border-red-700" : "bg-emerald-600 border-emerald-700")}>
+        <div className={"col-span-2 lg:col-span-1 rounded-xl border p-4 text-center shadow-sm " + (pagosPorVerificar.length > 0 ? "bg-amber-500 border-amber-600" : deudaTotalEstimada > 0 ? "bg-red-600 border-red-700" : "bg-emerald-600 border-emerald-700")}>
           <div className="text-[10px] font-bold text-white/80 uppercase mb-1">Deuda Total</div>
-          <div className="text-lg font-bold text-white">Bs. {formatBs(deudaTotalEstimada)}</div>
-          <div className="text-[10px] text-white/60 mt-1">fact + cuotas + servs</div>
+          {pagosPorVerificar.length > 0 ? (
+            <>
+              <div className="text-sm font-bold text-white">⏳ En Verificación</div>
+              <div className="text-[10px] text-white/80 mt-1">{pagosPorVerificar.length} pago{pagosPorVerificar.length > 1 ? 's' : ''} por confirmar</div>
+            </>
+          ) : (
+            <>
+              <div className="text-lg font-bold text-white">Bs. {formatBs(deudaTotalEstimada)}</div>
+              <div className="text-[10px] text-white/60 mt-1">fact + cuotas + servs</div>
+            </>
+          )}
         </div>
       </div>
 

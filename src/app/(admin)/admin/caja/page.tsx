@@ -103,7 +103,13 @@ export default function CajaPage() {
   const currentBcvRate = customBcvRate && !isNaN(parseFloat(customBcvRate)) ? parseFloat(customBcvRate) : tcmmv;
 
   const isItemPending = (ref: string) => {
-    return false;
+    // Bloquear si esta referencia ya tiene un pago Por Verificar pendiente de conciliar
+    return pagosPendientes.some((p: any) => {
+      let det: any = {};
+      try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}
+      const refs: string[] = det.recibos || [];
+      return refs.includes(ref);
+    });
   };
 
     const getReciboMonto = (r: any) => {
