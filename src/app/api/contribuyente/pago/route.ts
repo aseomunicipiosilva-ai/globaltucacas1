@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
       if (facturaIds && facturaIds.length > 0) {
         const { error } = await supabase
-          .from('recibos')
+          .from('facturas')
           .update({
             estado: 'Pagado',
             metodo_pago: 'Punto de Venta',
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     // TRANSFERENCIA: queda en revisión
     if (facturaIds && facturaIds.length > 0) {
       await supabase
-        .from('recibos')
+        .from('facturas')
         .update({
           estado: 'En Revisión',
           metodo_pago: banco || metodo,
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
 
     // Insertar en pagos_reportados para que aparezca en Conciliación Bancaria
     if (metodo === 'transferencia') {
-      const { data: recibosData } = await supabase.from('recibos').select('referencia').in('id', facturaIds || []);
+      const { data: recibosData } = await supabase.from('facturas').select('referencia').in('id', facturaIds || []);
       const recibosRefs = recibosData ? recibosData.map(r => r.referencia) : [];
       
       await supabase.from('pagos_reportados').insert({
