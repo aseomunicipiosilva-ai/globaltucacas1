@@ -140,10 +140,19 @@ export default function CajaPage() {
       return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
     }
 
-    // CM- = exactamente 1 mes → mmv_mes × cant_inmuebles × tasa actual
+    // CM- = exactamente 1 mes del inmueble específico referenciado en la factura
+    // Usa el mismo matching que la UI: r.referencia.includes(inm.inmueble)
     if (r.referencia?.startsWith('CM-')) {
+      // Buscar el inmueble cuyo código está contenido en la referencia
+      let targetInms = userInms.filter((inm: any) =>
+        inm.inmueble && (r.referencia || '').includes(inm.inmueble)
+      );
+
+      // Fallback: si no hay match (contribuyente con 1 solo inmueble o ref sin código), usar todos
+      if (targetInms.length === 0) targetInms = userInms;
+
       let monthlyMMV = 0;
-      userInms.forEach((inm: any) => {
+      targetInms.forEach((inm: any) => {
         const cant = parseFloat(inm.cant_inmuebles || 1);
         const mmv  = parseFloat(inm.mmv_mes || 0);
         if (mmv > 0) monthlyMMV += cant * mmv;
