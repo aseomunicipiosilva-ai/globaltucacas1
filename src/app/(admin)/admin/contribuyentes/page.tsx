@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
@@ -2267,12 +2267,17 @@ function ContribuyentesPageContent() {
                     const getMontoActual = (f: any): number => {
                       if (f.estado === 'Abonado') return parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
                       if (f.referencia?.startsWith('CM-')) {
-                        // Recalcular: mmv_mes * cant_inmuebles * tcmmv_actual
-                        let totalMMV = 0;
-                        userInms.forEach((inm: any) => {
-                          totalMMV += (parseFloat(inm.mmv_mes || 0)) * (parseFloat(inm.cant_inmuebles || 1));
-                        });
-                        if (totalMMV > 0 && tcmmv > 0) return totalMMV * tcmmv;
+                        // Buscar el inmueble que corresponde a esta factura por código en la referencia
+                        const matchedInm = userInms.find((inm: any) =>
+                          (inm.inmueble && f.referencia.includes(inm.inmueble)) ||
+                          (inm.cod_cont && f.referencia.includes(inm.cod_cont))
+                        );
+                        const targetInm = matchedInm || (userInms.length === 1 ? userInms[0] : null);
+                        if (targetInm && tcmmv > 0) {
+                          const cant = parseFloat(targetInm.cant_inmuebles || 1);
+                          const mmv = parseFloat(targetInm.mmv_mes || 0);
+                          if (mmv > 0) return parseFloat((cant * mmv * tcmmv).toFixed(2));
+                        }
                       }
                       // RECIB- u otros: usar monto guardado en BD
                       return parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
