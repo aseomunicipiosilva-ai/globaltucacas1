@@ -472,13 +472,18 @@ function ContribuyentesPageContent() {
     // Si hay 1 solo inmueble → 1 PDF con todos los meses pendientes
     // Función que filtra las recibos para cada inmueble por código en la referencia
     const getFacturasParaInmueble = (inm: any, allDeudas: any[], totalInms: number): any[] => {
-      if (totalInms <= 1) return allDeudas; // único inmueble: mostrar todos
-      const codInmueble = (inm.inmueble || '').toString();
-      if (!codInmueble || codInmueble === 'Principal') return allDeudas;
-      // Filtrar recibos cuya referencia contiene el código del inmueble
-      const matched = allDeudas.filter((f: any) => f.referencia && f.referencia.includes(codInmueble));
-      // Si no hubo match para este inmueble, asignar las no-matcheadas al primero
-      return matched.length > 0 ? matched : [];
+      if (totalInms <= 1) return allDeudas;
+      return allDeudas.filter(f => {
+        if (!f.referencia) return true;
+        if (f.referencia.startsWith('CM-')) {
+          const match = f.referencia.match(/(I-\d+|C-\d+)/);
+          if (match) {
+            const refId = match[0];
+            return inm.inmueble === refId || inm.cod_cont === refId || (inm as any).Inmueble === refId;
+          }
+        }
+        return true;
+      });
     };
 
     for (const inm of inmsToProcess) {

@@ -129,7 +129,7 @@ export default function EstadoCuentaPage() {
   }, 0);
 
   const totalPendBs = pendientes.reduce((acc: number, f: any) => {
-    const m = parseFloat(getReciboMonto(f)) || 0;
+    const m = calcMonto(f) || 0;
     return acc + m;
   }, 0);
 
@@ -249,10 +249,28 @@ export default function EstadoCuentaPage() {
 
       // Get recibos for this specific inmueble
       const inmRecibos = pendientes.filter((f: any) => {
-        if (inm.inmueble) return f.referencia.includes(inm.inmueble);
+        if (!f.referencia) return true;
+        if (f.referencia.startsWith('CM-')) {
+          const match = f.referencia.match(/(I-\d+|C-\d+)/);
+          if (match) {
+            const refId = match[0];
+            return inm.inmueble === refId || inm.cod_cont === refId || (inm as any).Inmueble === refId;
+          }
+        }
         return true;
       });
-      const totalInm = inmRecibos.reduce((s: number, f: any) => s + parseFloat(getReciboMonto(f)), 0);
+
+      const calcMonto = (f: any): number => {
+        if (f.estado === 'Abonado') return parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
+        if (f.referencia?.startsWith('CM-') && tasaBcv && tasaBcv > 0) {
+          const cant = parseFloat(inm.cant_inmuebles || 1);
+          const mmv = parseFloat(inm.mmv_mes || 0);
+          if (mmv > 0) return parseFloat((cant * mmv * tasaBcv).toFixed(2));
+        }
+        return parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
+      };
+
+      const totalInm = inmRecibos.reduce((s: number, f: any) => s + calcMonto(f), 0);
       const mesesArr = [...new Set(inmRecibos.map((f: any) => mesLabel(f.emision).toUpperCase()))];
       const periodosLabel = mesesArr.join(', ') || '—';
 
@@ -296,7 +314,7 @@ export default function EstadoCuentaPage() {
       y += 4;
 
       const detalleRows = inmRecibos.map((f: any) => {
-        const monto = parseFloat(getReciboMonto(f));
+        const monto = calcMonto(f);
         const det = inm.actividad_principal ? `Aseo ${(inm.tipo || inm.clasificacion || 'residencial').toLowerCase()}` : 'Aseo residencial';
         const periodoDate = f.emision ? f.emision.replace(/-/g, '-') : '—';
         return [
@@ -528,7 +546,7 @@ export default function EstadoCuentaPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-center text-red-600 text-xs">{f.vencimiento || 'N/A'}</td>
-                    <td className="px-4 py-3 text-right font-bold text-red-700">Bs. {parseFloat(getReciboMonto(f)).toLocaleString('es-VE', {minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+                    <td className="px-4 py-3 text-right font-bold text-red-700">Bs. {calcMonto(f).toLocaleString('es-VE', {minimumFractionDigits:2,maximumFractionDigits:2})}</td>
                   </tr>
                   );
                 })}
