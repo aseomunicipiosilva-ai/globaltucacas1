@@ -817,35 +817,56 @@ export default function CajaPage() {
               const p = emision.split('-');
               return p.length >= 2 ? `${MESES_REC[parseInt(p[1])-1]} ${p[0]}` : emision;
             };
-            const conceptos = selectedRecibos.map((ref: string) => {
-              const f = recibos.find((r: any) => r.referencia === ref);
-              const montoF = f ? parseFloat(getReciboMonto(f) || '0') : 0;
+
+            // Agrupar facturas seleccionadas por inmueble
+            const facturasPorInmueble: Record<string, { inm: any; refs: string[] }> = {};
+            selectedRecibos.forEach((ref: string) => {
+              // Extraer código de inmueble de la referencia CM-I-000080-09-2026
+              const matchedInm = userInmsRec.find((i: any) => i.inmueble && ref.includes(i.inmueble));
+              const inmKey = matchedInm?.inmueble || '__general__';
+              if (!facturasPorInmueble[inmKey]) {
+                facturasPorInmueble[inmKey] = { inm: matchedInm || primerInm, refs: [] };
+              }
+              facturasPorInmueble[inmKey].refs.push(ref);
+            });
+
+            const grupos = Object.values(facturasPorInmueble);
+            const recibosArray = grupos.map((grupo, idx) => {
+              const inmGrupo = grupo.inm || primerInm;
+              const conceptosGrupo = grupo.refs.map((ref: string) => {
+                const f = recibos.find((r: any) => r.referencia === ref);
+                const montoF = f ? parseFloat(getReciboMonto(f) || '0') : 0;
+                return {
+                  descripcion: `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${getMesRec(f?.emision || '')}`,
+                  precioUnit: montoF,
+                  total: montoF
+                };
+              });
+              const totalGrupo = conceptosGrupo.reduce((s: number, c: any) => s + c.total, 0);
+              const refNum = (grupo.refs[0] || '').split('-').pop()?.padStart(7, '0') || String(idx + 1).padStart(7, '0');
               return {
-                descripcion: `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${getMesRec(f?.emision || '')}`,
-                precioUnit: montoF,
-                total: montoF
+                reciboNo: refNum,
+                controlWeb: `WEB-${refNum}`,
+                fechaEmision: new Date().toISOString().split('T')[0],
+                codContribuyente: inmGrupo?.cod_cont || foundUser.Identidad,
+                razonSocial: inmGrupo?.contribuyente || foundUser.Contribuyente || '',
+                domicilioFiscal: ((inmGrupo?.direccion || 'TUCACAS MUNICIPIO SILVA, FALCÓN') as string).toUpperCase(),
+                rifCi: foundUser.Identidad,
+                caja: cajero_id_recibo,
+                conceptos: conceptosGrupo,
+                subTotal: totalGrupo,
+                exento: totalGrupo,
+                iva: 0,
+                total: totalGrupo,
+                formaPago: 'PUNTO DE VENTA',
+                banco: 'Debito',
+                referencia: reqRef ? referencia : referenciaDebito,
+                tasaBcv: currentBcvRate || tcmmv || undefined,
               };
             });
-            const totalConceptos = conceptos.reduce((s: number, cpt: any) => s + cpt.total, 0);
-            setReciboData({
-              reciboNo: selectedRecibos[0]?.split('-').pop()?.padStart(7, '0') || '0000001',
-              controlWeb: 'WEB-0000001',
-              fechaEmision: new Date().toISOString().split('T')[0],
-              codContribuyente: primerInm?.cod_cont || foundUser.Identidad,
-              razonSocial: primerInm?.contribuyente || foundUser.Contribuyente || '',
-              domicilioFiscal: ((primerInm?.direccion || 'TUCACAS MUNICIPIO SILVA, FALCÓN') as string).toUpperCase(),
-              rifCi: foundUser.Identidad,
-              caja: cajero_id_recibo,
-              conceptos,
-              subTotal: totalConceptos,
-              exento: totalConceptos,
-              iva: 0,
-              total: montoReal,
-              formaPago: 'PUNTO DE VENTA',
-              banco: 'Debito',
-              referencia: reqRef ? referencia : referenciaDebito,
-              tasaBcv: currentBcvRate || tcmmv || undefined,
-            });
+
+            // Si hay un solo grupo, mantener objeto simple para compatibilidad
+            setReciboData(recibosArray.length === 1 ? recibosArray[0] : recibosArray);
           } catch(rErr) { console.warn('Error al generar recibo automático:', rErr); }
         }
 
@@ -1910,7 +1931,17 @@ export default function CajaPage() {
               </div>
             </div>
             <div className="p-4">
-              <ReciboImprimible data={reciboData} />
+              {Array.isArray(reciboData)
+                ? reciboData.map((rd: any, idx: number) => (
+                    <div key={idx} className={idx > 0 ? 'mt-6 pt-6 border-t border-slate-200' : ''}>
+                      {reciboData.length > 1 && (
+                        <div className="text-xs font-bold text-slate-500 uppercase mb-2">Recibo {idx + 1} de {reciboData.length} — Inmueble: {rd.codContribuyente}</div>
+                      )}
+                      <ReciboImprimible data={rd} />
+                    </div>
+                  ))
+                : <ReciboImprimible data={reciboData} />
+              }
             </div>
           </div>
         </div>
