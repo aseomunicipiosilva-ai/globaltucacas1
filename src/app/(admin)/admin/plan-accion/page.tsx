@@ -15,6 +15,8 @@ export default function PlanAccionPage() {
   const [selectedTrabajador, setSelectedTrabajador] = useState('');
   const [minMeses, setMinMeses] = useState(6);
   const [searchTerm, setSearchTerm] = useState('');
+  const [tipoFiltro, setTipoFiltro] = useState('Todos');
+  const [asignacionesHoy, setAsignacionesHoy] = useState<Record<string, string>>({});
   
   const [selectedContribuyentes, setSelectedContribuyentes] = useState<Set<string>>(new Set());
 
@@ -54,7 +56,7 @@ export default function PlanAccionPage() {
       let allContrib: any[] = [];
       for (let i = 0; i < rawIds.length; i += 100) {
         const chunkIds = rawIds.slice(i, i + 100);
-        const { data: cChunk } = await supabase.from('inmuebles').select('identidad, direccion')
+        const { data: cChunk } = await supabase.from('inmuebles').select('identidad, direccion, actividad_principal')
           .in('identidad', chunkIds);
         if (cChunk) allContrib = [...allContrib, ...cChunk];
       }
@@ -66,12 +68,34 @@ export default function PlanAccionPage() {
           contribuyente: info.contribuyente,
           mesesAdeudados: info.facturasCount,
           deudaBs: info.deudaBs,
-          direccion: c?.direccion || 'Sin dirección registrada'
+          direccion: c?.direccion || 'Sin dirección registrada',
+          tipo: c?.actividad_principal?.toLowerCase().includes('residencial') ? 'Residencial' : c?.actividad_principal?.toLowerCase().includes('comercial') ? 'Comercial' : 'Industrial'
         };
       });
 
       morososArray.sort((a, b) => b.mesesAdeudados - a.mesesAdeudados);
       setMorosos(morososArray);
+
+      // Cargar asignaciones de hoy
+      const hoy = new Date().toISOString().split('T')[0];
+      const { data: audits } = await supabase.from('audit_logs')
+        .select('*')
+        .eq('accion', 'ASIGNACION_PLAN_ACCION')
+        .gte('created_at', hoy + 'T00:00:00Z');
+      
+      const asigMap: Record<string, string> = {};
+      if (audits) {
+        for (const a of audits) {
+          try {
+            const det = typeof a.detalles === 'string' ? JSON.parse(a.detalles) : a.detalles;
+            if (det.identidad && det.trabajador) {
+              asigMap[det.identidad] = det.trabajador;
+            }
+          } catch(e) {}
+        }
+      }
+      setAsignacionesHoy(asigMap);
+
 
     } catch(e) {
       console.error(e);
@@ -83,12 +107,13 @@ export default function PlanAccionPage() {
   const filteredMorosos = useMemo(() => {
     return morosos.filter(m => {
       if (m.mesesAdeudados < minMeses) return false;
+      if (tipoFiltro !== 'Todos' && m.tipo !== tipoFiltro) return false;
       if (searchTerm && !m.contribuyente.toLowerCase().includes(searchTerm.toLowerCase()) && !m.identidad.toLowerCase().includes(searchTerm.toLowerCase())) {
         return false;
       }
       return true;
     });
-  }, [morosos, minMeses, searchTerm]);
+  }, [morosos, minMeses, searchTerm, tipoFiltro]);
 
   const toggleSelect = (id: string) => {
     const next = new Set(selectedContribuyentes);
