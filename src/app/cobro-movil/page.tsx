@@ -124,6 +124,9 @@ export default function CobroMovilPage() {
       ? userInms 
       : [{ inmueble: 'Principal', tipo: 'Residencial', cant_inmuebles: 1, mmv_mes: 0 } as any];
 
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    let pageAdded = false;
+
     for (const inm of inmueblesAProcesar) {
       // Filtrar todasDeudas para que solo incluya las deudas de este inmueble (o las genéricas viejas)
       const deudasDelInmueble = todasDeudas.filter(f => {
@@ -142,7 +145,9 @@ export default function CobroMovilPage() {
       // pero si es el único inmueble, lo descargamos igual para que salga en 0.
       if (deudasDelInmueble.length === 0 && inmueblesAProcesar.length > 1) continue;
 
-      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      if (pageAdded) doc.addPage();
+      pageAdded = true;
+
       const docNro = Math.floor(10000 + Math.random() * 90000);
       try { doc.addImage(logos.isma, 'JPEG', 14, 8, 42, 22); } catch(e) {}
       doc.setFontSize(20); doc.setFont('helvetica', 'bold');
@@ -249,8 +254,8 @@ export default function CobroMovilPage() {
       doc.text('La tasa de cambio BCV varia diariamente. Para cancelar en una fecha posterior, solicite un nuevo estado de cuenta actualizado.', 105, y, { align: 'center' });
       doc.setFont('helvetica', 'normal'); doc.setTextColor(0, 0, 0);
 
-      doc.save(`Estado_Cuenta_${foundUser.Identidad}_${codInm}_${Date.now()}.pdf`);
     }
+    if (pageAdded) doc.save(`Estado_Cuenta_${foundUser.Identidad}_${Date.now()}.pdf`);
   };
 
   const handleSearch = async () => {
