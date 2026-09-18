@@ -589,7 +589,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
         if (facs && facs.length > 0) {
           // Calcular deuda total de los recibos seleccionados
           const deudaTotal = facs.reduce((s, f) => s + parseFloat(f.monto || '0'), 0);
-          const esAbonoParcial = det.es_abono || (montoConciliadoNum > 0 && montoConciliadoNum < deudaTotal - 0.01);
+          const esAbonoParcial = det.es_abono || (montoConciliadoNum > 0 && montoConciliadoNum < deudaTotal - 1.00);
 
           if (esAbonoParcial && montoConciliadoNum > 0) {
             // Distribuir el monto entre recibos (mas antiguas primero)
@@ -598,11 +598,11 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
 
             for (const fac of facs) {
               const montoFac = parseFloat(fac.monto || '0');
-              if (dineroDisponible >= montoFac - 0.01) {
+              if (dineroDisponible >= montoFac - 1.00) {
                 // Cubre la recibo completa
                 dineroDisponible = Math.max(0, dineroDisponible - montoFac);
                 await supabase.from('facturas').update({ estado: 'Pagado' }).eq('referencia', fac.referencia);
-              } else if (dineroDisponible > 0.01) {
+              } else if (dineroDisponible > 1.00) {
                 // Abono parcial: actualizar monto restante
                 const montoRestante = parseFloat((montoFac - dineroDisponible).toFixed(2));
                 await supabase.from('facturas').update({ monto: montoRestante, estado: 'Abonado' }).eq('referencia', fac.referencia);
