@@ -1,6 +1,7 @@
 'use client';
 import { Save, Lock, CheckCircle2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
 export default function DatosContribuyentePage() {
@@ -92,6 +93,20 @@ export default function DatosContribuyentePage() {
 
   return (
     <div className="space-y-5 max-w-3xl mx-auto pb-16">
+      {/* Acceso directo a Estado de Cuenta */}
+      <div className="bg-gradient-to-r from-red-600 to-red-800 rounded-xl shadow-lg border border-red-900 overflow-hidden text-white flex flex-col md:flex-row items-center justify-between p-6 gap-4">
+        <div>
+          <h2 className="text-xl font-black mb-1">Consulta tu Estado de Cuenta</h2>
+          <p className="text-red-100 text-sm">Verifica tu deuda actual, recibos pendientes y descarga tu comprobante en formato PDF al instante.</p>
+        </div>
+        <Link 
+          href="/portal/estado-cuenta" 
+          className="bg-white text-red-700 px-6 py-3 rounded-xl font-black text-sm uppercase tracking-wide hover:bg-red-50 transition-colors shadow-md whitespace-nowrap"
+        >
+          Ir al Estado de Cuenta
+        </Link>
+      </div>
+
       {/* Datos Principales */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex justify-between items-center">

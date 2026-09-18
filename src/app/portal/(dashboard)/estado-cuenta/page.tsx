@@ -386,14 +386,17 @@ export default function EstadoCuentaPage() {
     <div className="space-y-5 max-w-4xl mx-auto pb-16">
       
       
-      <div className="flex justify-between items-center mb-2">
-        <h1 className="text-xl font-bold text-slate-800">Mi Estado de Cuenta</h1>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+        <div>
+          <h1 className="text-2xl font-black text-slate-800">Mi Estado de Cuenta</h1>
+          <p className="text-slate-500 text-sm">Visualice su deuda actual y descargue su comprobante</p>
+        </div>
         <button 
           onClick={handleDownloadPDF}
-          className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-700 transition-colors shadow-sm"
+          className="flex items-center gap-2 bg-red-600 animate-pulse hover:animate-none text-white px-6 py-3 rounded-xl text-base font-black hover:bg-red-700 transition-all shadow-lg hover:shadow-red-500/30"
         >
-          <Download className="w-4 h-4" />
-          Descargar PDF
+          <Download className="w-5 h-5" />
+          DESCARGAR ESTADO DE CUENTA
         </button>
       </div>
 
