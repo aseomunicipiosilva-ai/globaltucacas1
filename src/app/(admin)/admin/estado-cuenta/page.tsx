@@ -48,7 +48,7 @@ export default function EstadoCuentaPage() {
         const { data: chunk, error } = await supabase
           .from('facturas')
           .select('*')
-          .order('created_at', { ascending: false }) // orden consistente en cada chunk
+          .order('emision', { ascending: true }) // orden consistente en cada chunk
           .range(from, from + step);
         if (error) { console.error('Error cargando chunk:', error); break; }
         if (chunk && chunk.length > 0) {
@@ -59,12 +59,12 @@ export default function EstadoCuentaPage() {
           more = false;
         }
       }
-      // El array ya viene ordenado por created_at desc desde Supabase — no necesitamos re-ordenar.
+      // El array ya viene ordenado por emision asc desde Supabase — no necesitamos re-ordenar.
       // Pero por seguridad lo afirmamos en el cliente también:
       all.sort((a: any, b: any) => {
-        const dA = new Date(a.created_at || '1900-01-01').getTime();
-        const dB = new Date(b.created_at || '1900-01-01').getTime();
-        return dB - dA; // más nuevos primero
+        const dA = new Date(a.emision || '1900-01-01').getTime();
+        const dB = new Date(b.emision || '1900-01-01').getTime();
+        return dA - dB; // más antiguos primero
       });
       setFacturasDb(all);
     } catch (e) {
@@ -816,8 +816,28 @@ export default function EstadoCuentaPage() {
         </div>
       );
     } },
-    { key: 'emision', header: 'F. Emisi├│n' },
-    { key: 'vencimiento', header: 'F. Vencimiento' },
+    { 
+      key: 'emision', 
+      header: 'F. Emisión',
+      render: (row: any) => {
+        if (!row.emision) return '---';
+        const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+        const parts = row.emision.split('-');
+        if (parts.length >= 2) return `${meses[parseInt(parts[1]) - 1]} ${parts[0]}`;
+        return row.emision;
+      }
+    },
+    { 
+      key: 'vencimiento', 
+      header: 'F. Vencimiento',
+      render: (row: any) => {
+        if (!row.vencimiento) return '---';
+        const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+        const parts = row.vencimiento.split('-');
+        if (parts.length >= 2) return `${meses[parseInt(parts[1]) - 1]} ${parts[0]}`;
+        return row.vencimiento;
+      }
+    },
     { key: 'actions', header: 'Acciones', render: (row: any) => (
       <div className="flex gap-2">
         <button 
