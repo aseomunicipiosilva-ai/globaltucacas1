@@ -122,8 +122,8 @@ export default function TransferenciaAlarm() {
         ? Number(alerta.monto).toLocaleString('es-VE', { minimumFractionDigits: 2 })
         : '';
       const mensaje = alerta
-        ? `Atención. Transferencia pendiente por conciliar. Contribuyente: ${alerta.identidad}. Monto: ${montoFmt} bolívares.`
-        : 'Atención. Transferencia pendiente por conciliar.';
+        ? `Atención. Transferencia aprobada. Contribuyente: ${alerta.identidad}. Monto: ${montoFmt} bolívares.`
+        : 'Atención. Transferencia aprobada.';
       setTimeout(() => speakAlert(mensaje), 1300);
     } catch (e) {
       console.warn('Error reproduciendo alarma:', e);
@@ -162,13 +162,13 @@ export default function TransferenciaAlarm() {
       .channel('transferencias-realtime')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'pagos_reportados' },
+        { event: '*', schema: 'public', table: 'pagos_reportados' },
         (payload) => {
           const pago = payload.new as any;
-          // Filtrar solo transferencias por verificar
+          // Filtrar solo transferencias aprobadas
           if (
             pago.tipo === 'Transferencia' &&
-            (pago.estado === 'Por Verificar' || !pago.estado)
+            pago.estado === 'Aprobado'
           ) {
             triggerAlarm({
               id: String(pago.id || Date.now()),
@@ -196,7 +196,7 @@ export default function TransferenciaAlarm() {
           .from('pagos_reportados')
           .select('id, identidad, monto, banco, referencia, created_at')
           .eq('tipo', 'Transferencia')
-          .eq('estado', 'Por Verificar')
+          .eq('estado', 'Aprobado')
           .gt('created_at', lastCheckRef.current)
           .order('created_at', { ascending: false })
           .limit(5);
@@ -272,8 +272,8 @@ export default function TransferenciaAlarm() {
                 <BellRing className="w-5 h-5 text-white animate-bounce" />
               </div>
               <div className="flex-1">
-                <div className="font-black text-white text-sm">⚠ TRANSFERENCIA PENDIENTE</div>
-                <div className="text-orange-100 text-[11px]">Requiere conciliación bancaria inmediata</div>
+                <div className="font-black text-white text-sm">✅ TRANSFERENCIA APROBADA</div>
+                <div className="text-orange-100 text-[11px]">La transferencia ha sido conciliada con éxito</div>
               </div>
               <button onClick={dismiss} className="bg-white/20 hover:bg-white/30 rounded-full p-1.5 transition-colors">
                 <X className="w-4 h-4 text-white" />
@@ -312,7 +312,7 @@ export default function TransferenciaAlarm() {
                 onClick={dismiss}
                 className="flex items-center gap-1 text-orange-700 text-xs font-bold hover:text-orange-900 transition-colors"
               >
-                Ir a verificar <ChevronRight className="w-3 h-3" />
+                Ver detalles <ChevronRight className="w-3 h-3" />
               </a>
               <div className="flex items-center gap-3">
                 <button
