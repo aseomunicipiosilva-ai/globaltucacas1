@@ -570,7 +570,7 @@ export default function CobroMovilPage() {
             </div>
             <div>
               <label className="text-slate-400 text-xs font-bold uppercase tracking-wide block mb-2">Monto Cobrado (Bs.)</label>
-              <input type="text" inputMode="numeric" placeholder="0,00" value={montoIngresado} onChange={handleMontoChange}
+              <input type="text" inputMode="numeric" value={montoIngresado} onChange={handleMontoChange}
                 placeholder={totalSel.toFixed(2)} className={inp} style={{ fontSize: 24, fontWeight: 700 }} />
             </div>
             <div>
