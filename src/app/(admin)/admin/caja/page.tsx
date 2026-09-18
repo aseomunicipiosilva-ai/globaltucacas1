@@ -122,7 +122,7 @@ export default function CajaPage() {
       return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
     }
 
-    if (r.estado === 'Abonado') return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
+    if (r.estado === 'Abonado' || r.estado === 'Pagado') return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
 
     // SIEMPRE usar una tasaActual: la personalizada o la del BCV global
     const tasaActual = (customBcvRate && !isNaN(parseFloat(customBcvRate))) 

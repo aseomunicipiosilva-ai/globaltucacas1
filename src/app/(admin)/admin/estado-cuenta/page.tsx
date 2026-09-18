@@ -331,7 +331,7 @@ export default function EstadoCuentaPage() {
     let montoNumerico = parseFloat(String(row.monto || '0').replace(/[^\d.]/g, '')) || 0;
 
     // Calcular monto dinámico igual que Caja (CM- y RECIB-) usando tcmmv actual
-    if (tcmmv && tcmmv > 0 && row.referencia) {
+    if (tcmmv && tcmmv > 0 && row.referencia && row.estado !== 'Pagado' && row.estado !== 'Abonado') {
       // Obtener identidad de la recibo
       const rowId = (row.identidad || '').replace(/-/g, '').toUpperCase();
       const userInmsForCalc = (inmuebles as any[]).filter((i: any) =>
@@ -534,10 +534,10 @@ export default function EstadoCuentaPage() {
             (inm.identidad || '').replace(/-/g,'').toUpperCase() === idClean
           );
           conceptos = todasFacturas.map((f: any) => {
-            let mF = parseFloat(String(f.monto || '0').replace(/[^d.]/g, '')) || 0;
+            let mF = parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
             let descripcionBase = `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${getMesTxt(f.emision)}`;
 
-            if (tcmmv && tcmmv > 0 && userInmsForAll.length > 0) {
+            if (tcmmv && tcmmv > 0 && userInmsForAll.length > 0 && f.estado !== 'Pagado' && f.estado !== 'Abonado') {
               if (f.referencia?.startsWith('CM-')) {
                 let matchedInmuebles = userInmsForAll;
                 
