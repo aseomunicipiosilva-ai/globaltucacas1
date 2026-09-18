@@ -330,7 +330,7 @@ function ContribuyentesPageContent() {
         .select('*')
         .in('estado', ['Pendiente', 'Por Verificar', 'Abonado'])
         .or(`identidad.eq.${viewData.Identidad},identidad.eq.${identidadClean}`)
-        .order('created_at', { ascending: false })
+        .order('emision', { ascending: true })
         .then(({ data: facData }) => {
           // fallback por nombre si no hay resultados por identidad (cubre RECIB- con identidad en otro formato)
           if (!facData || facData.length === 0) {
@@ -339,7 +339,7 @@ function ContribuyentesPageContent() {
               .select('*')
               .in('estado', ['Pendiente', 'Por Verificar', 'Abonado'])
               .eq('contribuyente', viewData.Contribuyente)
-              .order('created_at', { ascending: false })
+              .order('emision', { ascending: true })
               .then(({ data: facByName }) => setViewFacturasDb(facByName || []));
           } else {
             setViewFacturasDb(facData || []);
@@ -2256,8 +2256,12 @@ function ContribuyentesPageContent() {
                 </div>
                 <div className="p-0">
                   {(() => {
-                    // Usar recibos frescas de Supabase (no el contexto que puede estar desactualizado)
-                    const deudas = viewFacturasDb;
+                    // Usar recibos frescas de Supabase y asegurar orden cronológico
+                    const deudas = [...viewFacturasDb].sort((a: any, b: any) => {
+                      const dA = new Date(a.emision || '1900-01-01').getTime();
+                      const dB = new Date(b.emision || '1900-01-01').getTime();
+                      return dA - dB;
+                    });
 
                     // Helper: para CM- recalcular con tasa BCV actual (fluctúa cada día)
                     // Para RECIB- usar monto guardado (deuda acumulada ajustada por Ajustar Deuda)
