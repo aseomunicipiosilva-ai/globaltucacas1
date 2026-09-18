@@ -81,7 +81,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         { data: dbConfig },
         apiBcv
       ] = await Promise.all([
-        supabase.from('inmuebles').select('*').limit(10000),
+        Promise.resolve({ data: allInmuebles }),
         supabase.from('pre_registros').select('*'),
         supabase.from('documentos').select('*'),
         supabase.from('certificados').select('*'),
