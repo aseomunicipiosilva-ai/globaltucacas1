@@ -9,11 +9,21 @@ import {
   PieChart, Pie, Cell
 } from 'recharts';
 import { useAppContext } from '@/store/AppContext';
+import { supabase } from '@/lib/supabase';
+
+function parseMonto(val: string | number | undefined): number {
+  if (val === undefined || val === null) return 0;
+  let s = String(val).trim();
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
 
 export default function DashboardAdministrativo() {
   const { recibos, inmuebles } = useAppContext();
   const [currency, setCurrency] = useState<'Bs' | 'MMV'>('Bs');
   const [tcmmv, setTcmmv] = useState<number>(1);
+  const [pagosReportados, setPagosReportados] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Stats
@@ -37,17 +47,21 @@ export default function DashboardAdministrativo() {
     if (!loading) {
       calculateStats();
     }
-  }, [recibos, inmuebles, loading, tcmmv]);
+  }, [recibos, pagosReportados, inmuebles, loading, tcmmv]);
 
   const fetchTCMMV = async () => {
     try {
       const res = await fetch('/api/bcv');
       const data = await res.json();
-      if (data.tcmmv) {
-        setTcmmv(data.tcmmv);
-      }
-    } catch (e) {
-      console.error('Error obteniendo TCMMV', e);
+      setTcmmv(data.tcmmv || 1);
+      
+      const { data: pagos } = await supabase
+        .from('pagos_reportados')
+        .select('*')
+        .eq('estado', 'Aprobado');
+      setPagosReportados(pagos || []);
+    } catch (error) {
+      console.error(error);
     }
     setLoading(false);
   };
@@ -71,36 +85,33 @@ export default function DashboardAdministrativo() {
     const currentMonth = hoyObj.getMonth();
     const currentYear = hoyObj.getFullYear();
 
+    // Solo sumamos deuda de los recibos pendientes
     recibos.forEach((f: any) => {
       const montoMatch = String(f.monto).match(/[\d.]+/);
       const monto = montoMatch ? parseFloat(montoMatch[0]) : 0;
       
-      if (f.estado === 'Pagado') {
-        recaudado += monto;
-        
-        // Tratar de obtener la fecha real o la de emision
-        const dateStr = f.created_at ? f.created_at.split('T')[0] : (f.emision || hoyStr);
-        const dateObj = new Date(dateStr);
-        
-        if (dateStr === hoyStr) {
-          recHoy += monto;
-        }
-        if (dateObj.getMonth() === currentMonth && dateObj.getFullYear() === currentYear) {
-          recMes += monto;
-        }
-        
-        if (!historiaDiaria[dateStr]) historiaDiaria[dateStr] = 0;
-        historiaDiaria[dateStr] += monto;
-        
-      } else {
+      if (f.estado !== 'Pagado') {
         deuda += monto;
-        
-        // Agregar a top deudores
         if (!deudasContribuyentes[f.identidad]) {
           deudasContribuyentes[f.identidad] = { nombre: f.contribuyente, monto: 0 };
         }
         deudasContribuyentes[f.identidad].monto += monto;
       }
+    });
+
+    // Calcular recaudacion a partir de pagos aprobados reales
+    pagosReportados.forEach((pago: any) => {
+      const monto = parseMonto(pago.monto);
+      recaudado += monto;
+
+      const dateStr = pago.created_at ? pago.created_at.split('T')[0] : hoyStr;
+      const dateObj = new Date(dateStr);
+
+      if (dateStr === hoyStr) recHoy += monto;
+      if (dateObj.getMonth() === currentMonth && dateObj.getFullYear() === currentYear) recMes += monto;
+
+      if (!historiaDiaria[dateStr]) historiaDiaria[dateStr] = 0;
+      historiaDiaria[dateStr] += monto;
     });
 
     setTotalRecaudadoBs(recaudado);
