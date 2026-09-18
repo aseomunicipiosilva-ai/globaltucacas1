@@ -468,19 +468,38 @@ export default function EstadoCuentaPage() {
               {misInmuebles.length === 0 ? (
                 <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400 text-sm">No se encontraron inmuebles asociados a su cuenta.</td></tr>
               ) : (
-                misInmuebles.map((inm: any, i: number) => {
+                misInmuebles.flatMap((inm: any, i: number) => {
                   const factor = parseFloat(inm.mmv_mes) || 0;
                   const cuotaBs = factor * tasaBcv;
-                  return (
-                    <tr key={i} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3 font-mono font-bold text-slate-700">{inm.inmueble || inm.cod_cont || '-'}</td>
-                      <td className="px-4 py-3">{inm.tipo || 'N/A'}</td>
-                      <td className="px-4 py-3">{inm.actividad_principal || 'Residencial'}</td>
-                      <td className="px-4 py-3 text-xs text-slate-500 max-w-[200px]">{inm.direccion || 'Sin dirección'}</td>
-                      <td className="px-4 py-3 text-center">{factor.toFixed(2)}</td>
-                      <td className="px-4 py-3 text-right font-bold text-emerald-700">Bs. {formatBs(cuotaBs)}</td>
-                    </tr>
-                  );
+                  const cant = parseInt(inm.cant_inmuebles) || 1;
+                  const rows = [];
+                  
+                  if (cant > 1 && factor > 0) {
+                    for (let j = 1; j <= cant; j++) {
+                      rows.push(
+                        <tr key={`${i}-${j}`} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-3 font-mono font-bold text-slate-700">{inm.inmueble || inm.cod_cont || '-'} - Unidad {j}</td>
+                          <td className="px-4 py-3">{inm.tipo || 'N/A'}</td>
+                          <td className="px-4 py-3">{inm.actividad_principal || 'Residencial'}</td>
+                          <td className="px-4 py-3 text-xs text-slate-500 max-w-[200px]">{inm.direccion || 'Sin dirección'}</td>
+                          <td className="px-4 py-3 text-center">{factor.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-right font-bold text-emerald-700">Bs. {formatBs(cuotaBs)}</td>
+                        </tr>
+                      );
+                    }
+                  } else {
+                    rows.push(
+                      <tr key={i} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3 font-mono font-bold text-slate-700">{inm.inmueble || inm.cod_cont || '-'}</td>
+                        <td className="px-4 py-3">{inm.tipo || 'N/A'}</td>
+                        <td className="px-4 py-3">{inm.actividad_principal || 'Residencial'}</td>
+                        <td className="px-4 py-3 text-xs text-slate-500 max-w-[200px]">{inm.direccion || 'Sin dirección'}</td>
+                        <td className="px-4 py-3 text-center">{factor.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-right font-bold text-emerald-700">Bs. {formatBs(cuotaBs)}</td>
+                      </tr>
+                    );
+                  }
+                  return rows;
                 })
               )}
             </tbody>
