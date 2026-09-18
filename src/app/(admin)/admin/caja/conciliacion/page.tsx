@@ -190,12 +190,12 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
     (async () => {
       setLoading(true);
       try {
-        const idLimpio = (pago.identidad || '').replace(/-/g, '');
-        // Buscar por identidad en inmuebles (campo real: identidad minÃºscula)
+        const idLimpio = (pago.identidad || '').replace(/-/g, '').trim();
+        const idConGuion = idLimpio.length > 1 ? idLimpio.charAt(0) + '-' + idLimpio.slice(1) : idLimpio;
         const { data: inms } = await supabase
           .from('inmuebles')
           .select('*')
-          .or(`identidad.eq.${pago.identidad},identidad.eq.${idLimpio}`);
+          .or(`identidad.eq.${pago.identidad},identidad.eq.${idLimpio},identidad.eq.${idConGuion}`);
 
         if (inms && inms.length > 0) {
           // Calcular totales
@@ -377,7 +377,7 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
 function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: () => void; onSuccess: () => void }) {
   const det = parseDetalles(pago.detalles);
 
-  // InformaciÃ³n del contribuyente cargada desde Supabase (solo lectura)
+  // Información del contribuyente cargada desde Supabase (solo lectura)
   const [contribInfo, setContribInfo] = useState<any>(null);
   const [loadingContrib, setLoadingContrib] = useState(true);
 
@@ -424,12 +424,12 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
     (async () => {
       setLoadingContrib(true);
       try {
-        const idLimpio = (pago.identidad || '').replace(/-/g, '');
-        // Buscar en inmuebles - puede haber mÃºltiples registros (varios inmuebles)
+        const idLimpio = (pago.identidad || '').replace(/-/g, '').trim();
+        const idConGuion = idLimpio.length > 1 ? idLimpio.charAt(0) + '-' + idLimpio.slice(1) : idLimpio;
         const { data: inms } = await supabase
           .from('inmuebles')
           .select('*')
-          .or(`identidad.eq.${pago.identidad},identidad.eq.${idLimpio}`);
+          .or(`identidad.eq.${pago.identidad},identidad.eq.${idLimpio},identidad.eq.${idConGuion}`);
 
         // Buscar el inmueble que coincide con el cod_inmueble del pago si existe
         const detCod = det.cod_inmueble || pago.cod_inmueble;
@@ -686,7 +686,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-bold text-blue-700 uppercase tracking-wide flex items-center gap-2">
-                  <Building2 size={14}/> InformaciÃ³n del Contribuyente
+                  <Building2 size={14}/> Información del Contribuyente
                   {loadingContrib && <span className="text-[10px] text-blue-400 font-normal animate-pulse">(cargando...)</span>}
                 </p>
                 <div className="flex gap-2 text-[10px]">
@@ -815,7 +815,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                 </select>
                 {estatus === 'Con Diferencia' && (
                   <p className="text-[10px] text-amber-600 mt-1 font-medium">
-                    âš ï¸ El monto ingresado se agregarÃ¡ como saldo a favor del contribuyente.
+                    âš ï¸ El monto ingresado se agregará como saldo a favor del contribuyente.
                   </p>
                 )}
               </div>
