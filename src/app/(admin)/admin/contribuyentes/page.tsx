@@ -486,13 +486,18 @@ function ContribuyentesPageContent() {
       });
     };
 
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    let pageAdded = false;
+
     for (const inm of inmsToProcess) {
       // Obtener recibos de este inmueble
       const inmDeudas = getFacturasParaInmueble(inm, deudas, inmsToProcess.length);
       // Si hay múltiples inmuebles y este no tiene recibos, skip
       if (inmsToProcess.length > 1 && inmDeudas.length === 0) continue;
 
-      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      if (pageAdded) doc.addPage();
+      pageAdded = true;
+
       const docNro = Math.floor(10000 + Math.random() * 90000);
 
       // ── LOGO ISMA (solo ISMA, lado izquierdo) ──
@@ -630,7 +635,7 @@ function ContribuyentesPageContent() {
       const detalleRows = inmRecibos.map((f: any) => {
         const monto = calcMonto(f);
         const det = inm.actividad_principal
-          ? `Aseo ${(inm.tipo || inm.clasificacion || 'residencial').toLowerCase()}`
+          ? `Aseo ${inm.actividad_principal}`
           : 'Aseo residencial';
         return [
           f.emision || '—',
@@ -694,9 +699,12 @@ function ContribuyentesPageContent() {
       doc.text('La tasa de cambio BCV varia diariamente. Para cancelar en una fecha posterior, solicite un nuevo estado de cuenta actualizado.', 105, y, { align: 'center' });
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(0, 0, 0);
-
-      doc.save(`Estado_Cuenta_${viewData.Identidad}_${codInm}_${Date.now()}.pdf`);
     } // end for
+
+    // Save only ONCE for all inmuebles (as requested by user to prevent multi-downloads)
+    if (pageAdded) {
+      doc.save(`Estado_Cuenta_${viewData.Identidad}_${Date.now()}.pdf`);
+    }
   };
 
   const exportarExcelContribuyentes = () => {

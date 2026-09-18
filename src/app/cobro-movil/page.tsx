@@ -238,7 +238,7 @@ export default function CobroMovilPage() {
           head: [['PERIODO', 'DETALLE', 'RECOLECCIÓN', 'INT REC', 'MULTA', 'IVA', 'TOTAL BS']],
           body: deudasDelInmueble.map(f => {
             const m = calcM(f);
-            const det = (inm as any).actividad_principal ? `Aseo ${(inm.tipo || 'residencial').toLowerCase()}` : 'Aseo residencial';
+            const det = (inm as any).actividad_principal ? `Aseo ${(inm as any).actividad_principal}` : `Aseo ${((inm as any).tipo || (inm as any).clasificacion || "residencial").toLowerCase()}`;
             return [f.emision || '—', det, m.toLocaleString('es-VE', {minimumFractionDigits:2}), '0,00','0,00','0,00', m.toLocaleString('es-VE', {minimumFractionDigits:2})];
           }),
           theme: 'grid',

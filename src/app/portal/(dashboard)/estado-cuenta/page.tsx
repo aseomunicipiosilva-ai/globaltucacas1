@@ -332,7 +332,7 @@ export default function EstadoCuentaPage() {
 
       const detalleRows = inmRecibos.map((f: any) => {
         const monto = calcMonto(f);
-        const det = inm.actividad_principal ? `Aseo ${(inm.tipo || inm.clasificacion || 'residencial').toLowerCase()}` : 'Aseo residencial';
+        const det = (inm as any).actividad_principal ? `Aseo ${(inm as any).actividad_principal}` : `Aseo ${((inm as any).tipo || (inm as any).clasificacion || "residencial").toLowerCase()}`;
         const periodoDate = f.emision ? f.emision.replace(/-/g, '-') : '—';
         return [
           periodoDate,
