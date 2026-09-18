@@ -577,10 +577,10 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
       if (estatus === 'Rechazado' && recibos.length > 0) {
         await supabase.from('facturas').update({ estado: 'Pendiente' }).in('referencia', recibos);
         if (det.cuotas && det.cuotas.length > 0) {
-           await supabase.from('convenios_cuotas').update({ estado: 'Pendiente' }).in('id', det.cuotas.map((c) => typeof c === 'object' ? c.id : c));
+           await supabase.from('convenios_cuotas').update({ estado: 'Pendiente' }).in('id', det.cuotas.map((c: any) => typeof c === 'object' ? c.id : c));
         }
         if (det.servicios && det.servicios.length > 0) {
-           await supabase.from('servicios_especiales').update({ estado: 'Pendiente' }).in('referencia', det.servicios.map((s) => typeof s === 'string' ? s : s.referencia));
+           await supabase.from('servicios_especiales').update({ estado: 'Pendiente' }).in('referencia', det.servicios.map((s: any) => typeof s === 'string' ? s : s.referencia));
         }
       }
 
