@@ -531,7 +531,12 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
     setIsProcessing(true);
     try {
       const tasaParaGuardar = parseFloat(tasaCustom) || tasaOriginal;
+            const cajeroStr = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'Administrador';
+      const letraStr = (typeof window !== 'undefined' ? localStorage.getItem('adminLetra') : null);
+      const current_analista = letraStr && cajeroStr !== 'Administrador' ? `${letraStr}-${cajeroStr}` : cajeroStr;
+
       const updatedDet = {
+        analista: det.analista || current_analista,
         ...det,
         correo: correoResponsable,
         telefono: telefonoResponsable,
@@ -569,6 +574,17 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
       if (error) throw error;
 
       // Aprobado: marcar recibos como Pagado o aplicar abono proporcional
+      // Rechazado: devolver los recibos a Pendiente para que puedan pagarse en Caja
+      if (estatus === 'Rechazado' && recibos.length > 0) {
+        await supabase.from('facturas').update({ estado: 'Pendiente' }).in('referencia', recibos);
+        if (det.cuotas && det.cuotas.length > 0) {
+           await supabase.from('convenios_cuotas').update({ estado: 'Pendiente' }).in('id', det.cuotas.map((c) => typeof c === 'object' ? c.id : c));
+        }
+        if (det.servicios && det.servicios.length > 0) {
+           await supabase.from('servicios_especiales').update({ estado: 'Pendiente' }).in('referencia', det.servicios.map((s) => typeof s === 'string' ? s : s.referencia));
+        }
+      }
+
       if (estatus === 'Aprobado' && recibos.length > 0) {
         const { data: facs } = await supabase.from('facturas').select('*').in('referencia', recibos);
         if (facs && facs.length > 0) {
