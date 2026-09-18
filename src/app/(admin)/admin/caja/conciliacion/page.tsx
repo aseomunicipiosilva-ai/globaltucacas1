@@ -5,6 +5,7 @@ import {
   Pencil, Mail, Building2
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useAppContext } from '@/store/AppContext';
 
 type Pago = {
   id: string;
@@ -929,6 +930,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
 
 // â”€â”€â”€ PAGINA PRINCIPAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function ConciliacionPage() {
+  const { inmuebles } = useAppContext();
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [loading, setLoading] = useState(false);
   const [filtros, setFiltros] = useState<Filtros>({
@@ -991,7 +993,11 @@ export default function ConciliacionPage() {
       </tr>,
       <tr key={'d'+idx} className="hover:bg-blue-50/30 transition-colors border-b border-slate-100">
         <td className="px-3 py-2 text-xs font-mono text-slate-700">
-          <div className="font-bold font-sans text-[11px] truncate max-w-[150px]" title={pago.contribuyente || ''}>{pago.contribuyente || '---'}</div>
+                    {(() => {
+            const inm = inmuebles.find((i: any) => (i.identidad || '').replace(/-/g, '').toUpperCase() === (pago.identidad || '').replace(/-/g, '').toUpperCase());
+            const nombre = inm?.contribuyente || pago.contribuyente || '---';
+            return <div className="font-bold font-sans text-[11px] truncate max-w-[150px]" title={nombre}>{nombre}</div>;
+          })()}
           <div className="text-[10px] text-slate-500">{pago.identidad}</div>
         </td>
         <td className="px-3 py-2 text-xs text-slate-600">{det.cod_inmueble || pago.cod_inmueble || '---'}</td>
