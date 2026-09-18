@@ -68,6 +68,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      let allInmuebles: any[] = [];
+      let fetchMoreInm = true;
+      let fromInm = 0;
+      let stepInm = 999;
+      while (fetchMoreInm) {
+        const { data: chunk } = await supabase.from('inmuebles').select('*')
+          .order('id', { ascending: true })
+          .range(fromInm, fromInm + stepInm);
+        if (chunk && chunk.length > 0) {
+          allInmuebles = [...allInmuebles, ...chunk];
+          fromInm += stepInm + 1;
+        } else {
+          fetchMoreInm = false;
+        }
+      }
+
       const [
         { data: dbInmuebles },
         { data: dbPreRegistros },
@@ -137,7 +153,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setAuditLogs(fetchAuditLogs || []);
 
       if (dbInmuebles) {
-        const mappedInmuebles = dbInmuebles.map(row => ({
+        const mappedInmuebles = dbInmuebles.map((row: any) => ({
           ...row,
           'Inmueble': row.inmueble || row.cod_cont,
           'Clasificacion': row.clasificacion || 'Residencial',
