@@ -39,21 +39,21 @@ export default function PlanAccionPage() {
         if (chunk.length < 1000) break;
       }
 
-      const grouped: Record<string, { facturasCount: number, deudaBs: number, contribuyente: string }> = {};
+      const grouped: Record<string, { facturasCount: number, deudaBs: number, contribuyente: string, rawId: string }> = {};
       for (const f of allFacturas) {
         const id = (f.identidad || '').replace(/-/g, '').toUpperCase();
         if (!id) continue;
         if (!grouped[id]) {
-          grouped[id] = { facturasCount: 0, deudaBs: 0, contribuyente: f.contribuyente || 'N/D' };
+          grouped[id] = { facturasCount: 0, deudaBs: 0, contribuyente: f.contribuyente || 'N/D', rawId: f.identidad || '' };
         }
         grouped[id].facturasCount++;
         grouped[id].deudaBs += parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
       }
 
-      const ids = Object.keys(grouped);
+      const rawIds = Object.values(grouped).map(g => g.rawId.trim());
       let allContrib: any[] = [];
-      for (let i = 0; i < ids.length; i += 100) {
-        const chunkIds = ids.slice(i, i + 100);
+      for (let i = 0; i < rawIds.length; i += 100) {
+        const chunkIds = rawIds.slice(i, i + 100);
         const { data: cChunk } = await supabase.from('inmuebles').select('identidad, direccion')
           .in('identidad', chunkIds);
         if (cChunk) allContrib = [...allContrib, ...cChunk];
