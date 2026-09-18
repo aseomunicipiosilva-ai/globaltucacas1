@@ -1049,7 +1049,7 @@ export default function ConciliacionPage() {
             <Filter size={14}/> {loading ? 'Cargando...' : 'Aplicar Filtros'}
           </button>
         </div>
-        <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 items-end">
+        <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 items-end">
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1">Rango de Fechas</label>
             <div className="flex gap-1">
