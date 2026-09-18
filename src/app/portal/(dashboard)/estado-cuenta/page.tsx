@@ -127,8 +127,8 @@ export default function EstadoCuentaPage() {
     return portalDoc && (contrib === docNorm || contrib.includes(soloNum));
   }), [recibos, portalDoc, docNorm, soloNum]);
 
-  const pendientes = misFact.filter((f: any) => f.estado === 'Pendiente' || f.estado === 'Abonado' || f.estado === 'Por Verificar');
-  const pagadas = misFact.filter((f: any) => f.estado === 'Pagada' || f.estado === 'Pagado').slice(0, 10);
+  const pendientes = misFact.filter((f: any) => f.estado === 'Pendiente' || f.estado === 'Abonado' || f.estado === 'Por Verificar').sort((a,b) => (a.emision || '').localeCompare(b.emision || ''));
+  const pagadas = misFact.filter((f: any) => f.estado === 'Pagada' || f.estado === 'Pagado').sort((a,b) => (b.emision || '').localeCompare(a.emision || '')).slice(0, 10);
 
   // Calculos
   const totalMensual = misInmuebles.reduce((acc: number, inm: any) => {
@@ -174,8 +174,12 @@ export default function EstadoCuentaPage() {
     // === Generate one PDF per inmueble ===
     const inmsToProcess = misInmuebles.length > 0 ? misInmuebles : [{ inmueble: 'Principal', tipo: 'Residencial', cant_inmuebles: 1 }];
 
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    let pageAdded = false;
+
     inmsToProcess.forEach((inm: any, idx: number) => {
-      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      if (pageAdded) doc.addPage();
+      pageAdded = true;
       const today = new Date();
       const tasaVigente = today.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
       const docNro = Math.floor(10000 + Math.random() * 90000);
