@@ -990,7 +990,10 @@ export default function ConciliacionPage() {
         <td colSpan={10} className="px-3 py-1 text-xs text-slate-600 font-mono truncate">{docInfo}</td>
       </tr>,
       <tr key={'d'+idx} className="hover:bg-blue-50/30 transition-colors border-b border-slate-100">
-        <td className="px-3 py-2 text-xs font-mono text-slate-700">{pago.identidad}</td>
+        <td className="px-3 py-2 text-xs font-mono text-slate-700">
+          <div className="font-bold font-sans text-[11px] truncate max-w-[150px]" title={pago.contribuyente || ''}>{pago.contribuyente || '---'}</div>
+          <div className="text-[10px] text-slate-500">{pago.identidad}</div>
+        </td>
         <td className="px-3 py-2 text-xs text-slate-600">{det.cod_inmueble || pago.cod_inmueble || '---'}</td>
         <td className="px-3 py-2 text-xs font-mono text-slate-600">{pago.referencia || '---'}</td>
         <td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">{fmtFecha(pago.created_at)}</td>
