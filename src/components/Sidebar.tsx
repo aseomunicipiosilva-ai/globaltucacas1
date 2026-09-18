@@ -40,6 +40,7 @@ export default function Sidebar() {
     { icon: Mail, name: 'Correos Informativos', href: '/admin/correos' },
     { icon: UserPlus, name: 'Trabajadores Aseo', href: '/admin/trabajadores' },
     { icon: Smartphone, name: 'Cobro Móvil', href: '/cobro-movil' },
+    { icon: Map, name: 'Plan de Acción', href: '/admin/plan-accion' },
     { icon: ShieldAlert, name: 'Auditoría', href: '/admin/auditoria' }
   ];
 
@@ -69,7 +70,6 @@ export default function Sidebar() {
     { icon: Package, name: 'Almacén e Inventario', href: '/admin/administracion/almacen' },
     { icon: Building2, name: 'Bienes Nacionales', href: '/admin/administracion/bienes' },
     { icon: Target, name: 'Plan Operativo Anual', href: '/admin/administracion/poa' },
-    { icon: Map, name: 'Plan de Acción', href: '/admin/administracion/plan-accion' },
     { icon: ShieldAlert, name: 'Auditoría', href: '/admin/auditoria' }
   ];
 
