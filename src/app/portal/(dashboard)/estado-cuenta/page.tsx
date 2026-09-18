@@ -123,8 +123,12 @@ export default function EstadoCuentaPage() {
 
   // Filtrar recibos del usuario
   const misFact = useMemo(() => recibos.filter((f: any) => {
-    const contrib = (f.contribuyente || f.identidad || '').replace(/-/g, '').toUpperCase();
-    return portalDoc && (contrib === docNorm || contrib.includes(soloNum));
+    const ident = (f.identidad || '').replace(/-/g, '').toUpperCase();
+    const cont = (f.contribuyente || '').replace(/-/g, '').toUpperCase();
+    return portalDoc && (
+      ident === docNorm || ident.includes(soloNum) || 
+      cont === docNorm || cont.includes(soloNum)
+    );
   }), [recibos, portalDoc, docNorm, soloNum]);
 
   const pendientes = misFact.filter((f: any) => f.estado === 'Pendiente' || f.estado === 'Abonado' || f.estado === 'Por Verificar').sort((a,b) => (a.emision || '').localeCompare(b.emision || ''));

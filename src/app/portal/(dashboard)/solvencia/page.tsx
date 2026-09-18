@@ -19,8 +19,12 @@ export default function SolvenciaPage() {
   const soloNum = portalDoc.replace(/\D/g, '');
 
   const misFact = useMemo(() => recibos.filter((f: any) => {
-    const contrib = (f.contribuyente || f.identidad || '').replace(/-/g, '').toUpperCase();
-    return portalDoc && (contrib === docNorm || (soloNum && contrib.includes(soloNum)));
+    const ident = (f.identidad || '').replace(/-/g, '').toUpperCase();
+    const cont = (f.contribuyente || '').replace(/-/g, '').toUpperCase();
+    return portalDoc && (
+      ident === docNorm || (soloNum && ident.includes(soloNum)) || 
+      cont === docNorm || (soloNum && cont.includes(soloNum))
+    );
   }), [recibos, portalDoc, docNorm, soloNum]);
 
   const pendientes = misFact.filter((f: any) => f.estado === 'Pendiente' || f.estado === 'Abonado');
