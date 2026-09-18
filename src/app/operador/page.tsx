@@ -61,11 +61,12 @@ export default function OperadorDashboard() {
 
   const fetchStats = async (opName: string) => {
     try {
-      // Find all pre_registros where origen contains the operator's name
+      // Count all historical censuses sent by this operator from audit_logs
       const { count, error } = await supabase
-        .from('pre_registros')
+        .from('audit_logs')
         .select('*', { count: 'exact', head: true })
-        .ilike('origen', `%Censo - ${opName}%`);
+        .eq('action', 'NUEVO_CENSO')
+        .eq('user_id', opName);
         
       if (!error && count !== null) {
         setCensosRealizados(count);

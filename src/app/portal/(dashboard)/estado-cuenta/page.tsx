@@ -7,6 +7,7 @@ import { formatBs } from '@/lib/formatCurrency';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { logos } from '@/lib/logosBase64';
+import { exportToExcelWithLogos } from '@/lib/excelExport';
 
 const TIPO_ICON: Record<string, any> = {
   especial: Wrench, extraordinario: FlaskConical, inspeccion: ClipboardCheck, visto_bueno: ShieldCheck
@@ -18,7 +19,7 @@ const TIPO_LABEL: Record<string, string> = {
 export default function EstadoCuentaPage() {
   const { inmuebles, recibos, contribuyentes, tcmmv } = useAppContext();
   const [portalDoc, setPortalDoc] = useState('');
-  const [tasaBcv, setTasaBcv] = useState(0);
+  const tasaBcv = tcmmv || 0;
   const [cuotasData, setCuotasData] = useState<any[]>([]);
   const [serviciosEsp, setServiciosEsp] = useState<any[]>([]);
   const [pagosPorVerificar, setPagosPorVerificar] = useState<any[]>([]);
@@ -30,9 +31,6 @@ export default function EstadoCuentaPage() {
 
     const fetchAll = async () => {
       try {
-        // Usar tcmmv de AppContext para garantizar misma tasa que admin
-        setTasaBcv(tcmmv || 0);
-
         if (fullDoc) {
           const idLimpio = fullDoc.replace(/-/g, '').toUpperCase();
           const idFmt = idLimpio.charAt(0) + '-' + idLimpio.slice(1);
@@ -448,9 +446,46 @@ export default function EstadoCuentaPage() {
 
       {/* Mis Inmuebles */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center gap-2">
-          <Building className="w-4 h-4 text-slate-500" />
-          <h2 className="font-bold text-slate-700 uppercase text-sm tracking-wide">Mis Inmuebles Registrados</h2>
+        <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Building className="w-4 h-4 text-slate-500" />
+            <h2 className="font-bold text-slate-700 uppercase text-sm tracking-wide">Mis Inmuebles Registrados</h2>
+          </div>
+          <button 
+            onClick={() => {
+              const rows: any[] = [];
+              misInmuebles.forEach((inm: any) => {
+                  const factor = parseFloat(inm.mmv_mes) || 0;
+                  const cuotaBs = factor * tasaBcv;
+                  const cant = parseInt(inm.cant_inmuebles) || 1;
+                  if (cant > 1 && factor > 0) {
+                      for (let j = 1; j <= cant; j++) {
+                          rows.push({
+                              'Código': `${inm.inmueble || inm.cod_cont || '-'} - Unidad ${j}`,
+                              'Tipo': inm.tipo || 'N/A',
+                              'Actividad': inm.actividad_principal || 'Residencial',
+                              'Dirección': inm.direccion || 'Sin dirección',
+                              'Factor': factor.toFixed(2),
+                              'Cuota Mensual (Bs)': formatBs(cuotaBs)
+                          });
+                      }
+                  } else {
+                      rows.push({
+                          'Código': inm.inmueble || inm.cod_cont || '-',
+                          'Tipo': inm.tipo || 'N/A',
+                          'Actividad': inm.actividad_principal || 'Residencial',
+                          'Dirección': inm.direccion || 'Sin dirección',
+                          'Factor': factor.toFixed(2),
+                          'Cuota Mensual (Bs)': formatBs(cuotaBs)
+                      });
+                  }
+              });
+              exportToExcelWithLogos(rows, `Desglose_Inmuebles_${portalDoc}.xlsx`, 'Desglose Inmuebles');
+            }}
+            className="flex items-center gap-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 rounded-lg shadow-sm transition-transform active:scale-95"
+          >
+            <Download className="w-3.5 h-3.5" /> Descargar Desglose
+          </button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-600">
@@ -468,38 +503,21 @@ export default function EstadoCuentaPage() {
               {misInmuebles.length === 0 ? (
                 <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400 text-sm">No se encontraron inmuebles asociados a su cuenta.</td></tr>
               ) : (
-                misInmuebles.flatMap((inm: any, i: number) => {
+                misInmuebles.map((inm: any, i: number) => {
                   const factor = parseFloat(inm.mmv_mes) || 0;
-                  const cuotaBs = factor * tasaBcv;
                   const cant = parseInt(inm.cant_inmuebles) || 1;
-                  const rows = [];
+                  const cuotaBs = factor * cant * tasaBcv;
                   
-                  if (cant > 1 && factor > 0) {
-                    for (let j = 1; j <= cant; j++) {
-                      rows.push(
-                        <tr key={`${i}-${j}`} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-3 font-mono font-bold text-slate-700">{inm.inmueble || inm.cod_cont || '-'} - Unidad {j}</td>
-                          <td className="px-4 py-3">{inm.tipo || 'N/A'}</td>
-                          <td className="px-4 py-3">{inm.actividad_principal || 'Residencial'}</td>
-                          <td className="px-4 py-3 text-xs text-slate-500 max-w-[200px]">{inm.direccion || 'Sin dirección'}</td>
-                          <td className="px-4 py-3 text-center">{factor.toFixed(2)}</td>
-                          <td className="px-4 py-3 text-right font-bold text-emerald-700">Bs. {formatBs(cuotaBs)}</td>
-                        </tr>
-                      );
-                    }
-                  } else {
-                    rows.push(
-                      <tr key={i} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-4 py-3 font-mono font-bold text-slate-700">{inm.inmueble || inm.cod_cont || '-'}</td>
-                        <td className="px-4 py-3">{inm.tipo || 'N/A'}</td>
-                        <td className="px-4 py-3">{inm.actividad_principal || 'Residencial'}</td>
-                        <td className="px-4 py-3 text-xs text-slate-500 max-w-[200px]">{inm.direccion || 'Sin dirección'}</td>
-                        <td className="px-4 py-3 text-center">{factor.toFixed(2)}</td>
-                        <td className="px-4 py-3 text-right font-bold text-emerald-700">Bs. {formatBs(cuotaBs)}</td>
-                      </tr>
-                    );
-                  }
-                  return rows;
+                  return (
+                    <tr key={i} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3 font-mono font-bold text-slate-700">{inm.inmueble || inm.cod_cont || '-'} {cant > 1 ? `(${cant} Unds)` : ''}</td>
+                      <td className="px-4 py-3">{inm.tipo || 'N/A'}</td>
+                      <td className="px-4 py-3">{inm.actividad_principal || 'Residencial'}</td>
+                      <td className="px-4 py-3 text-xs text-slate-500 max-w-[200px]">{inm.direccion || 'Sin dirección'}</td>
+                      <td className="px-4 py-3 text-center">{factor.toFixed(2)} {cant > 1 ? `x ${cant}` : ''}</td>
+                      <td className="px-4 py-3 text-right font-bold text-emerald-700">Bs. {formatBs(cuotaBs)}</td>
+                    </tr>
+                  );
                 })
               )}
             </tbody>
