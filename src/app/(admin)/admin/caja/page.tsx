@@ -926,6 +926,7 @@ export default function CajaPage() {
             cuotas: selectedCuotas,
             servicios: selectedServicios,
             tala_poda: selectedTalaPoda,
+            cajero: cajero_id,
             saldo_favor: saldoAFavorNuevo,
             es_abono: esAbono,
             monto_abonado: esAbono ? montoReal : undefined,

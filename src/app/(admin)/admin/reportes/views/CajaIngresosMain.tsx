@@ -207,6 +207,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
               </td>
               <td style={S.td}>{recs[0] || '-'}</td><td style={S.td}>{p.banco || '-'}</td><td style={S.td}>{p.referencia || '-'}</td>
               <td style={S.td}>{det.banco_destino || det.banco_receptor || '-'}</td><td style={S.td}>{p.referencia || '-'}</td>
+              {!showDT && <td style={S.td}>{p.estado || '-'}</td>}
               {showDT ? <td style={{ ...S.td, textAlign: 'right', fontWeight: 700 }}>{fmtBs(mC)}</td>
                 : <><td style={{ ...S.td, textAlign: 'right' }}>{fmtBs(parseFloat(p.monto) || 0)}</td><td style={{ ...S.td, textAlign: 'right', fontWeight: 700 }}>{fmtBs(mC)}</td></>}
             </tr>);
