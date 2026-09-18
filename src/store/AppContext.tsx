@@ -138,7 +138,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         try {
           const eurRes = await fetch('https://ve.dolarapi.com/v1/euros/oficial');
           const eurData = await eurRes.json();
-          if (eurData && eurData.promedio > 0 && eurData.promedio < 200) {
+          if (eurData && eurData.promedio > 0 && eurData.promedio < 2000) {
             currentTcmmv = eurData.promedio;
           }
         } catch (e) {
