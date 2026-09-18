@@ -54,19 +54,19 @@ export default function PlanAccionPage() {
       let allContrib: any[] = [];
       for (let i = 0; i < ids.length; i += 100) {
         const chunkIds = ids.slice(i, i + 100);
-        const { data: cChunk } = await supabase.from('contribuyentes').select('Identidad, Domicilio_Fiscal, Direccion')
-          .in('Identidad', chunkIds);
+        const { data: cChunk } = await supabase.from('inmuebles').select('identidad, direccion')
+          .in('identidad', chunkIds);
         if (cChunk) allContrib = [...allContrib, ...cChunk];
       }
       
       const morososArray = Object.entries(grouped).map(([id, info]) => {
-        const c = allContrib.find((c: any) => (c.Identidad || '').replace(/-/g, '').toUpperCase() === id);
+        const c = allContrib.find((c: any) => (c.identidad || '').replace(/-/g, '').toUpperCase() === id);
         return {
           identidad: id,
           contribuyente: info.contribuyente,
           mesesAdeudados: info.facturasCount,
           deudaBs: info.deudaBs,
-          direccion: c?.Direccion || c?.Domicilio_Fiscal || 'Sin dirección registrada'
+          direccion: c?.direccion || 'Sin dirección registrada'
         };
       });
 
