@@ -108,7 +108,7 @@ function ModalComprobante({ pago, onClose }: { pago: Pago; onClose: () => void }
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
-          <h2 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Detalles de la ConciliaciÃ³n</h2>
+          <h2 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Detalles de la Conciliación</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
         </div>
         <div className="overflow-y-auto flex-1 p-6">
@@ -257,19 +257,19 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
                 </div>
                 <div className="grid grid-cols-2 gap-0 text-sm">
                   <div className="border-b border-r border-slate-100 px-3 py-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">RIF / CÃ©dula</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">RIF / Cédula</span>
                     <span className="font-semibold text-slate-800">{pago.identidad || '---'}</span>
                   </div>
                   <div className="border-b border-slate-100 px-3 py-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">CÃ³digo Inmueble</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Código Inmueble</span>
                     <span className="font-semibold text-slate-800">{inmueble?.cod_cont || det.cod_inmueble || pago.cod_inmueble || '---'}</span>
                   </div>
                   <div className="border-b border-r border-slate-100 px-3 py-2 col-span-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Nombre / RazÃ³n Social</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Nombre / Razón Social</span>
                     <span className="font-bold text-slate-900 text-base">{inmueble?.contribuyente || pago.contribuyente || '---'}</span>
                   </div>
                   <div className="border-b border-r border-slate-100 px-3 py-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">ClasificaciÃ³n / Uso</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Clasificación / Uso</span>
                     <span className="text-slate-700">{inmueble?.clasificacion || '---'}</span>
                   </div>
                   <div className="border-b border-slate-100 px-3 py-2">
@@ -277,15 +277,15 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
                     <span className="text-slate-700">{inmueble?.actividad_principal || '---'}</span>
                   </div>
                   <div className="border-b border-r border-slate-100 px-3 py-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">TelÃ©fono</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Teléfono</span>
                     <span className="text-slate-700">{inmueble?.telefono || '---'}</span>
                   </div>
                   <div className="border-b border-slate-100 px-3 py-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Correo ElectrÃ³nico</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Correo Electrónico</span>
                     <span className="text-slate-700 text-xs">{inmueble?.correo_electronico || inmueble?.correo || '---'}</span>
                   </div>
                   <div className="border-b border-slate-100 px-3 py-2 col-span-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">DirecciÃ³n del Inmueble</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Dirección del Inmueble</span>
                     <span className="text-slate-700">{inmueble?.direccion || 'Tucacas Municipio Silva, FalcÃ³n'}</span>
                   </div>
                   <div className="border-r border-slate-100 px-3 py-2">
@@ -631,7 +631,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
             estado: 'Vigente',
             detalles: JSON.stringify({
               monto: montoConciliadoNum.toFixed(2),
-              origen_referencia: `ConciliaciÃ³n con diferencia. Referencia: ${pago.referencia || pago.id}`,
+              origen_referencia: `Conciliación con diferencia. Referencia: ${pago.referencia || pago.id}`,
               fecha_emision: new Date().toISOString(),
               analista: updatedDet.analista,
             })
@@ -696,19 +696,19 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className={lc}>RIF / CÃ©dula</label>
+                  <label className={lc}>RIF / Cédula</label>
                   <input value={identidad} readOnly className={icRO}/>
                 </div>
                 <div>
-                  <label className={lc}>Nombre / RazÃ³n Social</label>
+                  <label className={lc}>Nombre / Razón Social</label>
                   <input value={nombreContrib} readOnly className={icRO}/>
                 </div>
                 <div>
-                  <label className={lc}>CÃ³digo Inmueble</label>
+                  <label className={lc}>Código Inmueble</label>
                   <input value={codInmueble} readOnly className={icRO}/>
                 </div>
                 <div>
-                  <label className={lc}>ClasificaciÃ³n</label>
+                  <label className={lc}>Clasificación</label>
                   <input value={clasificacion} readOnly className={icRO}/>
                 </div>
                 <div>
@@ -720,15 +720,15 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                   <input value={estadoCont} readOnly className={`${icRO} ${estadoCont === 'Activo' ? 'text-green-700' : 'text-red-700'} font-bold`}/>
                 </div>
                 <div className="col-span-2">
-                  <label className={lc}>DirecciÃ³n</label>
+                  <label className={lc}>Dirección</label>
                   <input value={direccion} readOnly className={icRO}/>
                 </div>
                 <div>
-                  <label className={lc}>TelÃ©fono</label>
+                  <label className={lc}>Teléfono</label>
                   <input value={telefono} readOnly className={icRO}/>
                 </div>
                 <div className="col-span-2">
-                  <label className={lc}>Correo ElectrÃ³nico</label>
+                  <label className={lc}>Correo Electrónico</label>
                   <input value={correo} readOnly className={icRO}/>
                 </div>
               </div>
@@ -771,7 +771,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                   {BANCOS_DESTINO.filter(b=>b!=='Todos').map(b=><option key={b}>{b}</option>)}
                 </select>
               </div>
-              <div><label className={lc}>Fecha TransacciÃ³n</label>
+              <div><label className={lc}>Fecha Transacción</label>
                 <input type="date" value={fechaTransaccion} onChange={e=>setFechaTransaccion(e.target.value)} className={ic}/>
               </div>
               <div><label className={lc}>Fecha en Banco</label>
@@ -805,7 +805,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                 {tasaOriginal > 0 && <p className="text-[10px] text-slate-400 mt-0.5">Original: Bs. {tasaOriginal.toFixed(2)}</p>}
               </div>
               <div>
-                <label className={lc}>Estatus de ConciliaciÃ³n</label>
+                <label className={lc}>Estatus de Conciliación</label>
                 <select
                   value={estatus}
                   onChange={e => handleEstatusChange(e.target.value)}
@@ -845,7 +845,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                 </div>
               </div>
               <div>
-                <label className={lc}>TelÃ©fono Responsable</label>
+                <label className={lc}>Teléfono Responsable</label>
                 <input value={telefonoResponsable} onChange={e=>setTelefonoResponsable(e.target.value)} className={ic}/>
               </div>
             </div>
