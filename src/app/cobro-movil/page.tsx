@@ -44,6 +44,20 @@ export default function CobroMovilPage() {
   const [banco, setBanco] = useState('Banco de Venezuela');
   const [referencia, setReferencia] = useState('');
   const [montoIngresado, setMontoIngresado] = useState('');
+  
+  const handleMontoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let raw = e.target.value.replace(/\D/g, '');
+    if (!raw) {
+      setMontoIngresado('');
+      return;
+    }
+    let valStr = parseInt(raw, 10).toString();
+    while (valStr.length < 3) valStr = '0' + valStr;
+    const dec = valStr.slice(-2);
+    let intg = valStr.slice(0, -2);
+    intg = intg.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    setMontoIngresado(intg + ',' + dec);
+  };
   const [fechaTx, setFechaTx] = useState(new Date().toISOString().split('T')[0]);
   const [comprobante, setComprobante] = useState<File | null>(null);
   const [comprobantePreview, setComprobantePreview] = useState('');
@@ -347,11 +361,12 @@ export default function CobroMovilPage() {
 
   const handlePay = async () => {
     if (!referencia.trim()) { setPayError('Ingrese el nÃºmero de referencia'); return; }
-    if (!montoIngresado || isNaN(parseFloat(montoIngresado))) { setPayError('Ingrese el monto cobrado'); return; }
+        const montoLimpio = montoIngresado.replace(/\./g, '').replace(',', '.');
+    if (!montoIngresado || isNaN(parseFloat(montoLimpio))) { setPayError('Ingrese el monto cobrado'); return; }
     if (!foundUser) return;
     setPayError(''); setIsProcessing(true);
     const cajero = localStorage.getItem('adminUser') || 'Cobrador';
-    const montoReal = parseFloat(montoIngresado);
+    const montoReal = parseFloat(montoLimpio);
     try {
       let comprobanteUrl = '';
       if (comprobante) {
@@ -555,7 +570,7 @@ export default function CobroMovilPage() {
             </div>
             <div>
               <label className="text-slate-400 text-xs font-bold uppercase tracking-wide block mb-2">Monto Cobrado (Bs.)</label>
-              <input type="number" inputMode="decimal" value={montoIngresado} onChange={e => setMontoIngresado(e.target.value)}
+              <input type="text" inputMode="numeric" placeholder="0,00" value={montoIngresado} onChange={handleMontoChange}
                 placeholder={totalSel.toFixed(2)} className={inp} style={{ fontSize: 24, fontWeight: 700 }} />
             </div>
             <div>
