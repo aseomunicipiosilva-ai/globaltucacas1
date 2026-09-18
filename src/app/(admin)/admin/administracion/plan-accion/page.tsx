@@ -162,7 +162,7 @@ export default function PlanAccionPage() {
       }
     });
 
-    doc.save(`Plan_Accion_${nombreTrabajador.replace(/\\s+/g, '_')}_${fecha.replace(/\\//g, '-')}.pdf`);
+    doc.save(`Plan_Accion_${nombreTrabajador.replace(/\s+/g, '_')}_${fecha.replace(/\//g, '-')}.pdf`);
   };
 
   return (
