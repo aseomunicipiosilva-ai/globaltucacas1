@@ -237,7 +237,7 @@ function ContribuyentesPageContent() {
           const actividad = inm.actividad_principal || 'No especificada';
           const tipoVivienda = inm.tipo || 'Inmueble';
           
-          const conceptoTexto = `${actividad} | Nivel: ${metraje} mÂ² | ${tipoVivienda}`;
+          const conceptoTexto = `${actividad} | Nivel: ${metraje} m² | ${tipoVivienda}`;
           
           factorTotal += (localFactor * cant);
           

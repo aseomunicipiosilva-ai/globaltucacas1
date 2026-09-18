@@ -286,15 +286,15 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
                   </div>
                   <div className="border-b border-slate-100 px-3 py-2 col-span-2">
                     <span className="text-[10px] font-bold text-slate-500 uppercase block">Dirección del Inmueble</span>
-                    <span className="text-slate-700">{inmueble?.direccion || 'Tucacas Municipio Silva, FalcÃ³n'}</span>
+                    <span className="text-slate-700">{inmueble?.direccion || 'Tucacas Municipio Silva, Falcón'}</span>
                   </div>
                   <div className="border-r border-slate-100 px-3 py-2">
                     <span className="text-[10px] font-bold text-slate-500 uppercase block">Estado</span>
                     <span className={`font-bold ${inmueble?.estado === 'Activo' ? 'text-green-700' : 'text-red-600'}`}>{inmueble?.estado || 'Activo'}</span>
                   </div>
                   <div className="px-3 py-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Ãrea (MtÂ²)</span>
-                    <span className="text-slate-700">{inmueble?.area_m2 ? inmueble.area_m2 + ' MtÂ²' : '---'}</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Área (Mt²)</span>
+                    <span className="text-slate-700">{inmueble?.area_m2 ? inmueble.area_m2 + ' Mt²' : '---'}</span>
                   </div>
                 </div>
                 {/* Resumen financiero total del contribuyente */}
@@ -637,7 +637,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
             })
           }]);
         }
-        // Marcar recibos como Pagado tambiÃ©n (el pago se concilia aunque con diferencia)
+        // Marcar recibos como Pagado también (el pago se concilia aunque con diferencia)
         if (recibos.length > 0) {
           await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', recibos);
         }
@@ -682,7 +682,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
           </div>
           <div className="p-6 space-y-4">
 
-            {/* INFO CONTRIBUYENTE â€” Solo lectura - TODOS los datos */}
+            {/* INFO CONTRIBUYENTE — Solo lectura - TODOS los datos */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-bold text-blue-700 uppercase tracking-wide flex items-center gap-2">
@@ -779,7 +779,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
               </div>
             </div>
 
-            {/* CONCILIACIÃ“N */}
+            {/* CONCILIACIÓN */}
             <div className="grid grid-cols-4 gap-4">
               <div>
                 <label className={lc}>Monto Reportado</label>

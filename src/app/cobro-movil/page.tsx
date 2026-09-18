@@ -17,8 +17,8 @@ interface Contribuyente { Contribuyente: string; Identidad: string; Telefono?: s
 
 const BANCOS = [
   'Banco de Venezuela','Banesco','Mercantil','BBVA Provincial',
-  'Bicentenario','Venezolano de CrÃ©dito','Sofitasa','Bancaribe',
-  'BNC','Del Tesoro','AgrÃ­cola de Venezuela','Exterior','Otro'
+  'Bicentenario','Venezolano de Crédito','Sofitasa','Bancaribe',
+  'BNC','Del Tesoro','Agrícola de Venezuela','Exterior','Otro'
 ];
 const MESES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
 const mesLabel = (d: string) => {
@@ -103,7 +103,7 @@ export default function CobroMovilPage() {
     const MESES_FULL = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
     const getMes = (d: string) => {
       const p = d?.split('-');
-      return p?.length >= 2 ? `${MESES_FULL[parseInt(p[1])-1]}-${p[0]}` : d || 'â€”';
+      return p?.length >= 2 ? `${MESES_FULL[parseInt(p[1])-1]}-${p[0]}` : d || '—';
     };
 
     // â”€â”€ Consultar TODOS los meses pendientes directamente en Supabase â”€â”€
@@ -310,7 +310,7 @@ export default function CobroMovilPage() {
     setFoundUser({ ...user, SaldoFavor: saldoFavor });
     setUserInms((inmsDB || []) as Inmueble[]);
 
-    // 4. Buscar recibos â€” misma lÃ³gica exacta que Caja
+    // 4. Buscar recibos — misma lógica exacta que Caja
     const identidadClean = (user.Identidad || '').replace(/-/g, '').toUpperCase();
     const { data: allUserFacturas } = await supabase
       .from('facturas')
@@ -330,13 +330,13 @@ export default function CobroMovilPage() {
         .order('emision', { ascending: true });
       if (fByName && fByName.length > 0) {
         fallbackFacturas = fByName as Recibo[];
-        // Backfill identidad para bÃºsquedas futuras
+        // Backfill identidad para búsquedas futuras
         const idsToUpdate = fByName.map((f: any) => f.id);
         await supabase.from('facturas').update({ identidad: user.Identidad }).in('id', idsToUpdate);
       }
     }
 
-    // 6. Combinar y ordenar: RECIB- primero, CM- despuÃ©s (igual que Caja)
+    // 6. Combinar y ordenar: RECIB- primero, CM- después (igual que Caja)
     const combined = [...(allUserFacturas || []), ...fallbackFacturas] as Recibo[];
     combined.sort((a, b) => {
       const aIsCM = a.referencia?.startsWith('CM-');
@@ -360,7 +360,7 @@ export default function CobroMovilPage() {
   };
 
   const handlePay = async () => {
-    if (!referencia.trim()) { setPayError('Ingrese el nÃºmero de referencia'); return; }
+    if (!referencia.trim()) { setPayError('Ingrese el número de referencia'); return; }
         const montoLimpio = montoIngresado.replace(/\./g, '').replace(',', '.');
     if (!montoIngresado || isNaN(parseFloat(montoLimpio))) { setPayError('Ingrese el monto cobrado'); return; }
     if (!foundUser) return;
@@ -392,7 +392,7 @@ export default function CobroMovilPage() {
       } else {
         if (selectedRefs.length > 0) await supabase.from('facturas').update({ estado: 'Por Verificar' }).in('referencia', selectedRefs);
       }
-      logAudit('Cobro desde Cobro MÃ³vil', {
+      logAudit('Cobro desde Cobro Móvil', {
         contribuyente: foundUser?.Contribuyente,
         identidad: foundUser?.Identidad,
         monto_bs: montoReal,
@@ -426,7 +426,7 @@ export default function CobroMovilPage() {
               <Search className="w-8 h-8 text-emerald-400" />
             </div>
             <h1 className="text-white text-xl font-bold">Buscar Contribuyente</h1>
-            <p className="text-slate-400 text-sm mt-1">CÃ©dula, RIF o nombre</p>
+            <p className="text-slate-400 text-sm mt-1">Cédula, RIF o nombre</p>
           </div>
           <div className="flex gap-2">
             <select value={docType} onChange={e => setDocType(e.target.value)}
@@ -435,7 +435,7 @@ export default function CobroMovilPage() {
             </select>
             <input type="text" value={docNumber} onChange={e => setDocNumber(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              placeholder="NÃºmero o nombre..." className={inp} autoComplete="off" />
+              placeholder="Número o nombre..." className={inp} autoComplete="off" />
           </div>
           {searchError && (
             <div className="flex items-center gap-2 text-red-400 bg-red-400/10 rounded-2xl px-4 py-3 text-sm">
@@ -545,14 +545,14 @@ export default function CobroMovilPage() {
               <div className="text-slate-400 text-xs mt-1">{selectedRefs.length} recibo(s) Â· Tasa {tcmmv?.toFixed(2)}</div>
             </div>
             <div>
-              <label className="text-slate-400 text-xs font-bold uppercase tracking-wide block mb-2">MÃ©todo de Pago</label>
+              <label className="text-slate-400 text-xs font-bold uppercase tracking-wide block mb-2">Método de Pago</label>
               <div className="grid grid-cols-2 gap-3">
                 {(['Debito', 'Transferencia'] as PayMethod[]).map(m => (
                   <button key={m} onClick={() => setPayMethod(m)}
                     className={'flex flex-col items-center gap-2 py-5 rounded-2xl border text-sm font-bold active:scale-95 ' +
                       (payMethod === m ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-slate-800 border-slate-700 text-slate-300')}>
                     {m === 'Debito' ? <CreditCard className="w-6 h-6" /> : <Landmark className="w-6 h-6" />}
-                    {m === 'Debito' ? 'DÃ©bito' : 'Transferencia'}
+                    {m === 'Debito' ? 'Débito' : 'Transferencia'}
                   </button>
                 ))}
               </div>
@@ -574,7 +574,7 @@ export default function CobroMovilPage() {
                 placeholder={totalSel.toFixed(2)} className={inp} style={{ fontSize: 24, fontWeight: 700 }} />
             </div>
             <div>
-              <label className="text-slate-400 text-xs font-bold uppercase tracking-wide block mb-2">Fecha de TransacciÃ³n</label>
+              <label className="text-slate-400 text-xs font-bold uppercase tracking-wide block mb-2">Fecha de Transacción</label>
               <input type="date" value={fechaTx} onChange={e => setFechaTx(e.target.value)} className={inp} style={{ fontSize: 16 }} />
             </div>
             <div>
@@ -586,7 +586,7 @@ export default function CobroMovilPage() {
                 </button>
                 <button type="button" onClick={() => fileRef.current?.click()}
                   className="flex flex-col items-center gap-2 bg-slate-800 border border-slate-700 rounded-2xl py-5 text-slate-300 text-sm font-semibold active:bg-slate-700">
-                  <Upload className="w-7 h-7" />GalerÃ­a
+                  <Upload className="w-7 h-7" />Galería
                 </button>
               </div>
               <input ref={camRef} type="file" accept="image/*" capture="environment" onChange={handleFile} className="hidden" />
@@ -607,7 +607,7 @@ export default function CobroMovilPage() {
               </div>
             )}
             {payMethod === 'Transferencia' && (
-              <p className="text-slate-500 text-xs text-center">La transferencia serÃ¡ revisada en ConciliaciÃ³n Bancaria.</p>
+              <p className="text-slate-500 text-xs text-center">La transferencia será revisada en Conciliación Bancaria.</p>
             )}
           </div>
           <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-sm border-t border-slate-700 px-5 py-4">
@@ -616,7 +616,7 @@ export default function CobroMovilPage() {
                 className="w-full bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold py-5 rounded-2xl text-lg active:scale-95 flex items-center justify-center gap-2">
                 {isProcessing
                   ? <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  : <><Send className="w-5 h-5" />{payMethod === 'Debito' ? 'Confirmar Cobro' : 'Enviar a VerificaciÃ³n'}</>}
+                  : <><Send className="w-5 h-5" />{payMethod === 'Debito' ? 'Confirmar Cobro' : 'Enviar a Verificación'}</>}
               </button>
             </div>
           </div>
@@ -631,12 +631,12 @@ export default function CobroMovilPage() {
               <CheckCircle2 className="w-12 h-12 text-emerald-400" />
             </div>
             <h2 className="text-white text-2xl font-black text-center">
-              {successData.estado === 'Aprobado' ? 'Â¡Cobro Exitoso!' : 'Enviado a VerificaciÃ³n'}
+              {successData.estado === 'Aprobado' ? '¡Cobro Exitoso!' : 'Enviado a Verificación'}
             </h2>
             <p className="text-slate-400 text-sm text-center max-w-xs">
               {successData.estado === 'Aprobado'
                 ? 'El pago fue registrado y los recibos actualizados.'
-                : 'La transferencia serÃ¡ revisada por el administrador.'}
+                : 'La transferencia será revisada por el administrador.'}
             </p>
             <div className="w-full bg-slate-800 rounded-2xl p-5 border border-slate-700 flex flex-col gap-4">
               {([
