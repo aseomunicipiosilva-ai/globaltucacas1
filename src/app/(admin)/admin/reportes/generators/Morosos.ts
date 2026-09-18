@@ -50,7 +50,7 @@ export async function generarMorososExcel(
     ['REPORTE DE MOROSOS — ISMA (MUNICIPIO SILVA)'],
     [`Fecha: ${today}  |  Tasa BCV: ${tcmmv ? tcmmv + ' Bs/EUR' : 'N/D'}  |  Total morosos: ${rows.length}`],
     [],
-    ['N°','CÓDIGO','CONTRIBUYENTE','IDENTIDAD','CLASIFICACIÓN','MESES PENDIENTES','PERÍODOS','DEUDA TOTAL (Bs)'],
+    ['N°','CÓDIGO','CONTRIBUYENTE','IDENTIDAD','CLASIFICACIÓN','FACTURAS PENDIENTES','PERÍODOS','DEUDA TOTAL (Bs)'],
     ...rows.map((r, i) => [i+1, r.cod_cont, r.contribuyente, r.identidad, r.clasificacion, r.mesesPendientes, r.periodos,
       r.totalDeudaBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })]),
     [],
@@ -127,7 +127,7 @@ export async function generarMorososPDF(
   autoTable(doc, {
     startY: 33,
     margin: { left: 10, right: 10 },
-    head: [['N', 'CONTRIBUYENTE / RAZON SOCIAL', 'IDENTIDAD', 'TELEFONO', 'MESES', 'DEUDA (Bs)']],
+    head: [['N', 'CONTRIBUYENTE / RAZON SOCIAL', 'IDENTIDAD', 'TELEFONO', 'FACTURAS', 'DEUDA (Bs)']],
     body: rows.map((r, i) => [
       i + 1,
       r.contribuyente,
