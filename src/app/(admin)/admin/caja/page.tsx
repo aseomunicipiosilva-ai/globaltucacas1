@@ -108,7 +108,7 @@ export default function CajaPage() {
     if (factura?.estado === 'Por Verificar') return true;
 
     // Bloquear si existe un pago Por Verificar en pagos_reportados que cubra esta referencia
-    return pagosPendientes.some((p: any) => {
+    return false; // NO BLOQUEAR: Permitir complementar pagos pendientes. original: return pagosPendientes.some((p: any) => {
       let det: any = {};
       try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}
       const refs: string[] = det.recibos || [];
@@ -144,7 +144,18 @@ export default function CajaPage() {
         totalDeudaMMV += parseFloat(inm.deuda_mmv || 0);
       });
       if (totalDeudaMMV > 0) {
-        return (totalDeudaMMV * tasaActual).toFixed(2);
+        let baseMonto = totalDeudaMMV * tasaActual;
+        let montoPendiente = 0;
+        pagosPendientes.forEach((p: any) => {
+          let det: any = {};
+          try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}
+          const refs: string[] = det.recibos || [];
+          if (refs.includes(r.referencia)) {
+            const montoPago = parseFloat(String(p.monto || '0').replace(/[^0-9.]/g, '')) || 0;
+            if (refs.length > 0) montoPendiente += (montoPago / refs.length);
+          }
+        });
+        return String(Math.max(0, baseMonto - montoPendiente).toFixed(2));
       }
       // Fallback si no hay deuda_mmv registrado
       return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
@@ -168,7 +179,18 @@ export default function CajaPage() {
         if (mmv > 0) monthlyMMV += cant * mmv;
       });
       if (monthlyMMV > 0) {
-        return (monthlyMMV * tasaActual).toFixed(2);
+        let baseMonto = monthlyMMV * tasaActual;
+        let montoPendiente = 0;
+        pagosPendientes.forEach((p: any) => {
+          let det: any = {};
+          try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}
+          const refs: string[] = det.recibos || [];
+          if (refs.includes(r.referencia)) {
+            const montoPago = parseFloat(String(p.monto || '0').replace(/[^0-9.]/g, '')) || 0;
+            if (refs.length > 0) montoPendiente += (montoPago / refs.length);
+          }
+        });
+        return String(Math.max(0, baseMonto - montoPendiente).toFixed(2));
       }
     }
 
