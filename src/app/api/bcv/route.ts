@@ -76,7 +76,8 @@ export async function GET(request: Request) {
   const isWeekend = today.getDay() === 0 || today.getDay() === 6;
 
   // Si es fin de semana (sábado o domingo) y tenemos una tasa guardada, usarla (que será la del viernes)
-  if (isWeekend && !sync && tasaSemanalGuardada !== null && !isNaN(tasaSemanalGuardada) && tasaSemanalGuardada > 0) {
+  // Ignoramos el flag 'sync' en fines de semana porque el BCV muestra la tasa del lunes, y necesitamos mantener la del viernes.
+  if (isWeekend && tasaSemanalGuardada !== null && !isNaN(tasaSemanalGuardada) && tasaSemanalGuardada > 0) {
     return NextResponse.json({
       success: true,
       euro: tasaSemanalGuardada,

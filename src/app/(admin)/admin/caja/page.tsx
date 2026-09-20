@@ -103,11 +103,8 @@ export default function CajaPage() {
   const currentBcvRate = customBcvRate && !isNaN(parseFloat(customBcvRate)) ? parseFloat(customBcvRate) : tcmmv;
 
   const isItemPending = (ref: string) => {
-    // Bloquear si la propia factura ya está marcada como Por Verificar
-    const factura = recibos.find((r: any) => r.referencia === ref);
-    if (factura?.estado === 'Por Verificar') return true;
-
-    // Bloquear si existe un pago Por Verificar en pagos_reportados que cubra esta referencia
+    // Ya no bloqueamos las facturas si tienen un pago 'Por Verificar'
+    // porque el cliente puede querer pagar la diferencia pendiente.
     return false;
   };
 

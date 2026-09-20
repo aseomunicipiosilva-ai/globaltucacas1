@@ -578,15 +578,29 @@ function ContribuyentesPageContent() {
       // Recibos filtradas para este inmueble específico
       const inmRecibos = inmDeudas;
 
-      // Monto usando tcmmv para recibos CM-
+      // Monto usando tcmmv para recibos CM- y descontando Por Verificar
       const calcMonto = (f: any): number => {
         if (f.estado === 'Abonado') return parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
+        let baseMonto = parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
         if (f.referencia?.startsWith('CM-') && tcmmv && tcmmv > 0) {
           const cant = parseFloat(inm.cant_inmuebles || 1);
           const mmv = parseFloat(inm.mmv_mes || 0);
-          if (mmv > 0) return parseFloat((cant * mmv * tcmmv).toFixed(2));
+          if (mmv > 0) baseMonto = parseFloat((cant * mmv * tcmmv).toFixed(2));
         }
-        return parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
+        
+        // Descontar pagos Por Verificar
+        let montoPendiente = 0;
+        viewPagos.filter((p: any) => p.estado === 'Por Verificar').forEach((p: any) => {
+          let det: any = {};
+          try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+          const refs: string[] = det.recibos || [];
+          if (refs.includes(f.referencia)) {
+            const montoPago = parseFloat(String(p.monto || '0').replace(/[^\d.]/g, '')) || 0;
+            if (refs.length > 0) montoPendiente += (montoPago / refs.length);
+          }
+        });
+        
+        return Math.max(0, baseMonto - montoPendiente);
       };
 
       const totalInm = inmRecibos.reduce((s: number, f: any) => s + calcMonto(f), 0);
@@ -2278,6 +2292,7 @@ function ContribuyentesPageContent() {
                     );
                     const getMontoActual = (f: any): number => {
                       if (f.estado === 'Abonado') return parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
+                      let base = parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
                       if (f.referencia?.startsWith('CM-')) {
                         // Buscar el inmueble que corresponde a esta factura por código en la referencia
                         const matchedInm = userInms.find((inm: any) =>
@@ -2288,11 +2303,23 @@ function ContribuyentesPageContent() {
                         if (targetInm && tcmmv > 0) {
                           const cant = parseFloat(targetInm.cant_inmuebles || 1);
                           const mmv = parseFloat(targetInm.mmv_mes || 0);
-                          if (mmv > 0) return parseFloat((cant * mmv * tcmmv).toFixed(2));
+                          if (mmv > 0) base = parseFloat((cant * mmv * tcmmv).toFixed(2));
                         }
                       }
-                      // RECIB- u otros: usar monto guardado en BD
-                      return parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
+                      
+                      // Descontar pagos en proceso (Por Verificar)
+                      let montoPendiente = 0;
+                      viewPagos.filter((p: any) => p.estado === 'Por Verificar').forEach((p: any) => {
+                        let det: any = {};
+                        try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+                        const refs: string[] = det.recibos || [];
+                        if (refs.includes(f.referencia)) {
+                          const montoPago = parseFloat(String(p.monto || '0').replace(/[^\d.]/g, '')) || 0;
+                          if (refs.length > 0) montoPendiente += (montoPago / refs.length);
+                        }
+                      });
+
+                      return Math.max(0, base - montoPendiente);
                     };
 
                     const totalBs = deudas.reduce((acc: number, f: any) => acc + getMontoActual(f), 0);
