@@ -108,12 +108,7 @@ export default function CajaPage() {
     if (factura?.estado === 'Por Verificar') return true;
 
     // Bloquear si existe un pago Por Verificar en pagos_reportados que cubra esta referencia
-    return false; // NO BLOQUEAR: Permitir complementar pagos pendientes. original: return pagosPendientes.some((p: any) => {
-      let det: any = {};
-      try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}
-      const refs: string[] = det.recibos || [];
-      return refs.includes(ref);
-    });
+    return false;
   };
 
     const getReciboMonto = (r: any) => {
