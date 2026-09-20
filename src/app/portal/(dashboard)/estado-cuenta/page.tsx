@@ -91,15 +91,16 @@ export default function EstadoCuentaPage() {
     if (r.estado === 'Abonado') return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
     if (tasaBcv <= 0) return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
 
+    let baseMonto = parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
+
     // RECIB-
     if (r.referencia?.startsWith('RECIB-')) {
       let totalDeudaMMV = 0;
       misInmuebles.forEach((inm: any) => { totalDeudaMMV += parseFloat(inm.deuda_mmv || 0); });
-      if (totalDeudaMMV > 0) return (totalDeudaMMV * tasaBcv).toFixed(2);
-      return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
+      if (totalDeudaMMV > 0) baseMonto = totalDeudaMMV * tasaBcv;
     }
     // CM-
-    if (r.referencia?.startsWith('CM-')) {
+    else if (r.referencia?.startsWith('CM-')) {
       let monthlyMMV = 0;
       const matchedInmueble = misInmuebles.find((inm: any) => inm.inmueble && r.referencia.includes(inm.inmueble));
       
@@ -114,9 +115,22 @@ export default function EstadoCuentaPage() {
           if (mmv > 0) monthlyMMV += cant * mmv;
         });
       }
-      if (monthlyMMV > 0) return (monthlyMMV * tasaBcv).toFixed(2);
+      if (monthlyMMV > 0) baseMonto = monthlyMMV * tasaBcv;
     }
-    return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
+
+    // AHORA restamos los pagos pendientes
+    let montoPendiente = 0;
+    pagosPorVerificar.forEach((p) => {
+      let det = {};
+      try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}
+      const refs = (det as any).recibos || [];
+      if (refs.includes(r.referencia)) {
+        const montoPago = parseFloat(String(p.monto || '0').replace(/[^0-9.]/g, '')) || 0;
+        if (refs.length > 0) montoPendiente += (montoPago / refs.length);
+      }
+    });
+
+    return String(Math.max(0, baseMonto - montoPendiente).toFixed(2));
   };
 
   // Filtrar recibos del usuario
