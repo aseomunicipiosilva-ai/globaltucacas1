@@ -73,10 +73,10 @@ export async function GET(request: Request) {
   }
 
   const today = new Date();
-  const isMonday = today.getDay() === 1;
+  const isWeekend = today.getDay() === 0 || today.getDay() === 6;
 
-  // Si no es lunes y tenemos una tasa semanal guardada, usarla
-  if (!isMonday && !sync && tasaSemanalGuardada !== null && !isNaN(tasaSemanalGuardada) && tasaSemanalGuardada > 0) {
+  // Si es fin de semana (sábado o domingo) y tenemos una tasa guardada, usarla (que será la del viernes)
+  if (isWeekend && !sync && tasaSemanalGuardada !== null && !isNaN(tasaSemanalGuardada) && tasaSemanalGuardada > 0) {
     return NextResponse.json({
       success: true,
       euro: tasaSemanalGuardada,
@@ -116,7 +116,7 @@ export async function GET(request: Request) {
 
     const tcmmv = euroVal; // Se usa estrictamente la tasa del Euro por ordenanza
 
-    // Guardar como tasa semanal si es lunes o si forzaron sync
+    // Guardar como tasa guardada (se actualiza de lunes a viernes)
     try {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
       const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
