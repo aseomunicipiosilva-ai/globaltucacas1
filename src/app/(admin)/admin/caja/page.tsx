@@ -469,7 +469,7 @@ export default function CajaPage() {
           .slice(0, currentIndex)
           .filter(r => (r.referencia || '').includes(inmuebleId))
           .map(r => r.referencia);
-        const missingPrevious = previousSameInmueble.some(pr => !selectedRecibos.includes(pr));
+        const missingPrevious = previousSameInmueble.some(pr => !selectedRecibos.includes(pr) && !isItemPending(pr));
 
         if (missingPrevious) {
           alert('¡No se puede adelantar meses! Debe seleccionar y pagar las deudas más antiguas de este inmueble primero.');
@@ -478,7 +478,7 @@ export default function CajaPage() {
       } else {
         // Sin inmueble identificable: validación global (comportamiento original)
         const previousRefs = sortedRecibos.slice(0, currentIndex).map(r => r.referencia);
-        const missingPrevious = previousRefs.some(pr => !selectedRecibos.includes(pr));
+        const missingPrevious = previousRefs.some(pr => !selectedRecibos.includes(pr) && !isItemPending(pr));
         if (missingPrevious) {
           alert('¡No se puede adelantar meses! Debe seleccionar y pagar las deudas más antiguas primero.');
           return;
