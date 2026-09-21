@@ -299,21 +299,29 @@ export default function EstadoCuentaPage() {
         return parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
       };
 
-      const totalInm = inmRecibos.reduce((s: number, f: any) => s + calcMonto(f), 0);
+      let totalInm = inmRecibos.reduce((s: number, f: any) => s + calcMonto(f), 0);
+      if (idx === 0) totalInm += totalServiciosBs;
+
       const mesesArr = [...new Set(inmRecibos.map((f: any) => mesLabel(f.emision).toUpperCase()))];
       const periodosLabel = mesesArr.join(', ') || '—';
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
 
+      const baseAseo = inmRecibos.reduce((s: number, f: any) => s + calcMonto(f), 0);
       const resumenRows = [
         [`Períodos Calculados (${inmRecibos.length}):`, periodosLabel],
-        ['Monto Recolección Aseo Urbano Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+        ['Monto Recolección Aseo Urbano Bs.', `Bs. ${baseAseo.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]
+      ];
+      if (idx === 0 && totalServiciosBs > 0) {
+        resumenRows.push(['Monto Servicios Especiales Bs.', `Bs. ${totalServiciosBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]);
+      }
+      resumenRows.push(
         ['Total Exento Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
         ['Base Imponible Bs.', 'Bs. 0,00'],
         ['IVA (16.00%) Bs.', 'Bs. 0,00'],
-        ['Total estado de cuenta Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
-      ];
+        ['Total estado de cuenta Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]
+      );
 
       resumenRows.forEach(([label, value]) => {
         doc.setFont('helvetica', 'normal');
@@ -354,6 +362,19 @@ export default function EstadoCuentaPage() {
           monto.toLocaleString('es-VE', { minimumFractionDigits: 2 })
         ];
       });
+
+      if (idx === 0 && serviciosPendientes.length > 0) {
+        serviciosPendientes.forEach(s => {
+          const montoServicio = parseFloat(s.monto) || 0;
+          detalleRows.push([
+            s.fecha ? s.fecha.replace(/-/g, '-') : '—',
+            (TIPO_LABEL[s.tipo] || 'Serv. Especial') + ': ' + (s.descripcion || '').substring(0, 30),
+            montoServicio.toLocaleString('es-VE', { minimumFractionDigits: 2 }),
+            '0,00', '0,00', '0,00',
+            montoServicio.toLocaleString('es-VE', { minimumFractionDigits: 2 })
+          ]);
+        });
+      }
 
       try {
         autoTable(doc, {
