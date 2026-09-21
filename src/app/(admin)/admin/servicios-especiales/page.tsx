@@ -170,7 +170,7 @@ export default function ServiciosEspecialesPage() {
       if (res.ok) {
         setMsg({ type: 'ok', text: 'Servicio registrado y notificado al contribuyente.' });
         setShowModal(false);
-        setForm({ tipo: 'especial', identidad: '', contribuyenteNombre: '', descripcion: '', monto: '', fecha: new Date().toISOString().split('T')[0], notas: '', camion: '', distancia: '', area: '', tipoVistoBueno: '', tipoInspeccion: '', codigoServicio: '', tipoPermiso: '', alturaArbol: '', unidadesArboreas: '1' });
+        setForm({ tipo: 'especial', identidad: '', contribuyenteNombre: '', descripcion: '', monto: '', fecha: new Date().toISOString().split('T')[0], notas: '', camion: '', distancia: '', area: '', tipoVistoBueno: '', tipoInspeccion: '', codigoServicio: '', tipoPermiso: '', alturaArbol: '', unidadesArboreas: '1', habilitadoVB: false });
         setSearchContrib('');
         loadServicios();
       } else {

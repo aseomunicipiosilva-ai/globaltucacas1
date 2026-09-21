@@ -84,7 +84,7 @@ export default function DondePagarPage() {
 
         let montoPendiente = 0;
         pagosPorVerificar.forEach((p) => {
-          let det = {};
+          let det: any = {};
           try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}
           const refs = det.recibos || [];
           if (refs.includes(f.referencia)) {
