@@ -103,8 +103,11 @@ export default function CajaPage() {
   const currentBcvRate = customBcvRate && !isNaN(parseFloat(customBcvRate)) ? parseFloat(customBcvRate) : tcmmv;
 
   const isItemPending = (ref: string) => {
-    // Ya no bloqueamos las facturas si tienen un pago 'Por Verificar'
-    // porque el cliente puede querer pagar la diferencia pendiente.
+    const f = recibos.find((r: any) => r.referencia === ref);
+    if (!f) return false;
+    const montoPendiente = parseFloat(getReciboMonto(f) || '0');
+    // Bloquear si el recibo está completamente cubierto por pagos 'Por Verificar'
+    if (montoPendiente <= 0 && f.estado !== 'Abonado' && f.estado !== 'Pagado') return true;
     return false;
   };
 
@@ -1407,7 +1410,9 @@ export default function CajaPage() {
                             })()}
                           </div>
                         </div>
-                        <span className="font-bold text-emerald-700">{getReciboMonto(r)}</span>
+                        <span className="font-bold text-emerald-700">
+                          {isItemPending(r.referencia) ? 'En Verificación' : getReciboMonto(r)}
+                        </span>
                       </label>
                     ))}
                   </div>
