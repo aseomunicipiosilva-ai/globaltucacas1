@@ -60,7 +60,8 @@ export default function ServiciosEspecialesPage() {
     codigoServicio: '',
     tipoPermiso: '',
     alturaArbol: '',
-    unidadesArboreas: '1'
+    unidadesArboreas: '1',
+    habilitadoVB: false
   });
   const [searchContrib, setSearchContrib] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -97,7 +98,15 @@ export default function ServiciosEspecialesPage() {
     }
     if (form.tipo === 'visto_bueno' && form.tipoVistoBueno && form.area) {
       const t = (ordenanzaData as any).vistoBueno?.find((s: any) => s.codigo === form.tipoVistoBueno);
-      if (t) return { tcmv: t.tcmvPorM2 * parseFloat(form.area || '0'), label: `${t.label} — ${form.area} m²` };
+      if (t) {
+         let baseTcmv = t.tcmvPorM2 * parseFloat(form.area || '0');
+         let finalLabel = `${t.label} — ${form.area} m²`;
+         if (form.habilitadoVB) {
+           baseTcmv += 100;
+           finalLabel += ' (+ Habilitado 100 TCMV)';
+         }
+         return { tcmv: baseTcmv, label: finalLabel };
+      }
     }
     if (form.tipo === 'tala_poda' && form.tipoPermiso) {
       if (form.tipoPermiso === 'Tala y Poda' && form.alturaArbol) {
@@ -484,6 +493,12 @@ export default function ServiciosEspecialesPage() {
                     <input type="number" min="0" placeholder="Metros cuadrados" value={form.area}
                       onChange={e => setForm(prev => ({ ...prev, area: e.target.value }))}
                       className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-500" />
+                  </div>
+                  <div className="col-span-2 pt-2 border-t border-slate-100">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 cursor-pointer">
+                      <input type="checkbox" checked={form.habilitadoVB} onChange={e => setForm(prev => ({ ...prev, habilitadoVB: e.target.checked }))} className="w-4 h-4 accent-purple-600" />
+                      Incluir Trámite Habilitado (+ 100 TCMV)
+                    </label>
                   </div>
                 </div>
               )}

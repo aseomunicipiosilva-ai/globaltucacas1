@@ -18,13 +18,14 @@ export default function VistoBuenoPage() {
   const [area, setArea] = useState('');
   const [descripcionActividad, setDescripcionActividad] = useState('');
   const [tipoSolicitud, setTipoSolicitud] = useState('');
+  const [incluyeHabilitado, setIncluyeHabilitado] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [tasaBcv, setTasaBcv] = useState<number>(0);
   const [registros, setRegistros] = useState<VistoBueno[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const tarifaTCMV = (parseFloat(area) || 0) * 0.5;
+  const tarifaTCMV = ((parseFloat(area) || 0) * 0.5) + (incluyeHabilitado ? 100 : 0);
   const costoTotalBs = tarifaTCMV * tasaBcv;
 
   const cargarRegistros = async () => {
@@ -73,7 +74,7 @@ export default function VistoBuenoPage() {
           descripcion: `Visto Bueno Ambiental: ${proyecto} — ${tipoSolicitud} — ${area} m² — ${descripcionActividad}`,
           monto: costoTotalBs,
           fecha: new Date().toISOString().split('T')[0],
-          notas: `Área: ${area} m² | Tipo: ${tipoSolicitud}`,
+          notas: `Área: ${area} m² | Tipo: ${tipoSolicitud}${incluyeHabilitado ? ' | Habilitado' : ''}`,
           estado: 'Pendiente',
           referencia: `VB-AMB-${Date.now()}`,
           origen: 'contribuyente'
@@ -206,6 +207,12 @@ export default function VistoBuenoPage() {
                     <option value="Proyecto de Construcción">Proyecto de Construcción</option>
                     <option value="Modificación / Ampliación">Modificación / Ampliación</option>
                   </select>
+                </div>
+                <div className="md:col-span-2 pt-2 border-t border-slate-200 mt-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
+                    <input type="checkbox" checked={incluyeHabilitado} onChange={e => setIncluyeHabilitado(e.target.checked)} className="w-4 h-4 accent-green-600" />
+                    Incluir Trámite Habilitado (+ 100 TCMV)
+                  </label>
                 </div>
               </div>
             </div>
