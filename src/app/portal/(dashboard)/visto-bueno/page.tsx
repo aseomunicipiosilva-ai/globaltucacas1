@@ -71,7 +71,7 @@ export default function VistoBuenoPage() {
           tipo: 'visto_bueno',
           identidad: doc,
           contribuyente: nombre,
-          descripcion: `Visto Bueno Ambiental: ${proyecto} — ${tipoSolicitud} — ${area} m² — ${descripcionActividad}`,
+          descripcion: `Visto Bueno Ambiental: ${proyecto} — ${tipoSolicitud} — ${area} m² — ${descripcionActividad}${incluyeHabilitado ? ' (HABILITADO)' : ''}`,
           monto: costoTotalBs,
           fecha: new Date().toISOString().split('T')[0],
           notas: `Área: ${area} m² | Tipo: ${tipoSolicitud}${incluyeHabilitado ? ' | Habilitado' : ''}`,
