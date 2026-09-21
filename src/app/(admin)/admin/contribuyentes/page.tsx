@@ -489,7 +489,8 @@ function ContribuyentesPageContent() {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     let pageAdded = false;
 
-    for (const inm of inmsToProcess) {
+    for (let idx = 0; idx < inmsToProcess.length; idx++) {
+      const inm = inmsToProcess[idx];
       // Obtener recibos de este inmueble
       const inmDeudas = getFacturasParaInmueble(inm, deudas, inmsToProcess.length);
       // Si hay múltiples inmuebles y este no tiene recibos, skip
@@ -603,7 +604,15 @@ function ContribuyentesPageContent() {
         return Math.max(0, baseMonto - montoPendiente);
       };
 
-      const totalInm = inmRecibos.reduce((s: number, f: any) => s + calcMonto(f), 0);
+      let totalInm = inmRecibos.reduce((s: number, f: any) => s + calcMonto(f), 0);
+      
+      const serviciosPendientes = viewServiciosEsp.filter((s: any) => s.estado !== 'Pagado');
+      const totalServiciosBs = serviciosPendientes.reduce((a: number, s: any) => a + (parseFloat(s.monto) || 0), 0);
+      
+      if (idx === 0) {
+        totalInm += totalServiciosBs;
+      }
+      
       const mesesArr = [...new Set(inmRecibos.map((f: any) => getMesTexto(f.emision)))];
       const periodosLabel = mesesArr.join(', ') || '—';
 
@@ -612,12 +621,19 @@ function ContribuyentesPageContent() {
 
       const resumenRows = [
         [`Períodos Calculados (${inmRecibos.length}):`, periodosLabel],
-        ['Monto Recolección Aseo Urbano Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
+        ['Monto Recolección Aseo Urbano Bs.', `Bs. ${inmRecibos.reduce((s: number, f: any) => s + calcMonto(f), 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
+      ];
+      
+      if (idx === 0 && totalServiciosBs > 0) {
+        resumenRows.push(['Monto Servicios Especiales Bs.', `Bs. ${totalServiciosBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`]);
+      }
+      
+      resumenRows.push(
         ['Total Exento Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
         ['Base Imponible Bs.', 'Bs. 0,00'],
         ['IVA (16.00%) Bs.', 'Bs. 0,00'],
-        ['Total estado de cuenta Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
-      ];
+        ['Total estado de cuenta Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`]
+      );
 
       resumenRows.forEach(([label, value]) => {
         doc.setFont('helvetica', 'normal');
@@ -659,6 +675,20 @@ function ContribuyentesPageContent() {
           monto.toLocaleString('es-VE', { minimumFractionDigits: 2 })
         ];
       });
+
+      if (idx === 0 && serviciosPendientes.length > 0) {
+        const TIPO_LABEL: any = { 'tala_poda': 'Tala y Poda', 'especial': 'Serv. Especial', 'visto_bueno': 'Visto Bueno', 'inspeccion': 'Inspección', 'extraordinario': 'Serv. Extraordinario' };
+        serviciosPendientes.forEach((s: any) => {
+          const montoServicio = parseFloat(s.monto) || 0;
+          detalleRows.push([
+            s.fecha ? s.fecha.replace(/-/g, '-') : '—',
+            (TIPO_LABEL[s.tipo] || 'Serv. Especial') + ': ' + (s.descripcion || '').substring(0, 30),
+            montoServicio.toLocaleString('es-VE', { minimumFractionDigits: 2 }),
+            '0,00', '0,00', '0,00',
+            montoServicio.toLocaleString('es-VE', { minimumFractionDigits: 2 })
+          ]);
+        });
+      }
 
       try {
         autoTable(doc, {
