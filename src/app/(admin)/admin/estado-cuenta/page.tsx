@@ -427,12 +427,8 @@ export default function EstadoCuentaPage() {
             montoPendiente = montoNumerico; // saldo que quedó pendiente
             montoNumerico = montoCancelado;
           } else if (row.estado === 'Pagado' && pagos.length === 1 && !det.es_abono) {
-            const recibosAsociados = Array.isArray(det.recibos) ? det.recibos : [];
-            // Si este pago cubrió únicamente este recibo, y no fue un abono parcial,
-            // el monto real cobrado debe reemplazar al monto original de la factura
-            if (recibosAsociados.length === 1 && recibosAsociados[0] === row.referencia) {
-              montoNumerico = parseFloat(String(pago.monto || '0').replace(/[^\d.]/g, '')) || 0;
-            }
+            // El monto real cobrado debe reemplazar al monto original de la factura
+            montoNumerico = parseFloat(String(pago.monto || '0').replace(/[^\d.]/g, '')) || 0;
           }
 
           // Build historialPagos if there is more than 1 payment, or if it's an Abono
