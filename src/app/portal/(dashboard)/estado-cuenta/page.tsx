@@ -368,7 +368,7 @@ export default function EstadoCuentaPage() {
           const montoServicio = parseFloat(s.monto) || 0;
           detalleRows.push([
             s.fecha ? s.fecha.replace(/-/g, '-') : '—',
-            (TIPO_LABEL[s.tipo] || 'Serv. Especial') + ': ' + (s.descripcion || '').substring(0, 30),
+            (TIPO_LABEL[s.tipo] || 'Serv. Especial') + ': ' + (s.descripcion || ''),
             montoServicio.toLocaleString('es-VE', { minimumFractionDigits: 2 }),
             '0,00', '0,00', '0,00',
             montoServicio.toLocaleString('es-VE', { minimumFractionDigits: 2 })
