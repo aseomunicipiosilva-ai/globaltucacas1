@@ -2433,7 +2433,13 @@ function ContribuyentesPageContent() {
                                         {d.estado || 'Pendiente'}
                                       </span>
                                     </td>
-                                    <td className="px-4 py-2 text-right font-bold text-slate-800">{getMontoActual(d).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                                    <td className="px-4 py-2 text-right font-bold text-slate-800">
+                                      {getMontoActual(d) <= 0 && d.estado !== 'Abonado' && d.estado !== 'Pagado' ? (
+                                        <span className="text-emerald-600">En Verificación</span>
+                                      ) : (
+                                        getMontoActual(d).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})
+                                      )}
+                                    </td>
                                     <td className="px-4 py-2 text-center">
                                       <button 
                                         onClick={() => handleDeleteFactura(d)}

@@ -56,9 +56,9 @@ export default function EstadoCuentaPage() {
           }
 
           // Servicios Especiales pendientes
+          // Servicios Especiales (Todos para poder mostrar el historial también)
           const { data: servs } = await supabase.from('servicios_especiales').select('*')
-            .or('identidad.eq.' + idFmt + ',identidad.eq.' + idLimpio + ',identidad.eq.' + fullDoc.toUpperCase() + ',identidad.eq.' + soloNum)
-            .not('estado', 'eq', 'Pagado');
+            .or('identidad.eq.' + idFmt + ',identidad.eq.' + idLimpio + ',identidad.eq.' + fullDoc.toUpperCase() + ',identidad.eq.' + soloNum);
           setServiciosEsp(servs || []);
 
           // Pagos Por Verificar: mostrar al usuario que su pago está en proceso
@@ -647,7 +647,13 @@ export default function EstadoCuentaPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-center text-red-600 text-xs">{f.vencimiento || 'N/A'}</td>
-                    <td className="px-4 py-3 text-right font-bold text-red-700">Bs. {parseFloat(getReciboMonto(f)).toLocaleString('es-VE', {minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+                    <td className="px-4 py-3 text-right font-bold text-red-700">
+                      {parseFloat(getReciboMonto(f)) <= 0 && f.estado !== 'Abonado' && f.estado !== 'Pagado' ? (
+                        <span className="text-emerald-600">En Verificación</span>
+                      ) : (
+                        `Bs. ${parseFloat(getReciboMonto(f)).toLocaleString('es-VE', {minimumFractionDigits:2,maximumFractionDigits:2})}`
+                      )}
+                    </td>
                   </tr>
                   );
                 })}
@@ -718,6 +724,43 @@ export default function EstadoCuentaPage() {
                     <td className="px-4 py-3 font-medium">{mesLabel(f.emision)}</td>
                     <td className="px-4 py-3 text-center text-xs text-emerald-600">{f.fecha_pago || f.updated_at?.split('T')[0] || 'N/A'}</td>
                     <td className="px-4 py-3 text-right font-bold text-emerald-700">{f.monto}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Historial de Servicios Especiales */}
+      {serviciosEsp.filter((s: any) => s.estado === 'Pagado').length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-emerald-200 overflow-hidden mt-6">
+          <div className="bg-emerald-50 px-4 py-3 border-b border-emerald-200 flex items-center gap-2">
+            <Wrench className="w-4 h-4 text-emerald-500" />
+            <h3 className="font-bold text-emerald-700 uppercase text-sm tracking-wide">Historial de Servicios Especiales</h3>
+            <span className="ml-auto text-xs text-emerald-500">Procesados</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-slate-600">
+              <thead className="bg-emerald-50/50 border-b border-emerald-100 text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Tipo</th>
+                  <th className="px-4 py-3">Descripción</th>
+                  <th className="px-4 py-3 text-center">Estado</th>
+                  <th className="px-4 py-3 text-right">Monto (Bs)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {serviciosEsp.filter((s: any) => s.estado === 'Pagado').map((s: any, i: number) => (
+                  <tr key={i} className="hover:bg-emerald-50/20 transition-colors">
+                    <td className="px-4 py-3 text-xs text-emerald-700 font-semibold capitalize">{s.tipo?.replace('_', ' ')}</td>
+                    <td className="px-4 py-3 text-slate-700 text-xs">{s.descripcion}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[10px] font-bold">
+                        {s.estado}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold text-emerald-600">Bs. {Number(s.monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
                   </tr>
                 ))}
               </tbody>
