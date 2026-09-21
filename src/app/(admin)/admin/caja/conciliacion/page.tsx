@@ -903,15 +903,15 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
               {estatus === 'Aprobado' && montoConciliadoNum > 0 && montoReportadoNum < deudaTotalContrib - 0.01 && (
                 <div className="border-t pt-2 mt-1">
                   <div className="flex justify-between text-sm">
-                    <span className="text-red-700 font-bold">⚠ Diferencia Pendiente (Saldo Negativo)</span>
-                    <span className="text-red-700 font-bold">- {fmt(deudaTotalContrib - montoReportadoNum)}</span>
+                    <span className="text-amber-700 font-bold">ℹ Deuda Restante (Pendiente de Pago)</span>
+                    <span className="text-amber-700 font-bold">- {fmt(deudaTotalContrib - montoReportadoNum)}</span>
                   </div>
                   {det.nota_cambio_tasa && (
                     <p className="text-xs text-amber-700 mt-1 bg-amber-50 border border-amber-200 rounded px-2 py-1">
                       ⚡ Ajuste por cambio de tasa BCV: {det.nota_cambio_tasa}. Tasa aplicada: {det.tasa_bcv_aplicada || det.tasa_bcv} Bs/€.
                     </p>
                   )}
-                  <p className="text-xs text-slate-500 mt-1">El contribuyente tiene recibos adicionales pendientes no incluidas en este pago.</p>
+                  <p className="text-xs text-slate-500 mt-1">El contribuyente tiene recibos adicionales o inmuebles pendientes no incluidos en este pago.</p>
                 </div>
               )}
               {estatus === 'Con Diferencia' && parseFloat(montoConciliado) > 0 && (
