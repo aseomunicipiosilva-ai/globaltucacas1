@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   CheckCheck, RefreshCw, Filter, Landmark, Eye, Download, X,
@@ -68,7 +68,7 @@ function parseDetalles(raw: any): any {
   try { return JSON.parse(raw); } catch { return {}; }
 }
 
-// â”€â”€â”€ MODAL COMPROBANTE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── MODAL COMPROBANTE ──────────────────────────────────
 function ModalComprobante({ pago, onClose }: { pago: Pago; onClose: () => void }) {
   const det = parseDetalles(pago.detalles);
   const [archivos, setArchivos] = useState<{ name: string; url: string }[]>([]);
@@ -109,7 +109,7 @@ function ModalComprobante({ pago, onClose }: { pago: Pago; onClose: () => void }
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
-          <h2 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Detalles de la Conciliación</h2>
+          <h2 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Detalles de la Conciliaci�n</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
         </div>
         <div className="overflow-y-auto flex-1 p-6">
@@ -147,7 +147,7 @@ function ModalComprobante({ pago, onClose }: { pago: Pago; onClose: () => void }
                       </a>
                       <a href={arch.url} target="_blank" rel="noopener noreferrer"
                         className="flex items-center gap-1 text-slate-500 hover:text-slate-700 text-xs font-semibold">
-                        <Eye size={14} /> Nueva pestaña
+                        <Eye size={14} /> Nueva pesta�a
                       </a>
                     </div>
                   </div>
@@ -179,7 +179,7 @@ function ModalComprobante({ pago, onClose }: { pago: Pago; onClose: () => void }
   );
 }
 
-// â”€â”€â”€ MODAL ESTADO DE CUENTA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── MODAL ESTADO DE CUENTA ──────────────────────────────
 function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void }) {
   const [recibos, setFacturas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -258,19 +258,19 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
                 </div>
                 <div className="grid grid-cols-2 gap-0 text-sm">
                   <div className="border-b border-r border-slate-100 px-3 py-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">RIF / Cédula</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">RIF / C�dula</span>
                     <span className="font-semibold text-slate-800">{pago.identidad || '---'}</span>
                   </div>
                   <div className="border-b border-slate-100 px-3 py-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Código Inmueble</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">C�digo Inmueble</span>
                     <span className="font-semibold text-slate-800">{inmueble?.cod_cont || det.cod_inmueble || pago.cod_inmueble || '---'}</span>
                   </div>
                   <div className="border-b border-r border-slate-100 px-3 py-2 col-span-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Nombre / Razón Social</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Nombre / Raz�n Social</span>
                     <span className="font-bold text-slate-900 text-base">{inmueble?.contribuyente || pago.contribuyente || '---'}</span>
                   </div>
                   <div className="border-b border-r border-slate-100 px-3 py-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Clasificación / Uso</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Clasificaci�n / Uso</span>
                     <span className="text-slate-700">{inmueble?.clasificacion || '---'}</span>
                   </div>
                   <div className="border-b border-slate-100 px-3 py-2">
@@ -278,24 +278,24 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
                     <span className="text-slate-700">{inmueble?.actividad_principal || '---'}</span>
                   </div>
                   <div className="border-b border-r border-slate-100 px-3 py-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Teléfono</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Tel�fono</span>
                     <span className="text-slate-700">{inmueble?.telefono || '---'}</span>
                   </div>
                   <div className="border-b border-slate-100 px-3 py-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Correo Electrónico</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Correo Electr�nico</span>
                     <span className="text-slate-700 text-xs">{inmueble?.correo_electronico || inmueble?.correo || '---'}</span>
                   </div>
                   <div className="border-b border-slate-100 px-3 py-2 col-span-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Dirección del Inmueble</span>
-                    <span className="text-slate-700">{inmueble?.direccion || 'Tucacas Municipio Silva, Falcón'}</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Direcci�n del Inmueble</span>
+                    <span className="text-slate-700">{inmueble?.direccion || 'Tucacas Municipio Silva, Falc�n'}</span>
                   </div>
                   <div className="border-r border-slate-100 px-3 py-2">
                     <span className="text-[10px] font-bold text-slate-500 uppercase block">Estado</span>
                     <span className={`font-bold ${inmueble?.estado === 'Activo' ? 'text-green-700' : 'text-red-600'}`}>{inmueble?.estado || 'Activo'}</span>
                   </div>
                   <div className="px-3 py-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase block">Área (Mt²)</span>
-                    <span className="text-slate-700">{inmueble?.area_m2 ? inmueble.area_m2 + ' Mt²' : '---'}</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">�rea (Mt�)</span>
+                    <span className="text-slate-700">{inmueble?.area_m2 ? inmueble.area_m2 + ' Mt�' : '---'}</span>
                   </div>
                 </div>
                 {/* Resumen financiero total del contribuyente */}
@@ -374,11 +374,11 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
   );
 }
 
-// â”€â”€â”€ MODAL CONCILIACION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── MODAL CONCILIACION ──────────────────────────────────
 function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: () => void; onSuccess: () => void }) {
   const det = parseDetalles(pago.detalles);
 
-  // Información del contribuyente cargada desde Supabase (solo lectura)
+  // Informaci�n del contribuyente cargada desde Supabase (solo lectura)
   const [contribInfo, setContribInfo] = useState<any>(null);
   const [loadingContrib, setLoadingContrib] = useState(true);
 
@@ -518,7 +518,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
     } else if (val === 'Rechazado') {
       setMontoConciliado('0.00');
     }
-    // 'Con Diferencia' â†’ el usuario ingresa manualmente el monto de diferencia
+    // 'Con Diferencia' → el usuario ingresa manualmente el monto de diferencia
   };
 
   const recibos: string[] = det.recibos || [];
@@ -553,7 +553,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
         tasa_bcv_original: tasaOriginal || undefined,
       };
 
-      // Si la tasa cambió, actualizar montos de las recibos seleccionadas
+      // Si la tasa cambi�, actualizar montos de las recibos seleccionadas
       if (estatus === 'Aprobado' && hayRecalculo && facturasParaConciliar.length > 0) {
         const tasaCambioFinal = tasaParaGuardar / (tasaOriginal || tasaParaGuardar);
         for (const fac of facturasParaConciliar) {
@@ -569,6 +569,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
         banco: bancoEmisor,
         tipo: pago.tipo,
         detalles: updatedDet,
+        created_at: new Date().toISOString() // Actualiza para los reportes diarios
       }).eq('id', pago.id);
       if (error) throw error;
 
@@ -647,13 +648,13 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
             estado: 'Vigente',
             detalles: JSON.stringify({
               monto: montoConciliadoNum.toFixed(2),
-              origen_referencia: `Conciliación con diferencia. Referencia: ${pago.referencia || pago.id}`,
+              origen_referencia: `Conciliaci�n con diferencia. Referencia: ${pago.referencia || pago.id}`,
               fecha_emision: new Date().toISOString(),
               analista: updatedDet.analista,
             })
           }]);
         }
-        // Marcar recibos como Pagado también (el pago se concilia aunque con diferencia)
+        // Marcar recibos como Pagado tambi�n (el pago se concilia aunque con diferencia)
         if (recibos.length > 0) {
           await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', recibos);
         }
@@ -698,11 +699,11 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
           </div>
           <div className="p-6 space-y-4">
 
-            {/* INFO CONTRIBUYENTE — Solo lectura - TODOS los datos */}
+            {/* INFO CONTRIBUYENTE � Solo lectura - TODOS los datos */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-bold text-blue-700 uppercase tracking-wide flex items-center gap-2">
-                  <Building2 size={14}/> Información del Contribuyente
+                  <Building2 size={14}/> Informaci�n del Contribuyente
                   {loadingContrib && <span className="text-[10px] text-blue-400 font-normal animate-pulse">(cargando...)</span>}
                 </p>
                 <div className="flex gap-2 text-[10px]">
@@ -712,19 +713,19 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className={lc}>RIF / Cédula</label>
+                  <label className={lc}>RIF / C�dula</label>
                   <input value={identidad} readOnly className={icRO}/>
                 </div>
                 <div>
-                  <label className={lc}>Nombre / Razón Social</label>
+                  <label className={lc}>Nombre / Raz�n Social</label>
                   <input value={nombreContrib} readOnly className={icRO}/>
                 </div>
                 <div>
-                  <label className={lc}>Código Inmueble</label>
+                  <label className={lc}>C�digo Inmueble</label>
                   <input value={codInmueble} readOnly className={icRO}/>
                 </div>
                 <div>
-                  <label className={lc}>Clasificación</label>
+                  <label className={lc}>Clasificaci�n</label>
                   <input value={clasificacion} readOnly className={icRO}/>
                 </div>
                 <div>
@@ -736,15 +737,15 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                   <input value={estadoCont} readOnly className={`${icRO} ${estadoCont === 'Activo' ? 'text-green-700' : 'text-red-700'} font-bold`}/>
                 </div>
                 <div className="col-span-2">
-                  <label className={lc}>Dirección</label>
+                  <label className={lc}>Direcci�n</label>
                   <input value={direccion} readOnly className={icRO}/>
                 </div>
                 <div>
-                  <label className={lc}>Teléfono</label>
+                  <label className={lc}>Tel�fono</label>
                   <input value={telefono} readOnly className={icRO}/>
                 </div>
                 <div className="col-span-2">
-                  <label className={lc}>Correo Electrónico</label>
+                  <label className={lc}>Correo Electr�nico</label>
                   <input value={correo} readOnly className={icRO}/>
                 </div>
               </div>
@@ -755,7 +756,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                   <p className="text-sm font-black text-red-700">Bs. {fmt(parseFloat(deudaTotal))}</p>
                   {hayRecalculo && deudaRecalculada > 0 && (
                     <p className="text-[10px] font-bold text-amber-700 mt-0.5 border-t border-red-200 pt-0.5">
-                      ⚡ Con tasa {tasaNum.toFixed(2)}: Bs. {fmt(deudaRecalculada)}
+                      ? Con tasa {tasaNum.toFixed(2)}: Bs. {fmt(deudaRecalculada)}
                     </p>
                   )}
                 </div>
@@ -787,7 +788,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                   {BANCOS_DESTINO.filter(b=>b!=='Todos').map(b=><option key={b}>{b}</option>)}
                 </select>
               </div>
-              <div><label className={lc}>Fecha Transacción</label>
+              <div><label className={lc}>Fecha Transacci�n</label>
                 <input type="date" value={fechaTransaccion} onChange={e=>setFechaTransaccion(e.target.value)} className={ic}/>
               </div>
               <div><label className={lc}>Fecha en Banco</label>
@@ -795,7 +796,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
               </div>
             </div>
 
-            {/* CONCILIACIÓN */}
+            {/* CONCILIACI�N */}
             <div className="grid grid-cols-4 gap-4">
               <div>
                 <label className={lc}>Monto Reportado</label>
@@ -804,7 +805,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
               <div>
                 <label className={lc}>
                   Tasa BCV (editable)
-                  {hayRecalculo && <span className="ml-1 text-amber-600 font-bold text-[10px]">⚡ RECALCULANDO</span>}
+                  {hayRecalculo && <span className="ml-1 text-amber-600 font-bold text-[10px]">? RECALCULANDO</span>}
                 </label>
                 <div className="relative">
                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">Bs.</span>
@@ -821,7 +822,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                 {tasaOriginal > 0 && <p className="text-[10px] text-slate-400 mt-0.5">Original: Bs. {tasaOriginal.toFixed(2)}</p>}
               </div>
               <div>
-                <label className={lc}>Estatus de Conciliación</label>
+                <label className={lc}>Estatus de Conciliaci�n</label>
                 <select
                   value={estatus}
                   onChange={e => handleEstatusChange(e.target.value)}
@@ -831,13 +832,13 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                 </select>
                 {estatus === 'Con Diferencia' && (
                   <p className="text-[10px] text-amber-600 mt-1 font-medium">
-                    âš ï¸ El monto ingresado se agregará como saldo a favor del contribuyente.
+                    ⚠️ El monto ingresado se agregar� como saldo a favor del contribuyente.
                   </p>
                 )}
               </div>
               <div>
                 <label className={lc}>
-                  {estatus === 'Con Diferencia' ? 'Monto de Diferencia (â†’ Saldo a Favor)' : 'Monto Conciliado'}
+                  {estatus === 'Con Diferencia' ? 'Monto de Diferencia (→ Saldo a Favor)' : 'Monto Conciliado'}
                 </label>
                 <input
                   value={montoConciliado}
@@ -861,7 +862,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                 </div>
               </div>
               <div>
-                <label className={lc}>Teléfono Responsable</label>
+                <label className={lc}>Tel�fono Responsable</label>
                 <input value={telefonoResponsable} onChange={e=>setTelefonoResponsable(e.target.value)} className={ic}/>
               </div>
             </div>
@@ -903,12 +904,12 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
               {estatus === 'Aprobado' && montoConciliadoNum > 0 && montoReportadoNum < deudaTotalContrib - 0.01 && (
                 <div className="border-t pt-2 mt-1">
                   <div className="flex justify-between text-sm">
-                    <span className="text-amber-700 font-bold">ℹ Deuda Restante (Pendiente de Pago)</span>
+                    <span className="text-amber-700 font-bold">? Deuda Restante (Pendiente de Pago)</span>
                     <span className="text-amber-700 font-bold">- {fmt(deudaTotalContrib - montoReportadoNum)}</span>
                   </div>
                   {det.nota_cambio_tasa && (
                     <p className="text-xs text-amber-700 mt-1 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                      ⚡ Ajuste por cambio de tasa BCV: {det.nota_cambio_tasa}. Tasa aplicada: {det.tasa_bcv_aplicada || det.tasa_bcv} Bs/€.
+                      ? Ajuste por cambio de tasa BCV: {det.nota_cambio_tasa}. Tasa aplicada: {det.tasa_bcv_aplicada || det.tasa_bcv} Bs/�.
                     </p>
                   )}
                   <p className="text-xs text-slate-500 mt-1">El contribuyente tiene recibos adicionales o inmuebles pendientes no incluidos en este pago.</p>
@@ -943,7 +944,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
   );
 }
 
-// â”€â”€â”€ PAGINA PRINCIPAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── PAGINA PRINCIPAL ────────────────────────────────────
 export default function ConciliacionPage() {
   const { inmuebles } = useAppContext();
   const [pagos, setPagos] = useState<Pago[]>([]);
