@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { CreditCard, FileText, Upload, Send, Building, CheckSquare, AlertCircle, CheckCircle2, MapPin, ArrowRightLeft } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
+import { supabase } from '@/lib/supabase';
 import { formatBs } from '@/lib/formatCurrency';
 
 type Metodo = 'transferencia' | '';
@@ -19,8 +20,25 @@ export default function DondePagarPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<{type: 'success' | 'approved' | 'error', msg: string} | null>(null);
 
-  const { recibos, convenios, setFacturas } = useAppContext();
+  const { recibos, convenios, setFacturas, inmuebles, tcmmv } = useAppContext();
+  const [pagosPorVerificar, setPagosPorVerificar] = useState<any[]>([]);
   const [deudas, setDeudas] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchPagos = async () => {
+      const portalDoc = localStorage.getItem('portal_doc') || '';
+      if (!portalDoc) return;
+      const docNorm = portalDoc.replace(/-/g, '').toUpperCase();
+      const docFmt = docNorm ? docNorm.charAt(0) + '-' + docNorm.slice(1) : '';
+      const soloNum = portalDoc.replace(/\D/g, '');
+      const { data } = await supabase.from('pagos_reportados')
+        .select('referencia, monto, detalles')
+        .or('identidad.eq.' + docFmt + ',identidad.eq.' + docNorm + ',identidad.eq.' + portalDoc.toUpperCase() + ',identidad.eq.' + soloNum)
+        .eq('estado', 'Por Verificar');
+      setPagosPorVerificar(data || []);
+    };
+    fetchPagos();
+  }, []);
 
   useEffect(() => {
     const portalDoc = localStorage.getItem('portal_doc') || '';
@@ -29,14 +47,63 @@ export default function DondePagarPage() {
     const facturasPendientes = recibos
       .filter((f: any) => (f.estado === 'Pendiente' || f.estado === 'Abonado') && 
         (f.contribuyente === portalUser || f.contribuyente === portalDoc))
-      .map((f: any) => ({
-        id: f.id,
-        dbId: f.id,
-        concepto: `Recibo ${f.referencia} - ${f.emision}`,
-        monto: parseFloat((f.monto || '0').toString().replace(/[^\d.,]/g, '').replace(',', '.')) || 0,
-        seleccionado: false,
-        tipo: 'recibo'
-      }));
+      .map((f: any) => {
+        let baseMonto = parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
+        
+        const docNorm = portalDoc.replace(/-/g, '').toUpperCase();
+        const docFmt = docNorm ? docNorm.charAt(0) + '-' + docNorm.slice(1) : '';
+        const soloNum = portalDoc.replace(/\D/g, '');
+        const misInmuebles = inmuebles.filter((inm: any) => {
+          const id = (inm.identidad || '').replace(/-/g, '').toUpperCase();
+          const idFmt2 = id.charAt(0) + '-' + id.slice(1);
+          return portalDoc && (id === docNorm || idFmt2 === docFmt || id === portalDoc.toUpperCase() || id === soloNum);
+        });
+
+        if (tcmmv > 0) {
+          if (f.referencia?.startsWith('RECIB-')) {
+            let totalDeudaMMV = 0;
+            misInmuebles.forEach((inm: any) => { totalDeudaMMV += parseFloat(inm.deuda_mmv || 0); });
+            if (totalDeudaMMV > 0) baseMonto = totalDeudaMMV * tcmmv;
+          } else if (f.referencia?.startsWith('CM-')) {
+            let monthlyMMV = 0;
+            const matchedInmueble = misInmuebles.find((inm: any) => inm.inmueble && f.referencia.includes(inm.inmueble));
+            if (matchedInmueble) {
+              const cant = parseFloat(matchedInmueble.cant_inmuebles || 1);
+              const mmv  = parseFloat(matchedInmueble.mmv_mes || 0);
+              if (mmv > 0) monthlyMMV = cant * mmv;
+            } else {
+              misInmuebles.forEach((inm: any) => {
+                const cant = parseFloat(inm.cant_inmuebles || 1);
+                const mmv  = parseFloat(inm.mmv_mes || 0);
+                if (mmv > 0) monthlyMMV += cant * mmv;
+              });
+            }
+            if (monthlyMMV > 0) baseMonto = monthlyMMV * tcmmv;
+          }
+        }
+
+        let montoPendiente = 0;
+        pagosPorVerificar.forEach((p) => {
+          let det = {};
+          try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}
+          const refs = det.recibos || [];
+          if (refs.includes(f.referencia)) {
+            const montoPago = parseFloat(String(p.monto || '0').replace(/[^0-9.]/g, '')) || 0;
+            if (refs.length > 0) montoPendiente += (montoPago / refs.length);
+          }
+        });
+
+        const finalMonto = Math.max(0, baseMonto - montoPendiente);
+
+        return {
+          id: f.id,
+          dbId: f.id,
+          concepto: `Recibo ${f.referencia} - ${f.emision}`,
+          monto: finalMonto,
+          seleccionado: false,
+          tipo: 'recibo'
+        };
+      });
 
     const conveniosActivos = convenios
       .filter((c: any) => (c.estado === 'Activo') &&
@@ -51,7 +118,7 @@ export default function DondePagarPage() {
       }));
 
     setDeudas([...facturasPendientes, ...conveniosActivos]);
-  }, [recibos, convenios]);
+  }, [recibos, convenios, inmuebles, tcmmv, pagosPorVerificar]);
 
   const bancos = [
     '100% Banco', 'Bancamiga', 'Bancaribe', 'Banco Activo', 'Banco Bicentenario',
