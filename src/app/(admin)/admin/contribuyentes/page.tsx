@@ -2593,7 +2593,7 @@ function ContribuyentesPageContent() {
                               return p.length >= 2 ? `${MESES_NOM[parseInt(p[1])-1]} ${p[0]}` : fecha;
                             };
                             const periodoLabel = getMesFull(d.emision);
-                            let finalMonto = Number(parseFloat(String(d.monto || '0').replace(/[^\d.]/g, '')));
+                            let finalMonto = getMontoActual(d);
                             if (d.estado === 'Pagado') {
                               const pRel = viewPagos.filter((p: any) => {
                                 const pDet = typeof p.detalles === 'string' ? (() => { try { return JSON.parse(p.detalles); } catch(e){return {};} })() : p.detalles;

@@ -787,6 +787,17 @@ export default function EstadoCuentaPage() {
       header: 'Monto',
       render: (row: any) => {
         let monto = Number(parseFloat(String(row.monto || '0').replace(/[^\d.]/g, '')));
+        if (row.estado !== 'Abonado' && row.referencia?.startsWith('CM-') && tcmmv && tcmmv > 0) {
+          const matchedInm = inmuebles.find((inm: any) =>
+            (inm.inmueble && row.referencia.includes(inm.inmueble)) ||
+            (inm.cod_cont && row.referencia.includes(inm.cod_cont))
+          );
+          if (matchedInm) {
+            const cant = parseFloat(String(matchedInm.cant_inmuebles || 1));
+            const mmv = parseFloat(String(matchedInm.mmv_mes || 0));
+            if (mmv > 0) monto = parseFloat((cant * mmv * tcmmv).toFixed(2));
+          }
+        }
         if (row.estado === 'Pagado') {
           const pRel = allPagos.filter(p => {
             const d = typeof p.detalles === 'string' ? (() => { try { return JSON.parse(p.detalles); } catch(e){return {}}})() : p.detalles;
