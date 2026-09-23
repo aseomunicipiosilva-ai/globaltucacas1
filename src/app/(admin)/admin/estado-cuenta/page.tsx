@@ -480,7 +480,8 @@ export default function EstadoCuentaPage() {
             }
           }
         }
-      } catch {
+        }
+      } catch (error) {
         if (row.estado === 'Pagado') {
           formaPagoStr = 'TRANSFERENCIA';
           bancoReal = 'BANCO CONFIRMADO';
