@@ -52,14 +52,14 @@ export async function generarMorososExcel(
     [],
     ['N°','CÓDIGO','CONTRIBUYENTE','IDENTIDAD','CLASIFICACIÓN','FACTURAS PENDIENTES','PERÍODOS','DEUDA TOTAL (Bs)'],
     ...rows.map((r, i) => [i+1, r.cod_cont, r.contribuyente, r.identidad, r.clasificacion, r.mesesPendientes, r.periodos,
-      r.totalDeudaBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })]),
+      r.totalDeudaBs.toLocaleString('es-VE', { minimumFractionDigits: 2 }), '', '']),
     [],
     ['','','','','','TOTAL MOROSOS:', rows.length, ''],
     ['','','','','','TOTAL DEUDA (Bs):','', rows.reduce((s, r) => s + r.totalDeudaBs, 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })],
   ];
   const wb = xlsx.utils.book_new();
   const ws = xlsx.utils.aoa_to_sheet(wsData);
-  ws['!cols'] = [{wch:5},{wch:12},{wch:40},{wch:15},{wch:18},{wch:18},{wch:50},{wch:20}];
+  ws['!cols'] = [{wch:5},{wch:12},{wch:40},{wch:15},{wch:18},{wch:18},{wch:50},{wch:20},{wch:30},{wch:20}];
   ws['!merges'] = [{ s:{r:0,c:0}, e:{r:0,c:7} }, { s:{r:1,c:0}, e:{r:1,c:7} }];
   xlsx.utils.book_append_sheet(wb, ws, 'Morosos');
   xlsx.writeFile(wb, `Reporte_Morosos_${today.replace(/\//g, '-')}.xlsx`);
