@@ -2593,7 +2593,18 @@ function ContribuyentesPageContent() {
                               return p.length >= 2 ? `${MESES_NOM[parseInt(p[1])-1]} ${p[0]}` : fecha;
                             };
                             const periodoLabel = getMesFull(d.emision);
-                            let finalMonto = getMontoActual(d);
+                            let finalMonto = Number(parseFloat(String(d.monto || '0').replace(/[^\d.]/g, '')));
+                            if (d.estado !== 'Abonado' && d.referencia?.startsWith('CM-') && typeof tcmmv !== 'undefined' && tcmmv && tcmmv > 0) {
+                               const matchedInm = inmuebles.find((inm: any) =>
+                                 (inm.inmueble && d.referencia.includes(inm.inmueble)) ||
+                                 (inm.cod_cont && d.referencia.includes(inm.cod_cont))
+                               );
+                               if (matchedInm) {
+                                  const cant = parseFloat(String(matchedInm.cant_inmuebles || 1));
+                                  const mmv = parseFloat(String(matchedInm.mmv_mes || 0));
+                                  if (mmv > 0) finalMonto = parseFloat((cant * mmv * tcmmv).toFixed(2));
+                               }
+                            }
                             if (d.estado === 'Pagado') {
                               const pRel = viewPagos.filter((p: any) => {
                                 const pDet = typeof p.detalles === 'string' ? (() => { try { return JSON.parse(p.detalles); } catch(e){return {};} })() : p.detalles;
