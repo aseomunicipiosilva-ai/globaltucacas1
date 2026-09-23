@@ -401,35 +401,51 @@ export default function EstadoCuentaPage() {
       esAbono = true;
     } else if (row.referencia) {
       try {
-        const { data: pagosData } = await supabase
+        let { data: pagosData } = await supabase
           .from('pagos_reportados')
           .select('*')
           .eq('identidad', row.identidad)
           .order('created_at', { ascending: false });
+
+        if (!pagosData || pagosData.length === 0) {
+           pagosData = allPagos;
+        }
 
         if (pagosData) {
           const pagos = pagosData.filter(p => {
              const d = typeof p.detalles === 'string' ? (() => { try { return JSON.parse(p.detalles); } catch(e) { return {}; } })() : p.detalles;
              return JSON.stringify(d || {}).includes(row.referencia);
           });
-          const pago = pagos[0]; // The latest payment
-          const det = parseDetalles(pago.detalles);
-          const tipoP = pago.tipo || '';
-          tasaBcvAplicada = det.tasa_bcv || pago.tasa_bcv || undefined;
-          formaPagoStr = (tipoP === 'Debito' || tipoP.toLowerCase().includes('punto')) ? 'PUNTO DE VENTA' : 'TRANSFERENCIA';
-          bancoReal = pago.banco || '---';
-          referenciaReal = pago.referencia || '---';
+          
+          if (pagos.length > 0) {
+            const pago = pagos[0]; // The latest payment
+            const det = parseDetalles(pago.detalles);
+            const tipoP = pago.tipo || '';
+            tasaBcvAplicada = det.tasa_bcv || pago.tasa_bcv || undefined;
+            formaPagoStr = (tipoP === 'Debito' || tipoP.toLowerCase().includes('punto')) ? 'PUNTO DE VENTA' : 'TRANSFERENCIA';
+            bancoReal = pago.banco || '---';
+            referenciaReal = pago.referencia || '---';
 
-          if (det.es_abono === true && row.estado !== 'Pagado') {
-            esAbono = true;
-            // pago.monto = lo que se canceló; row.monto = saldo pendiente restante
-            montoCancelado = parseFloat(String(pago.monto || '0').replace(/[^\d.]/g, '')) || 0;
-            montoPendiente = montoNumerico; // saldo que quedó pendiente
-            montoNumerico = montoCancelado;
-          } else if (row.estado === 'Pagado' && pagos.length === 1 && !det.es_abono) {
-            // El monto real cobrado debe reemplazar al monto original de la factura
-            montoNumerico = parseFloat(String(pago.monto || '0').replace(/[^\d.]/g, '')) || 0;
-          }
+            if (det.es_abono === true && row.estado !== 'Pagado') {
+              esAbono = true;
+              montoCancelado = parseFloat(String(pago.monto || '0').replace(/[^\d.]/g, '')) || 0;
+              montoPendiente = montoNumerico;
+              montoNumerico = montoCancelado;
+            } else if (row.estado === 'Pagado' && pagos.length === 1 && !det.es_abono) {
+              if (det?.recibos?.length === 1 && det.recibos.includes(row.referencia)) {
+                montoNumerico = parseFloat(String(pago.monto || '0').replace(/[^\d.]/g, '')) || 0;
+              } else if (tasaBcvAplicada && row.referencia?.startsWith('CM-')) {
+                const matchedInm = (inmuebles as any[]).find((inm: any) =>
+                  (inm.inmueble && row.referencia.includes(inm.inmueble)) ||
+                  (inm.cod_cont && row.referencia.includes(inm.cod_cont))
+                );
+                if (matchedInm) {
+                  const cant = parseFloat(String(matchedInm.cant_inmuebles || 1));
+                  const mmv = parseFloat(String(matchedInm.mmv_mes || 0));
+                  if (mmv > 0) montoNumerico = parseFloat((cant * mmv * tasaBcvAplicada).toFixed(2));
+                }
+              }
+            }
 
           // Build historialPagos if there is more than 1 payment, or if it's an Abono
           if (pagos.length > 1 || (pagos.length === 1 && det.es_abono === true)) {
@@ -787,7 +803,7 @@ export default function EstadoCuentaPage() {
       header: 'Monto',
       render: (row: any) => {
         let monto = Number(parseFloat(String(row.monto || '0').replace(/[^\d.]/g, '')));
-        if (row.estado !== 'Abonado' && row.referencia?.startsWith('CM-') && tcmmv && tcmmv > 0) {
+        if (row.estado !== 'Abonado' && row.estado !== 'Pagado' && row.referencia?.startsWith('CM-') && tcmmv && tcmmv > 0) {
           const matchedInm = inmuebles.find((inm: any) =>
             (inm.inmueble && row.referencia.includes(inm.inmueble)) ||
             (inm.cod_cont && row.referencia.includes(inm.cod_cont))
@@ -803,8 +819,30 @@ export default function EstadoCuentaPage() {
             const d = typeof p.detalles === 'string' ? (() => { try { return JSON.parse(p.detalles); } catch(e){return {}}})() : p.detalles;
             return JSON.stringify(d || {}).includes(row.referencia);
           });
-          if (pRel.length > 1) {
-            monto = pRel.reduce((s, p) => s + (parseFloat(String(p.monto || '0').replace(/[^\d.]/g, '')) || 0), 0);
+          if (pRel.length > 0) {
+            const exactPayment = pRel.find(p => {
+               const d = typeof p.detalles === 'string' ? (() => { try { return JSON.parse(p.detalles); } catch(e){return {}}})() : p.detalles;
+               return d?.recibos?.length === 1 && d.recibos.includes(row.referencia);
+            });
+            if (exactPayment) {
+               monto = parseFloat(String(exactPayment.monto || '0').replace(/[^\d.]/g, '')) || 0;
+            } else if (pRel.length > 1) {
+               monto = pRel.reduce((s, p) => s + (parseFloat(String(p.monto || '0').replace(/[^\d.]/g, '')) || 0), 0);
+            } else {
+               const det = typeof pRel[0].detalles === 'string' ? (() => { try { return JSON.parse(pRel[0].detalles); } catch(e){return {}}})() : pRel[0].detalles;
+               const tasa = det?.tasa_bcv || pRel[0].tasa_bcv;
+               if (tasa && row.referencia?.startsWith('CM-')) {
+                 const matchedInm = inmuebles.find((inm: any) =>
+                   (inm.inmueble && row.referencia.includes(inm.inmueble)) ||
+                   (inm.cod_cont && row.referencia.includes(inm.cod_cont))
+                 );
+                 if (matchedInm) {
+                   const cant = parseFloat(String(matchedInm.cant_inmuebles || 1));
+                   const mmv = parseFloat(String(matchedInm.mmv_mes || 0));
+                   if (mmv > 0) monto = parseFloat((cant * mmv * tasa).toFixed(2));
+                 }
+               }
+            }
           }
         }
         return `Bs. ${monto.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}`;
