@@ -102,6 +102,20 @@ export default function CajaPage() {
   
   const currentBcvRate = customBcvRate && !isNaN(parseFloat(customBcvRate)) ? parseFloat(customBcvRate) : tcmmv;
 
+  const getPendingMontoForRecibo = (ref: string) => {
+    let montoPend = 0;
+    pagosPendientes.forEach((p: any) => {
+      let det: any = {};
+      try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}
+      const refs: string[] = det.recibos || [];
+      if (refs.includes(ref)) {
+        const montoPago = parseFloat(String(p.monto || '0').replace(/[^0-9.]/g, '')) || 0;
+        if (refs.length > 0) montoPend += (montoPago / refs.length);
+      }
+    });
+    return montoPend;
+  };
+
   const isItemPending = (ref: string) => {
     const f = recibos.find((r: any) => r.referencia === ref);
     if (!f) return false;
@@ -1465,9 +1479,16 @@ export default function CajaPage() {
                             })()}
                           </div>
                         </div>
-                        <span className="font-bold text-emerald-700">
-                          {isItemPending(r.referencia) ? 'En Verificación' : getReciboMonto(r)}
-                        </span>
+                        <div className="flex flex-col items-end text-right">
+                          {isItemPending(r.referencia) ? (
+                            <>
+                              <span className="text-[10px] text-orange-600 font-bold bg-orange-100 px-2 py-0.5 rounded uppercase mb-0.5">Transf. por conciliar</span>
+                              <span className="font-bold text-orange-700">{getPendingMontoForRecibo(r.referencia).toFixed(2)}</span>
+                            </>
+                          ) : (
+                            <span className="font-bold text-emerald-700">{getReciboMonto(r)}</span>
+                          )}
+                        </div>
                       </label>
                     ))}
                   </div>
