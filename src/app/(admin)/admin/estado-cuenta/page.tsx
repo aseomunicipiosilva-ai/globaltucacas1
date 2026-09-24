@@ -362,6 +362,7 @@ export default function EstadoCuentaPage() {
     let esAbono = false;
     let historialPagos: any[] | undefined = undefined;
     let tasaBcvAplicada: number | undefined = undefined;
+    let saldoFavorGenerado = 0;
 
     // Obtener mes y año
     let mesTexto = '---';
