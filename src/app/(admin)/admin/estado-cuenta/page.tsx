@@ -433,8 +433,13 @@ export default function EstadoCuentaPage() {
               montoPendiente = montoNumerico;
               montoNumerico = montoCancelado;
             } else if (row.estado === 'Pagado' && pagos.length === 1 && !det.es_abono) {
-              if (det?.recibos?.length === 1 && det.recibos.includes(row.referencia)) {
-                montoNumerico = parseFloat(String(pago.monto || '0').replace(/[^\d.]/g, '')) || 0;
+              const pMontoNum = parseFloat(String(pago.monto || '0').replace(/[^\d.]/g, '')) || 0;
+              if (det.saldo_favor > 0 && det.total_seleccionado > 0) {
+                 // Si generó saldo a favor, el costo real fue total_seleccionado
+                 montoNumerico = parseFloat(det.total_seleccionado);
+                 saldoFavorGenerado = parseFloat(det.saldo_favor);
+              } else if (det?.recibos?.length === 1 && det.recibos.includes(row.referencia)) {
+                 montoNumerico = pMontoNum;
               } else if (tasaBcvAplicada && row.referencia?.startsWith('CM-')) {
                 const matchedInm = (inmuebles as any[]).find((inm: any) =>
                   (inm.inmueble && row.referencia.includes(inm.inmueble)) ||
@@ -474,10 +479,15 @@ export default function EstadoCuentaPage() {
             }).reverse(); // chronological order
 
             if (row.estado === 'Pagado') {
-              montoNumerico = sumTotal; // The total of the receipt is the sum of all payments for this invoice
-              formaPagoStr = 'PAGO MULTIPLE'; // Optional: indicate it was paid in parts
-              bancoReal = 'MULTIPLES BANCOS';
-              referenciaReal = 'VARIAS REFERENCIAS';
+              if (saldoFavorGenerado === 0) {
+                 montoNumerico = sumTotal; // The total of the receipt is the sum of all payments for this invoice
+              }
+              // If it's single payment we don't necessarily want to say PAGO MULTIPLE, but keep existing logic
+              if (pagos.length > 1) {
+                formaPagoStr = 'PAGO MULTIPLE';
+                bancoReal = 'MULTIPLES BANCOS';
+                referenciaReal = 'VARIAS REFERENCIAS';
+              }
             }
           }
         }

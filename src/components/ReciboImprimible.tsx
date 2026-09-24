@@ -26,6 +26,7 @@ interface ReciboProps {
   esAbono?: boolean;
   montoCancelado?: number;
   montoPendiente?: number;
+  saldoFavorGenerado?: number;
   tasaBcv?: number;
   historialPagos?: {
     formaPago: string;
@@ -277,6 +278,11 @@ function ReciboContenido({
           {data.esAbono && data.montoCancelado !== undefined && (
             <div style={{ display:'flex', justifyContent:'space-between', padding:'2px 5px', background:'#f0fdf4', fontWeight:'bold', color:'#166534', borderTop: B }}>
               <span>Abonado</span><span>Bs. {formatBs(data.montoCancelado)}</span>
+            </div>
+          )}
+          {data.saldoFavorGenerado !== undefined && data.saldoFavorGenerado > 0 && (
+            <div style={{ display:'flex', justifyContent:'space-between', padding:'2px 5px', background:'#e0f2fe', fontWeight:'bold', color:'#0369a1', borderTop: B }}>
+              <span>Saldo a Favor Generado</span><span>Bs. {formatBs(data.saldoFavorGenerado)}</span>
             </div>
           )}
         </div>
