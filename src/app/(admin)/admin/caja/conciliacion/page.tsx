@@ -589,7 +589,19 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
         const { data: facs } = await supabase.from('facturas').select('*').in('referencia', recibos);
         if (facs && facs.length > 0) {
           // Calcular deuda total de los recibos seleccionados
-          const deudaTotal = facs.reduce((s, f) => s + parseFloat(f.monto || '0'), 0);
+          let deudaTotal = facs.reduce((s, f) => s + parseFloat(f.monto || '0'), 0);
+          
+          let usarTasaPersonalizada = false;
+          let factorTasa = 1;
+          if (det.total_seleccionado && det.tasa_bcv_conciliacion) {
+            const deudaOriginal = deudaTotal;
+            deudaTotal = parseFloat(det.total_seleccionado);
+            if (deudaOriginal > 0) {
+              factorTasa = deudaTotal / deudaOriginal;
+              usarTasaPersonalizada = true;
+            }
+          }
+
           const esAbonoParcial = det.es_abono || (montoConciliadoNum > 0 && montoConciliadoNum < deudaTotal - 1.00);
 
           if (esAbonoParcial && montoConciliadoNum > 0) {
@@ -598,19 +610,22 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
             let dineroDisponible = montoConciliadoNum;
 
             for (const fac of facs) {
-              const montoFac = parseFloat(fac.monto || '0');
+              const montoFacBase = parseFloat(fac.monto || '0');
+              const montoFac = usarTasaPersonalizada ? parseFloat((montoFacBase * factorTasa).toFixed(2)) : montoFacBase;
+              
               if (dineroDisponible >= montoFac - 1.00) {
                 // Cubre la recibo completa
                 dineroDisponible = Math.max(0, dineroDisponible - montoFac);
-                await supabase.from('facturas').update({ estado: 'Pagado' }).eq('referencia', fac.referencia);
+                await supabase.from('facturas').update({ estado: 'Pagado', monto: montoFac }).eq('referencia', fac.referencia);
               } else if (dineroDisponible > 1.00) {
                 // Abono parcial: actualizar monto restante
                 const montoRestante = parseFloat((montoFac - dineroDisponible).toFixed(2));
                 await supabase.from('facturas').update({ monto: montoRestante, estado: 'Abonado' }).eq('referencia', fac.referencia);
                 dineroDisponible = 0;
               } else {
-                // Sin dinero: dejar pendiente
-                await supabase.from('facturas').update({ estado: 'Pendiente' }).eq('referencia', fac.referencia);
+                // Sin dinero: dejar pendiente, pero actualizamos el monto si hubo cambio de tasa
+                const nuevoEstado = fac.estado === 'Abonado' ? 'Abonado' : 'Pendiente';
+                await supabase.from('facturas').update({ estado: nuevoEstado, monto: montoFac }).eq('referencia', fac.referencia);
               }
             }
 
@@ -624,7 +639,15 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
             }
           } else {
             // Pago completo: marcar todas como Pagado
-            await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', recibos);
+            if (usarTasaPersonalizada) {
+              for (const fac of facs) {
+                const montoFacBase = parseFloat(fac.monto || '0');
+                const montoFac = parseFloat((montoFacBase * factorTasa).toFixed(2));
+                await supabase.from('facturas').update({ estado: 'Pagado', monto: montoFac }).eq('referencia', fac.referencia);
+              }
+            } else {
+              await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', recibos);
+            }
             
             // Si pago mas de la deuda, el excedente va a saldo a favor
             if (montoConciliadoNum > deudaTotal + 0.01) {
