@@ -106,8 +106,8 @@ export default function CajaPage() {
     const f = recibos.find((r: any) => r.referencia === ref);
     if (!f) return false;
     const montoPendiente = parseFloat(getReciboMonto(f) || '0');
-    // Bloquear si el recibo está completamente cubierto por pagos 'Por Verificar'
-    if (montoPendiente <= 0 && f.estado !== 'Abonado' && f.estado !== 'Pagado') return true;
+    // Bloquear si el recibo está completamente cubierto por pagos 'Por Verificar' o si ya está Pagado
+    if (montoPendiente <= 0.01) return true;
     return false;
   };
 
@@ -117,7 +117,20 @@ export default function CajaPage() {
       return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
     }
 
-    if (r.estado === 'Abonado' || r.estado === 'Pagado') return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
+    if (r.estado === 'Abonado' || r.estado === 'Pagado') {
+      let baseMonto = parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
+      let montoPend = 0;
+      pagosPendientes.forEach((p: any) => {
+        let det: any = {};
+        try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}
+        const refs: string[] = det.recibos || [];
+        if (refs.includes(r.referencia)) {
+          const montoPago = parseFloat(String(p.monto || '0').replace(/[^0-9.]/g, '')) || 0;
+          if (refs.length > 0) montoPend += (montoPago / refs.length);
+        }
+      });
+      return String(Math.max(0, baseMonto - montoPend).toFixed(2));
+    }
 
     // SIEMPRE usar una tasaActual: la personalizada o la del BCV global
     const tasaActual = (customBcvRate && !isNaN(parseFloat(customBcvRate))) 
