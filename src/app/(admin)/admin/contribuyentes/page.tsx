@@ -189,6 +189,13 @@ function ContribuyentesPageContent() {
       alert("Debe ingresar el motivo obligatoriamente.");
       return;
     }
+    if (statusModal.type === 'Eliminar') {
+      const password = window.prompt("Ingrese la contraseña maestra para confirmar la eliminación del contribuyente:");
+      if (password !== 'Omar..') {
+        if (password !== null) alert("Contraseña incorrecta. Acción cancelada.");
+        return;
+      }
+    }
     setIsProcessingStatus(true);
     try {
       const { type, row } = statusModal;
@@ -354,8 +361,11 @@ function ContribuyentesPageContent() {
   }, [isViewModalOpen, viewData, inmuebles]);
 
   const handleDeleteFactura = async (recibo: any) => {
-    const isConfirmed = window.confirm(`¿Estás seguro de eliminar la deuda ${recibo.referencia}?`);
-    if (!isConfirmed) return;
+    const password = window.prompt(`¿Estás seguro de eliminar la deuda ${recibo.referencia}?\n\nIngrese la contraseña maestra para confirmar:`);
+    if (password !== 'Omar..') {
+      if (password !== null) alert("Contraseña incorrecta. Acción cancelada.");
+      return;
+    }
 
     // Validation: cannot delete if subsequent months are paid
     const facturasContribuyente = recibos.filter((f: any) => f.contribuyente === recibo.contribuyente);
