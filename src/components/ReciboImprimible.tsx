@@ -233,6 +233,13 @@ function ReciboContenido({
               <td style={{ padding:'2px 5px', textAlign:'right', borderBottom:'1px solid #eee', fontSize:8.5 }}>Bs. {formatBs(c.total)}</td>
             </tr>
           ))}
+          {data.saldoFavorGenerado !== undefined && data.saldoFavorGenerado > 0 && (
+            <tr>
+              <td style={{ ...cell, textAlign:'left' }}>Excedente (Saldo a Favor)</td>
+              <td style={{ ...cell, textAlign:'right' }}>Bs. {formatBs(data.saldoFavorGenerado)}</td>
+              <td style={{ padding:'2px 5px', textAlign:'right', borderBottom:'1px solid #eee', fontSize:8.5 }}>Bs. {formatBs(data.saldoFavorGenerado)}</td>
+            </tr>
+          )}
           <tr style={{ height:8 }}>
             <td style={{ borderRight: B }}></td>
             <td style={{ borderRight: B }}></td>
@@ -277,17 +284,18 @@ function ReciboContenido({
               <span>Bs. {formatBs(val)}</span>
             </div>
           ))}
+          {data.saldoFavorGenerado !== undefined && data.saldoFavorGenerado > 0 && (
+            <div style={{ display:'flex', justifyContent:'space-between', padding:'1px 5px', borderBottom:'1px solid #eee' }}>
+              <span style={{ fontWeight:'bold' }}>Excedente (a favor)</span>
+              <span>Bs. {formatBs(data.saldoFavorGenerado)}</span>
+            </div>
+          )}
           <div style={{ display:'flex', justifyContent:'space-between', padding:'2px 5px', background:'#f1f5f9', fontWeight:'bold', borderTop: B }}>
-            <span>Total</span><span>Bs. {formatBs(data.total)}</span>
+            <span>Total</span><span>Bs. {formatBs(data.total + (data.saldoFavorGenerado || 0))}</span>
           </div>
           {data.esAbono && data.montoCancelado !== undefined && (
             <div style={{ display:'flex', justifyContent:'space-between', padding:'2px 5px', background:'#f0fdf4', fontWeight:'bold', color:'#166534', borderTop: B }}>
               <span>Abonado</span><span>Bs. {formatBs(data.montoCancelado)}</span>
-            </div>
-          )}
-          {data.saldoFavorGenerado !== undefined && data.saldoFavorGenerado > 0 && (
-            <div style={{ display:'flex', justifyContent:'space-between', padding:'2px 5px', background:'#e0f2fe', fontWeight:'bold', color:'#0369a1', borderTop: B }}>
-              <span>Saldo a Favor Generado</span><span>Bs. {formatBs(data.saldoFavorGenerado)}</span>
             </div>
           )}
         </div>
