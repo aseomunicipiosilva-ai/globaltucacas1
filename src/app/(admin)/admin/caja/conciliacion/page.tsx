@@ -625,6 +625,16 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
           } else {
             // Pago completo: marcar todas como Pagado
             await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', recibos);
+            
+            // Si pago mas de la deuda, el excedente va a saldo a favor
+            if (montoConciliadoNum > deudaTotal + 0.01) {
+              const dineroSobrante = montoConciliadoNum - deudaTotal;
+              const { data: inmList } = await supabase.from('inmuebles').select('id, saldo_favor_bs').eq('identidad', pago.identidad);
+              if (inmList && inmList.length > 0) {
+                const saldoActual = parseFloat(inmList[0].saldo_favor_bs || '0') || 0;
+                await supabase.from('inmuebles').update({ saldo_favor_bs: saldoActual + dineroSobrante }).eq('id', inmList[0].id);
+              }
+            }
           }
         }
       }
