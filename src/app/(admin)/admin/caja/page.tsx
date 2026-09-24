@@ -639,6 +639,48 @@ export default function CajaPage() {
           const newSaldo = Math.max(0, currentSaldo - descuentoSaldoFavor);
           await supabase.from('inmuebles').update({ saldo_favor_bs: newSaldo }).eq('id', firstInmueble.id);
         }
+        
+        const isAutoAprobado = ['Debito', 'Saldo a Favor'].includes(paymentMethod);
+        if (!isAutoAprobado) {
+          let dineroDisponible = descuentoSaldoFavor;
+          for (const ref of selectedRecibos) {
+            const f = recibos.find(r => r.referencia === ref);
+            if (!f) continue;
+            const montoFac = parseFloat(getReciboMonto(f) || '0');
+            if (dineroDisponible >= montoFac - 0.01) {
+              dineroDisponible = Math.max(0, dineroDisponible - montoFac);
+              await supabase.from('facturas').update({ estado: 'Pagado' }).eq('referencia', ref);
+            } else if (dineroDisponible > 0.01) {
+              const montoRestante = (montoFac - dineroDisponible).toFixed(2);
+              await supabase.from('facturas').update({ monto: montoRestante, estado: 'Abonado' }).eq('referencia', ref);
+              dineroDisponible = 0;
+            }
+          }
+          const cajero = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'Administrador';
+          const letra = (typeof window !== 'undefined' ? localStorage.getItem('adminLetra') : null);
+          const cajero_id = letra && cajero !== 'Administrador' ? `${letra}-${cajero}` : cajero;
+          
+          await supabase.from('pagos_reportados').insert({
+            identidad: foundUser.Identidad,
+            monto: descuentoSaldoFavor,
+            banco: 'Saldo a Favor',
+            referencia: `SF-${Date.now().toString().slice(-6)}`,
+            tipo: 'Saldo a Favor',
+            estado: 'Aprobado',
+            detalles: JSON.stringify({ 
+              recibos: selectedRecibos, 
+              cuotas: selectedCuotas,
+              servicios: selectedServicios,
+              tala_poda: selectedTalaPoda,
+              cajero: cajero_id,
+              es_abono: true,
+              total_seleccionado: totalBs,
+              tasa_bcv: currentBcvRate,
+              deuda_total_sistema: foundUser.DeudaTotal,
+              fecha_transaccion: fechaTransaccion
+            })
+          });
+        }
       }
 
       // Deduct when the payment METHOD itself is Saldo a Favor
