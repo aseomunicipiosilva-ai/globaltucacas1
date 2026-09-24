@@ -439,6 +439,7 @@ export default function EstadoCuentaPage() {
                  // Si generó saldo a favor, el costo real fue total_seleccionado
                  montoNumerico = parseFloat(det.total_seleccionado);
                  saldoFavorGenerado = parseFloat(det.saldo_favor);
+                 montoCancelado = pMontoNum;
               } else if (det?.recibos?.length === 1 && det.recibos.includes(row.referencia)) {
                  montoNumerico = pMontoNum;
               } else if (tasaBcvAplicada && row.referencia?.startsWith('CM-')) {
@@ -635,6 +636,7 @@ export default function EstadoCuentaPage() {
       esAbono,
       montoCancelado,
       montoPendiente,
+      saldoFavorGenerado,
       historialPagos: typeof historialPagos !== 'undefined' ? historialPagos : undefined,
       tasaBcv: tasaBcvAplicada,
     });

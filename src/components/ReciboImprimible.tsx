@@ -53,7 +53,12 @@ const HALF_HEIGHT = '134mm';
 
 export function ReciboImprimible({ data }: { data: ReciboProps }) {
   const fpNorm = normalizarFormaPago(data.formaPago);
-  const totalPagado = data.esAbono && data.montoCancelado !== undefined ? data.montoCancelado : data.total;
+  let totalPagado = data.total;
+  if (data.montoCancelado !== undefined && data.montoCancelado > 0) {
+    totalPagado = data.montoCancelado;
+  } else if (data.esAbono && data.montoCancelado !== undefined) {
+    totalPagado = data.montoCancelado;
+  }
 
   return (
     <>
