@@ -413,6 +413,7 @@ export default function EstadoCuentaPage() {
 
         if (pagosData) {
           const pagos = pagosData.filter(p => {
+             if (p.estado === 'Rechazado' || p.estado === 'Eliminado') return false;
              const d = typeof p.detalles === 'string' ? (() => { try { return JSON.parse(p.detalles); } catch(e) { return {}; } })() : p.detalles;
              return JSON.stringify(d || {}).includes(row.referencia);
           });
