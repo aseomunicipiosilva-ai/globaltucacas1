@@ -10,6 +10,15 @@ type Periodo = 'hoy' | 'semana' | 'mes' | 'mes_pasado' | 'personalizado';
 type Sector = 'Todos' | 'Residencial' | 'Comercial' | 'Industrial';
 
 // Parsea montos venezolanos: "1.234,50" -> 1234.50 y tambien "1234.50" -> 1234.50
+function getMontoEfectivo(p: any): number {
+  let m = p.monto;
+  try {
+    const det = typeof p.detalles === 'object' ? p.detalles : JSON.parse(p.detalles || '{}');
+    if (det.monto_conciliado) m = det.monto_conciliado;
+  } catch(e) {}
+  return parseMonto(m);
+}
+
 function parseMonto(val: string | number | undefined): number {
   if (val === undefined || val === null) return 0;
   let s = String(val).trim();
@@ -101,7 +110,7 @@ export default function RecaudacionWidget() {
       const { data } = await supabase
         .from('pagos_reportados')
         .select('*')
-        .eq('estado', 'Aprobado')
+        .not('estado', 'in', '(Anulado,Reversado,Condonado,Rechazado)')
         .gte('created_at', range.desde + 'T00:00:00')
         .lte('created_at', range.hasta + 'T23:59:59')
         .order('created_at', { ascending: false });
@@ -124,15 +133,15 @@ export default function RecaudacionWidget() {
     sectorFiltro === 'Todos' ? pagosConSector : pagosConSector.filter(p => p.sector === sectorFiltro),
   [pagosConSector, sectorFiltro]);
 
-  const tot = pagosConSector.reduce((a, p) => a + parseMonto(p.monto), 0);
-  const totFilt = pagosFiltrados.reduce((a, p) => a + parseMonto(p.monto), 0);
-  const tra = pagosConSector.filter(p => p.tipo === 'Transferencia').reduce((a, p) => a + parseMonto(p.monto), 0);
-  const deb = pagosConSector.filter(p => p.tipo === 'Debito' || p.tipo === 'Punto de Venta' || p.tipo === 'REC').reduce((a, p) => a + parseMonto(p.monto), 0);
+  const tot = pagosConSector.reduce((a, p) => a + getMontoEfectivo(p), 0);
+  const totFilt = pagosFiltrados.reduce((a, p) => a + getMontoEfectivo(p), 0);
+  const tra = pagosConSector.filter(p => p.tipo === 'Transferencia').reduce((a, p) => a + getMontoEfectivo(p), 0);
+  const deb = pagosConSector.filter(p => p.tipo === 'Debito' || p.tipo === 'Punto de Venta' || p.tipo === 'REC').reduce((a, p) => a + getMontoEfectivo(p), 0);
 
   const contadores = useMemo(() => ({
-    Residencial: pagosConSector.filter(p => p.sector === 'Residencial').reduce((a, p) => a + parseMonto(p.monto), 0),
-    Comercial:   pagosConSector.filter(p => p.sector === 'Comercial').reduce((a, p) => a + parseMonto(p.monto), 0),
-    Industrial:  pagosConSector.filter(p => p.sector === 'Industrial').reduce((a, p) => a + parseMonto(p.monto), 0),
+    Residencial: pagosConSector.filter(p => p.sector === 'Residencial').reduce((a, p) => a + getMontoEfectivo(p), 0),
+    Comercial:   pagosConSector.filter(p => p.sector === 'Comercial').reduce((a, p) => a + getMontoEfectivo(p), 0),
+    Industrial:  pagosConSector.filter(p => p.sector === 'Industrial').reduce((a, p) => a + getMontoEfectivo(p), 0),
   }), [pagosConSector]);
 
   const lbl: Record<Periodo, string> = { hoy: 'Hoy', semana: 'Esta semana', mes: 'Este mes', mes_pasado: 'Mes pasado', personalizado: 'Periodo' };
@@ -146,7 +155,7 @@ export default function RecaudacionWidget() {
       'Banco': p.banco || '--',
       'Tipo': p.tipo,
       'Referencia': p.referencia || '--',
-      'Monto (Bs)': parseMonto(p.monto).toFixed(2)
+      'Monto (Bs)': getMontoEfectivo(p).toFixed(2)
     }));
     const fname = 'Recaudacion_' + (sectorFiltro !== 'Todos' ? sectorFiltro + '_' : '') + new Date().toISOString().split('T')[0] + '.xlsx';
     exportToExcelWithLogos(d, fname, 'Recaudacion');
@@ -278,7 +287,7 @@ export default function RecaudacionWidget() {
                       <span className={'px-2 py-0.5 rounded text-[10px] font-bold ' + (p.tipo === 'Debito' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700')}>{p.tipo}</span>
                     </td>
                     <td className="px-3 py-2 font-mono">{p.referencia || '--'}</td>
-                    <td className="px-3 py-2 text-right font-bold text-emerald-700">Bs. {formatBs(parseMonto(p.monto))}</td>
+                    <td className="px-3 py-2 text-right font-bold text-emerald-700">Bs. {formatBs(getMontoEfectivo(p))}</td>
                   </tr>
                 ))}
               </tbody>
