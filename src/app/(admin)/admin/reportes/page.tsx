@@ -58,6 +58,8 @@ export default function ReportesPage() {
 
     const loadPagos = async () => {
       const { data } = await supabase.from('pagos_reportados').select('*').not('estado','in','(Anulado,Reversado,Condonado)').order('created_at', { ascending: false });
+      const { data: trabData } = await supabase.from('trabajadores').select('usuario, letra, rol').eq('estado', 'Activo');
+      
       if (data) {
         setPagos(data);
         const cajerosSet = new Set<string>();
@@ -67,6 +69,20 @@ export default function ReportesPage() {
             if (dets.cajero) cajerosSet.add(dets.cajero);
           } catch(e) {}
         });
+        
+        if (trabData) {
+          trabData.forEach((t: any) => {
+            if (t.usuario) {
+               // Agrega formato 'Letra-Usuario' si aplica, o solo 'Usuario'
+               if (t.letra && t.rol !== 'Administrador') {
+                 cajerosSet.add(`${t.letra}-${t.usuario}`);
+               } else {
+                 cajerosSet.add(t.usuario);
+               }
+            }
+          });
+        }
+        
         setCajeros(Array.from(cajerosSet).sort());
       }
     };

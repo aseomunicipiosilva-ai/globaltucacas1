@@ -43,9 +43,10 @@ export default function OperadorLogin() {
       const { data, error: dbError } = await supabase
         .from('trabajadores')
         .select('*')
-        .eq('usuario', usuario.trim())
+        .ilike('usuario', usuario.trim())
         .eq('estado', 'Activo')
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       if (dbError || !data) {
         setError('Usuario no encontrado o inactivo');

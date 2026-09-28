@@ -56,6 +56,17 @@ export default function RecaudacionWidget() {
   const [pagos, setPagos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [sectorFiltro, setSectorFiltro] = useState<Sector>('Todos');
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    try {
+      const userData = JSON.parse(localStorage.getItem('admin_user_data') || '{}');
+      const user = localStorage.getItem('adminUser');
+      if (userData.rol === 'Administrador' || userData.rol === 'SuperAdmin' || user === 'Administrador' || user === 'dzara') {
+        setIsAdmin(true);
+      }
+    } catch(e) {}
+  }, []);
 
   // Normaliza actividad_principal a sector real (Residencial/Comercial/Industrial)
   const normSector = (actividad: string, clasificacion: string) => {
@@ -152,6 +163,8 @@ export default function RecaudacionWidget() {
     Industrial: 'bg-indigo-600 text-white'
   };
   const sectorIcons: Record<Sector, any> = { Todos: Filter, Residencial: Home, Comercial: Building, Industrial: Briefcase };
+
+  if (!isAdmin) { return null; }
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">

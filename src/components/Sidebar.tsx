@@ -6,6 +6,18 @@ import Link from 'next/link';
 export default function Sidebar() {
   const pathname = usePathname();
   const isAdminPath = pathname.startsWith('/admin') || pathname.startsWith('/audit');
+
+  const [isSuperAdmin, setIsSuperAdmin] = require('react').useState(false);
+  require('react').useEffect(() => {
+    try {
+      const userData = JSON.parse(localStorage.getItem('admin_user_data') || '{}');
+      const user = localStorage.getItem('adminUser');
+      if (userData.rol === 'Administrador' || userData.rol === 'SuperAdmin' || user === 'Administrador' || user === 'dzara') {
+        setIsSuperAdmin(true);
+      }
+    } catch(e) {}
+  }, []);
+
   
   if (!isAdminPath) {
     return null;
@@ -16,7 +28,7 @@ export default function Sidebar() {
 
   const menuAseo = [
     { icon: Home, name: 'Inicio Aseo', href: '/admin' },
-    { icon: PieChart, name: 'Administrativo', href: '/admin/administrativo' },
+    ...(isSuperAdmin ? [{ icon: PieChart, name: 'Administrativo', href: '/admin/administrativo' }] : []),
     { icon: FileText, name: 'Tarifas / Ordenanza', href: '/admin/tarifas' },
     { icon: ClipboardCheck, name: 'Censo de Contribuyentes', href: '/admin/censo' },
     { icon: User, name: 'Contribuyentes', href: '/admin/contribuyentes' },
