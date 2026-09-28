@@ -73,12 +73,7 @@ export default function ReportesPage() {
         if (trabData) {
           trabData.forEach((t: any) => {
             if (t.usuario) {
-               // Agrega formato 'Letra-Usuario' si aplica, o solo 'Usuario'
-               if (t.letra && t.rol !== 'Administrador') {
-                 cajerosSet.add(`${t.letra}-${t.usuario}`);
-               } else {
-                 cajerosSet.add(t.usuario);
-               }
+               cajerosSet.add(t.usuario);
             }
           });
         }
