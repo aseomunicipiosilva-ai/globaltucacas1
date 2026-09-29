@@ -368,8 +368,9 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
       doc.setFillColor(245, 245, 245);
       doc.rect(15, 103, 180, 25, 'FD');
       
-      const fechaVencimiento = new Date();
-      fechaVencimiento.setDate(fechaVencimiento.getDate() + 30);
+      let fechaVencimiento = new Date();
+      fechaVencimiento = new Date(fechaVencimiento.getFullYear(), fechaVencimiento.getMonth() + 1, 0);
+      fechaVencimiento.setHours(23, 59, 59, 999);
       const vencMesAnio = `${('0' + (fechaVencimiento.getMonth() + 1)).slice(-2)}-${fechaVencimiento.getFullYear()}`;
       
       doc.setFontSize(16);

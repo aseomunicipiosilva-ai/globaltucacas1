@@ -141,8 +141,8 @@ export const generarSolvenciaPDF = async (
 ) => {
   try {
     const fechaEmision = new Date();
-    const fechaVencimiento = new Date(fechaEmision);
-    fechaVencimiento.setDate(fechaVencimiento.getDate() + 30);
+    let fechaVencimiento = new Date(fechaEmision.getFullYear(), fechaEmision.getMonth() + 1, 0);
+    fechaVencimiento.setHours(23, 59, 59, 999);
     
     const codigoUnico = `SOL-${contribuyente.Identidad}-${Date.now().toString().slice(-6)}`;
     
