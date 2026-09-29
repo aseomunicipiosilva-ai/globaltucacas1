@@ -1,6 +1,7 @@
 ﻿'use client';
 import { useState, useMemo } from 'react';
-import { Printer, ArrowLeft, ChevronDown } from 'lucide-react';
+import { Printer, ArrowLeft, ChevronDown, TableProperties } from 'lucide-react';
+import { generarCorteCajaExcel } from '../generators/ExcelCorteCaja';
 
 interface Props {
   pagos: any[];
@@ -145,6 +146,7 @@ export default function CorteCaja({ pagos, cajeros, isAdmin, currentUser, onBack
                 <div>Total Registros: <span className="font-bold text-slate-800">{pagosFiltrados.length}</span></div>
                 <div className="flex gap-2 justify-end mt-1">
                   {onExportPDF && <button onClick={onExportPDF} className="p-1.5 hover:bg-slate-200 rounded" title="PDF"><Printer className="w-4 h-4 text-slate-600" /></button>}
+                  <button onClick={() => generarCorteCajaExcel(pagosFiltrados, cajeroLabel, fechaInicio.split("T")[0], fechaFin.split("T")[0])} className="p-1.5 hover:bg-slate-200 rounded" title="Descargar Excel"><TableProperties className="w-4 h-4 text-slate-600" /></button>
                 </div>
               </div>
             </div>
