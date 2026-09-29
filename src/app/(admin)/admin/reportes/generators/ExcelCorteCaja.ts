@@ -127,16 +127,16 @@ export const generarCorteCajaExcel = (
   const totalGeneral = totalDebito + totalTransf + totalSaldo;
 
   const rowBaseBs = wsData.length;
-  wsData.push(["", { v: "Tarjeta de Débito (Punto de Venta)", s: CELL_STYLE }, { v: debitos.length, s: CELL_STYLE }, { v: totalDebito, t: 'n', s: MONEY_STYLE }, { t: 'n', f: `IF($C$6>0, D${rowBaseBs + 1}/$C$6, 0)`, s: MONEY_STYLE }]);
-  wsData.push(["", { v: "Transferencias Bancarias", s: CELL_STYLE }, { v: transferencias.length, s: CELL_STYLE }, { v: totalTransf, t: 'n', s: MONEY_STYLE }, { t: 'n', f: `IF($C$6>0, D${rowBaseBs + 2}/$C$6, 0)`, s: MONEY_STYLE }]);
-  wsData.push(["", { v: "Saldo a Favor", s: CELL_STYLE }, { v: saldos.length, s: CELL_STYLE }, { v: totalSaldo, t: 'n', s: MONEY_STYLE }, { t: 'n', f: `IF($C$6>0, D${rowBaseBs + 3}/$C$6, 0)`, s: MONEY_STYLE }]);
+  wsData.push(["", { v: "Tarjeta de Débito (Punto de Venta)", s: CELL_STYLE }, { v: debitos.length, s: CELL_STYLE }, { v: totalDebito, t: 'n', s: MONEY_STYLE }, { v: totalDebito / defaultRate, t: 'n', f: `IF($C$6>0, D${rowBaseBs + 1}/$C$6, 0)`, s: MONEY_STYLE }]);
+  wsData.push(["", { v: "Transferencias Bancarias", s: CELL_STYLE }, { v: transferencias.length, s: CELL_STYLE }, { v: totalTransf, t: 'n', s: MONEY_STYLE }, { v: totalTransf / defaultRate, t: 'n', f: `IF($C$6>0, D${rowBaseBs + 2}/$C$6, 0)`, s: MONEY_STYLE }]);
+  wsData.push(["", { v: "Saldo a Favor", s: CELL_STYLE }, { v: saldos.length, s: CELL_STYLE }, { v: totalSaldo, t: 'n', s: MONEY_STYLE }, { v: totalSaldo / defaultRate, t: 'n', f: `IF($C$6>0, D${rowBaseBs + 3}/$C$6, 0)`, s: MONEY_STYLE }]);
   
   wsData.push([
     "", 
     { v: "TOTAL GENERAL", s: { ...CELL_STYLE, font: { bold: true }, fill: { fgColor: { rgb: "e2e9f3" } } } }, 
     { v: pagosFiltrados.length, s: { ...CELL_STYLE, font: { bold: true }, fill: { fgColor: { rgb: "e2e9f3" } } } }, 
     { t: 'n', f: `SUM(D${rowBaseBs + 1}:D${rowBaseBs + 3})`, s: { ...MONEY_STYLE, font: { bold: true }, fill: { fgColor: { rgb: "e2e9f3" } } } }, 
-    { t: 'n', f: `SUM(E${rowBaseBs + 1}:E${rowBaseBs + 3})`, s: { ...MONEY_STYLE, font: { bold: true }, fill: { fgColor: { rgb: "e2e9f3" } } } }
+    { v: totalGeneral / defaultRate, t: 'n', f: `SUM(E${rowBaseBs + 1}:E${rowBaseBs + 3})`, s: { ...MONEY_STYLE, font: { bold: true }, fill: { fgColor: { rgb: "e2e9f3" } } } }
   ]);
   
   wsData.push([]);
@@ -192,7 +192,7 @@ export const generarCorteCajaExcel = (
     { v: "", s: { ...CELL_STYLE, fill: { fgColor: { rgb: "e2e9f3" } } } }, 
     { v: "", s: { ...CELL_STYLE, fill: { fgColor: { rgb: "e2e9f3" } } } }, 
     { v: totalDebito, t: 'n', s: { ...MONEY_STYLE, font: { bold: true }, fill: { fgColor: { rgb: "e2e9f3" } } } }, 
-    { t: 'n', f: `IF($C$6>0, J${wsData.length + 1}/$C$6, 0)`, s: { ...MONEY_STYLE, font: { bold: true }, fill: { fgColor: { rgb: "e2e9f3" } } } }
+    { v: totalDebito / defaultRate, t: 'n', f: `IF($C$6>0, J${wsData.length + 1}/$C$6, 0)`, s: { ...MONEY_STYLE, font: { bold: true }, fill: { fgColor: { rgb: "e2e9f3" } } } }
   ]);
   merges.push({ s: { r: wsData.length - 1, c: 1 }, e: { r: wsData.length - 1, c: 8 } });
   wsData.push([]);
@@ -255,7 +255,7 @@ export const generarCorteCajaExcel = (
     { v: "", s: { ...CELL_STYLE, fill: { fgColor: { rgb: "e2e9f3" } } } }, 
     { v: "", s: { ...CELL_STYLE, fill: { fgColor: { rgb: "e2e9f3" } } } }, 
     { v: totalTransf, t: 'n', s: { ...MONEY_STYLE, font: { bold: true }, fill: { fgColor: { rgb: "e2e9f3" } } } }, 
-    { t: 'n', f: `IF($C$6>0, L${wsData.length + 1}/$C$6, 0)`, s: { ...MONEY_STYLE, font: { bold: true }, fill: { fgColor: { rgb: "e2e9f3" } } } }
+    { v: totalTransf / defaultRate, t: 'n', f: `IF($C$6>0, L${wsData.length + 1}/$C$6, 0)`, s: { ...MONEY_STYLE, font: { bold: true }, fill: { fgColor: { rgb: "e2e9f3" } } } }
   ]);
   merges.push({ s: { r: wsData.length - 1, c: 1 }, e: { r: wsData.length - 1, c: 10 } });
   wsData.push([]);
@@ -304,7 +304,7 @@ export const generarCorteCajaExcel = (
       { v: "", s: { ...CELL_STYLE, fill: { fgColor: { rgb: "e2e9f3" } } } }, 
       { v: "", s: { ...CELL_STYLE, fill: { fgColor: { rgb: "e2e9f3" } } } }, 
       { v: totalSaldo, t: 'n', s: { ...MONEY_STYLE, font: { bold: true }, fill: { fgColor: { rgb: "e2e9f3" } } } }, 
-      { t: 'n', f: `IF($C$6>0, H${wsData.length + 1}/$C$6, 0)`, s: { ...MONEY_STYLE, font: { bold: true }, fill: { fgColor: { rgb: "e2e9f3" } } } }
+      { v: totalSaldo / defaultRate, t: 'n', f: `IF($C$6>0, H${wsData.length + 1}/$C$6, 0)`, s: { ...MONEY_STYLE, font: { bold: true }, fill: { fgColor: { rgb: "e2e9f3" } } } }
     ]);
     merges.push({ s: { r: wsData.length - 1, c: 1 }, e: { r: wsData.length - 1, c: 6 } });
   }
