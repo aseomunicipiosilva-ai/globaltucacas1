@@ -33,6 +33,7 @@ type Filtros = {
   formaPago: string;
   referencia: string;
   monto: string;
+  nombre: string;
 };
 
 const BANCOS_DESTINO = [
@@ -985,7 +986,7 @@ export default function ConciliacionPage() {
   const [filtros, setFiltros] = useState<Filtros>({
     desde: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     hasta: new Date().toISOString().split('T')[0],
-    estatus: 'Por Verificar', bancoDestino: 'Todos', formaPago: 'Todos', referencia: '', monto: '',
+    estatus: 'Por Verificar', bancoDestino: 'Todos', formaPago: 'Todos', referencia: '', monto: '', nombre: '',
   });
   const [pagoSel, setPagoSel] = useState<Pago | null>(null);
   const [mode, setMode] = useState<'conciliar'|'comprobante'|'edoCuenta'|null>(null);
@@ -1002,6 +1003,7 @@ export default function ConciliacionPage() {
       if (filtros.estatus !== 'Todos') q = q.eq('estado', filtros.estatus);
       if (filtros.formaPago !== 'Todos') q = q.eq('tipo', filtros.formaPago);
       if (filtros.referencia) q = q.ilike('referencia', '%' + filtros.referencia + '%');
+      if (filtros.nombre) q = q.ilike('contribuyente', '%' + filtros.nombre + '%');
       if (filtros.monto) q = q.eq('monto', filtros.monto);
       const { data } = await q;
       let result = data || [];
@@ -1082,7 +1084,7 @@ export default function ConciliacionPage() {
             <Filter size={14}/> {loading ? 'Cargando...' : 'Aplicar Filtros'}
           </button>
         </div>
-        <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 items-end">
+        <div className="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-8 gap-3 items-end">
           <div className="lg:col-span-2">
             <label className="block text-xs font-semibold text-slate-500 mb-1">Rango de Fechas</label>
             <div className="flex gap-1">
@@ -1093,6 +1095,7 @@ export default function ConciliacionPage() {
           <div><label className="block text-xs font-semibold text-slate-500 mb-1">Estatus</label><select value={filtros.estatus} onChange={e=>setFiltros(f=>({...f,estatus:e.target.value}))} className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-cyan-400">{ESTATUS_LIST.map(s=><option key={s}>{s}</option>)}</select></div>
           <div><label className="block text-xs font-semibold text-slate-500 mb-1">Banco Destino</label><select value={filtros.bancoDestino} onChange={e=>setFiltros(f=>({...f,bancoDestino:e.target.value}))} className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-cyan-400">{BANCOS_DESTINO.map(b=><option key={b}>{b}</option>)}</select></div>
           <div><label className="block text-xs font-semibold text-slate-500 mb-1">Forma de pago</label><select value={filtros.formaPago} onChange={e=>setFiltros(f=>({...f,formaPago:e.target.value}))} className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-cyan-400">{FORMAS_PAGO.map(fp=><option key={fp}>{fp}</option>)}</select></div>
+          <div><label className="block text-xs font-semibold text-slate-500 mb-1">Nombre</label><input value={filtros.nombre} onChange={e=>setFiltros(f=>({...f,nombre:e.target.value}))} placeholder="Nombre..." className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-cyan-400" /></div>
           <div><label className="block text-xs font-semibold text-slate-500 mb-1">Referencia de Pago</label><input value={filtros.referencia} onChange={e=>setFiltros(f=>({...f,referencia:e.target.value}))} placeholder="Referencia..." className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-cyan-400" /></div>
           <div><label className="block text-xs font-semibold text-slate-500 mb-1">Monto</label><input value={filtros.monto} onChange={e=>setFiltros(f=>({...f,monto:e.target.value}))} placeholder="Monto exacto" type="number" className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-cyan-400" /></div>
         </div>
