@@ -165,7 +165,7 @@ export async function GET(request: Request) {
 
 
 
-      const tcmmv = euroVal; // Estrictamente tasa Euro
+      if (usdVal > 150 || euroVal > 150) throw new Error(\'DolarAPI is returning wrong country currency (e.g. ARS or CLP) instead of VES\');\n      const tcmmv = euroVal; // Estrictamente tasa Euro
 
       try {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
