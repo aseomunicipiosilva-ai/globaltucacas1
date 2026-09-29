@@ -3,6 +3,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { ChevronDown, Lock, CheckCircle, Loader2, Printer, ArrowLeft, FileSpreadsheet, FileText } from 'lucide-react';
 import { generarCorteCajaPDF } from '../generators/PdfReports';
 import { generarLibroVentas } from '../generators/LibroVentas';
+import { generarGeneralIngresosExcel } from '../generators/ExcelGeneralIngresos';
 
 interface Props {
   pagos: any[];
@@ -160,7 +161,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
     <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: 4 }}>
       <button onClick={() => generarCorteCajaPDF(pagosFiltrados, contribuyentes, fechaInicio, fechaFin, tasaEuro)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c0392b', padding: '2px 6px' }} title="PDF"><Printer size={15}/></button>
       <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#555', padding: '2px 6px' }} title="Columnas"><span style={{fontSize:14, fontWeight:700}}>|||</span></button>
-      {showExcel && <button onClick={() => generarLibroVentas(pagosFiltrados, contribuyentes, 'Diario', fechaInicio, fechaFin)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#166534', padding: '2px 6px' }} title="Excel"><FileSpreadsheet size={15}/></button>}
+      {showExcel && <button onClick={() => { if (subTipo === 'General de Ingresos' || subTipo === 'Ingresos por Banco') { generarGeneralIngresosExcel(pagosFiltrados, cajeroLabel, fechaInicio.split('T')[0], fechaFin.split('T')[0]); } else { generarLibroVentas(pagosFiltrados, contribuyentes, 'Diario', fechaInicio, fechaFin); } }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#166534', padding: '2px 6px' }} title="Descargar Excel Estilizado"><FileSpreadsheet size={15}/></button>}
     </div>
   );
 
@@ -408,7 +409,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
 
       {showReport && subTipo === 'Ingresos por Banco' && (
         <div style={S.rptBox}>
-          <div style={{ ...S.secHdr, fontSize: 15, padding: '10px 0' }}>REPORTE GENERAL DE INGRESOS<IconsTop /></div>
+          <div style={{ ...S.secHdr, fontSize: 15, padding: '10px 0' }}>REPORTE GENERAL DE INGRESOS<IconsTop showExcel /></div>
           <SummaryBox title="Total Ingresos" isUSD />
           <DebitoTable /><TransfTable />
           {pagosFiltrados.length === 0 && <EmptyMsg />}
