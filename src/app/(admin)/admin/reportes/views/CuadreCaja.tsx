@@ -2,6 +2,7 @@
 import { useState, useMemo } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { generarCorteCajaPDF } from '../generators/PdfReports';
+import { generarCorteCajaExcel } from '../generators/ExcelCorteCaja';
 
 interface Props {
   pagos: any[];
@@ -123,7 +124,7 @@ export default function CuadreCaja({ pagos, cajeros, isAdmin, currentUser, onBac
             <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: 4 }}>
               <button onClick={() => generarCorteCajaPDF(pagosFiltrados, [], fecha, fecha)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }} title="PDF">🖨</button>
-              <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>≡</button>
+              <button onClick={() => generarCorteCajaExcel(pagosFiltrados, cajeroLabel, fecha, fecha)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }} title="Descargar Excel">📊</button>
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 200px', borderBottom: '1px solid #ccc' }}>
