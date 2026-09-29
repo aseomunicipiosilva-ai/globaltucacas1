@@ -1003,7 +1003,14 @@ export default function ConciliacionPage() {
       if (filtros.estatus !== 'Todos') q = q.eq('estado', filtros.estatus);
       if (filtros.formaPago !== 'Todos') q = q.eq('tipo', filtros.formaPago);
       if (filtros.referencia) q = q.ilike('referencia', '%' + filtros.referencia + '%');
-      if (filtros.nombre) q = q.ilike('contribuyente', '%' + filtros.nombre + '%');
+      if (filtros.nombre) {
+        const { data: inms } = await supabase.from('inmuebles').select('identidad').ilike('contribuyente', '%' + filtros.nombre + '%');
+        if (inms && inms.length > 0) {
+          q = q.in('identidad', inms.map(i => i.identidad));
+        } else {
+          q = q.eq('identidad', 'NO_EXISTE_ESTE_CONTRIBUYENTE_123');
+        }
+      }
       if (filtros.monto) q = q.eq('monto', filtros.monto);
       const { data } = await q;
       let result = data || [];
