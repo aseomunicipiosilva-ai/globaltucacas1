@@ -83,6 +83,7 @@ export default function DondePagarPage() {
         }
 
         let montoPendiente = 0;
+        let tasaPago = null;
         pagosPorVerificar.forEach((p) => {
           let det: any = {};
           try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}
@@ -90,8 +91,25 @@ export default function DondePagarPage() {
           if (refs.includes(f.referencia)) {
             const montoPago = parseFloat(String(p.monto || '0').replace(/[^0-9.]/g, '')) || 0;
             if (refs.length > 0) montoPendiente += (montoPago / refs.length);
+            if (det.tasa_bcv) tasaPago = parseFloat(det.tasa_bcv);
           }
         });
+        if (tasaPago && tasaPago > 0 && f.referencia?.startsWith('CM-')) {
+          let monthlyMMV = 0;
+          const matchedInmueble = misInmuebles.find((inm: any) => inm.inmueble && f.referencia.includes(inm.inmueble));
+          if (matchedInmueble) {
+            const cant = parseFloat(matchedInmueble.cant_inmuebles || 1);
+            const mmv  = parseFloat(matchedInmueble.mmv_mes || 0);
+            if (mmv > 0) monthlyMMV = cant * mmv;
+          } else {
+            misInmuebles.forEach((inm: any) => {
+              const cant = parseFloat(inm.cant_inmuebles || 1);
+              const mmv  = parseFloat(inm.mmv_mes || 0);
+              if (mmv > 0) monthlyMMV += cant * mmv;
+            });
+          }
+          if (monthlyMMV > 0) baseMonto = monthlyMMV * tasaPago;
+        }
 
         const finalMonto = Math.max(0, baseMonto - montoPendiente);
 

@@ -2348,8 +2348,9 @@ function ContribuyentesPageContent() {
                         }
                       }
                       
-                      // Descontar pagos en proceso (Por Verificar)
+                                            // Descontar pagos en proceso (Por Verificar)
                       let montoPendiente = 0;
+                      let tasaPago = null;
                       viewPagos.filter((p: any) => p.estado === 'Por Verificar').forEach((p: any) => {
                         let det: any = {};
                         try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
@@ -2357,8 +2358,22 @@ function ContribuyentesPageContent() {
                         if (refs.includes(f.referencia)) {
                           const montoPago = parseFloat(String(p.monto || '0').replace(/[^\d.]/g, '')) || 0;
                           if (refs.length > 0) montoPendiente += (montoPago / refs.length);
+                          if (det.tasa_bcv) tasaPago = parseFloat(det.tasa_bcv);
                         }
                       });
+
+                      if (tasaPago && tasaPago > 0 && f.referencia?.startsWith('CM-')) {
+                         const matchedInm = userInms.find((inm: any) =>
+                           (inm.inmueble && f.referencia.includes(inm.inmueble)) ||
+                           (inm.cod_cont && f.referencia.includes(inm.cod_cont))
+                         );
+                         const targetInm = matchedInm || (userInms.length === 1 ? userInms[0] : null);
+                         if (targetInm) {
+                            const cant = parseFloat(targetInm.cant_inmuebles || 1);
+                            const mmv = parseFloat(targetInm.mmv_mes || 0);
+                            if (mmv > 0) base = parseFloat((cant * mmv * tasaPago).toFixed(2));
+                         }
+                      }
 
                       return Math.max(0, base - montoPendiente);
                     };

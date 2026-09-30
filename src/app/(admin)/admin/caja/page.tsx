@@ -168,6 +168,7 @@ export default function CajaPage() {
       if (totalDeudaMMV > 0) {
         let baseMonto = totalDeudaMMV * tasaActual;
         let montoPendiente = 0;
+        let tasaPago = null;
         pagosPendientes.forEach((p: any) => {
           let det: any = {};
           try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}
@@ -175,8 +176,10 @@ export default function CajaPage() {
           if (refs.includes(r.referencia)) {
             const montoPago = parseFloat(String(p.monto || '0').replace(/[^0-9.]/g, '')) || 0;
             if (refs.length > 0) montoPendiente += (montoPago / refs.length);
+            if (det.tasa_bcv) tasaPago = parseFloat(det.tasa_bcv);
           }
         });
+        if (tasaPago && tasaPago > 0) baseMonto = totalDeudaMMV * tasaPago;
         return String(Math.max(0, baseMonto - montoPendiente).toFixed(2));
       }
       // Fallback si no hay deuda_mmv registrado
@@ -203,6 +206,7 @@ export default function CajaPage() {
       if (monthlyMMV > 0) {
         let baseMonto = monthlyMMV * tasaActual;
         let montoPendiente = 0;
+        let tasaPago = null;
         pagosPendientes.forEach((p: any) => {
           let det: any = {};
           try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}
@@ -210,8 +214,10 @@ export default function CajaPage() {
           if (refs.includes(r.referencia)) {
             const montoPago = parseFloat(String(p.monto || '0').replace(/[^0-9.]/g, '')) || 0;
             if (refs.length > 0) montoPendiente += (montoPago / refs.length);
+            if (det.tasa_bcv) tasaPago = parseFloat(det.tasa_bcv);
           }
         });
+        if (tasaPago && tasaPago > 0) baseMonto = monthlyMMV * tasaPago;
         return String(Math.max(0, baseMonto - montoPendiente).toFixed(2));
       }
     }
