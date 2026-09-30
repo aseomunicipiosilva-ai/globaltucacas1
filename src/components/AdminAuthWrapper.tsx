@@ -62,7 +62,7 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
 
     if (username.toLowerCase() === 'dzara' && (password === 'dzara' || password === 'andministrador')) {
       localStorage.setItem('admin_auth_andministrador', 'true');
-      localStorage.setItem('admin_user_data', JSON.stringify({ nombre: 'Administrador Sistema', rol: 'Administrador', usuario: 'dzara' }));
+      localStorage.setItem('admin_user_data', JSON.stringify({ nombre: 'David Zara', rol: 'Master', usuario: 'dzara' }));
       localStorage.setItem('adminUser', 'dzara');
       setIsAuthenticated(true);
       setIsAuthenticating(false);

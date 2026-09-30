@@ -6,12 +6,14 @@ import { logAudit } from '@/lib/audit';
 export default function Header() {
   const router = useRouter();
   const [userName, setUserName] = useState('Usuario Oficial');
+  const [userRole, setUserRole] = useState('Administrador');
 
   useEffect(() => {
     try {
       const userData = JSON.parse(localStorage.getItem('admin_user_data') || '{}');
       if (userData.nombre) {
         setUserName(userData.nombre);
+        if (userData.rol) setUserRole(userData.rol);
       } else {
         const adminUser = localStorage.getItem('adminUser');
         if (adminUser) setUserName(adminUser);
@@ -26,8 +28,9 @@ export default function Header() {
       </div>
       <div className="flex items-center gap-4 text-sm">
         <div className="text-right">
-          <div className="font-medium text-[#c8e64c] capitalize">{userName}</div>
-          <div className="text-xs text-slate-300">Última Conexión: Hoy</div>
+          <div className="font-medium text-[#c8e64c] capitalize text-sm">{userName}</div>
+          <div className="text-[10px] font-semibold text-slate-300 uppercase tracking-widest">{userRole}</div>
+          <div className="text-[10px] text-slate-400 mt-0.5">Última Conexión: Hoy</div>
         </div>
         <button 
           onClick={() => {

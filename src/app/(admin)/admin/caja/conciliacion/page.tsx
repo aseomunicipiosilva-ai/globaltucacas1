@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   CheckCheck, RefreshCw, Filter, Landmark, Eye, Download, X,
-  Pencil, Mail, Building2
+  Pencil, Mail, Building2, Trash2
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAppContext } from '@/store/AppContext';
@@ -1045,6 +1045,17 @@ export default function ConciliacionPage() {
   const cerrar = () => { setPagoSel(null); setMode(null); };
   const onSuccess = () => { cerrar(); fetchPagos(); };
 
+  const eliminarPago = async (pago) => {
+    if (!window.confirm(`¿Está seguro de eliminar el pago con referencia ${pago.referencia || 'S/N'} por Bs. ${pago.monto || '0'}? Esta acción no se puede deshacer.`)) return;
+    try {
+      const { error } = await supabase.from('pagos_reportados').delete().eq('id', pago.id);
+      if (error) alert('Error al eliminar: ' + error.message);
+      else { alert('Pago eliminado correctamente.'); fetchPagos(); }
+    } catch(e) {
+      alert('Error de conexión.');
+    }
+  };
+
   const estatusCls = (e: string) => {
     if (e === 'Aprobado') return 'text-green-600 font-bold';
     if (e === 'Por Verificar' || e === 'Pendiente') return 'text-yellow-600 font-bold';
@@ -1086,6 +1097,7 @@ export default function ConciliacionPage() {
             {esPendiente && <button onClick={()=>abrir(pago,'conciliar')} title="Conciliar pago" className="text-slate-500 hover:text-blue-700 transition-colors"><Landmark size={18}/></button>}
             {det.comprobante_url && <button onClick={()=>abrir(pago,'comprobante')} title="Ver comprobante" className="text-blue-600 hover:text-blue-800 transition-colors"><Eye size={18}/></button>}
             {esAprobado && !det.comprobante_url && <button onClick={()=>abrir(pago,'conciliar')} title="Editar" className="text-green-600 hover:text-green-800 transition-colors"><Pencil size={16}/></button>}
+            <button onClick={()=>eliminarPago(pago)} title="Eliminar" className="text-red-500 hover:text-red-700 transition-colors"><Trash2 size={16}/></button>
           </div>
         </td>
       </tr>
