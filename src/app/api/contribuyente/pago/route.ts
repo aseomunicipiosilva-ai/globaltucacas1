@@ -11,6 +11,7 @@ export async function POST(request: Request) {
     }
 
     const fechaPago = fecha || new Date().toISOString().split('T')[0];
+    const identidadNorm = identidad ? identidad.replace(/-/g, '').replace(/^([JVEG])(\d)/i, '$1-$2').toUpperCase() : '';
 
     // PUNTO DE VENTA: aprobación automática
     if (metodo === 'punto_de_venta') {
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
       const recibosRefs = recibosData ? recibosData.map(r => r.referencia) : [];
       
       await supabase.from('pagos_reportados').insert({
-        identidad: identidad,
+        identidad: identidadNorm,
         monto: monto,
         banco: banco || metodo,
         referencia: referencia || '',

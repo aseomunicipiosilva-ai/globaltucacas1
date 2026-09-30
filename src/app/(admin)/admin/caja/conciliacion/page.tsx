@@ -44,7 +44,7 @@ const BANCOS_DESTINO = [
   'BANCO PROVINCIAL - 0108',
 ];
 
-const FORMAS_PAGO = ['Todos', 'Transferencia', 'Punto de Venta', 'Debito', 'Efectivo'];
+const FORMAS_PAGO = ['Todos', 'Transferencia', 'Transferencia (Web)', 'Punto de Venta', 'Debito', 'Efectivo'];
 const ESTATUS_LIST = ['Todos', 'Pendiente', 'Por Verificar', 'Aprobado', 'Rechazado'];
 const ESTATUS_CONCILIAR = ['Aprobado', 'Rechazado', 'Con Diferencia'];
 
@@ -1001,12 +1001,26 @@ export default function ConciliacionPage() {
       if (!soloVerificacion && filtros.desde) q = q.gte('created_at', filtros.desde + 'T04:00:00.000Z');
       if (!soloVerificacion && filtros.hasta) { const d = new Date(filtros.hasta + 'T04:00:00Z'); d.setDate(d.getDate()+1); q = q.lte('created_at', d.toISOString()); }
       if (filtros.estatus !== 'Todos') q = q.eq('estado', filtros.estatus);
-      if (filtros.formaPago !== 'Todos') q = q.eq('tipo', filtros.formaPago);
+      if (filtros.formaPago !== 'Todos') {
+        if (filtros.formaPago === 'Transferencia') {
+          q = q.in('tipo', ['Transferencia', 'Transferencia (Web)']);
+        } else {
+          q = q.eq('tipo', filtros.formaPago);
+        }
+      }
       if (filtros.referencia) q = q.ilike('referencia', '%' + filtros.referencia + '%');
       if (filtros.nombre) {
         const { data: inms } = await supabase.from('inmuebles').select('identidad').ilike('contribuyente', '%' + filtros.nombre + '%');
         if (inms && inms.length > 0) {
-          q = q.in('identidad', inms.map(i => i.identidad));
+          const ids = new Set();
+          inms.forEach(i => {
+            if (i.identidad) {
+              ids.add(i.identidad);
+              ids.add(i.identidad.replace(/-/g, ''));
+              ids.add(i.identidad.replace(/-/g, '').replace(/^([JVEG])(\d)/i, '$1-$2'));
+            }
+          });
+          q = q.in('identidad', Array.from(ids));
         } else {
           q = q.eq('identidad', 'NO_EXISTE_ESTE_CONTRIBUYENTE_123');
         }

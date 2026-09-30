@@ -1,9 +1,23 @@
 'use client';
+import { useEffect, useState } from 'react';
 import { Power } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { logAudit } from '@/lib/audit';
 export default function Header() {
   const router = useRouter();
+  const [userName, setUserName] = useState('Usuario Oficial');
+
+  useEffect(() => {
+    try {
+      const userData = JSON.parse(localStorage.getItem('admin_user_data') || '{}');
+      if (userData.nombre) {
+        setUserName(userData.nombre);
+      } else {
+        const adminUser = localStorage.getItem('adminUser');
+        if (adminUser) setUserName(adminUser);
+      }
+    } catch(e) {}
+  }, []);
   
   return (
     <header className="h-16 bg-[#1e293b] sticky top-0 left-0 right-0 flex items-center justify-between px-6 z-40 border-b border-slate-700 shadow-md">
@@ -12,7 +26,7 @@ export default function Header() {
       </div>
       <div className="flex items-center gap-4 text-sm">
         <div className="text-right">
-          <div className="font-medium text-[#c8e64c]">Usuario Oficial</div>
+          <div className="font-medium text-[#c8e64c] capitalize">{userName}</div>
           <div className="text-xs text-slate-300">Última Conexión: Hoy</div>
         </div>
         <button 

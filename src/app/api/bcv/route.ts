@@ -162,8 +162,9 @@ export async function GET(request: Request) {
       const usdVal = usdData.promedio;
       const euroVal = eurData.promedio;
       
+ 
 
-
+ 
 
       const tcmmv = euroVal; // Estrictamente tasa Euro
 
