@@ -8,12 +8,16 @@ export default function Sidebar() {
   const isAdminPath = pathname.startsWith('/admin') || pathname.startsWith('/audit');
 
   const [isSuperAdmin, setIsSuperAdmin] = require('react').useState(false);
+  const [isCajero, setIsCajero] = require('react').useState(false);
   require('react').useEffect(() => {
     try {
       const userData = JSON.parse(localStorage.getItem('admin_user_data') || '{}');
       const user = localStorage.getItem('adminUser');
       if (userData.rol === 'Administrador' || userData.rol === 'SuperAdmin' || user === 'Administrador' || user === 'dzara') {
         setIsSuperAdmin(true);
+      }
+      if (userData.rol === 'Cajero' || userData.rol === 'Taquilla' || (userData.rol && userData.rol.includes('Taquilla')) || (userData.rol && userData.rol.includes('Cajero')) || (userData.rol && userData.rol.includes('Operador'))) {
+        setIsCajero(true);
       }
     } catch(e) {}
   }, []);
@@ -26,7 +30,7 @@ export default function Sidebar() {
   const isRecaudacion = pathname.startsWith('/admin/recaudacion');
   const isAdministracion = pathname.startsWith('/admin/administracion');
 
-  const menuAseo = [
+  let baseMenuAseo = [
     { icon: Home, name: 'Inicio Aseo', href: '/admin' },
     ...(isSuperAdmin ? [{ icon: PieChart, name: 'Administrativo', href: '/admin/administrativo' }] : []),
     { icon: FileText, name: 'Tarifas / Ordenanza', href: '/admin/tarifas' },
@@ -55,6 +59,31 @@ export default function Sidebar() {
     { icon: Map, name: 'Plan de Acción', href: '/admin/plan-accion' },
     { icon: ShieldAlert, name: 'Auditoría', href: '/admin/auditoria' }
   ];
+
+  if (isCajero) {
+    const permitidos = [
+      '/admin',
+      '/admin/tarifas',
+      '/admin/censo',
+      '/admin/contribuyentes',
+      '/admin/condominios-cob',
+      '/admin/caja',
+      '/admin/estado-cuenta',
+      '/admin/certificados',
+      '/admin/historial-documentos',
+      '/admin/buzon',
+      '/admin/denuncias',
+      '/admin/rutas',
+      '/admin/servicios-especiales',
+      '/admin/reportes',
+      '/admin/correos',
+      '/cobro-movil',
+      '/admin/plan-accion'
+    ];
+    baseMenuAseo = baseMenuAseo.filter(item => permitidos.includes(item.href));
+  }
+
+  const menuAseo = baseMenuAseo;
 
   const menuRecaudacion = [
     { icon: Landmark, name: 'Dashboard Hacienda', href: '/admin/recaudacion' },
