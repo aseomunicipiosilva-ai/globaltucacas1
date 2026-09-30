@@ -1045,7 +1045,7 @@ export default function ConciliacionPage() {
   const cerrar = () => { setPagoSel(null); setMode(null); };
   const onSuccess = () => { cerrar(); fetchPagos(); };
 
-  const eliminarPago = async (pago) => {
+  const eliminarPago = async (pago: Pago) => {
     if (!window.confirm(`¿Está seguro de eliminar el pago con referencia ${pago.referencia || 'S/N'} por Bs. ${pago.monto || '0'}? Esta acción no se puede deshacer.`)) return;
     try {
       const { error } = await supabase.from('pagos_reportados').delete().eq('id', pago.id);
