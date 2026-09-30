@@ -990,6 +990,13 @@ export default function ConciliacionPage() {
   });
   const [pagoSel, setPagoSel] = useState<Pago | null>(null);
   const [mode, setMode] = useState<'conciliar'|'comprobante'|'edoCuenta'|null>(null);
+  const [isCajero, setIsCajero] = useState(false);
+  useEffect(() => {
+    try {
+      const data = JSON.parse(localStorage.getItem('admin_user_data') || '{}');
+      if (data.rol === 'Cajero' || data.rol === 'Taquilla') setIsCajero(true);
+    } catch(e){}
+  }, []);
 
   const fetchPagos = useCallback(async () => {
     setLoading(true);
@@ -1094,10 +1101,10 @@ export default function ConciliacionPage() {
         <td className="px-3 py-2 text-sm font-bold text-right text-slate-800">
           <div className="flex items-center justify-end gap-2">
             <span>{fmt(m)}</span>
-            {esPendiente && <button onClick={()=>abrir(pago,'conciliar')} title="Conciliar pago" className="text-slate-500 hover:text-blue-700 transition-colors"><Landmark size={18}/></button>}
+            {esPendiente && !isCajero && <button onClick={()=>abrir(pago,'conciliar')} title="Conciliar pago" className="text-slate-500 hover:text-blue-700 transition-colors"><Landmark size={18}/></button>}
             {det.comprobante_url && <button onClick={()=>abrir(pago,'comprobante')} title="Ver comprobante" className="text-blue-600 hover:text-blue-800 transition-colors"><Eye size={18}/></button>}
-            {esAprobado && !det.comprobante_url && <button onClick={()=>abrir(pago,'conciliar')} title="Editar" className="text-green-600 hover:text-green-800 transition-colors"><Pencil size={16}/></button>}
-            <button onClick={()=>eliminarPago(pago)} title="Eliminar" className="text-red-500 hover:text-red-700 transition-colors"><Trash2 size={16}/></button>
+            {esAprobado && !det.comprobante_url && !isCajero && <button onClick={()=>abrir(pago,'conciliar')} title="Editar" className="text-green-600 hover:text-green-800 transition-colors"><Pencil size={16}/></button>}
+            {!isCajero && <button onClick={()=>eliminarPago(pago)} title="Eliminar" className="text-red-500 hover:text-red-700 transition-colors"><Trash2 size={16}/></button>}
           </div>
         </td>
       </tr>
