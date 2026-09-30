@@ -994,7 +994,7 @@ export default function ConciliacionPage() {
   useEffect(() => {
     try {
       const data = JSON.parse(localStorage.getItem('admin_user_data') || '{}');
-      if (data.rol === 'Cajero' || data.rol === 'Taquilla') setIsCajero(true);
+      if (data.rol === 'Cajero' || data.rol === 'Taquilla' || (data.rol && data.rol.includes('Taquilla')) || (data.rol && data.rol.includes('Cajero')) || (data.rol && data.rol.includes('Operador'))) setIsCajero(true);
     } catch(e){}
   }, []);
 
