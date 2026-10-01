@@ -15,7 +15,7 @@ export default function DecretosPage() {
       const { data, error } = await supabase
         .from('inmuebles')
         .select('*')
-        .or(`identidad.ilike.%${searchTerm}%,nombre.ilike.%${searchTerm}%`)
+        .or(`identidad.ilike.%${searchTerm}%,contribuyente.ilike.%${searchTerm}%`)
         .limit(20);
         
       if (error) throw error;
@@ -117,7 +117,7 @@ export default function DecretosPage() {
                   return (
                     <tr key={c.id} className="hover:bg-slate-50">
                       <td className="px-6 py-4 font-medium text-slate-800">{c.identidad}</td>
-                      <td className="px-6 py-4">{c.nombre}</td>
+                      <td className="px-6 py-4">{c.contribuyente}</td>
                       <td className="px-6 py-4 capitalize">{c.clasificacion || 'N/A'}</td>
                       <td className="px-6 py-4 text-center">
                         {isActive ? (
