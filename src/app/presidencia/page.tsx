@@ -214,8 +214,7 @@ export default function PresidenciaDashboard() {
         {/* Period selector */}
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 16 }}>
           {(['hoy','semana','mes','mes_pasado'] as Periodo[]).map(p => <BtnPeriodo key={p} p={p} />)}
-          <div style={{ position: 'relative' }}>
-            <BtnPeriodo p={'custom'} />
+          <div style={{ display: 'flex', alignItems: 'center' }}>
             <input 
               type="month" 
               value={customMonth}
@@ -224,10 +223,11 @@ export default function PresidenciaDashboard() {
                 setPeriodo('custom');
               }}
               style={{
-                position: 'absolute',
-                top: 0, left: 0, right: 0, bottom: 0,
-                opacity: 0, cursor: 'pointer',
-                width: '100%'
+                padding: '7px 14px', borderRadius: 20, border: 'none', fontSize: 13, fontWeight: 600,
+                cursor: 'pointer', outline: 'none', transition: 'all .2s',
+                background: periodo === 'custom' ? '#B8CD29' : 'rgba(255,255,255,0.08)',
+                color: periodo === 'custom' ? '#06120e' : 'rgba(200,230,200,.8)',
+                fontFamily: 'inherit'
               }}
             />
           </div>
