@@ -1045,7 +1045,7 @@ function ContribuyentesPageContent() {
     try {
       const deudaMMV = calculoDetalle.factor * debtMonths;
       
-            const parseLevelToArea = (nivel) => {
+            const parseLevelToArea = (nivel: string | null) => {
         if (!nivel) return null;
         if (nivel.includes('0 - 50')) return 50;
         if (nivel.includes('51 - 100')) return 100;
