@@ -46,6 +46,7 @@ export default function Sidebar() {
     { icon: Landmark, name: 'Conciliacion Bancaria', href: '/admin/caja/conciliacion' },
     { icon: FileSpreadsheet, name: 'Emisión de recibos', href: '/admin/estado-cuenta' },
     { icon: Handshake, name: 'Convenios de Pago', href: '/admin/convenios-pago' },
+    { icon: FileCheck, name: 'Decretos', href: '/admin/decretos' },
     { icon: Award, name: 'Certificados Emitidos', href: '/admin/certificados' },
     { icon: History, name: 'Historial Documentos', href: '/admin/historial-documentos' },
     { icon: Inbox, name: 'Buzón de Solicitudes', href: '/admin/buzon' },
