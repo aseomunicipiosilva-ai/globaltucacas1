@@ -86,18 +86,16 @@ export default function CondominiosCOBPage() {
           <button 
             onClick={async () => {
               try {
-                const pendingFacturas = (recibos || []).filter((f: any) => {
-                  const contrib = (f.contribuyente || '').toLowerCase().trim();
-                  return contrib === row.identidad.toLowerCase().trim() || contrib === row.nombre.toLowerCase().trim();
-                });
-                if (pendingFacturas.length === 0) {
-                  alert('Este condominio no tiene recibos registradas.');
-                  return;
-                }
-                const { exportCondominioEstadoCuenta } = await import('@/lib/excelCondominioExport');
-                const { supabase } = await import('@/lib/supabase');
-                const { data: unidades } = await supabase.from('unidades_condominio').select('*').eq('condominio_id', row.id);
-                await exportCondominioEstadoCuenta(row, pendingFacturas, unidades || [], tcmmv);
+                                const { exportToExcelWithLogos } = await import('@/lib/excelExport');
+                const data = unidades.map((u: any) => ({
+                  "Condominio": row.nombre,
+                  "RIF Condominio": row.identidad,
+                  "Unidad/Local": u.numero_unidad,
+                  "Propietario": u.propietario || 'No asignado',
+                  "Ocupación": u.ocupacion || 'Ocupada',
+                  "Estado": u.estado || 'Solvente'
+                }));
+                await exportToExcelWithLogos(data, `Unidades_${row.identidad}.xlsx`, "Unidades");
               } catch (e) {
                 alert("Error exportando Estado de Cuenta a Excel");
               }
