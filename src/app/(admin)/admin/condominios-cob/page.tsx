@@ -117,16 +117,12 @@ export default function CondominiosCOBPage() {
                   alert('Este condominio no tiene unidades registradas.');
                   return;
                 }
-                const { exportToExcelWithLogos } = await import('@/lib/excelExport');
-                const data = unidades.map((u: any) => ({
-                  "Condominio": row.nombre,
-                  "RIF Condominio": row.identidad,
-                  "Unidad/Local": u.numero_unidad,
-                  "Propietario": u.propietario || 'No asignado',
-                  "Ocupación": u.ocupacion || 'Ocupada',
-                  "Estado": u.estado || 'Solvente'
-                }));
-                await exportToExcelWithLogos(data, `Unidades_${row.identidad}.xlsx`, "Unidades");
+                const pendingFacturas = (recibos || []).filter((f: any) => {
+                  const contrib = (f.contribuyente || '').toLowerCase().trim();
+                  return contrib === row.identidad.toLowerCase().trim() || contrib === row.nombre.toLowerCase().trim();
+                });
+                const { exportCondominioEstadoCuenta } = await import('@/lib/excelCondominioExport');
+                await exportCondominioEstadoCuenta(row, pendingFacturas, unidades || [], tcmmv);
               } catch (e) {
                 alert("Error exportando a Excel");
               }
