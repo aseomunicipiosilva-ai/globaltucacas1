@@ -13,7 +13,7 @@ export default function DecretosPage() {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('contribuyentes')
+        .from('inmuebles')
         .select('*')
         .or(`identidad.ilike.%${searchTerm}%,nombre.ilike.%${searchTerm}%`)
         .limit(20);
@@ -31,14 +31,14 @@ export default function DecretosPage() {
     try {
       const newStatus = !currentStatus;
       const { error } = await supabase
-        .from('contribuyentes')
+        .from('inmuebles')
         .update({ convenio_activo: newStatus })
         .eq('id', id);
 
       if (error) {
         if (error.message.includes('convenio_activo')) {
           const { error: err2 } = await supabase
-            .from('contribuyentes')
+            .from('inmuebles')
             .update({ decreto_activo: newStatus })
             .eq('id', id);
           if (err2) {
