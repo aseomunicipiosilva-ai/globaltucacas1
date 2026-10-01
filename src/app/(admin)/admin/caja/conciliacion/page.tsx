@@ -208,7 +208,7 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
               .from('facturas')
               .select('monto')
               .or(`identidad.eq.${pago.identidad},identidad.eq.${idLimpio}`)
-              .in('estado', ['Pendiente', 'Por Verificar']);
+              .in('estado', ['Pendiente', 'Por Verificar', 'Abonado']);
             if (facs) {
               deudaTotal = facs.reduce((a, f) => a + (parseFloat(String(f.monto || '0').replace(/[^0-9.]/g,'')) || 0), 0);
             }
@@ -230,7 +230,7 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
     })();
   }, [pago.identidad]);
 
-  const pendientes = recibos.filter(f => f.estado === 'Pendiente');
+  const pendientes = recibos.filter(f => f.estado === 'Pendiente' || f.estado === 'Abonado');
   const pagadas = recibos.filter(f => f.estado === 'Pagado');
   const totalDoc = parseFloat(String(pago.monto || '0').replace(/[^0-9.]/g, '').replace(',','.')) || 0;
   const totalPendiente = pendientes.reduce((a, f) => a + (parseFloat(String(f.monto||'0').replace(/[^0-9.]/g,''))||0), 0);
@@ -453,7 +453,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
               .from('facturas')
               .select('monto')
               .or(`identidad.eq.${pago.identidad},identidad.eq.${idLimpio}`)
-              .in('estado', ['Pendiente', 'Por Verificar']);
+              .in('estado', ['Pendiente', 'Por Verificar', 'Abonado']);
             if (facs) {
               deudaTotal = facs.reduce((a, f) => a + (parseFloat(String(f.monto || '0').replace(/[^0-9.]/g,'')) || 0), 0);
             }

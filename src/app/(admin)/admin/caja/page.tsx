@@ -936,11 +936,14 @@ export default function CajaPage() {
                     precioUnit: montoF + abonoPrevio,
                     total: montoF + abonoPrevio
                   });
-                  conceptosGrupo.push({
-                    descripcion: `Abonos Anteriores (Mes: ${getMesRec(f?.emision || '')})`,
-                    precioUnit: -abonoPrevio,
-                    total: -abonoPrevio
-                  });
+                  // Si no es abono (se esta completando), no mostramos el descuento de abonos anteriores para que la factura salga por el monto completo.
+                  if (esAbono) {
+                    conceptosGrupo.push({
+                      descripcion: `Abonos Anteriores (Mes: ${getMesRec(f?.emision || '')})`,
+                      precioUnit: -abonoPrevio,
+                      total: -abonoPrevio
+                    });
+                  }
                 } else {
                   conceptosGrupo.push({
                     descripcion: `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${getMesRec(f?.emision || '')}`,

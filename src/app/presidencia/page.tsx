@@ -215,21 +215,26 @@ export default function PresidenciaDashboard() {
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 16 }}>
           {(['hoy','semana','mes','mes_pasado'] as Periodo[]).map(p => <BtnPeriodo key={p} p={p} />)}
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            <input 
-              type="month" 
-              value={customMonth}
-              onChange={(e) => {
-                setCustomMonth(e.target.value);
-                setPeriodo('custom');
-              }}
-              style={{
-                padding: '7px 14px', borderRadius: 20, border: 'none', fontSize: 13, fontWeight: 600,
-                cursor: 'pointer', outline: 'none', transition: 'all .2s',
-                background: periodo === 'custom' ? '#B8CD29' : 'rgba(255,255,255,0.08)',
-                color: periodo === 'custom' ? '#06120e' : 'rgba(200,230,200,.8)',
-                fontFamily: 'inherit'
-              }}
-            />
+            <label style={{
+              position: 'relative', overflow: 'hidden', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              padding: '8px 14px', borderRadius: 20, border: 'none', fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', transition: 'all .2s',
+              background: periodo === 'custom' ? '#B8CD29' : 'rgba(255,255,255,0.08)',
+              color: periodo === 'custom' ? '#06120e' : 'rgba(200,230,200,.8)'
+            }}>
+              {periodo === 'custom' && customMonth ? customMonth : 'Otro Mes'}
+              <input 
+                type="month" 
+                value={customMonth}
+                onChange={(e) => {
+                  setCustomMonth(e.target.value);
+                  setPeriodo('custom');
+                }}
+                style={{
+                  position: 'absolute', opacity: 0, inset: 0, width: '100%', height: '100%', cursor: 'pointer'
+                }}
+              />
+            </label>
           </div>
         </div>
 
