@@ -1045,10 +1045,28 @@ function ContribuyentesPageContent() {
     try {
       const deudaMMV = calculoDetalle.factor * debtMonths;
       
-      // Update deuda_mmv in inmuebles where identidad matches formData.Identidad
+            const parseLevelToArea = (nivel) => {
+        if (!nivel) return null;
+        if (nivel.includes('0 - 50')) return 50;
+        if (nivel.includes('51 - 100')) return 100;
+        if (nivel.includes('101 - 200')) return 200;
+        if (nivel.includes('201')) return 201;
+        return null;
+      };
+      const isComercial = formData.Clasificacion === 'Comercial' || formData.Clasificacion === 'Industrial';
+      const areaVal = isComercial ? parseLevelToArea(formData.NivelMetraje) : null;
+
+      // Update deuda_mmv and related form data in inmuebles where identidad matches formData.Identidad
       const { error: err1 } = await supabase
         .from('inmuebles')
-        .update({ deuda_mmv: deudaMMV })
+        .update({ 
+          deuda_mmv: deudaMMV,
+          area: areaVal,
+          area_m2: areaVal,
+          mmv_mes: calculoDetalle.factor,
+          clasificacion: formData.Clasificacion || 'Residencial',
+          actividad_principal: formData.Clasificacion === 'Residencial' ? formData.TipoResidencia : formData.ActividadComercial
+        })
         .eq('identidad', formData.Identidad);
         
       if (err1) throw err1;

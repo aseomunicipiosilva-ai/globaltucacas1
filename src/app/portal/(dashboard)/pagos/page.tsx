@@ -148,6 +148,7 @@ export default function DondePagarPage() {
     'Fondemi', 'Microfinanzas', 'Pagomovil BDV', 'Otro'].sort();
 
   const montoTotal = deudas.filter(d => d.seleccionado).reduce((acc, curr) => acc + curr.monto, 0);
+  const hasUnselectedDebts = deudas.some(d => !d.seleccionado);
 
   useEffect(() => {
     setFormData(prev => ({ ...prev, monto: montoTotal > 0 ? formatBs(montoTotal) : '' }));
@@ -375,9 +376,15 @@ export default function DondePagarPage() {
                 </div>
 
                 {/* Solo transferencia disponible en línea */}
+                {hasUnselectedDebts && deudas.length > 0 && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-xs flex items-start gap-2 mb-3">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <div>Debe seleccionar <strong>TODAS</strong> las deudas pendientes para poder reportar el pago por Transferencia.</div>
+                  </div>
+                )}
                 <button
                   type="button"
-                  disabled={montoTotal === 0}
+                  disabled={montoTotal === 0 || hasUnselectedDebts}
                   onClick={() => setMetodo('transferencia')}
                   className={`w-full p-4 rounded-lg border-2 text-left transition-all flex items-start gap-3 disabled:opacity-40 disabled:cursor-not-allowed ${
                     metodo === 'transferencia'

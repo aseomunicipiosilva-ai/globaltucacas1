@@ -160,7 +160,7 @@ export default function CajaPage() {
     );
 
     // RECIB- = deuda acumulada de N meses → usar deuda_mmv del inmueble × tasa actual
-    if (r.referencia?.startsWith('RECIB-')) {
+    if (r.referencia?.startsWith('RECIB-') && r.estado !== 'Abonado') {
       let totalDeudaMMV = 0;
       userInms.forEach((inm: any) => {
         totalDeudaMMV += parseFloat(inm.deuda_mmv || 0);
@@ -188,7 +188,7 @@ export default function CajaPage() {
 
     // CM- = exactamente 1 mes del inmueble específico referenciado en la factura
     // Usa el mismo matching que la UI: r.referencia.includes(inm.inmueble)
-    if (r.referencia?.startsWith('CM-')) {
+    if (r.referencia?.startsWith('CM-') && r.estado !== 'Abonado') {
       // Buscar el inmueble cuyo código está contenido en la referencia
       let targetInms = userInms.filter((inm: any) =>
         inm.inmueble && (r.referencia || '').includes(inm.inmueble)

@@ -939,7 +939,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                 <div className="border-t pt-2 mt-1">
                   <div className="flex justify-between text-sm">
                     <span className="text-amber-700 font-bold">? Deuda Restante (Pendiente de Pago)</span>
-                    <span className="text-amber-700 font-bold">- {fmt(deudaTotalContrib - montoReportadoNum)}</span>
+                    <span className="text-amber-700 font-bold">Bs. {fmt(deudaTotalContrib - montoReportadoNum)}</span>
                   </div>
                   {det.nota_cambio_tasa && (
                     <p className="text-xs text-amber-700 mt-1 bg-amber-50 border border-amber-200 rounded px-2 py-1">

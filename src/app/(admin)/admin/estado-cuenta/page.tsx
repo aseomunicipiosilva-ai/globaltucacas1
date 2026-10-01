@@ -571,7 +571,7 @@ export default function EstadoCuentaPage() {
             let descripcionBase = `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${getMesTxt(f.emision)}`;
 
             if (tcmmv && tcmmv > 0 && userInmsForAll.length > 0 && f.estado !== 'Pagado' && f.estado !== 'Abonado') {
-              if (f.referencia?.startsWith('CM-')) {
+              if (f.referencia?.startsWith('CM-') && f.estado !== 'Abonado') {
                 let matchedInmuebles = userInmsForAll;
                 
                 // Extraer el ID del local de la referencia (ej: I-000080 de CM-I-000080-09-2026)
@@ -590,7 +590,7 @@ export default function EstadoCuentaPage() {
                   mmv += parseFloat(inm.cant_inmuebles || 1) * parseFloat(inm.mmv_mes || 0);
                 });
                 if (mmv > 0) mF = parseFloat((mmv * tcmmv).toFixed(2));
-              } else if (f.referencia?.startsWith('RECIB-')) {
+              } else if (f.referencia?.startsWith('RECIB-') && f.estado !== 'Abonado') {
                 let deuda = 0;
                 userInmsForAll.forEach((inm: any) => { deuda += parseFloat(inm.deuda_mmv || 0); });
                 if (deuda > 0) mF = parseFloat((deuda * tcmmv).toFixed(2));
