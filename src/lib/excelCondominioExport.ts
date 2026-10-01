@@ -26,9 +26,9 @@ export const exportCondominioEstadoCuenta = async (
 
   // Helper formats
   const formatBs = (num: number) => `Bs. ${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const blueFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
-  const lightBlueFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFB4C6E7' } };
-  const borders = {
+  const blueFill: any = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
+  const lightBlueFill: any = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFB4C6E7' } };
+  const borders: any = {
     top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'}
   };
 
