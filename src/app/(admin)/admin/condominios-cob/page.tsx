@@ -95,6 +95,7 @@ export default function CondominiosCOBPage() {
                   return;
                 }
                 const { exportCondominioEstadoCuenta } = await import('@/lib/excelCondominioExport');
+                const { supabase } = await import('@/lib/supabase');
                 const { data: unidades } = await supabase.from('unidades_condominio').select('*').eq('condominio_id', row.id);
                 await exportCondominioEstadoCuenta(row, pendingFacturas, unidades || [], tcmmv);
               } catch (e) {
