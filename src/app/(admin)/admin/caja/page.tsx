@@ -232,7 +232,7 @@ export default function CajaPage() {
     'Banco Bicentenario', 'Banco Caroní', 'Banco de Venezuela', 'Banco del Tesoro', 
     'Banco Exterior', 'Banco Mercantil', 'Banco Nacional de Crédito (BNC)', 'Banco Plaza',
     'Banco Provincial', 'Banco Sofitasa', 'Banco del Sur', 'Banesco', 'Banplus', 'Bancrecer',
-    'Mi Banco', 'Otro', 'Banco Internacional (BIB)', 'Banco Venezolano de Crédito (BVC)',
+    'Mi Banco', 'Banco Internacional (BIB)', 'Banco Venezolano de Crédito (BVC)',
     'BanFanb', 'Bancovi', 'Instituto Municipal de Crédito Popular (IMCP)',
     'Fondemi', 'Microfinanzas', 'Pagomovil BDV', 'Otro'].sort();
 
