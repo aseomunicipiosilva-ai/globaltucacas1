@@ -242,7 +242,7 @@ function ModalEstadoCuenta({ pago, onClose }: { pago: Pago; onClose: () => void 
         <div className="bg-slate-100 px-6 py-4 border-b border-slate-200 flex items-center justify-between rounded-t-xl">
           <div>
             <h1 className="text-xl font-bold text-slate-800">ESTADO DE CUENTA</h1>
-            <p className="text-xs text-slate-500">Generado por: {det.analista || 'Administrador'}</p>
+            <p className="text-xs text-slate-500">Generado por: {det.origen || det.analista || 'Administrador'}</p>
           </div>
           <div className="text-right">
             <p className="text-sm font-bold text-slate-600">Nro.: {String(pago.id || '').slice(-5).padStart(5, '0')}</p>
@@ -590,7 +590,8 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
         const { data: facs } = await supabase.from('facturas').select('*').in('referencia', recibos);
         if (facs && facs.length > 0) {
           // Calcular deuda total de los recibos seleccionados
-          let deudaTotal = facs.reduce((s, f) => s + parseFloat(f.monto || '0'), 0);
+          const facsPendientes = facs.filter(f => f.estado !== 'Pagado');
+          let deudaTotal = facsPendientes.reduce((s, f) => s + parseFloat(f.monto || '0'), 0);
           
           let usarTasaPersonalizada = false;
           let factorTasa = 1;
@@ -611,6 +612,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
             let dineroDisponible = montoConciliadoNum;
 
             for (const fac of facs) {
+              if (fac.estado === 'Pagado') continue;
               const montoFacBase = parseFloat(fac.monto || '0');
               const montoFac = usarTasaPersonalizada ? parseFloat((montoFacBase * factorTasa).toFixed(2)) : montoFacBase;
               
@@ -642,7 +644,8 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
             // Pago completo: marcar todas como Pagado
             if (usarTasaPersonalizada) {
               for (const fac of facs) {
-                const montoFacBase = parseFloat(fac.monto || '0');
+              if (fac.estado === 'Pagado') continue;
+              const montoFacBase = parseFloat(fac.monto || '0');
                 const montoFac = parseFloat((montoFacBase * factorTasa).toFixed(2));
                 await supabase.from('facturas').update({ estado: 'Pagado', monto: montoFac }).eq('referencia', fac.referencia);
               }
@@ -924,31 +927,54 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-blue-600 font-semibold">Total Documento</span>
-                <span className="text-blue-600 font-bold">{fmt(montoReportadoNum)}</span>
+                <span className="text-blue-600 font-bold">{fmt(hayRecalculo && deudaRecalculada > 0 ? deudaRecalculada : (det.total_seleccionado ? parseFloat(det.total_seleccionado) : facturasParaConciliar.reduce((s,f) => s + parseFloat(f.monto || '0'), 0)))}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-green-600 font-semibold">Total Retenciones</span>
                 <span className="text-green-600 font-bold">0,00</span>
               </div>
               <div className="flex justify-between text-sm border-t pt-1 mt-1">
-                <span className="font-bold text-slate-800">Total a Pagar</span>
+                <span className="font-bold text-slate-800">Monto Transferido / Pagado</span>
                 <span className="font-bold text-slate-800">{fmt(montoReportadoNum)}</span>
               </div>
-              {/* Diferencia pendiente cuando monto conciliado < deuda total */}
-              {estatus === 'Aprobado' && montoConciliadoNum > 0 && montoReportadoNum < deudaTotalContrib - 0.01 && (
-                <div className="border-t pt-2 mt-1">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-amber-700 font-bold">? Deuda Restante (Pendiente de Pago)</span>
-                    <span className="text-amber-700 font-bold">Bs. {fmt(deudaTotalContrib - montoReportadoNum)}</span>
-                  </div>
-                  {det.nota_cambio_tasa && (
-                    <p className="text-xs text-amber-700 mt-1 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                      ? Ajuste por cambio de tasa BCV: {det.nota_cambio_tasa}. Tasa aplicada: {det.tasa_bcv_aplicada || det.tasa_bcv} Bs/�.
-                    </p>
-                  )}
-                  <p className="text-xs text-slate-500 mt-1">El contribuyente tiene recibos adicionales o inmuebles pendientes no incluidos en este pago.</p>
-                </div>
-              )}
+              {/* Diferencia pendiente cuando el pago no cubre los recibos seleccionados */}
+              {(() => {
+                const deudaDocs = hayRecalculo && deudaRecalculada > 0 ? deudaRecalculada : (det.total_seleccionado ? parseFloat(det.total_seleccionado) : facturasParaConciliar.reduce((s,f) => s + parseFloat(f.monto || '0'), 0));
+                const resto = deudaDocs - montoReportadoNum;
+                if (estatus === 'Aprobado' && montoConciliadoNum > 0 && resto > 0.01) {
+                  return (
+                    <div className="border-t pt-2 mt-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-amber-700 font-bold">? Deuda Restante (Abono a Documento)</span>
+                        <span className="text-amber-700 font-bold">Bs. {fmt(resto)}</span>
+                      </div>
+                      {det.nota_cambio_tasa && (
+                        <p className="text-xs text-amber-700 mt-1 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                          ? Ajuste por cambio de tasa BCV: {det.nota_cambio_tasa}. Tasa aplicada: {det.tasa_bcv_aplicada || det.tasa_bcv} Bs/$.
+                        </p>
+                      )}
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+              
+              {/* Alerta de otras deudas pendientes */}
+              {(() => {
+                 const deudaDocs = hayRecalculo && deudaRecalculada > 0 ? deudaRecalculada : (det.total_seleccionado ? parseFloat(det.total_seleccionado) : facturasParaConciliar.reduce((s,f) => s + parseFloat(f.monto || '0'), 0));
+                 if (estatus === 'Aprobado' && deudaTotalContrib > deudaDocs + 0.01) {
+                   return (
+                     <div className="mt-2 pt-2 border-t border-slate-100">
+                       <p className="text-xs text-slate-500 flex items-start gap-1">
+                         <span className="text-amber-500 text-sm leading-none">?</span>
+                         El contribuyente tiene otras facturas/inmuebles con deudas pendientes no incluidas en este pago.
+                       </p>
+                     </div>
+                   );
+                 }
+                 return null;
+              })()}
+
               {estatus === 'Con Diferencia' && parseFloat(montoConciliado) > 0 && (
                 <div className="flex justify-between text-sm border-t pt-1 mt-1 text-amber-700 font-bold">
                   <span>Saldo a Favor a Acreditar</span>

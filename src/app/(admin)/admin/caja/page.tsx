@@ -924,14 +924,30 @@ export default function CajaPage() {
             const grupos = Object.values(facturasPorInmueble);
             const recibosArray = grupos.map((grupo, idx) => {
               const inmGrupo = grupo.inm || primerInm;
-              const conceptosGrupo = grupo.refs.map((ref: string) => {
+              let conceptosGrupo: any[] = [];
+              grupo.refs.forEach((ref: string) => {
                 const f = recibos.find((r: any) => r.referencia === ref);
                 const montoF = f ? parseFloat(getReciboMonto(f) || '0') : 0;
-                return {
-                  descripcion: `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${getMesRec(f?.emision || '')}`,
-                  precioUnit: montoF,
-                  total: montoF
-                };
+                const abonoPrevio = f && f.monto_abonado ? parseFloat(String(f.monto_abonado || '0').replace(/[^\d.]/g, '')) : 0;
+                
+                if (abonoPrevio > 0) {
+                  conceptosGrupo.push({
+                    descripcion: `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${getMesRec(f?.emision || '')}`,
+                    precioUnit: montoF + abonoPrevio,
+                    total: montoF + abonoPrevio
+                  });
+                  conceptosGrupo.push({
+                    descripcion: `Abonos Anteriores (Mes: ${getMesRec(f?.emision || '')})`,
+                    precioUnit: -abonoPrevio,
+                    total: -abonoPrevio
+                  });
+                } else {
+                  conceptosGrupo.push({
+                    descripcion: `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${getMesRec(f?.emision || '')}`,
+                    precioUnit: montoF,
+                    total: montoF
+                  });
+                }
               });
               const totalGrupo = conceptosGrupo.reduce((s: number, c: any) => s + c.total, 0);
               const refNum = (grupo.refs[0] || '').split('-').pop()?.padStart(7, '0') || String(idx + 1).padStart(7, '0');

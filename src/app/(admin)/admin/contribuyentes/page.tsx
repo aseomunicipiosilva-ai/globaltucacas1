@@ -2729,7 +2729,12 @@ function ContribuyentesPageContent() {
                           try { det = JSON.parse(p.detalles || '{}'); } catch(e){}
                           const esAbono = det.es_abono === true;
                           const metodo = p.tipo === 'Debito' ? 'Punto de Venta' : p.tipo || '---';
-                          const cajeroNombre = det.cajero || det.usuario || det.operador || p.cajero || '—';
+                          let cajeroNombre = det.cajero || det.usuario || det.operador || p.cajero;
+                          if (!cajeroNombre && p.tipo === 'Transferencia') {
+                            cajeroNombre = 'Transferencia Web';
+                          } else if (!cajeroNombre) {
+                            cajeroNombre = '—';
+                          }
                           return (
                             <tr key={idx} className={`border-b border-slate-100 last:border-0 hover:bg-indigo-50/20 ${esAbono ? 'bg-amber-50/20' : ''}`}>
                               <td className="px-3 py-2 text-slate-500 text-xs">{p.created_at ? new Date(p.created_at).toLocaleDateString('es-VE') : '---'}</td>

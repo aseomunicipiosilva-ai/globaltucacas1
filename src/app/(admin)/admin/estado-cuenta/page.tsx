@@ -1310,7 +1310,7 @@ export default function EstadoCuentaPage() {
                     const det = parseDetalles(pago.detalles);
                     const esAbono = det.es_abono === true;
                     const metodo = pago.tipo === 'Debito' ? 'Punto de Venta' : pago.tipo || '---';
-                    const cajeroNombre = det.cajero || det.usuario || det.operador || pago.cajero || '—';
+                    const cajeroNombre = det.origen || det.cajero || det.usuario || det.operador || pago.cajero || '—';
                     // Meses pagados: extraer períodos de las referencias en detalles.recibos
                     const MESES_ABR = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
                     const getMesAbr = (ref: string) => {
