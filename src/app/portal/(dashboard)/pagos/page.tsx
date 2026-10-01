@@ -142,11 +142,10 @@ export default function DondePagarPage() {
     '100% Banco', 'Bancamiga', 'Bancaribe', 'Banco Activo', 'Banco Bicentenario',
     'Banco Caroní', 'Banco de Venezuela', 'Banco del Tesoro', 'Banco Exterior',
     'Banco Mercantil', 'Banco Nacional de Crédito (BNC)', 'Banco Plaza',
-    'Banco Provincial', 'Banco Sofitasa', 'Banesco', 'Banplus', 'Bancrecer',
-    'Mi Banco', 'Banco Internacional (BIB)', 'Banco Venezolano de Crédito (BVC)',
+    'Banco Provincial', 'Banco Sofitasa', 'Banco del Sur', 'Banesco', 'Banplus', 'Bancrecer',
+    'Mi Banco', 'Otro', 'Banco Internacional (BIB)', 'Banco Venezolano de Crédito (BVC)',
     'BanFanb', 'Bancovi', 'Instituto Municipal de Crédito Popular (IMCP)',
-    'Fondemi', 'Microfinanzas', 'Pagomovil BDV'
-  ].sort();
+    'Fondemi', 'Microfinanzas', 'Pagomovil BDV', 'Otro'].sort();
 
   const montoTotal = deudas.filter(d => d.seleccionado).reduce((acc, curr) => acc + curr.monto, 0);
 

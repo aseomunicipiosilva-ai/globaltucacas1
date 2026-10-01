@@ -418,7 +418,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
     '100% Banco','Bancamiga','Bancaribe','Banco Activo','Banco Agricola de Venezuela',
     'Banco Bicentenario','Banco Caroni','Banco de Venezuela','Banco del Tesoro',
     'Banco Exterior','Banco Mercantil','Banco Nacional de Credito BNC','Banco Plaza',
-    'Banco Provincial','Banco Sofitasa','Banesco','Banplus','Bancrecer','Mi Banco',
+    'Banco Provincial','Banco Sofitasa', 'Banco del Sur', 'Banesco','Banplus','Bancrecer','Mi Banco',
   ].sort();
 
   // Cargar TODA la info del contribuyente desde inmuebles

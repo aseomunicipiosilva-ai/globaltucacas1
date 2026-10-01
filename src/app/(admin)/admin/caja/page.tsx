@@ -231,11 +231,10 @@ export default function CajaPage() {
     '100% Banco', 'Bancamiga', 'Bancaribe', 'Banco Activo', 'Banco Agrícola de Venezuela',
     'Banco Bicentenario', 'Banco Caroní', 'Banco de Venezuela', 'Banco del Tesoro', 
     'Banco Exterior', 'Banco Mercantil', 'Banco Nacional de Crédito (BNC)', 'Banco Plaza',
-    'Banco Provincial', 'Banco Sofitasa', 'Banesco', 'Banplus', 'Bancrecer',
-    'Mi Banco', 'Banco Internacional (BIB)', 'Banco Venezolano de Crédito (BVC)',
+    'Banco Provincial', 'Banco Sofitasa', 'Banco del Sur', 'Banesco', 'Banplus', 'Bancrecer',
+    'Mi Banco', 'Otro', 'Banco Internacional (BIB)', 'Banco Venezolano de Crédito (BVC)',
     'BanFanb', 'Bancovi', 'Instituto Municipal de Crédito Popular (IMCP)',
-    'Fondemi', 'Microfinanzas', 'Pagomovil BDV'
-  ].sort();
+    'Fondemi', 'Microfinanzas', 'Pagomovil BDV', 'Otro'].sort();
 
   const handleAuthorizeRateChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1331,6 +1330,16 @@ export default function CajaPage() {
             <option value="G">G -</option>
             <option value="P">P -</option>
           </select>
+                  {(!bancosVenezuela.includes(banco) && banco !== '' || banco === 'Otro') && (
+                    <input 
+                      type="text" 
+                      placeholder="Escriba el nombre del banco" 
+                      value={banco === 'Otro' ? '' : banco}
+                      onChange={(e) => setBanco(e.target.value)}
+                      className="mt-2 w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                      required
+                    />
+                  )}
           <input 
             type="text" 
             placeholder="Número de documento o Código Usuario (Ej. N-12345)..."
@@ -1446,6 +1455,16 @@ export default function CajaPage() {
                           <option key={n} value={n}>{n} {n === 1 ? 'mes' : 'meses'}</option>
                         ))}
                       </select>
+                  {(!bancosVenezuela.includes(banco) && banco !== '' || banco === 'Otro') && (
+                    <input 
+                      type="text" 
+                      placeholder="Escriba el nombre del banco" 
+                      value={banco === 'Otro' ? '' : banco}
+                      onChange={(e) => setBanco(e.target.value)}
+                      className="mt-2 w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                      required
+                    />
+                  )}
                     </div>
                   </div>
                 )}
@@ -1653,6 +1672,16 @@ export default function CajaPage() {
                     <option value="Saldo a Favor">💳 Saldo a Favor (Bs. {formatBs(foundUser?.SaldoFavor || 0)})</option>
                   )}
                   </select>
+                  {(!bancosVenezuela.includes(banco) && banco !== '' || banco === 'Otro') && (
+                    <input 
+                      type="text" 
+                      placeholder="Escriba el nombre del banco" 
+                      value={banco === 'Otro' ? '' : banco}
+                      onChange={(e) => setBanco(e.target.value)}
+                      className="mt-2 w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                      required
+                    />
+                  )}
               </label>
 
                   {['Debito'].includes(paymentMethod) && (
@@ -1707,8 +1736,8 @@ export default function CajaPage() {
                   <label className="block">
                     <span className="text-xs font-semibold text-slate-600 mb-1 block">Banco Emisor</span>
                     <select
-                      value={banco}
-                      onChange={(e) => setBanco(e.target.value)}
+                      value={bancosVenezuela.includes(banco) ? banco : (banco ? 'Otro' : '')}
+                      onChange={(e) => setBanco(e.target.value === 'Otro' ? 'Otro' : e.target.value)}
                       className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                     >
                       <option value="" disabled>Seleccione un Banco...</option>
@@ -1716,6 +1745,16 @@ export default function CajaPage() {
                         <option key={b} value={b}>{b}</option>
                       ))}
                     </select>
+                  {(!bancosVenezuela.includes(banco) && banco !== '' || banco === 'Otro') && (
+                    <input 
+                      type="text" 
+                      placeholder="Escriba el nombre del banco" 
+                      value={banco === 'Otro' ? '' : banco}
+                      onChange={(e) => setBanco(e.target.value)}
+                      className="mt-2 w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                      required
+                    />
+                  )}
                   </label>
                   <label className="block">
                     <span className="text-xs font-semibold text-slate-600 mb-1 block">Referencia de Transferencia (máx. 8 dígitos)</span>

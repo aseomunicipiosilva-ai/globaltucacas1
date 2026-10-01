@@ -18,7 +18,7 @@ interface Contribuyente { Contribuyente: string; Identidad: string; Telefono?: s
 const BANCOS = [
   'Banco de Venezuela','Banesco','Mercantil','BBVA Provincial',
   'Bicentenario','Venezolano de Crédito','Sofitasa','Bancaribe',
-  'BNC','Del Tesoro','Agrícola de Venezuela','Exterior','Otro'
+  'BNC','Del Tesoro','Agrícola de Venezuela','Exterior','Banco del Sur','Otro'
 ];
 const MESES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
 const mesLabel = (d: string) => {
@@ -433,6 +433,16 @@ export default function CobroMovilPage() {
               className="bg-slate-800 text-white rounded-2xl px-3 py-4 text-base font-bold border border-slate-700 focus:outline-none focus:border-emerald-500 text-center min-w-[64px]">
               {['V','J','E','G','P'].map(t => <option key={t}>{t}</option>)}
             </select>
+                  {(!BANCOS.includes(banco) && banco !== '' || banco === 'Otro') && (
+                    <input 
+                      type="text" 
+                      placeholder="Escriba el nombre del banco" 
+                      value={banco === 'Otro' ? '' : banco}
+                      onChange={(e) => setBanco(e.target.value)}
+                      className="w-full mt-2 border border-slate-200 rounded p-3 text-slate-700"
+                      required
+                    />
+                  )}
             <input type="text" value={docNumber} onChange={e => setDocNumber(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSearch()}
               placeholder="Número o nombre..." className={inp} autoComplete="off" />
