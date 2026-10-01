@@ -2005,10 +2005,24 @@ function ContribuyentesPageContent() {
       key: 'actions',
       header: 'Acciones / Estatus',
       render: (row: any) => {
-        // Mock data logic for indicators
-        const hasDebt = Math.random() > 0.5;
-        const debtAmount = hasDebt ? (Math.random() * 5000).toFixed(2) : '0.00';
-        const hasAgreement = Math.random() > 0.7;
+        // Calculo real de deuda y convenios
+        const idRow = row.Identidad || row.identidad || '';
+        const idLimpio = idRow.replace(/-/g, '');
+        const rowRecibos = recibos.filter((r: any) => 
+          (r.identidad === idRow || r.identidad?.replace(/-/g, '') === idLimpio) && 
+          r.estado !== 'Pagado' && r.estado !== 'Anulado'
+        );
+        const debtAmountNum = rowRecibos.reduce((sum: number, r: any) => {
+          const m = parseFloat(String(r.monto||'0').replace(/[^0-9.]/g,''));
+          return sum + (isNaN(m) ? 0 : m);
+        }, 0);
+        const hasDebt = debtAmountNum > 0.01;
+        const debtAmount = hasDebt ? debtAmountNum.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00';
+        
+        const hasAgreement = convenios.some((c: any) => 
+          (c.identidad === idRow || c.identidad?.replace(/-/g, '') === idLimpio) && 
+          c.estado === 'Activo'
+        );
 
         return (
           <div className="flex gap-2 items-center">
