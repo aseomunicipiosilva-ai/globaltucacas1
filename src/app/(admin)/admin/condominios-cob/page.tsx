@@ -94,17 +94,9 @@ export default function CondominiosCOBPage() {
                   alert('Este condominio no tiene recibos registradas.');
                   return;
                 }
-                const { exportToExcelWithLogos } = await import('@/lib/excelExport');
-                const data = pendingFacturas.map((f: any) => ({
-                  "Referencia": f.referencia,
-                  "Condominio": row.nombre,
-                  "RIF": row.identidad,
-                  "Emisión": f.emision,
-                  "Vencimiento": f.vencimiento,
-                  "Monto (Bs)": parseFloat(f.monto || '0').toFixed(2),
-                  "Estado": f.estado
-                }));
-                await exportToExcelWithLogos(data, `EstadoCuenta_${row.identidad}.xlsx`, "Estado_de_Cuenta");
+                const { exportCondominioEstadoCuenta } = await import('@/lib/excelCondominioExport');
+                const { data: unidades } = await supabase.from('unidades_condominio').select('*').eq('condominio_id', row.id);
+                await exportCondominioEstadoCuenta(row, pendingFacturas, unidades || [], tcmmv);
               } catch (e) {
                 alert("Error exportando Estado de Cuenta a Excel");
               }
