@@ -17,9 +17,9 @@ function fmtEur(n: number) {
   return '€ ' + n.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-type Periodo = 'hoy' | 'semana' | 'mes' | 'mes_pasado';
+type Periodo = 'hoy' | 'semana' | 'mes' | 'mes_pasado' | 'custom';
 
-function getRange(p: Periodo) {
+function getRange(p: Periodo, customMonth?: string) {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
   const toD = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
@@ -37,6 +37,15 @@ function getRange(p: Periodo) {
       const l = new Date(now.getFullYear(), now.getMonth(), 0);
       return { desde: toD(f), hasta: toD(l) };
     }
+    case 'custom': {
+      if (!customMonth) return { desde: today, hasta: today };
+      const [yy, mm] = customMonth.split('-');
+      const y = parseInt(yy);
+      const m = parseInt(mm) - 1;
+      const f = new Date(y, m, 1);
+      const l = new Date(y, m + 1, 0);
+      return { desde: toD(f), hasta: toD(l) };
+    }
   }
 }
 
@@ -44,6 +53,7 @@ export default function PresidenciaDashboard() {
   const router = useRouter();
   const [nombre, setNombre] = useState('');
   const [periodo, setPeriodo] = useState<Periodo>('mes');
+  const [customMonth, setCustomMonth] = useState('');
   const [pagos, setPagos] = useState<any[]>([]);
   const [inmuebles, setInmuebles] = useState<any[]>([]);
   const [tcmmv, setTcmmv] = useState<number>(0);
@@ -98,7 +108,7 @@ export default function PresidenciaDashboard() {
 
   const fetchPagos = async () => {
     setLoading(true);
-    const { desde, hasta } = getRange(periodo);
+    const { desde, hasta } = getRange(periodo, customMonth);
     const { data } = await supabase
       .from('pagos_reportados')
       .select('tipo,monto,identidad,banco,created_at,referencia,estado')
@@ -111,11 +121,11 @@ export default function PresidenciaDashboard() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchPagos(); }, [periodo]);
+  useEffect(() => { fetchPagos(); }, [periodo, customMonth]);
   useEffect(() => {
     const interval = setInterval(fetchPagos, 60000);
     return () => clearInterval(interval);
-  }, [periodo]);
+  }, [periodo, customMonth]);
 
   // Sector map
   const sectorMap = useMemo(() => {
@@ -147,7 +157,7 @@ export default function PresidenciaDashboard() {
   // EUR conversions (Bs / tcmmv)
   const toEur = (bs: number) => tcmmv > 0 ? bs / tcmmv : 0;
 
-  const lbl: Record<Periodo, string> = { hoy: 'Hoy', semana: 'Esta semana', mes: 'Este mes', mes_pasado: 'Mes pasado' };
+  const lbl: Record<Periodo, string> = { hoy: 'Hoy', semana: 'Esta semana', mes: 'Este mes', mes_pasado: 'Mes pasado', custom: customMonth ? customMonth : 'Otro Mes' };
 
   const BtnPeriodo = ({ p }: { p: Periodo }) => (
     <button onClick={() => setPeriodo(p)} style={{
@@ -204,6 +214,23 @@ export default function PresidenciaDashboard() {
         {/* Period selector */}
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 16 }}>
           {(['hoy','semana','mes','mes_pasado'] as Periodo[]).map(p => <BtnPeriodo key={p} p={p} />)}
+          <div style={{ position: 'relative' }}>
+            <BtnPeriodo p={'custom'} />
+            <input 
+              type="month" 
+              value={customMonth}
+              onChange={(e) => {
+                setCustomMonth(e.target.value);
+                setPeriodo('custom');
+              }}
+              style={{
+                position: 'absolute',
+                top: 0, left: 0, right: 0, bottom: 0,
+                opacity: 0, cursor: 'pointer',
+                width: '100%'
+              }}
+            />
+          </div>
         </div>
 
         {/* Total + toggle EUR/Bs */}
