@@ -230,10 +230,14 @@ export default function ServiciosEspecialesPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-black text-slate-800 flex items-center gap-2">
-            <Wrench className="w-6 h-6 text-purple-600" />
-            Servicios Especiales / Extraordinarios / Inspecciones
+            {tab === 'especial' && <Wrench className="w-6 h-6 text-purple-600" />}
+            {tab === 'extraordinario' && <FlaskConical className="w-6 h-6 text-orange-600" />}
+            {tab === 'inspeccion' && <ClipboardCheck className="w-6 h-6 text-blue-600" />}
+            {tab === 'visto_bueno' && <ShieldCheck className="w-6 h-6 text-green-600" />}
+            {tab === 'tala_poda' && <TreePine className="w-6 h-6 text-emerald-600" />}
+            Gestión de {TIPO_INFO[tab].label}
           </h1>
-          <p className="text-sm text-slate-500 mt-1">Asigne servicios a contribuyentes con tarifas manuales. Se sincronizan automáticamente al portal del ciudadano.</p>
+          <p className="text-sm text-slate-500 mt-1">Gestione y asigne {TIPO_INFO[tab].label} a los contribuyentes. Sincronización automática.</p>
         </div>
         <div className="flex gap-2">
           <button onClick={loadServicios} className="flex items-center gap-1 px-3 py-2 border border-slate-200 rounded text-sm text-slate-600 hover:bg-slate-50">
@@ -243,7 +247,7 @@ export default function ServiciosEspecialesPage() {
             onClick={() => { setShowModal(true); setForm(prev => ({ ...prev, tipo: tab })); setMsg(null); }}
             className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-colors"
           >
-            <Plus className="w-4 h-4" /> Nuevo Servicio
+            <Plus className="w-4 h-4" /> Nuevo {TIPO_INFO[tab].label}
           </button>
         </div>
       </div>
