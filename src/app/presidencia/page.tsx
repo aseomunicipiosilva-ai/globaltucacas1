@@ -168,8 +168,8 @@ export default function PresidenciaDashboard() {
     sector: sectorMap.get((p.identidad || '').replace(/-/g, '').toUpperCase()) || 'Residencial'
   })), [pagos, sectorMap]);
 
-  const pagosEnrAprobados = pagosEnr.filter(p => p.estado === 'Aprobado');
-  const pagosEnrPendientes = pagosEnr.filter(p => p.estado !== 'Aprobado');
+  const pagosEnrAprobados = pagosEnr.filter(p => p.estado === 'Aprobado' || p.estado === 'Con Diferencia');
+  const pagosEnrPendientes = pagosEnr.filter(p => p.estado === 'Pendiente');
 
   const total = pagosEnrAprobados.reduce((s, p) => s + getMontoEfectivo(p), 0);
   const totalPorConciliar = pagosEnrPendientes.reduce((s, p) => s + getMontoEfectivo(p), 0);
