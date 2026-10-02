@@ -29,7 +29,9 @@ function fmtEur(n: number) {
 type Periodo = 'hoy' | 'semana' | 'mes' | 'mes_pasado' | 'custom';
 
 function getRange(p: Periodo, customMonth?: string) {
-  const now = new Date();\n  const vzOffsetMin = -4 * 60;\n  const localNow = new Date(now.getTime() + (vzOffsetMin - now.getTimezoneOffset()) * 60000);
+  const now = new Date();
+  const vzOffsetMin = -4 * 60;
+  const localNow = new Date(now.getTime() + (vzOffsetMin - now.getTimezoneOffset()) * 60000);
   const pad = (n: number) => String(n).padStart(2, '0');
   const toD = (d: Date) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
   const today = toD(localNow);
