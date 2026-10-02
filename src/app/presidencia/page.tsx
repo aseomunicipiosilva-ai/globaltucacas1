@@ -10,6 +10,15 @@ function parseMonto(val: any): number {
   const n = parseFloat(s);
   return isNaN(n) ? 0 : n;
 }
+
+function getMontoEfectivo(p: any): number {
+  let m = p.monto;
+  try {
+    const det = typeof p.detalles === 'object' ? p.detalles : JSON.parse(p.detalles || '{}');
+    if (det.monto_conciliado) m = det.monto_conciliado;
+  } catch(e) {}
+  return parseMonto(m);
+}
 function fmtBs(n: number) {
   return 'Bs. ' + n.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -20,21 +29,21 @@ function fmtEur(n: number) {
 type Periodo = 'hoy' | 'semana' | 'mes' | 'mes_pasado' | 'custom';
 
 function getRange(p: Periodo, customMonth?: string) {
-  const now = new Date();
+  const now = new Date();\n  const vzOffsetMin = -4 * 60;\n  const localNow = new Date(now.getTime() + (vzOffsetMin - now.getTimezoneOffset()) * 60000);
   const pad = (n: number) => String(n).padStart(2, '0');
-  const toD = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  const today = toD(now);
+  const toD = (d: Date) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
+  const today = toD(localNow);
   switch(p) {
     case 'hoy': return { desde: today, hasta: today };
     case 'semana': {
-      const day = now.getDay() || 7;
-      const lun = new Date(now); lun.setDate(now.getDate() - day + 1);
+      const day = localNow.getDay() || 7;
+      const lun = new Date(localNow); lun.setDate(localNow.getDate() - day + 1);
       return { desde: toD(lun), hasta: today };
     }
-    case 'mes': return { desde: `${now.getFullYear()}-${pad(now.getMonth()+1)}-01`, hasta: today };
+    case 'mes': return { desde: `${localNow.getFullYear()}-${pad(localNow.getMonth()+1)}-01`, hasta: today };
     case 'mes_pasado': {
-      const f = new Date(now.getFullYear(), now.getMonth()-1, 1);
-      const l = new Date(now.getFullYear(), now.getMonth(), 0);
+      const f = new Date(Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth()-1, 1));
+      const l = new Date(Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth(), 0));
       return { desde: toD(f), hasta: toD(l) };
     }
     case 'custom': {
@@ -42,8 +51,8 @@ function getRange(p: Periodo, customMonth?: string) {
       const [yy, mm] = customMonth.split('-');
       const y = parseInt(yy);
       const m = parseInt(mm) - 1;
-      const f = new Date(y, m, 1);
-      const l = new Date(y, m + 1, 0);
+      const f = new Date(Date.UTC(y, m, 1));
+      const l = new Date(Date.UTC(y, m + 1, 0));
       return { desde: toD(f), hasta: toD(l) };
     }
   }
@@ -79,7 +88,7 @@ export default function PresidenciaDashboard() {
   // Load inmuebles and TCMMV once
   useEffect(() => {
     // Inmuebles for sector mapping
-    supabase.from('inmuebles').select('identidad,actividad_principal').limit(1000)
+    supabase.from('inmuebles').select('identidad,actividad_principal,clasificacion').limit(1000)
       .then(({ data }) => setInmuebles(data || []));
 
     // TCMMV rate from sistema_config
@@ -111,8 +120,8 @@ export default function PresidenciaDashboard() {
     const { desde, hasta } = getRange(periodo, customMonth);
     const { data } = await supabase
       .from('pagos_reportados')
-      .select('tipo,monto,identidad,banco,created_at,referencia,estado')
-      .eq('estado', 'Aprobado')
+      .select('tipo,monto,identidad,banco,created_at,referencia,estado,detalles')
+      .not('estado', 'in', '(Anulado,Reversado,Condonado,Rechazado)')
       .gte('created_at', desde + 'T00:00:00')
       .lte('created_at', hasta + 'T23:59:59')
       .order('created_at', { ascending: false });
@@ -130,14 +139,24 @@ export default function PresidenciaDashboard() {
   // Sector map
   const sectorMap = useMemo(() => {
     const m = new Map<string, string>();
+    const normSector = (actividad: string, clasificacion: string) => {
+      const a = (actividad || '').toLowerCase();
+      const c = (clasificacion || '').toLowerCase();
+      if (a.includes('fabrica') || a.includes('industrial') || a.includes('embotelladora') ||
+          a.includes('concretera') || a.includes('almacen') || a.includes('taller') ||
+          c.includes('industrial')) return 'Industrial';
+      if (a.includes('residencial') || a.includes('condominio') || a.includes('apartamento') ||
+          a.includes('casa') || a.includes('vivienda')) return 'Residencial';
+      if (a.length > 3) return 'Comercial';
+      return 'Residencial';
+    };
+
     inmuebles.forEach((inm: any) => {
       const id = (inm.identidad || '').replace(/-/g, '').toUpperCase();
-      if (!id || m.has(id)) return;
-      const a = (inm.actividad_principal || '').toLowerCase();
-      if (a.includes('fabrica') || a.includes('taller') || a.includes('embotelladora') || a.includes('concretera')) m.set(id, 'Industrial');
-      else if (a.includes('residencial') || a.includes('condominio') || a.includes('apartamento')) m.set(id, 'Residencial');
-      else if (a.length > 3) m.set(id, 'Comercial');
-      else m.set(id, 'Residencial');
+      if (id && !m.has(id)) m.set(id, normSector(
+        inm.actividad_principal || inm.ActividadPrincipal || '',
+        inm.clasificacion || inm.Clasificacion || ''
+      ));
     });
     return m;
   }, [inmuebles]);
@@ -147,12 +166,16 @@ export default function PresidenciaDashboard() {
     sector: sectorMap.get((p.identidad || '').replace(/-/g, '').toUpperCase()) || 'Residencial'
   })), [pagos, sectorMap]);
 
-  const total = pagosEnr.reduce((s, p) => s + parseMonto(p.monto), 0);
-  const res   = pagosEnr.filter(p => p.sector === 'Residencial').reduce((s, p) => s + parseMonto(p.monto), 0);
-  const com   = pagosEnr.filter(p => p.sector === 'Comercial').reduce((s, p) => s + parseMonto(p.monto), 0);
-  const ind   = pagosEnr.filter(p => p.sector === 'Industrial').reduce((s, p) => s + parseMonto(p.monto), 0);
-  const tra   = pagosEnr.filter(p => p.tipo === 'Transferencia').reduce((s, p) => s + parseMonto(p.monto), 0);
-  const deb   = pagosEnr.filter(p => p.tipo === 'Debito' || p.tipo === 'Punto de Venta').reduce((s, p) => s + parseMonto(p.monto), 0);
+  const pagosEnrAprobados = pagosEnr.filter(p => p.estado === 'Aprobado');
+  const pagosEnrPendientes = pagosEnr.filter(p => p.estado !== 'Aprobado');
+
+  const total = pagosEnrAprobados.reduce((s, p) => s + getMontoEfectivo(p), 0);
+  const totalPorConciliar = pagosEnrPendientes.reduce((s, p) => s + getMontoEfectivo(p), 0);
+  const res   = pagosEnrAprobados.filter(p => p.sector === 'Residencial').reduce((s, p) => s + getMontoEfectivo(p), 0);
+  const com   = pagosEnrAprobados.filter(p => p.sector === 'Comercial').reduce((s, p) => s + getMontoEfectivo(p), 0);
+  const ind   = pagosEnrAprobados.filter(p => p.sector === 'Industrial').reduce((s, p) => s + getMontoEfectivo(p), 0);
+  const tra   = pagosEnrAprobados.filter(p => p.tipo === 'Transferencia').reduce((s, p) => s + getMontoEfectivo(p), 0);
+  const deb   = pagosEnrAprobados.filter(p => p.tipo === 'Debito' || p.tipo === 'Punto de Venta' || p.tipo === 'REC').reduce((s, p) => s + getMontoEfectivo(p), 0);
 
   // EUR conversions (Bs / tcmmv)
   const toEur = (bs: number) => tcmmv > 0 ? bs / tcmmv : 0;
@@ -261,7 +284,7 @@ export default function PresidenciaDashboard() {
           )}
 
           <p style={{ margin: '6px 0 10px', fontSize: 12, color: 'rgba(200,230,200,.5)' }}>
-            {pagosEnr.length} transacciones · TCMMV: {tcmmv > 0 ? tcmmv.toLocaleString('es-VE', {minimumFractionDigits:2}) + ' Bs/€' : 'N/D'}
+            {pagosEnrAprobados.length} transacciones · TCMMV: {tcmmv > 0 ? tcmmv.toLocaleString('es-VE', {minimumFractionDigits:2}) + ' Bs/€' : 'N/D'}
           </p>
 
           {/* Toggle button */}
@@ -284,6 +307,11 @@ export default function PresidenciaDashboard() {
         </div>
 
         {/* Método pago */}
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8, marginBottom: 16 }}>
+          <Card label="Por Conciliar (Pendientes)" bs={totalPorConciliar} color="#ef4444" bg="rgba(239,68,68,.08)" />
+        </div>
+
         <p style={{ margin: '0 0 8px', fontSize: 10, fontWeight: 700, color: 'rgba(200,230,200,.45)', textTransform: 'uppercase', letterSpacing: 1 }}>Por Metodo</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
           <Card label="Transferencias" bs={tra} color="#a855f7" bg="rgba(168,85,247,.08)" />
@@ -309,7 +337,7 @@ export default function PresidenciaDashboard() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
             {pagosEnr.slice(0, 15).map((p, i) => {
-              const montoBs = parseMonto(p.monto);
+              const montoBs = getMontoEfectivo(p);
               return (
                 <div key={i} style={{
                   background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
