@@ -52,7 +52,8 @@ export default function Sidebar() {
     { icon: Inbox, name: 'Buzón de Solicitudes', href: '/admin/buzon' },
     { icon: AlertTriangle, name: 'Denuncias Ciudadanas', href: '/admin/denuncias' },
     { icon: Truck, name: 'Rutas Camiones', href: '/admin/rutas' },
-    { icon: Wrench, name: 'Servicios Especiales', href: '/admin/servicios-especiales' },
+    { icon: Wrench, name: 'Servicios Especiales', href: '/admin/servicios-especiales?tab=especial' },
+    { icon: FlaskConical, name: 'Serv. Extraordinarios', href: '/admin/servicios-especiales?tab=extraordinario' },
     { icon: PieChart, name: 'Reportes Generales', href: '/admin/reportes' },
     { icon: Mail, name: 'Correos Informativos', href: '/admin/correos' },
     { icon: UserPlus, name: 'Trabajadores Aseo', href: '/admin/trabajadores' },
@@ -75,13 +76,14 @@ export default function Sidebar() {
       '/admin/buzon',
       '/admin/denuncias',
       '/admin/rutas',
-      '/admin/servicios-especiales',
+      '/admin/servicios-especiales?tab=especial',
+      '/admin/servicios-especiales?tab=extraordinario',
       '/admin/reportes',
       '/admin/correos',
       '/cobro-movil',
       '/admin/plan-accion'
     ];
-    baseMenuAseo = baseMenuAseo.filter(item => permitidos.includes(item.href));
+    baseMenuAseo = baseMenuAseo.filter(item => permitidos.some(p => item.href.startsWith(p.split('?')[0])));
   }
 
   const menuAseo = baseMenuAseo;

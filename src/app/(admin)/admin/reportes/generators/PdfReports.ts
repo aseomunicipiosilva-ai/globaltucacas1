@@ -12,7 +12,8 @@ export const generarCorteCajaPDF = (
   contribuyentes: any[], 
   fechaInicio: string,
   fechaFin: string,
-  tasaEuro: number = 0
+  tasaEuro: number = 0,
+  nombreCajero: string = 'Todos'
 ) => {
   if (pagosFiltrados.length === 0) {
     alert("No hay pagos en el rango de fechas seleccionado.");
@@ -52,7 +53,7 @@ export const generarCorteCajaPDF = (
   doc.text(`Periodo: Desde ${startDate}`, 40, 85);
   doc.text(`Hasta ${endDate}`, pageWidth - 40, 85, { align: 'right' });
   doc.text(`Registros: ${pagosFiltrados.length}`, 40, 100);
-  doc.text(`Cajero: Todos`, pageWidth - 40, 100, { align: 'right' });
+  doc.text(`Cajero: ${nombreCajero}`, pageWidth - 40, 100, { align: 'right' });
 
   // Divider 2
   doc.setLineWidth(0.5);
@@ -157,7 +158,7 @@ export const generarCorteCajaPDF = (
   drawSubTable(
     "TRANSACCIONES CON TARJETA DE DEBITO", 
     debitos, 
-    ["FECHA/HORA", "TIPO", "CONTRIBUYENTE", "RECIBO", "BANCO", "APROBACION", "LOTE", "MONTO"],
+    ["FECHA/HORA", "CAJERO", "CONTRIBUYENTE", "BANCO", "APROB", "MONTO"],
     (p, c) => [
       new Date(p.created_at).toLocaleString('es-VE', {hour12: false, day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}),
       p.tipo.substring(0,3).toUpperCase(),
@@ -176,7 +177,7 @@ export const generarCorteCajaPDF = (
   drawSubTable(
     "TRANSFERENCIAS REGISTRADAS POR EL CAJERO", 
     transferencias, 
-    ["FECHA/HORA", "BANCO ORIGEN", "BANCO DESTINO", "REFERENCIA", "MONTO Bs.", "MONTO EUR"],
+    ["FECHA/HORA", "CAJERO", "BANCO ORIG", "BANCO DEST", "REF", "MONTO Bs."],
     (p, c) => {
       let det: any = {};
       try { det = (typeof p.detalles === 'string' ? JSON.parse(p.detalles) : p.detalles) || {}; } catch(e) {}
@@ -232,7 +233,7 @@ export const generarCorteCajaPDF = (
     doc.text(`Emitido: ${emisionStr}`, 40, pageHeight - 15);
 
     doc.text(`Pagina ${i} de ${pageCount}`, pageWidth - 40, pageHeight - 25, { align: 'right' });
-    doc.text(`Cajero: Todos`, pageWidth - 40, pageHeight - 15, { align: 'right' });
+    doc.text(`Cajero: ${nombreCajero}`, pageWidth - 40, pageHeight - 15, { align: 'right' });
   }
 
   doc.save(`Corte_Caja_${new Date().getTime()}.pdf`);

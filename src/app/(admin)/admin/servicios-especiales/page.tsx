@@ -31,6 +31,14 @@ const TIPO_INFO = {
 export default function ServiciosEspecialesPage() {
   const { contribuyentes } = useAppContext();
   const [tab, setTab] = useState<TipoServicio>('especial');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const t = params.get('tab') as TipoServicio;
+      if (t) setTab(t);
+    }
+  }, []);
   const [servicios, setServicios] = useState<Servicio[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);

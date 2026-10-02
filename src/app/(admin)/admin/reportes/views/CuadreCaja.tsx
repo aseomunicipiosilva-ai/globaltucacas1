@@ -122,7 +122,7 @@ export default function CuadreCaja({ pagos, cajeros, isAdmin, currentUser, onBac
           <div style={{ ...S.secHdr, fontSize: 15, padding: '10px 0' }}>
             RESUMEN CUADRE DE CAJA
             <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: 4 }}>
-              <button onClick={() => generarCorteCajaPDF(pagosFiltrados, [], fecha, fecha)}
+              <button onClick={() => generarCorteCajaPDF(pagosFiltrados, [], fecha, fecha, 0, cajeroLabel)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }} title="PDF">🖨</button>
               <button onClick={() => generarCorteCajaExcel(pagosFiltrados, cajeroLabel, fecha, fecha)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }} title="Descargar Excel">📊</button>
             </div>
