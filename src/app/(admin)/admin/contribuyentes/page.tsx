@@ -643,6 +643,7 @@ function ContribuyentesPageContent() {
         ['Base Imponible Bs.', 'Bs. 0,00'],
         ['IVA (16.00%) Bs.', 'Bs. 0,00'],
         ['Saldo a Favor Bs.', `Bs. ${parseFloat(inm.saldo_favor_bs || viewData.SaldoFavor || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
+        ['Saldo a Favor Bs.', `Bs. ${parseFloat(inm.saldo_favor_bs || viewData.SaldoFavor || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
         ['Total estado de cuenta Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`]
       );
 
@@ -2743,8 +2744,8 @@ function ContribuyentesPageContent() {
                           try { det = JSON.parse(p.detalles || '{}'); } catch(e){}
                           const esAbono = det.es_abono === true;
                           const metodo = p.tipo === 'Debito' ? 'Punto de Venta' : p.tipo || '---';
-                          let cajeroNombre = det.cajero || det.usuario || det.operador || p.cajero;
-                          if (!cajeroNombre && p.tipo === 'Transferencia') {
+                          let cajeroNombre = det.cajero || det.usuario || det.operador || det.analista || p.cajero;
+                          if (!cajeroNombre && p.tipo?.includes('Transferencia')) {
                             cajeroNombre = 'Transferencia Web';
                           } else if (!cajeroNombre) {
                             cajeroNombre = '—';
