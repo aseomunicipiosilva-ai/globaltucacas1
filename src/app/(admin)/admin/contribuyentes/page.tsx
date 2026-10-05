@@ -2741,7 +2741,7 @@ function ContribuyentesPageContent() {
                       <tbody>
                         {viewPagos.map((p: any, idx: number) => {
                           let det: any = {};
-                          try { det = JSON.parse(p.detalles || '{}'); } catch(e){}
+                          try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
                           const esAbono = det.es_abono === true;
                           const metodo = p.tipo === 'Debito' ? 'Punto de Venta' : p.tipo || '---';
                           let cajeroNombre = det.cajero || det.usuario || det.operador || det.analista || p.cajero;

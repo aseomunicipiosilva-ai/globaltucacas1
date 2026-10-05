@@ -865,7 +865,10 @@ export default function EstadoCuentaPage() {
     },
     { key: 'estado', header: 'Estado', render: (row: any) => {
       let det: any = {};
-      try { det = JSON.parse(row.detalles || '{}'); } catch(e) {}
+      det = typeof row.detalles === 'string' ? {} : (row.detalles || {});
+      if (typeof row.detalles === 'string') {
+        try { det = typeof row.detalles === 'string' ? JSON.parse(row.detalles) : (row.detalles || {}); } catch(e){}
+      }
       return (
         <div>
           <span className={`px-2 py-1 rounded text-xs font-semibold ${

@@ -321,6 +321,7 @@ export default function EstadoCuentaPage() {
         ['Base Imponible Bs.', 'Bs. 0,00'],
         ['IVA (16.00%) Bs.', 'Bs. 0,00'],
         ['Saldo a Favor Bs.', `Bs. ${parseFloat(inm.saldo_favor_bs || myContribuyente?.SaldoFavor || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
+        ['Saldo a Favor Bs.', `Bs. ${parseFloat(inm.saldo_favor_bs || myContribuyente?.SaldoFavor || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
         ['Total estado de cuenta Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]
       );
 
