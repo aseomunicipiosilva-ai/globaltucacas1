@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-// L骻ica para procesar la validaci髇 y reliquidaci髇
+// L贸gica para procesar la validaci贸n y reliquidaci贸n
 export async function POST(request: Request) {
   try {
     const { inmueble_id, sector, identidad } = await request.json();
 
     if (!inmueble_id || !sector) {
-      return NextResponse.json({ error: 'Faltan par醡etros requeridos.' }, { status: 400 });
+      return NextResponse.json({ error: 'Faltan par谩metros requeridos.' }, { status: 400 });
     }
 
-    // 1. Obtener los par醡etros del decreto seg鷑 el sector
+    // 1. Obtener los par谩metros del decreto seg煤n el sector
     const { data: parametros, error: paramError } = await supabase
       .from('decretos_parametros')
       .select('*')
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       .single();
 
     if (paramError || !parametros) {
-      return NextResponse.json({ error: 'No se encontraron par醡etros de decreto para este sector.' }, { status: 404 });
+      return NextResponse.json({ error: 'No se encontraron par谩metros de decreto para este sector.' }, { status: 404 });
     }
 
     const hoy = new Date();
@@ -28,7 +28,6 @@ export async function POST(request: Request) {
     }
 
     // 2. Obtener facturas impagas del inmueble
-    // Asumimos que se liga por identidad, ajustar si es por inmueble_id num閞ico
     const searchId = identidad || inmueble_id;
     const { data: facturas, error: facError } = await supabase
       .from('facturas')
@@ -49,7 +48,7 @@ export async function POST(request: Request) {
       return fechaFact >= inicio && fechaFact <= fin;
     }) || [];
 
-    // 3. Evaluar morosidad m韓ima para COMERCIAL y CONDOMINIO
+    // 3. Evaluar morosidad m铆nima para COMERCIAL y CONDOMINIO
     const mesesMorosidad = facturasValidas.length;
     let eligible = true;
     let mensaje = 'Elegible para decreto.';
@@ -95,7 +94,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       eligible: true,
-      mensaje: 'C醠culo de reliquidaci髇 exitoso.',
+      mensaje: 'C谩lculo de reliquidaci贸n exitoso.',
       decreto: parametros.numero_decreto,
       detalles: {
         facturasAfectadas: mesesMorosidad,
