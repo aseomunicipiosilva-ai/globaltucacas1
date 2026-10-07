@@ -4,7 +4,11 @@ import { supabase } from '@/lib/supabase';
 // Lógica para procesar la validación y reliquidación
 export async function POST(request: Request) {
   try {
-    let { inmueble_id, sector, identidad } = await request.json(); if(sector.toUpperCase().includes(\'TIPO C\')) { sector = \'CONDOMINIO\'; } else if (sector.toUpperCase() === \'TIPO A\') { sector = \'COMERCIAL\'; } else if (sector.toUpperCase() === \'TIPO B\') { sector = \'RESIDENCIAL\'; }
+    let { inmueble_id, sector, identidad } = await request.json();
+
+    if(sector.toUpperCase().includes('TIPO C')) { sector = 'CONDOMINIO'; }
+    else if (sector.toUpperCase() === 'TIPO A') { sector = 'COMERCIAL'; }
+    else if (sector.toUpperCase() === 'TIPO B') { sector = 'RESIDENCIAL'; }
 
     if (!inmueble_id || !sector) {
       return NextResponse.json({ error: 'Faltan parámetros requeridos.' }, { status: 400 });
@@ -31,18 +35,19 @@ export async function POST(request: Request) {
     const searchId = identidad || inmueble_id;
     const { data: facturas, error: facError } = await supabase
       .from('facturas')
-      .select('id, mes, anio, monto, estado, mora, multas, intereses')
+      .select('id, emision, monto, estado')
       .eq('identidad', searchId)
       .neq('estado', 'Pagado')
       .neq('estado', 'Anulado');
 
     if (facError) {
-      return NextResponse.json({ error: 'Error al consultar las facturas del contribuyente.' }, { status: 500 });
+      return NextResponse.json({ error: 'Error al consultar las facturas del contribuyente. ' + facError.message }, { status: 500 });
     }
 
     // Filtramos manualmente las facturas dentro de la fecha del decreto
     const facturasValidas = facturas?.filter(f => {
-      const fechaFact = new Date(Number(f.anio), Number(f.mes) - 1, 1);
+      if (!f.emision) return false;
+      const fechaFact = new Date(f.emision);
       const inicio = new Date(2024, 0, 1);
       const fin = new Date(2026, 8, 30); // Septiembre 2026
       return fechaFact >= inicio && fechaFact <= fin;
@@ -71,9 +76,9 @@ export async function POST(request: Request) {
 
     facturasValidas.forEach(f => {
       const montoOriginal = parseFloat(f.monto || '0');
-      const mora = parseFloat(f.mora || '0');
-      const multas = parseFloat(f.multas || '0');
-      const intereses = parseFloat(f.intereses || '0');
+      const mora = 0;
+      const multas = 0;
+      const intereses = 0;
 
       capitalTotal += montoOriginal;
       accesoriosTotal += (mora + multas + intereses);
