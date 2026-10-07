@@ -49,7 +49,8 @@ export default function ReportesPage() {
     if (typeof window !== 'undefined') {
       try {
         const userData = JSON.parse(localStorage.getItem('admin_user_data') || '{}');
-        if (userData.rol === 'Administrador' || userData.rol === 'SuperAdmin' || user === 'Administrador' || user === 'dzara') {
+        const perms = typeof userData.permisos === 'string' ? JSON.parse(userData.permisos) : (userData.permisos || {});
+        if (userData.rol === 'Administrador' || userData.rol === 'SuperAdmin' || user === 'Administrador' || user === 'dzara' || user === 'rvillegas' || perms.ver_reportes) {
           adminCheck = true;
         }
       } catch(e) {}

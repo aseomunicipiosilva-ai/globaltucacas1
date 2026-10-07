@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useState, useEffect } from 'react';
 import { Users, Save, ArrowLeft, Plus, Shield, ShieldAlert, ShieldCheck, AlertCircle } from 'lucide-react';
 import { DataTable } from '@/components/DataTable';
@@ -18,6 +18,7 @@ const defaultPermissions = {
   caja_tasa_personalizada: false,
   ver_reportes: false,
   gestionar_usuarios: false,
+  precindencia: false,
 };
 
 export default function TrabajadoresPage() {
@@ -192,6 +193,7 @@ export default function TrabajadoresPage() {
     { key: 'caja_tasa_personalizada', label: 'Aplicar Tasa BCV Manual (Caja)', desc: 'Permite editar la tasa BCV manualmente al cobrar en Caja.' },
     { key: 'ver_reportes', label: 'Ver Reportes', desc: 'Acceso a los reportes financieros e informes.' },
     { key: 'gestionar_usuarios', label: 'Gestionar Trabajadores', desc: 'Permite crear o editar accesos al sistema.' },
+    { key: 'precindencia', label: 'Módulo de Precindencia', desc: 'Permite acceder al módulo de precindencia.' },
   ];
 
   if (isEditing) {
