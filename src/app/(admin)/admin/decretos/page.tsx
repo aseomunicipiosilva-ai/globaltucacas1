@@ -52,7 +52,14 @@ export default function DecretosPage() {
         body: JSON.stringify({ 
           inmueble_id: inmueble.id, 
           identidad: inmueble.identidad,
-          sector: inmueble.clasificacion || 'COMERCIAL' // Fallback
+          sector: (() => {
+            const name = (inmueble.contribuyente || '').toUpperCase();
+            const cls = (inmueble.clasificacion || '').toUpperCase();
+            if (name.includes('CONDOMINIO') || name.includes('RESIDENCIAS') || name.includes('CONJUNTO') || cls.includes('TIPO C')) return 'CONDOMINIO';
+            if (cls.includes('RESIDENCIAL')) return 'RESIDENCIAL';
+            if (cls.includes('INFORMAL') || cls.includes('AMBULANTE')) return 'INFORMAL';
+            return 'COMERCIAL';
+          })()
         })
       });
 
