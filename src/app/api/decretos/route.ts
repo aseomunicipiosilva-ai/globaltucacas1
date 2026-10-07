@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 // Lógica para procesar la validación y reliquidación
 export async function POST(request: Request) {
   try {
-    const { inmueble_id, sector, identidad } = await request.json();
+    let { inmueble_id, sector, identidad } = await request.json(); if(sector.toUpperCase().includes(\'TIPO C\')) { sector = \'CONDOMINIO\'; } else if (sector.toUpperCase() === \'TIPO A\') { sector = \'COMERCIAL\'; } else if (sector.toUpperCase() === \'TIPO B\') { sector = \'RESIDENCIAL\'; }
 
     if (!inmueble_id || !sector) {
       return NextResponse.json({ error: 'Faltan parámetros requeridos.' }, { status: 400 });
