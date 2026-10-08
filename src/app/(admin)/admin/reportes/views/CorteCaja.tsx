@@ -1,5 +1,5 @@
-﻿'use client';
-import { useState, useMemo } from 'react';
+'use client';
+import { useState, useMemo, useEffect } from 'react';
 import { Printer, ArrowLeft, ChevronDown, TableProperties } from 'lucide-react';
 import { generarCorteCajaExcel } from '../generators/ExcelCorteCaja';
 
@@ -34,6 +34,10 @@ export default function CorteCaja({ pagos, cajeros, isAdmin, currentUser, onBack
   const [fechaFin, setFechaFin] = useState(todayStr + 'T23:59');
   const [showReport, setShowReport] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+
+  useEffect(() => {
+    setSelectedCajas(isAdmin ? [] : [currentUser]);
+  }, [isAdmin, currentUser]);
 
   const toggleCaja = (caja: string) => {
     if (caja === '__todos__') { setSelectedCajas([]); return; }
@@ -228,3 +232,4 @@ export default function CorteCaja({ pagos, cajeros, isAdmin, currentUser, onBack
     </div>
   );
 }
+

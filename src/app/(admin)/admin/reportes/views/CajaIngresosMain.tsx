@@ -65,6 +65,10 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
   const [showConfirmCierre, setShowConfirmCierre] = useState(false);
   const [tasaEuro, setTasaEuro] = useState(0);
 
+  useEffect(() => {
+    setSelectedCajas(isAdmin ? [] : [currentUser]);
+  }, [isAdmin, currentUser]);
+
   // Cargar tasa Euro del BCV
   useEffect(() => {
     fetch('https://ve.dolarapi.com/v1/euros/oficial')

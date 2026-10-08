@@ -50,7 +50,18 @@ export default function ReportesPage() {
       try {
         const userData = JSON.parse(localStorage.getItem('admin_user_data') || '{}');
         const perms = typeof userData.permisos === 'string' ? JSON.parse(userData.permisos) : (userData.permisos || {});
-        if (userData.rol === 'Administrador' || userData.rol === 'SuperAdmin' || user === 'Administrador' || user === 'dzara' || user === 'rvillegas' || perms.ver_reportes) {
+        const safeUser = (user || '').toLowerCase().trim();
+        const safeRol = (userData.rol || '').toLowerCase().trim();
+        if (
+          safeRol === 'administrador' || 
+          safeRol === 'superadmin' || 
+          safeUser === 'administrador' || 
+          safeUser === 'dzara' || 
+          safeUser === 'rvillegas' || 
+          safeUser === 'roselyn villegas' || 
+          safeUser === 'r.villegas' ||
+          perms.ver_reportes
+        ) {
           adminCheck = true;
         }
       } catch(e) {}
