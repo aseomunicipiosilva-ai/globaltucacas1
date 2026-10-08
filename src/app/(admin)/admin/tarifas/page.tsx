@@ -55,16 +55,7 @@ export default function TarifasPage() {
 
   // Lógica de Calculadora
   const calcularMontoExtraordinario = () => {
-    if (calcDistancia === 'Menor a 20 kms') {
-      if (calcCamion === '350') return 30;
-      if (calcCamion === '600') return 50;
-      if (calcCamion === '750') return 70;
-    } else {
-      if (calcCamion === '350') return 40;
-      if (calcCamion === '600') return 60;
-      if (calcCamion === '750') return 80;
-    }
-    return 0;
+    return 0; // Depende del contribuyente ahora
   };
 
   const factorCalculadora = calcTipo === 'Servicios Extraordinarios' 
@@ -372,27 +363,9 @@ export default function TarifasPage() {
               <h2 className="font-bold text-orange-800 uppercase text-sm tracking-wide">Servicios Extraordinarios (Recolección Especial)</h2>
               <span className="ml-auto text-xs text-orange-600 font-medium">Tabla 3 — Camiones</span>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-slate-600">
-                <thead className="bg-orange-50 border-b border-orange-100">
-                  <tr>
-                    <th className="px-4 py-3 font-semibold">Tipo de Camión</th>
-                    <th className="px-4 py-3 font-semibold text-center">Distancia</th>
-                    <th className="px-4 py-3 font-semibold text-center">Factor (TCMMV)</th>
-                    <th className="px-4 py-3 font-semibold text-right">Tarifa (Bs)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {ordenanzaData.serviciosExtraordinarios.map((s: any, idx: number) => (
-                    <tr key={idx} className="hover:bg-orange-50/40 transition-colors">
-                      <td className="px-4 py-3 font-medium text-slate-700">{s.label.split('(')[0].trim()}</td>
-                      <td className="px-4 py-3 text-center text-xs">{s.distancia === 'menor' ? '< 20 Km' : '> 20 Km'}</td>
-                      <td className="px-4 py-3 text-center">{s.tcmv}</td>
-                      <td className="px-4 py-3 text-right font-bold text-orange-700">Bs. {(s.tcmv * rate).toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="p-4 text-sm text-slate-600 bg-orange-50/20">
+              <p>La tarifa de servicios extraordinarios se calcula sumando una tarifa extra por cada viaje requerido.</p>
+              <p className="mt-2 font-bold text-orange-800">El valor de cada viaje equivale a la tarifa mensual de aseo asignada al contribuyente.</p>
             </div>
           </div>
         </div>
@@ -423,31 +396,10 @@ export default function TarifasPage() {
               </div>
 
               {calcTipo === 'Servicios Extraordinarios' ? (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de Camión</label>
-                    <select 
-                      className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                      value={calcCamion}
-                      onChange={(e) => setCalcCamion(e.target.value)}
-                    >
-                      <option value="350">Camión 350</option>
-                      <option value="600">Camión 600</option>
-                      <option value="750">Camión 750</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Distancia del Viaje</label>
-                    <select 
-                      className="w-full border border-slate-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                      value={calcDistancia}
-                      onChange={(e) => setCalcDistancia(e.target.value)}
-                    >
-                      <option value="Menor a 20 kms">Menor a 20 kms</option>
-                      <option value="Mayor a 20 kms">Mayor a 20 kms</option>
-                    </select>
-                  </div>
-                </>
+                <div className="bg-indigo-50 text-indigo-700 p-3 rounded-md text-sm border border-indigo-100">
+                  La tarifa extraordinaria corresponde al mismo valor de la tarifa mensual del contribuyente por cada viaje requerido. 
+                  (Esta calculadora muestra tarifas fijas, para servicios extraordinarios calcúlelo en el módulo correspondiente).
+                </div>
               ) : calcTipo !== 'Reclamos / Sugerencias' ? (
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Monto de la Tasa (En TCMMV)</label>

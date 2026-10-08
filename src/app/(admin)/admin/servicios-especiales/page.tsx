@@ -29,7 +29,7 @@ const TIPO_INFO = {
 };
 
 export default function ServiciosEspecialesPage() {
-  const { contribuyentes } = useAppContext();
+  const { contribuyentes, inmuebles } = useAppContext();
   const [tab, setTab] = useState<TipoServicio>('especial');
 
   useEffect(() => {
@@ -62,6 +62,7 @@ export default function ServiciosEspecialesPage() {
     notas: '',
     camion: '',
     distancia: '',
+    viajesExtras: '1',
     area: '',
     tipoVistoBueno: '',
     tipoInspeccion: '',
@@ -90,11 +91,13 @@ export default function ServiciosEspecialesPage() {
 
   // Calculo tarifas desde ordenanza
   const getTarifaSugerida = () => {
-    if (form.tipo === 'extraordinario' && form.camion && form.distancia) {
-      const t = (ordenanzaData as any).serviciosExtraordinarios?.find(
-        (s: any) => s.camion === form.camion && s.distancia === form.distancia
-      );
-      if (t) return { tcmv: t.tcmv, label: t.label };
+    if (form.tipo === 'extraordinario' && form.viajesExtras) {
+      const userInmuebles = inmuebles.filter((i: any) => i.identidad === form.identidad);
+      let totalMmv = 0;
+      userInmuebles.forEach((i: any) => { totalMmv += parseFloat(i.mmv_mes || 0); });
+      
+      const trips = parseInt(form.viajesExtras) || 1;
+      return { tcmv: totalMmv * trips, label: `Extraordinario (${trips} viaje${trips > 1 ? 's' : ''})` };
     }
     if (form.tipo === 'especial' && form.codigoServicio) {
       const t = (ordenanzaData as any).serviciosEspeciales?.find((s: any) => s.codigo === form.codigoServicio);
@@ -430,25 +433,12 @@ export default function ServiciosEspecialesPage() {
 
               {/* Campos específicos por tipo desde la Ordenanza */}
               {form.tipo === 'extraordinario' && (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Tipo de Camión</label>
-                    <select value={form.camion} onChange={e => setForm(prev => ({ ...prev, camion: e.target.value }))}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-500 bg-white">
-                      <option value="">Seleccione...</option>
-                      <option value="350">Camión 350</option>
-                      <option value="600">Camión 600</option>
-                      <option value="750">Camión 750 / Volteo</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Distancia</label>
-                    <select value={form.distancia} onChange={e => setForm(prev => ({ ...prev, distancia: e.target.value }))}
-                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-500 bg-white">
-                      <option value="">Seleccione...</option>
-                      <option value="menor">Menor a 20 Km</option>
-                      <option value="mayor">Mayor a 20 Km</option>
-                    </select>
+                    <label className="block text-xs font-bold text-slate-600 uppercase mb-2">Cantidad de Viajes Extras</label>
+                    <input type="number" min="1" value={form.viajesExtras}
+                      onChange={e => setForm(prev => ({ ...prev, viajesExtras: e.target.value }))}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-purple-500 bg-white" />
                   </div>
                 </div>
               )}

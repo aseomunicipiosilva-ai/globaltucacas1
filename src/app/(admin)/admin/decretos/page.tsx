@@ -74,7 +74,7 @@ export default function DecretosPage() {
       if (result.eligible && result.detalles) {
         // Inicializar pagos mínimos
         const minPorcentaje = result.detalles.porcentaje_inicial_minimo / 100;
-        setPagoInicial(result.detalles.montoTotalTcmdvm * minPorcentaje);
+        setPagoInicial(result.detalles.montoTotalPagarBs * minPorcentaje);
         setCuotas(1);
       }
       
@@ -240,8 +240,8 @@ export default function DecretosPage() {
                           <span className="font-medium text-indigo-900">{evaluacionResult.detalles.nuevosAccesoriosPagar.toFixed(2)} Bs</span>
                         </div>
                         <div className="pt-2 mt-2 border-t border-indigo-200 flex justify-between font-bold text-lg">
-                          <span className="text-indigo-700">TCMDVM (BCV):</span>
-                          <span className="text-indigo-900">{evaluacionResult.detalles.montoTotalTcmdvm.toFixed(2)}</span>
+                          <span className="text-indigo-700 font-bold">Nuevo Saldo a Financiar (Expresado en Bs.):</span>
+                          <span className="text-indigo-900 font-bold text-xl">{evaluacionResult.detalles.montoTotalPagarBs.toLocaleString("es-VE", {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
                         </div>
                       </div>
                     </div>
@@ -254,15 +254,15 @@ export default function DecretosPage() {
                     <div className="grid grid-cols-2 gap-6">
                       <div>
                         <label className="block text-sm font-medium text-slate-600 mb-1">
-                          Pago Inicial (TCMDVM)
+                          Pago Inicial (Bs)
                         </label>
                         <input 
                           type="number"
                           className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500"
                           value={pagoInicial.toFixed(2)}
                           onChange={(e) => setPagoInicial(Number(e.target.value))}
-                          min={evaluacionResult.detalles.montoTotalTcmdvm * (evaluacionResult.detalles.porcentaje_inicial_minimo / 100)}
-                          max={evaluacionResult.detalles.montoTotalTcmdvm}
+                          min={evaluacionResult.detalles.montoTotalPagarBs * (evaluacionResult.detalles.porcentaje_inicial_minimo / 100)}
+                          max={evaluacionResult.detalles.montoTotalPagarBs}
                           step="0.01"
                         />
                         <p className="text-xs text-slate-400 mt-1">Mínimo requerido: {evaluacionResult.detalles.porcentaje_inicial_minimo}%</p>
@@ -288,7 +288,7 @@ export default function DecretosPage() {
                     <div className="mt-4 p-3 bg-slate-100 rounded text-center">
                       <p className="text-sm text-slate-500">Monto de cada cuota fraccionada</p>
                       <p className="text-2xl font-bold text-slate-800 mt-1">
-                        {((evaluacionResult.detalles.montoTotalTcmdvm - pagoInicial) / cuotas).toFixed(2)} TCMDVM
+                        {((evaluacionResult.detalles.montoTotalPagarBs - pagoInicial) / cuotas).toLocaleString("es-VE", {minimumFractionDigits:2, maximumFractionDigits:2})} Bs
                       </p>
                       <p className="text-xs text-slate-400 mt-1">Vencimiento: 1ros 5 días de cada mes</p>
                     </div>
