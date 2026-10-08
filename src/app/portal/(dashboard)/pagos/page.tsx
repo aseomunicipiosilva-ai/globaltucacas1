@@ -187,6 +187,7 @@ export default function DondePagarPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return; // Prevent double clicks
     if (montoTotal === 0) { alert('Debe seleccionar al menos una deuda.'); return; }
     if (!metodo) { alert('Debe seleccionar el método de pago.'); return; }
     if (metodo === 'transferencia' && !formData.bancoOrigen) { alert('Seleccione el banco origen.'); return; }

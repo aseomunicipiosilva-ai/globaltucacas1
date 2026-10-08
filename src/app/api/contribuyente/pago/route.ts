@@ -10,6 +10,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
     }
 
+    if (metodo === 'transferencia' && !referencia) {
+      return NextResponse.json({ error: 'El número de referencia del comprobante es obligatorio para transferencias bancarias.' }, { status: 400 });
+    }
+
     const fechaPago = fecha || new Date().toISOString().split('T')[0];
     const identidadNorm = identidad ? identidad.replace(/-/g, '').replace(/^([JVEG])(\d)/i, '$1-$2').toUpperCase() : '';
 

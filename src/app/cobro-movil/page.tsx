@@ -360,6 +360,7 @@ export default function CobroMovilPage() {
   };
 
   const handlePay = async () => {
+    if (isProcessing) return; // Prevent double clicks
     if (!referencia.trim()) { setPayError('Ingrese el número de referencia'); return; }
         const montoLimpio = montoIngresado.replace(/\./g, '').replace(',', '.');
     if (!montoIngresado || isNaN(parseFloat(montoLimpio))) { setPayError('Ingrese el monto cobrado'); return; }

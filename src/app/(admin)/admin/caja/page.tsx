@@ -643,6 +643,7 @@ export default function CajaPage() {
   };
 
   const handleConfirmAndPay = async () => {
+    if (isProcessing) return; // Prevent double clicks
     if (!confirmPayload) return;
     const { montoReal, finalTotal, saldoAFavorNuevo, esAbono, descuentoSaldoFavor, reqRef } = confirmPayload;
     setIsConfirmModalOpen(false);
