@@ -13,6 +13,18 @@ export async function POST(request: Request) {
     const fechaPago = fecha || new Date().toISOString().split('T')[0];
     const identidadNorm = identidad ? identidad.replace(/-/g, '').replace(/^([JVEG])(\d)/i, '$1-$2').toUpperCase() : '';
 
+    // Verificar duplicado si hay referencia
+    if (referencia) {
+      const { data: dupCheck } = await supabase
+        .from('pagos_reportados')
+        .select('id')
+        .eq('referencia', referencia)
+        .limit(1);
+      if (dupCheck && dupCheck.length > 0) {
+        return NextResponse.json({ error: `El número de referencia "${referencia}" ya fue registrado previamente en el sistema.` }, { status: 400 });
+      }
+    }
+
     // PUNTO DE VENTA: aprobación automática
     if (metodo === 'punto_de_venta') {
       const errores: string[] = [];

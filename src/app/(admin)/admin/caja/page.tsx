@@ -599,6 +599,16 @@ export default function CajaPage() {
     } else if (paymentMethod === 'Debito') {
       if (!referenciaDebito.trim()) return alert("Debe ingresar el número de comprobante o referencia del pago por punto.");
       if (referenciaDebito.trim().length > 8) return alert("El número de referencia para Punto de Venta no puede superar los 8 dígitos.");
+      
+      // Verificar referencia duplicada
+      const { data: dupCheck } = await supabase
+        .from('pagos_reportados')
+        .select('id')
+        .eq('referencia', referenciaDebito)
+        .limit(1);
+      if (dupCheck && dupCheck.length > 0) {
+        return alert(`⚠️ ADVERTENCIA: El número de comprobante "${referenciaDebito}" ya fue registrado previamente en el sistema. Verifique antes de continuar.`);
+      }
       if (montoDebito && (parseFloat(montoDebito) <= 0 || isNaN(parseFloat(montoDebito)))) {
         return alert("Si ingresa un monto manual, debe ser un valor válido mayor a 0.");
       }

@@ -365,6 +365,19 @@ export default function CobroMovilPage() {
     if (!montoIngresado || isNaN(parseFloat(montoLimpio))) { setPayError('Ingrese el monto cobrado'); return; }
     if (!foundUser) return;
     setPayError(''); setIsProcessing(true);
+    
+    // Verificar referencia duplicada
+    const { data: dupCheck } = await supabase
+      .from('pagos_reportados')
+      .select('id')
+      .eq('referencia', referencia)
+      .limit(1);
+    if (dupCheck && dupCheck.length > 0) {
+      setPayError(`El número de referencia "${referencia}" ya fue registrado previamente en el sistema.`);
+      setIsProcessing(false);
+      return;
+    }
+
     const cajero = localStorage.getItem('adminUser') || 'Cobrador';
     const montoReal = parseFloat(montoLimpio);
     try {
