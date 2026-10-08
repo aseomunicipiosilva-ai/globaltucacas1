@@ -18,6 +18,7 @@ export default function DecretosPage() {
   // Simulador State
   const [cuotas, setCuotas] = useState(1);
   const [pagoInicial, setPagoInicial] = useState(0);
+  const [tipoPago, setTipoPago] = useState<'contado' | 'fraccionado'>('fraccionado');
 
   const searchInmuebles = async () => {
     if (!searchTerm) return;
@@ -76,6 +77,7 @@ export default function DecretosPage() {
         const minPorcentaje = result.detalles.porcentaje_inicial_minimo / 100;
         setPagoInicial(result.detalles.montoTotalPagarBs * minPorcentaje);
         setCuotas(1);
+        setTipoPago('fraccionado');
       }
       
     } catch (e: any) {
@@ -249,49 +251,86 @@ export default function DecretosPage() {
 
                   {/* Simulador de Convenio */}
                   <div className="border rounded-lg p-4">
-                    <h3 className="font-bold text-slate-700 mb-4">Parámetros del Convenio</h3>
-                    
-                    <div className="grid grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-medium text-slate-600 mb-1">
-                          Pago Inicial (Bs)
-                        </label>
-                        <input 
-                          type="number"
-                          className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500"
-                          value={pagoInicial.toFixed(2)}
-                          onChange={(e) => setPagoInicial(Number(e.target.value))}
-                          min={evaluacionResult.detalles.montoTotalPagarBs * (evaluacionResult.detalles.porcentaje_inicial_minimo / 100)}
-                          max={evaluacionResult.detalles.montoTotalPagarBs}
-                          step="0.01"
-                        />
-                        <p className="text-xs text-slate-400 mt-1">Mínimo requerido: {evaluacionResult.detalles.porcentaje_inicial_minimo}%</p>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-slate-600 mb-1">
-                          Número de Cuotas
-                        </label>
-                        <select 
-                          className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500"
-                          value={cuotas}
-                          onChange={(e) => setCuotas(Number(e.target.value))}
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-bold text-slate-700">Opciones de Pago del Convenio</h3>
+                      <div className="flex bg-slate-100 rounded-lg p-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTipoPago('fraccionado');
+                            const minPorcentaje = evaluacionResult.detalles.porcentaje_inicial_minimo / 100;
+                            setPagoInicial(evaluacionResult.detalles.montoTotalPagarBs * minPorcentaje);
+                          }}
+                          className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${tipoPago === 'fraccionado' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500 hover:text-slate-700'}`}
                         >
-                          {Array.from({length: evaluacionResult.detalles.max_cuotas}, (_, i) => i + 1).map(num => (
-                            <option key={num} value={num}>{num} {num === 1 ? 'Cuota' : 'Cuotas'}</option>
-                          ))}
-                        </select>
+                          Fraccionado
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTipoPago('contado');
+                            setPagoInicial(evaluacionResult.detalles.montoTotalPagarBs);
+                          }}
+                          className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${tipoPago === 'contado' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                          Pago de Contado
+                        </button>
                       </div>
                     </div>
+                    
+                    {tipoPago === 'fraccionado' ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-6">
+                          <div>
+                            <label className="block text-sm font-medium text-slate-600 mb-1">
+                              Pago Inicial (Bs)
+                            </label>
+                            <input 
+                              type="number"
+                              className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500"
+                              value={pagoInicial.toFixed(2)}
+                              onChange={(e) => setPagoInicial(Number(e.target.value))}
+                              min={evaluacionResult.detalles.montoTotalPagarBs * (evaluacionResult.detalles.porcentaje_inicial_minimo / 100)}
+                              max={evaluacionResult.detalles.montoTotalPagarBs}
+                              step="0.01"
+                            />
+                            <p className="text-xs text-slate-400 mt-1">Mínimo requerido: {evaluacionResult.detalles.porcentaje_inicial_minimo}%</p>
+                          </div>
 
-                    {/* Resumen Final de Cuota */}
-                    <div className="mt-4 p-3 bg-slate-100 rounded text-center">
-                      <p className="text-sm text-slate-500">Monto de cada cuota fraccionada</p>
-                      <p className="text-2xl font-bold text-slate-800 mt-1">
-                        {((evaluacionResult.detalles.montoTotalPagarBs - pagoInicial) / cuotas).toLocaleString("es-VE", {minimumFractionDigits:2, maximumFractionDigits:2})} Bs
-                      </p>
-                      <p className="text-xs text-slate-400 mt-1">Vencimiento: 1ros 5 días de cada mes</p>
-                    </div>
+                          <div>
+                            <label className="block text-sm font-medium text-slate-600 mb-1">
+                              Número de Cuotas
+                            </label>
+                            <select 
+                              className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500"
+                              value={cuotas}
+                              onChange={(e) => setCuotas(Number(e.target.value))}
+                            >
+                              {Array.from({length: evaluacionResult.detalles.max_cuotas}, (_, i) => i + 1).map(num => (
+                                <option key={num} value={num}>{num} {num === 1 ? 'Cuota' : 'Cuotas'}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Resumen Final de Cuota */}
+                        <div className="mt-4 p-3 bg-slate-100 rounded text-center">
+                          <p className="text-sm text-slate-500">Monto de cada cuota fraccionada</p>
+                          <p className="text-2xl font-bold text-slate-800 mt-1">
+                            {((evaluacionResult.detalles.montoTotalPagarBs - pagoInicial) / cuotas).toLocaleString("es-VE", {minimumFractionDigits:2, maximumFractionDigits:2})} Bs
+                          </p>
+                          <p className="text-xs text-slate-400 mt-1">Vencimiento: 1ros 5 días de cada mes</p>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="mt-2 p-4 bg-emerald-50 border border-emerald-100 rounded-lg text-center">
+                        <p className="text-sm text-emerald-600 mb-1">Monto Único a Pagar Hoy</p>
+                        <p className="text-3xl font-black text-emerald-800">
+                          {evaluacionResult.detalles.montoTotalPagarBs.toLocaleString("es-VE", {minimumFractionDigits:2, maximumFractionDigits:2})} Bs
+                        </p>
+                        <p className="text-xs text-emerald-600 mt-2">No se generarán cuotas futuras. El convenio se liquida de inmediato.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : null}
