@@ -221,15 +221,17 @@ export const generarGeneralIngresosExcel = (
   transferencias.forEach((p, i) => {
     const det = parseDet(p);
     const recs = det.recibos || [];
-    const createdDate = new Date(p.created_at).toLocaleDateString('es-VE');
-    const bankDate = det.fecha_banco ? new Date(det.fecha_banco).toLocaleDateString('es-VE') : '-';
+    const isConciliado = p.estado === 'Aprobado' || p.estado === 'Con Diferencia';
+const concDate = isConciliado ? new Date(p.created_at).toLocaleDateString('es-VE') : '-';
+const regD = det.fecha_registro ? new Date(det.fecha_registro) : (isConciliado && det.fecha_transaccion ? new Date(det.fecha_transaccion) : new Date(p.created_at));
+const regDate = regD.toLocaleDateString('es-VE');
     const monto = parseFloat(det.monto_conciliado || p.monto) || 0;
     const rIdx = wsData.length + 1;
     wsData.push([
       "", 
       { v: i + 1, s: CELL_STYLE }, 
-      { v: createdDate, s: CELL_STYLE }, 
-      { v: bankDate, s: CELL_STYLE }, 
+      { v: concDate, s: CELL_STYLE }, 
+      { v: regDate, s: CELL_STYLE }, 
       { v: "Transferencia", s: CELL_STYLE }, 
       { v: det.origen || det.cajero || '-', s: CELL_STYLE }, 
       { v: `${p.identidad} ${p.contribuyente || ''}`, s: { ...CELL_STYLE, alignment: { horizontal: "left" } } },

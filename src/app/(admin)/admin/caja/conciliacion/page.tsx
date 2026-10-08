@@ -539,6 +539,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
       const updatedDet = {
         analista: det.analista || current_analista,
         ...det,
+        fecha_registro: det.fecha_registro || pago.created_at,
         correo: correoResponsable,
         telefono: telefonoResponsable,
         fecha_transaccion: fechaTransaccion,
