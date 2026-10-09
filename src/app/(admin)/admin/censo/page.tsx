@@ -13,7 +13,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function CensoPage() {
-  const { addAuditLog, ordenanzasConfig: ordenanzaData } = useAppContext();
+  const { addAuditLog, ordenanzasConfig: ordenanzaData, preRegistros, setPreRegistros } = useAppContext();
   const todasLasActividades = [...(ordenanzaData?.actividadesComerciales || []), ...(ordenanzaData?.actividadesIndustriales || [])];
   
   const [isSaving, setIsSaving] = useState(false);
@@ -179,7 +179,7 @@ export default function CensoPage() {
       const finalContribuyente = (formData.NombreComercial && formData.NombreComercial.trim()) ? `${formData.Contribuyente} | Comercial: ${formData.NombreComercial}` : formData.Contribuyente;
 
       // Save to pre_registros with advanced fields
-      const { error } = await supabase.from('pre_registros').insert([{
+      const { data: insertedData, error } = await supabase.from('pre_registros').insert([{
         identidad: `${formData.IdentidadTipo || 'V'}${formData.IdentidadNumero || ''}`,
         contribuyente: finalContribuyente,
         registro: fullTelefono,
@@ -201,6 +201,12 @@ export default function CensoPage() {
       }]);
 
       if (error) throw error;
+      
+      // Para asegurar que los datos insertados puedan actualizar el estado
+      const inserted = await supabase.from('pre_registros').select('*').order('id', {ascending: false}).limit(1);
+      if (inserted.data && inserted.data.length > 0) {
+         setPreRegistros([inserted.data[0], ...preRegistros]);
+      }
       
       await addAuditLog('CENSO_CREADO', `Censo registrado para ${formData.IdentidadTipo || 'V'}${formData.IdentidadNumero || ''} - ${formData.Contribuyente}`);
       setShowSuccess(true);

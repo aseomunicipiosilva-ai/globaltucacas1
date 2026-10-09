@@ -14,7 +14,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function CensoMobilePage() {
   const { ordenanzasConfig: ordenanzaData } = useAppContext();
-  const todasLasActividades = [...ordenanzaData.actividadesComerciales, ...ordenanzaData.actividadesIndustriales];
+  const todasLasActividades = [...(ordenanzaData?.actividadesComerciales || []), ...(ordenanzaData?.actividadesIndustriales || [])];
 
   const [operador, setOperador] = useState<string>('Operador');
   
@@ -47,9 +47,9 @@ export default function CensoMobilePage() {
     DireccionExacta: '',
     coordenadas: null,
     Clasificacion: 'Residencial',
-    TipoResidencia: ordenanzaData.tiposResidenciales[0].label,
+    TipoResidencia: ordenanzaData?.tiposResidenciales?.[0]?.label || '',
     ActividadComercial: '',
-    NivelMetraje: ordenanzaData.nivelesMetraje[0],
+    NivelMetraje: ordenanzaData?.nivelesMetraje?.[0] || '',
     isCondominio: false,
     cantidadInmuebles: 0,
     locales: [],
@@ -240,9 +240,9 @@ export default function CensoMobilePage() {
         DireccionExacta: '',
         coordenadas: null,
         Clasificacion: 'Residencial',
-        TipoResidencia: ordenanzaData.tiposResidenciales[0].label,
+        TipoResidencia: ordenanzaData?.tiposResidenciales?.[0]?.label || '',
         ActividadComercial: '',
-        NivelMetraje: ordenanzaData.nivelesMetraje[0],
+        NivelMetraje: ordenanzaData?.nivelesMetraje?.[0] || '',
         isCondominio: false,
         cantidadInmuebles: 0,
         locales: [],
