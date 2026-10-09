@@ -368,9 +368,19 @@ export default function EstadoCuentaPage() {
       if (idx === 0 && serviciosPendientes.length > 0) {
         serviciosPendientes.forEach(s => {
           const montoServicio = parseFloat(s.monto) || 0;
-          detalleRows.push([
-            s.fecha ? s.fecha.replace(/-/g, '-') : '—',
-            (TIPO_LABEL[s.tipo] || 'Serv. Especial') + ': ' + (s.descripcion || ''),
+              let tripsDesc = '';
+              if (s.tipo === 'extraordinario' && typeof tcmmv !== 'undefined' && tcmmv > 0) {
+                const userInms = inmuebles.filter((i: any) => i.identidad === s.identidad);
+                let totalMmv = 0;
+                userInms.forEach((i: any) => { totalMmv += parseFloat(i.mmv_mes || 0); });
+                if (totalMmv > 0) {
+                  const trips = Math.round((montoServicio / tcmmv) / totalMmv);
+                  if (trips > 0) tripsDesc = ` (${trips} viaje${trips > 1 ? 's' : ''})`;
+                }
+              }
+              detalleRows.push([
+                s.fecha ? s.fecha.replace(/-/g, '-') : '—',
+                (TIPO_LABEL[s.tipo] || 'Serv. Especial') + ': ' + (s.descripcion || '') + tripsDesc,
             montoServicio.toLocaleString('es-VE', { minimumFractionDigits: 2 }),
             '0,00', '0,00', '0,00',
             montoServicio.toLocaleString('es-VE', { minimumFractionDigits: 2 })
@@ -594,7 +604,12 @@ export default function EstadoCuentaPage() {
                           <span className="text-xs font-semibold">{TIPO_LABEL[s.tipo] || s.tipo}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 font-medium text-slate-800">{s.descripcion}</td>
+                      <td className="px-4 py-3 font-medium text-slate-800">
+          {s.descripcion}
+          {s.tipo === 'extraordinario' && typeof tcmmv !== 'undefined' && tcmmv > 0 && inmuebles.filter((i:any)=>i.identidad===s.identidad).reduce((acc:any,i:any)=>acc+parseFloat(i.mmv_mes||0),0) > 0 && (
+            ` (${Math.round((parseFloat(s.monto||0) / tcmmv) / inmuebles.filter((i:any)=>i.identidad===s.identidad).reduce((acc:any,i:any)=>acc+parseFloat(i.mmv_mes||0),0))} viajes)`
+          )}
+        </td>
                       <td className="px-4 py-3 font-mono text-xs text-slate-500">{s.referencia || '--'}</td>
                       <td className="px-4 py-3 text-center text-xs">{s.fecha}</td>
                       <td className="px-4 py-3 text-center">

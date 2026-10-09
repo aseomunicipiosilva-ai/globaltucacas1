@@ -831,6 +831,7 @@ export default function EstadoCuentaPage() {
         }
         if (row.estado === 'Pagado') {
           const pRel = allPagos.filter(p => {
+if (p.estado === 'Rechazado' || p.estado === 'Eliminado') return false;
             const d = typeof p.detalles === 'string' ? (() => { try { return JSON.parse(p.detalles); } catch(e){return {}}})() : p.detalles;
             return JSON.stringify(d || {}).includes(row.referencia);
           });

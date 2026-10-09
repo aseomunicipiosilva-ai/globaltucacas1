@@ -692,9 +692,19 @@ function ContribuyentesPageContent() {
         const TIPO_LABEL: any = { 'tala_poda': 'Tala y Poda', 'especial': 'Serv. Especial', 'visto_bueno': 'Visto Bueno', 'inspeccion': 'Inspección', 'extraordinario': 'Serv. Extraordinario' };
         serviciosPendientes.forEach((s: any) => {
           const montoServicio = parseFloat(s.monto) || 0;
-          detalleRows.push([
-            s.fecha ? s.fecha.replace(/-/g, '-') : '—',
-            (TIPO_LABEL[s.tipo] || 'Serv. Especial') + ': ' + (s.descripcion || ''),
+              let tripsDesc = '';
+              if (s.tipo === 'extraordinario' && typeof tcmmv !== 'undefined' && tcmmv > 0) {
+                const userInms = inmuebles.filter((i: any) => i.identidad === s.identidad);
+                let totalMmv = 0;
+                userInms.forEach((i: any) => { totalMmv += parseFloat(i.mmv_mes || 0); });
+                if (totalMmv > 0) {
+                  const trips = Math.round((montoServicio / tcmmv) / totalMmv);
+                  if (trips > 0) tripsDesc = ` (${trips} viaje${trips > 1 ? 's' : ''})`;
+                }
+              }
+              detalleRows.push([
+                s.fecha ? s.fecha.replace(/-/g, '-') : '—',
+                (TIPO_LABEL[s.tipo] || 'Serv. Especial') + ': ' + (s.descripcion || '') + tripsDesc,
             montoServicio.toLocaleString('es-VE', { minimumFractionDigits: 2 }),
             '0,00', '0,00', '0,00',
             montoServicio.toLocaleString('es-VE', { minimumFractionDigits: 2 })
