@@ -19,6 +19,8 @@ export default function DecretosPage() {
   const [cuotas, setCuotas] = useState(1);
   const [pagoInicial, setPagoInicial] = useState(0);
   const [tipoPago, setTipoPago] = useState<'contado' | 'fraccionado'>('fraccionado');
+  const [procesando, setProcesando] = useState(false);
+  const [procesadoExito, setProcesadoExito] = useState<string | null>(null);
 
   const searchInmuebles = async () => {
     if (!searchTerm) return;
@@ -45,6 +47,7 @@ export default function DecretosPage() {
     setEvaluacionLoading(true);
     setEvaluacionResult(null);
     setErrorMsg('');
+    setProcesadoExito(null);
 
     try {
       const res = await fetch('/api/decretos', {
@@ -87,10 +90,74 @@ export default function DecretosPage() {
     }
   };
 
+    const handleProcesarConvenio = async () => {
+    if (!selectedInmueble || !evaluacionResult || !evaluacionResult.eligible) return;
+
+    const sectorCalculado = (() => {
+      const name = (selectedInmueble.contribuyente || '').toUpperCase();
+      const cls = (selectedInmueble.clasificacion || '').toUpperCase();
+      if (name.includes('CONDOMINIO') || name.includes('RESIDENCIAS') || name.includes('CONJUNTO') || cls.includes('TIPO C')) return 'CONDOMINIO';
+      if (cls.includes('RESIDENCIAL')) return 'RESIDENCIAL';
+      if (cls.includes('INFORMAL') || cls.includes('AMBULANTE')) return 'INFORMAL';
+      return 'COMERCIAL';
+    })();
+
+    const montoTotal = evaluacionResult.detalles.montoTotalPagarBs;
+
+    setProcesando(true);
+    setErrorMsg('');
+    try {
+      const res = await fetch('/api/decretos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'procesar',
+          inmueble_id: selectedInmueble.id,
+          identidad: selectedInmueble.identidad,
+          sector: sectorCalculado,
+          tipoPago,
+          pagoInicial,
+          cuotas: tipoPago === 'contado' ? 1 : cuotas
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al procesar el convenio');
+      }
+
+      const mensaje = `• Nro. de Convenio: ${data.convenio?.numero || 'Generado'}\n` +
+        `• Contribuyente: ${selectedInmueble.contribuyente}\n` +
+        `• Decreto: ${evaluacionResult.decreto}\n` +
+        `• Monto Reliquidado: ${montoTotal.toLocaleString("es-VE", {minimumFractionDigits:2, maximumFractionDigits:2})} Bs\n` +
+        `• Modalidad: ${tipoPago === 'contado' ? 'Pago de Contado' : `${cuotas} Cuota(s) Fraccionada(s)`}\n\n` +
+        `Las facturas pendientes han sido refinanciadas exitosamente.`;
+
+      setProcesadoExito(mensaje);
+
+      // Actualizar estado local de los inmuebles
+      setInmuebles(prev => prev.map(item => 
+        (item.id === selectedInmueble.id || item.identidad === selectedInmueble.identidad)
+          ? { ...item, convenio_activo: true, decreto_activo: true }
+          : item
+      ));
+
+      if (searchTerm) {
+        searchInmuebles();
+      }
+    } catch (e: any) {
+      setErrorMsg(e.message || 'Error desconocido al procesar el convenio');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
   const closeModal = () => {
     setModalOpen(false);
     setSelectedInmueble(null);
     setEvaluacionResult(null);
+    setProcesadoExito(null);
   };
 
   return (
@@ -150,7 +217,21 @@ export default function DecretosPage() {
                   <tr key={c.id} className="hover:bg-slate-50">
                     <td className="px-6 py-4 font-medium text-slate-800">{c.identidad}</td>
                     <td className="px-6 py-4">{c.contribuyente}</td>
-                    <td className="px-6 py-4 capitalize">{c.clasificacion || 'COMERCIAL'}</td>
+                    <td className="px-6 py-4 capitalize">
+                      <div className="flex items-center gap-2">
+                        <span>{c.clasificacion || 'COMERCIAL'}</span>
+                        {c.decreto_activo && (
+                          <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-700 rounded-full">
+                            Decreto Activo
+                          </span>
+                        )}
+                        {!c.decreto_activo && c.convenio_activo && (
+                          <span className="px-2 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 rounded-full">
+                            Convenio Activo
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-6 py-4 text-center">
                       <button
                         onClick={() => openEvaluador(c)}
@@ -180,7 +261,23 @@ export default function DecretosPage() {
             </div>
             
             <div className="p-6 overflow-y-auto">
-              {evaluacionLoading ? (
+              {procesadoExito ? (
+                <div className="py-8 px-4 text-center space-y-4">
+                  <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
+                    <CheckCircle2 className="w-10 h-10" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-800">¡Convenio Procesado con Éxito!</h3>
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 p-4 rounded-lg text-left text-sm whitespace-pre-line max-w-md mx-auto font-mono">
+                    {procesadoExito}
+                  </div>
+                  <button
+                    onClick={closeModal}
+                    className="mt-4 px-6 py-2.5 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              ) : evaluacionLoading ? (
                 <div className="text-center py-10">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto mb-4"></div>
                   <p className="text-slate-500">Consultando facturas y calculando reliquidación...</p>
@@ -344,9 +441,20 @@ export default function DecretosPage() {
               >
                 Cancelar
               </button>
-              {evaluacionResult && evaluacionResult.eligible && (
-                <button className="px-6 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors shadow-sm">
-                  Procesar Convenio
+              {evaluacionResult && evaluacionResult.eligible && !procesadoExito && (
+                <button 
+                  onClick={handleProcesarConvenio}
+                  disabled={procesando}
+                  className="px-6 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
+                >
+                  {procesando ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Procesando...
+                    </>
+                  ) : (
+                    'Procesar Convenio'
+                  )}
                 </button>
               )}
             </div>
