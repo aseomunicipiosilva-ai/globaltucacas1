@@ -1,7 +1,16 @@
 'use client';
 import React, { useState } from 'react';
-import { Search, FileCheck, CheckCircle2, XCircle, Calculator, X } from 'lucide-react';
+import { Search, FileCheck, CheckCircle2, XCircle, Calculator, X, RotateCcw, CreditCard, UserCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+
+const bancosVenezuela = [
+  '100% Banco', 'Bancamiga', 'Bancaribe', 'Banco Activo', 'Banco Agrícola de Venezuela',
+  'Banco Bicentenario', 'Banco Caroní', 'Banco de Venezuela', 'Banco del Tesoro', 
+  'Banco Exterior', 'Banco Mercantil', 'Banco Nacional de Crédito (BNC)', 'Banco Plaza',
+  'Banco Provincial', 'Banco Sofitasa', 'Banco del Sur', 'Banesco', 'Banplus', 'Bancrecer',
+  'Mi Banco', 'Banco Internacional (BIB)', 'Banco Venezolano de Crédito (BVC)',
+  'BanFanb', 'Bancovi', 'Otro'
+].sort();
 
 export default function DecretosPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,6 +30,27 @@ export default function DecretosPage() {
   const [tipoPago, setTipoPago] = useState<'contado' | 'fraccionado'>('fraccionado');
   const [procesando, setProcesando] = useState(false);
   const [procesadoExito, setProcesadoExito] = useState<string | null>(null);
+
+  // Registro de Pago del Convenio
+  const [registrarPago, setRegistrarPago] = useState(true);
+  const [montoPago, setMontoPago] = useState<number | string>('');
+  const [metodoPago, setMetodoPago] = useState('Punto de Venta / Débito');
+  const [bancoPago, setBancoPago] = useState('Banesco');
+  const [referenciaPago, setReferenciaPago] = useState('');
+  const [fechaPago, setFechaPago] = useState(new Date().toISOString().split('T')[0]);
+
+  const getLoggedUser = () => {
+    if (typeof window === 'undefined') return 'Administrador';
+    const u = localStorage.getItem('adminUser');
+    const l = localStorage.getItem('adminLetra');
+    if (u) return l && u !== 'Administrador' ? `${l}-${u}` : u;
+    try {
+      const d = JSON.parse(localStorage.getItem('admin_user_data') || '{}');
+      if (d.nombre) return d.nombre;
+      if (d.usuario) return d.usuario;
+    } catch(e){}
+    return 'Administrador';
+  };
 
   const searchInmuebles = async () => {
     if (!searchTerm) return;
@@ -76,11 +106,12 @@ export default function DecretosPage() {
       setEvaluacionResult(result);
 
       if (result.eligible && result.detalles) {
-        // Inicializar pagos mínimos
         const minPorcentaje = result.detalles.porcentaje_inicial_minimo / 100;
-        setPagoInicial(result.detalles.montoTotalPagarBs * minPorcentaje);
+        const inicialMin = result.detalles.montoTotalPagarBs * minPorcentaje;
+        setPagoInicial(inicialMin);
         setCuotas(1);
         setTipoPago('fraccionado');
+        setMontoPago(inicialMin.toFixed(2));
       }
       
     } catch (e: any) {
@@ -90,7 +121,7 @@ export default function DecretosPage() {
     }
   };
 
-    const handleProcesarConvenio = async () => {
+  const handleProcesarConvenio = async () => {
     if (!selectedInmueble || !evaluacionResult || !evaluacionResult.eligible) return;
 
     const sectorCalculado = (() => {
@@ -103,6 +134,7 @@ export default function DecretosPage() {
     })();
 
     const montoTotal = evaluacionResult.detalles.montoTotalPagarBs;
+    const currentUser = getLoggedUser();
 
     setProcesando(true);
     setErrorMsg('');
@@ -117,7 +149,16 @@ export default function DecretosPage() {
           sector: sectorCalculado,
           tipoPago,
           pagoInicial,
-          cuotas: tipoPago === 'contado' ? 1 : cuotas
+          cuotas: tipoPago === 'contado' ? 1 : cuotas,
+          usuario: currentUser,
+          registrarPago,
+          datosPago: registrarPago ? {
+            monto: montoPago || (tipoPago === 'contado' ? montoTotal : pagoInicial),
+            metodo: metodoPago,
+            banco: bancoPago,
+            referencia: referenciaPago,
+            fecha: fechaPago
+          } : null
         })
       });
 
@@ -127,16 +168,26 @@ export default function DecretosPage() {
         throw new Error(data.error || 'Error al procesar el convenio');
       }
 
-      const mensaje = `• Nro. de Convenio: ${data.convenio?.numero || 'Generado'}\n` +
+      let mensaje = `• Nro. de Convenio: ${data.convenio?.numero || 'Generado'}\n` +
         `• Contribuyente: ${selectedInmueble.contribuyente}\n` +
         `• Decreto: ${evaluacionResult.decreto}\n` +
-        `• Monto Reliquidado: ${montoTotal.toLocaleString("es-VE", {minimumFractionDigits:2, maximumFractionDigits:2})} Bs\n` +
-        `• Modalidad: ${tipoPago === 'contado' ? 'Pago de Contado' : `${cuotas} Cuota(s) Fraccionada(s)`}\n\n` +
-        `Las facturas pendientes han sido refinanciadas exitosamente.`;
+        `• Monto Total Reliquidado: ${montoTotal.toLocaleString("es-VE", {minimumFractionDigits:2, maximumFractionDigits:2})} Bs\n` +
+        `• Modalidad: ${tipoPago === 'contado' ? 'Pago de Contado' : `${cuotas} Cuota(s) Fraccionada(s)`}\n` +
+        `• Aplicado por: ${currentUser}\n`;
+
+      if (registrarPago) {
+        mensaje += `\n💳 PAGO REGISTRADO:\n` +
+          `• Monto: ${parseFloat(String(montoPago || (tipoPago === 'contado' ? montoTotal : pagoInicial))).toLocaleString("es-VE", {minimumFractionDigits:2, maximumFractionDigits:2})} Bs\n` +
+          `• Método: ${metodoPago}\n` +
+          `• Referencia: ${referenciaPago || 'Generada'}\n` +
+          `• Estado del Pago: ${['Debito', 'Punto de Venta / Débito', 'Efectivo'].includes(metodoPago) ? 'Aprobado en Caja' : 'Por Verificar'}\n`;
+      }
+
+      mensaje += `\nLas facturas del período han sido refinanciadas exitosamente.`;
 
       setProcesadoExito(mensaje);
 
-      // Actualizar estado local de los inmuebles
+      // Actualizar estado local
       setInmuebles(prev => prev.map(item => 
         (item.id === selectedInmueble.id || item.identidad === selectedInmueble.identidad)
           ? { ...item, convenio_activo: true, decreto_activo: true }
@@ -153,10 +204,54 @@ export default function DecretosPage() {
     }
   };
 
+  const handleAnularConvenio = async (inmueble: any) => {
+    const confirmMsg = `¿Está seguro de ANULAR el convenio/decreto para "${inmueble.contribuyente}"?\n\n` +
+      `• Las facturas refinanciadas volverán a estado "Pendiente".\n` +
+      `• El decreto se eliminará para permitir una nueva reliquidación.`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/decretos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'anular',
+          inmueble_id: inmueble.id,
+          identidad: inmueble.identidad,
+          usuario: getLoggedUser()
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al anular el convenio');
+      }
+
+      alert('✅ ' + data.mensaje);
+
+      setInmuebles(prev => prev.map(item => 
+        (item.id === inmueble.id || item.identidad === inmueble.identidad)
+          ? { ...item, convenio_activo: false, decreto_activo: false }
+          : item
+      ));
+
+      if (searchTerm) {
+        searchInmuebles();
+      }
+    } catch (e: any) {
+      alert('Error anulando convenio: ' + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const closeModal = () => {
     setModalOpen(false);
     setSelectedInmueble(null);
     setEvaluacionResult(null);
+    setErrorMsg('');
     setProcesadoExito(null);
   };
 
@@ -168,7 +263,7 @@ export default function DecretosPage() {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Decretos y Convenios</h1>
-          <p className="text-sm text-slate-500">Activación de beneficios y Reliquidación 2026</p>
+          <p className="text-sm text-slate-500">Activación de beneficios, reliquidación y gestión de acuerdos 2026</p>
         </div>
       </div>
 
@@ -201,7 +296,7 @@ export default function DecretosPage() {
               <tr>
                 <th className="px-6 py-3 border-b">RIF / Cédula</th>
                 <th className="px-6 py-3 border-b">Contribuyente</th>
-                <th className="px-6 py-3 border-b">Clasificación</th>
+                <th className="px-6 py-3 border-b">Clasificación / Estado</th>
                 <th className="px-6 py-3 border-b text-center">Acciones</th>
               </tr>
             </thead>
@@ -209,14 +304,14 @@ export default function DecretosPage() {
               {inmuebles.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
-                    No se encontraron resultados.
+                    No se encontraron resultados. Ingrese un RIF o nombre para buscar.
                   </td>
                 </tr>
               ) : (
                 inmuebles.map(c => (
                   <tr key={c.id} className="hover:bg-slate-50">
                     <td className="px-6 py-4 font-medium text-slate-800">{c.identidad}</td>
-                    <td className="px-6 py-4">{c.contribuyente}</td>
+                    <td className="px-6 py-4 font-semibold text-slate-700">{c.contribuyente}</td>
                     <td className="px-6 py-4 capitalize">
                       <div className="flex items-center gap-2">
                         <span>{c.clasificacion || 'COMERCIAL'}</span>
@@ -233,13 +328,25 @@ export default function DecretosPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() => openEvaluador(c)}
-                        className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
-                      >
-                        <Calculator className="w-3.5 h-3.5" />
-                        Evaluar Decreto
-                      </button>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => openEvaluador(c)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
+                        >
+                          <Calculator className="w-3.5 h-3.5" />
+                          Evaluar Decreto
+                        </button>
+                        {(c.decreto_activo || c.convenio_activo) && (
+                          <button
+                            onClick={() => handleAnularConvenio(c)}
+                            title="Anular decreto y restaurar facturas a estado Pendiente"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-red-50 text-red-700 hover:bg-red-100 transition-colors border border-red-200"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            Anular
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -252,29 +359,32 @@ export default function DecretosPage() {
       {/* Modal de Evaluación */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh]">
             <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-              <h2 className="text-lg font-bold text-slate-800">Evaluación de Convenio</h2>
+              <div className="flex items-center gap-2">
+                <FileCheck className="w-5 h-5 text-emerald-600" />
+                <h2 className="text-lg font-bold text-slate-800">Evaluación de Convenio</h2>
+              </div>
               <button onClick={closeModal} className="text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto">
+            <div className="p-6 overflow-y-auto space-y-6">
               {procesadoExito ? (
                 <div className="py-8 px-4 text-center space-y-4">
                   <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-sm">
                     <CheckCircle2 className="w-10 h-10" />
                   </div>
                   <h3 className="text-xl font-bold text-slate-800">¡Convenio Procesado con Éxito!</h3>
-                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 p-4 rounded-lg text-left text-sm whitespace-pre-line max-w-md mx-auto font-mono">
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 p-4 rounded-lg text-left text-sm whitespace-pre-line max-w-lg mx-auto font-mono">
                     {procesadoExito}
                   </div>
                   <button
                     onClick={closeModal}
-                    className="mt-4 px-6 py-2.5 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
+                    className="mt-4 px-8 py-2.5 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
                   >
-                    Cerrar
+                    Aceptar y Cerrar
                   </button>
                 </div>
               ) : evaluacionLoading ? (
@@ -294,14 +404,16 @@ export default function DecretosPage() {
                 <div className="bg-amber-50 text-amber-700 p-4 rounded-lg">
                   <h3 className="font-semibold mb-2">Contribuyente NO Elegible</h3>
                   <p className="text-sm">{evaluacionResult.mensaje}</p>
-                  <p className="text-sm font-medium mt-2">Meses de morosidad detectados: {evaluacionResult.mesesMorosidad}</p>
+                  {evaluacionResult.mesesMorosidad !== undefined && (
+                    <p className="text-sm font-medium mt-2">Meses de morosidad detectados: {evaluacionResult.mesesMorosidad}</p>
+                  )}
                 </div>
               ) : evaluacionResult && evaluacionResult.detalles ? (
                 <div className="space-y-6">
                   {/* Info Aprobada */}
                   <div className="bg-emerald-50 text-emerald-800 p-4 rounded-lg border border-emerald-200">
-                    <div className="flex items-center gap-2 font-semibold mb-2">
-                      <CheckCircle2 className="w-5 h-5" />
+                    <div className="flex items-center gap-2 font-semibold mb-1">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
                       Elegible para {evaluacionResult.decreto}
                     </div>
                     <p className="text-sm text-emerald-600">{evaluacionResult.mensaje}</p>
@@ -356,7 +468,9 @@ export default function DecretosPage() {
                           onClick={() => {
                             setTipoPago('fraccionado');
                             const minPorcentaje = evaluacionResult.detalles.porcentaje_inicial_minimo / 100;
-                            setPagoInicial(evaluacionResult.detalles.montoTotalPagarBs * minPorcentaje);
+                            const initAmount = evaluacionResult.detalles.montoTotalPagarBs * minPorcentaje;
+                            setPagoInicial(initAmount);
+                            setMontoPago(initAmount.toFixed(2));
                           }}
                           className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${tipoPago === 'fraccionado' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500 hover:text-slate-700'}`}
                         >
@@ -367,6 +481,7 @@ export default function DecretosPage() {
                           onClick={() => {
                             setTipoPago('contado');
                             setPagoInicial(evaluacionResult.detalles.montoTotalPagarBs);
+                            setMontoPago(evaluacionResult.detalles.montoTotalPagarBs.toFixed(2));
                           }}
                           className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${tipoPago === 'contado' ? 'bg-white shadow-sm text-emerald-700' : 'text-slate-500 hover:text-slate-700'}`}
                         >
@@ -385,8 +500,12 @@ export default function DecretosPage() {
                             <input 
                               type="number"
                               className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-emerald-500"
-                              value={pagoInicial.toFixed(2)}
-                              onChange={(e) => setPagoInicial(Number(e.target.value))}
+                              value={pagoInicial}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                setPagoInicial(val);
+                                setMontoPago(val.toFixed(2));
+                              }}
                               min={evaluacionResult.detalles.montoTotalPagarBs * (evaluacionResult.detalles.porcentaje_inicial_minimo / 100)}
                               max={evaluacionResult.detalles.montoTotalPagarBs}
                               step="0.01"
@@ -412,7 +531,7 @@ export default function DecretosPage() {
 
                         {/* Resumen Final de Cuota */}
                         <div className="mt-4 p-3 bg-slate-100 rounded text-center">
-                          <p className="text-sm text-slate-500">Monto de cada cuota fraccionada</p>
+                          <p className="text-sm text-slate-500">Monto de cada cuota fraccionada restante</p>
                           <p className="text-2xl font-bold text-slate-800 mt-1">
                             {((evaluacionResult.detalles.montoTotalPagarBs - pagoInicial) / cuotas).toLocaleString("es-VE", {minimumFractionDigits:2, maximumFractionDigits:2})} Bs
                           </p>
@@ -428,6 +547,111 @@ export default function DecretosPage() {
                         <p className="text-xs text-emerald-600 mt-2">No se generarán cuotas futuras. El convenio se liquida de inmediato.</p>
                       </div>
                     )}
+                  </div>
+
+                  {/* SECCION: REPORTAR PAGO DEL CONVENIO */}
+                  <div className="border border-emerald-200 bg-emerald-50/40 rounded-lg p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="w-5 h-5 text-emerald-600" />
+                        <h4 className="font-bold text-slate-800">Reportar Pago del Convenio</h4>
+                      </div>
+                      <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-slate-700">
+                        <input 
+                          type="checkbox"
+                          checked={registrarPago}
+                          onChange={(e) => setRegistrarPago(e.target.checked)}
+                          className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
+                        />
+                        Registrar pago ahora
+                      </label>
+                    </div>
+
+                    {registrarPago && (
+                      <div className="space-y-3 pt-2 border-t border-emerald-100">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1">
+                              Monto a Pagar (Bs)
+                            </label>
+                            <input 
+                              type="number"
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500"
+                              value={montoPago}
+                              onChange={(e) => setMontoPago(e.target.value)}
+                              step="0.01"
+                            />
+                            <p className="text-[11px] text-slate-500 mt-1">
+                              {tipoPago === 'contado' ? 'Monto total de contado' : 'Monto del pago inicial'}
+                            </p>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1">
+                              Forma / Método de Pago
+                            </label>
+                            <select 
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-emerald-500"
+                              value={metodoPago}
+                              onChange={(e) => setMetodoPago(e.target.value)}
+                            >
+                              <option value="Punto de Venta / Débito">Punto de Venta / Débito (Aprobación inmediata)</option>
+                              <option value="Transferencia Bancaria">Transferencia Bancaria (Por Verificar)</option>
+                              <option value="Pago Móvil">Pago Móvil (Por Verificar)</option>
+                              <option value="Efectivo">Efectivo (Caja)</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1">
+                              Banco
+                            </label>
+                            <select 
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-xs focus:ring-2 focus:ring-emerald-500"
+                              value={bancoPago}
+                              onChange={(e) => setBancoPago(e.target.value)}
+                            >
+                              {bancosVenezuela.map(b => (
+                                <option key={b} value={b}>{b}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1">
+                              Nro. de Referencia
+                            </label>
+                            <input 
+                              type="text"
+                              placeholder="Ej: 123456"
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-xs focus:ring-2 focus:ring-emerald-500"
+                              value={referenciaPago}
+                              onChange={(e) => setReferenciaPago(e.target.value)}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1">
+                              Fecha de Pago
+                            </label>
+                            <input 
+                              type="date"
+                              className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-xs focus:ring-2 focus:ring-emerald-500"
+                              value={fechaPago}
+                              onChange={(e) => setFechaPago(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Operador responsable */}
+                  <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-2.5 rounded-md border border-slate-200">
+                    <UserCheck className="w-4 h-4 text-emerald-600" />
+                    <span>Operador que aplicará este convenio: <b>{getLoggedUser()}</b></span>
                   </div>
                 </div>
               ) : null}
@@ -452,6 +676,8 @@ export default function DecretosPage() {
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       Procesando...
                     </>
+                  ) : registrarPago ? (
+                    'Procesar Convenio y Registrar Pago'
                   ) : (
                     'Procesar Convenio'
                   )}
