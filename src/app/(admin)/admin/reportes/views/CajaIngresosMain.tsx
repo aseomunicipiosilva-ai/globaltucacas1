@@ -1,7 +1,7 @@
 ﻿'use client';
 import { useState, useMemo, useEffect } from 'react';
 import { ChevronDown, Lock, CheckCircle, Loader2, Printer, ArrowLeft, FileSpreadsheet, FileText } from 'lucide-react';
-import { generarCorteCajaPDF } from '../generators/PdfReports';
+import { generarCorteCajaPDF, generarIngresoBancarioPDF } from '../generators/PdfReports';
 import { generarLibroVentas } from '../generators/LibroVentas';
 import { generarGeneralIngresosExcel } from '../generators/ExcelGeneralIngresos';
 
@@ -13,6 +13,7 @@ interface Props {
   tcmmv: number;
   contribuyentes: any[];
   onBack: () => void;
+  loading?: boolean;
 }
 
 type SubTipo = 'General de Ingresos' | 'Corte de Caja' | 'Ingresos por Banco' | 'Libro de Ventas' | 'Resumen Libro de Ventas';
@@ -50,7 +51,7 @@ function getNombre(p: any, contribuyentes: any[]): string {
 const SUB_TIPOS: SubTipo[] = ['General de Ingresos', 'Corte de Caja', 'Ingresos por Banco', 'Libro de Ventas', 'Resumen Libro de Ventas'];
 const BANCOS = ['BANESCO','BANCO NACIONAL CREDITO BNC','BDT','BANCO DE VENEZUELA','PROVINCIAL','MERCANTIL','BOD','BANCO DEL CARIBE','BANCO PLAZA','BANCO EXTERIOR','SOFITASA','BANCAMIGA','MIBANCO'];
 
-export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser, tcmmv, contribuyentes, onBack }: Props) {
+export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser, tcmmv, contribuyentes, onBack, loading }: Props) {
   const today = new Date().toISOString().slice(0, 10);
   const [subTipo, setSubTipo] = useState<SubTipo>('General de Ingresos');
   const [selectedCajas, setSelectedCajas] = useState<string[]>(isAdmin ? [] : [currentUser]);
@@ -147,7 +148,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
         <div style={{ marginTop: 4 }}><b>Transferencia Bs.:</b><span style={{ float: 'right' }}>{fmtBs(totalTransf)}</span></div>
       </div>
       <div style={{ padding: '10px 14px', borderRight: '1px solid #ccc', fontSize: 12 }}>
-        <div><b>Fecha:</b> Desde {new Date(fechaInicio).toLocaleString('es-VE', { hour: '2-digit', minute: '2-digit' })} hasta {new Date(fechaFin).toLocaleString('es-VE', { hour: '2-digit', minute: '2-digit' })}</div>
+        <div><b>Fecha:</b> Desde {new Date(fechaInicio).toLocaleDateString('es-VE')} {new Date(fechaInicio).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })} hasta {new Date(fechaFin).toLocaleDateString('es-VE')} {new Date(fechaFin).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })}</div>
         <div style={{ marginTop: 4 }}><b>Cajero:</b> {cajeroLabel}</div>
         <div style={{ textAlign: 'right', marginTop: 4 }}>Total Registros: <b>{pagosFiltrados.length}</b></div>
       </div>
@@ -163,7 +164,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
 
   const IconsTop = ({ showExcel }: { showExcel?: boolean }) => (
     <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: 4 }}>
-      <button onClick={() => generarCorteCajaPDF(pagosFiltrados, contribuyentes, fechaInicio, fechaFin, tasaEuro)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c0392b', padding: '2px 6px' }} title="PDF"><Printer size={15}/></button>
+      <button onClick={() => { if (subTipo === 'Ingresos por Banco') { generarIngresoBancarioPDF(pagosFiltrados, contribuyentes, 'Diario', fechaInicio, fechaFin); } else { generarCorteCajaPDF(pagosFiltrados, contribuyentes, fechaInicio, fechaFin, tasaEuro); } }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c0392b', padding: '2px 6px' }} title="PDF"><Printer size={15}/></button>
       <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#555', padding: '2px 6px' }} title="Columnas"><span style={{fontSize:14, fontWeight:700}}>|||</span></button>
       {showExcel && <button onClick={() => { if (subTipo === 'General de Ingresos' || subTipo === 'Ingresos por Banco') { generarGeneralIngresosExcel(pagosFiltrados, cajeroLabel, fechaInicio.split('T')[0], fechaFin.split('T')[0]); } else { generarLibroVentas(pagosFiltrados, contribuyentes, 'Diario', fechaInicio, fechaFin); } }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#166534', padding: '2px 6px' }} title="Descargar Excel Estilizado"><FileSpreadsheet size={15}/></button>}
     </div>
@@ -223,7 +224,17 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
     </>}
   </>);
 
-  const EmptyMsg = () => <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>No se encontraron registros.</div>;
+  const EmptyMsg = () => (
+    <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>
+      {loading ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: '#2a5298', fontWeight: 600 }}>
+          <Loader2 size={18} className="animate-spin" /> Cargando transacciones de caja...
+        </div>
+      ) : (
+        'No se encontraron registros.'
+      )}
+    </div>
+  );
 
   const handleCerrarCaja = async () => {
     setCerrando(true);
@@ -309,7 +320,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
               </div>
             </div>
           )}
-          <button onClick={() => { setShowReport(true); setShowCajaDD(false); }} style={S.btnGen}>Generar Reporte</button>
+          <button onClick={() => { setShowReport(true); setShowCajaDD(false); }} disabled={loading} style={{ ...S.btnGen, opacity: loading ? 0.7 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}>{loading && <Loader2 size={13} className="animate-spin" />}Generar Reporte</button>
 
           <button
             onClick={() => setShowConfirmCierre(true)}

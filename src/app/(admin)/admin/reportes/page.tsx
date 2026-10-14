@@ -41,6 +41,7 @@ export default function ReportesPage() {
   const [fechaFin, setFechaFin] = useState('');
   const [morososData, setMorososData] = useState<{total: number; deudaTotal: number} | null>(null);
   const [loadingMorosos, setLoadingMorosos] = useState(false);
+  const [loadingPagos, setLoadingPagos] = useState(true);
 
   useEffect(() => {
     const user = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || '';
@@ -69,19 +70,10 @@ export default function ReportesPage() {
     setIsAdmin(adminCheck);
 
     const loadPagos = async () => {
-      const { data } = await supabase.from('pagos_reportados').select('*').not('estado','in','(Anulado,Reversado,Condonado)').order('created_at', { ascending: false });
-      const { data: trabData } = await supabase.from('trabajadores').select('usuario, letra, rol').eq('estado', 'Activo');
-      
-      if (data) {
-        setPagos(data);
+      setLoadingPagos(true);
+      try {
+        const { data: trabData } = await supabase.from('trabajadores').select('usuario, letra, rol').eq('estado', 'Activo');
         const cajerosSet = new Set<string>();
-        data.forEach((p: any) => {
-          try {
-            const dets = typeof p.detalles === 'object' ? p.detalles : JSON.parse(p.detalles || '{}');
-            if (dets.cajero) cajerosSet.add(dets.cajero);
-          } catch(e) {}
-        });
-        
         if (trabData) {
           trabData.forEach((t: any) => {
             if (t.usuario) {
@@ -89,8 +81,73 @@ export default function ReportesPage() {
             }
           });
         }
+
+        const { data, error } = await supabase
+          .from('pagos_reportados')
+          .select(`
+            id, identidad, monto, banco, referencia, tipo, estado, created_at,
+            det_cajero:detalles->>cajero,
+            det_analista:detalles->>analista,
+            det_banco_destino:detalles->>banco_destino,
+            det_banco_receptor:detalles->>banco_receptor,
+            det_banco_origen:detalles->>banco_origen,
+            det_banco_emisor:detalles->>banco_emisor,
+            det_monto_conciliado:detalles->>monto_conciliado,
+            det_recibos:detalles->recibos,
+            det_fecha_banco:detalles->>fecha_banco,
+            det_fecha_registro:detalles->>fecha_registro,
+            det_fecha_transaccion:detalles->>fecha_transaccion,
+            det_aprobacion:detalles->>aprobacion,
+            det_lote:detalles->>lote,
+            det_origen:detalles->>origen,
+            det_saldo_favor:detalles->saldo_favor
+          `)
+          .not('estado','in','(Anulado,Reversado,Condonado)')
+          .order('created_at', { ascending: false });
         
+        if (error) {
+          console.error('Error cargando pagos_reportados optimizado:', error);
+          const { data: fallbackData } = await supabase.from('pagos_reportados').select('*').not('estado','in','(Anulado,Reversado,Condonado)').order('created_at', { ascending: false });
+          if (fallbackData) {
+            setPagos(fallbackData);
+            fallbackData.forEach((p: any) => {
+              try {
+                const dets = typeof p.detalles === 'object' ? p.detalles : JSON.parse(p.detalles || '{}');
+                if (dets.cajero) cajerosSet.add(dets.cajero);
+              } catch(e) {}
+            });
+          }
+        } else if (data) {
+          const mapped = data.map((p: any) => ({
+            ...p,
+            detalles: {
+              cajero: p.det_cajero || '',
+              analista: p.det_analista || '',
+              banco_destino: p.det_banco_destino || '',
+              banco_receptor: p.det_banco_receptor || '',
+              banco_origen: p.det_banco_origen || '',
+              banco_emisor: p.det_banco_emisor || '',
+              monto_conciliado: p.det_monto_conciliado || '',
+              recibos: Array.isArray(p.det_recibos) ? p.det_recibos : (typeof p.det_recibos === 'string' ? JSON.parse(p.det_recibos || '[]') : []),
+              fecha_banco: p.det_fecha_banco || '',
+              fecha_registro: p.det_fecha_registro || '',
+              fecha_transaccion: p.det_fecha_transaccion || '',
+              aprobacion: p.det_aprobacion || '',
+              lote: p.det_lote || '',
+              origen: p.det_origen || '',
+              saldo_favor: p.det_saldo_favor || 0
+            }
+          }));
+          setPagos(mapped);
+          mapped.forEach((p: any) => {
+            if (p.detalles.cajero) cajerosSet.add(p.detalles.cajero);
+          });
+        }
         setCajeros(Array.from(cajerosSet).sort());
+      } catch (err) {
+        console.error('Error en loadPagos:', err);
+      } finally {
+        setLoadingPagos(false);
       }
     };
     loadPagos();
@@ -137,6 +194,7 @@ export default function ReportesPage() {
     <CajaIngresosMain
       pagos={pagos} cajeros={cajeros} isAdmin={isAdmin} currentUser={currentUser}
       tcmmv={tcmmv || 0} contribuyentes={contribuyentes} onBack={() => setActiveView(null)}
+      loading={loadingPagos}
     />
   );
 
