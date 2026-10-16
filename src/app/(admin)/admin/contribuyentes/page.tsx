@@ -2397,27 +2397,140 @@ function ContribuyentesPageContent() {
                 </div>
               )}
 
-              <div className="mt-6 border border-slate-200 rounded-lg overflow-hidden">
-                <div className="bg-red-50 px-4 py-3 border-b border-red-100 flex items-center justify-between">
+              <div className="mt-6 border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+                <div className="bg-red-50 px-4 py-3 border-b border-red-100 flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <DollarSign className="w-5 h-5 text-red-600" />
-                    <h4 className="font-bold text-red-800">Estado de Cuenta (Deuda Actual)</h4>
+                    <h4 className="font-bold text-red-800 text-base">Estado de Cuenta (Deuda Actual)</h4>
                   </div>
-                  <button 
-                    onClick={imprimirEstadoDeCuenta}
-                    className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors"
-                  >
-                    <FileText className="w-4 h-4" /> Exportar PDF
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      type="button"
+                      onClick={() => setModalPeriodoOpen(true)}
+                      className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-900 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-95"
+                    >
+                      <Calendar className="w-4 h-4 text-amber-400" /> Seleccionar Período
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => imprimirEstadoDeCuenta()}
+                      className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-95"
+                      title="Exportar PDF con el período seleccionado"
+                    >
+                      <FileText className="w-4 h-4" /> Exportar PDF
+                    </button>
+                  </div>
+                </div>
+
+                {/* ── BARRA SELECTORA DE PERÍODO (EJ. ENERO HASTA SEPTIEMBRE) ── */}
+                <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span className="font-bold text-slate-700 text-xs flex items-center gap-1.5">
+                      <Filter className="w-4 h-4 text-red-600" /> Filtrar Período:
+                    </span>
+                    <select
+                      value={periodoModo}
+                      onChange={(e) => setPeriodoModo(e.target.value as any)}
+                      className="border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-xs font-bold text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                    >
+                      <option value="todos">Todos los Meses Pendientes</option>
+                      <option value="rango">Rango de Meses Específico</option>
+                    </select>
+
+                    {periodoModo === 'rango' && (
+                      <div className="flex flex-wrap items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-300 shadow-sm text-xs">
+                        <span className="text-slate-500 font-semibold">Año:</span>
+                        <select
+                          value={periodoAnio}
+                          onChange={(e) => setPeriodoAnio(Number(e.target.value))}
+                          className="bg-transparent font-bold text-slate-800 focus:outline-none"
+                        >
+                          <option value={2026}>2026</option>
+                          <option value={2025}>2025</option>
+                          <option value={2024}>2024</option>
+                        </select>
+
+                        <span className="text-slate-300">|</span>
+                        <span className="text-slate-500 font-semibold">Desde:</span>
+                        <select
+                          value={periodoDesdeMes}
+                          onChange={(e) => setPeriodoDesdeMes(Number(e.target.value))}
+                          className="bg-transparent font-bold text-slate-800 focus:outline-none"
+                        >
+                          {MESES_LISTA.map((m, idx) => (
+                            <option key={idx} value={idx + 1}>{m}</option>
+                          ))}
+                        </select>
+
+                        <span className="text-slate-300">|</span>
+                        <span className="text-slate-500 font-semibold">Hasta:</span>
+                        <select
+                          value={periodoHastaMes}
+                          onChange={(e) => setPeriodoHastaMes(Number(e.target.value))}
+                          className="bg-transparent font-bold text-slate-800 focus:outline-none"
+                        >
+                          {MESES_LISTA.map((m, idx) => (
+                            <option key={idx} value={idx + 1}>{m}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Accesos rápidos */}
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => { setPeriodoModo('rango'); setPeriodoDesdeMes(1); setPeriodoHastaMes(9); setPeriodoAnio(2026); }}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                        periodoModo === 'rango' && periodoDesdeMes === 1 && periodoHastaMes === 9
+                          ? 'bg-red-600 text-white ring-2 ring-red-400'
+                          : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      ⭐ Enero a Septiembre
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setPeriodoModo('rango'); setPeriodoDesdeMes(1); setPeriodoHastaMes(12); setPeriodoAnio(2026); }}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                        periodoModo === 'rango' && periodoDesdeMes === 1 && periodoHastaMes === 12
+                          ? 'bg-red-600 text-white ring-2 ring-red-400'
+                          : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      Todo 2026
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setPeriodoModo('todos'); }}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                        periodoModo === 'todos'
+                          ? 'bg-red-600 text-white ring-2 ring-red-400'
+                          : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      Todos
+                    </button>
+                  </div>
                 </div>
                 <div className="p-0">
                   {(() => {
-                    // Usar recibos frescas de Supabase y asegurar orden cronológico
-                    const deudas = [...viewFacturasDb].sort((a: any, b: any) => {
-                      const dA = new Date(a.emision || '1900-01-01').getTime();
-                      const dB = new Date(b.emision || '1900-01-01').getTime();
-                      return dA - dB;
-                    });
+                    // Filtrar por período seleccionado si modo es rango
+                    const deudas = [...viewFacturasDb]
+                      .filter((f: any) => {
+                        if (periodoModo === 'todos') return true;
+                        const ym = getFacturaYearMonth(f);
+                        const fKey = ym.year * 100 + ym.month;
+                        const startKey = periodoAnio * 100 + periodoDesdeMes;
+                        const endKey = periodoAnio * 100 + periodoHastaMes;
+                        return fKey >= startKey && fKey <= endKey;
+                      })
+                      .sort((a: any, b: any) => {
+                        const dA = new Date(a.emision || '1900-01-01').getTime();
+                        const dB = new Date(b.emision || '1900-01-01').getTime();
+                        return dA - dB;
+                      });
 
                     // Helper: para CM- recalcular con tasa BCV actual (fluctúa cada día)
                     // Para RECIB- usar monto guardado (deuda acumulada ajustada por Ajustar Deuda)
@@ -2474,6 +2587,24 @@ function ContribuyentesPageContent() {
                     const totalBs = deudas.reduce((acc: number, f: any) => acc + getMontoActual(f), 0);
 
                     if (deudas.length === 0) {
+                      if (viewFacturasDb.length > 0 && periodoModo === 'rango') {
+                        return (
+                          <div className="p-8 text-center bg-white">
+                            <AlertCircle className="w-10 h-10 text-amber-500 mx-auto mb-2" />
+                            <p className="text-slate-800 font-bold mb-1">Sin deudas pendientes en el período seleccionado.</p>
+                            <p className="text-slate-500 text-xs mb-3">
+                              (${MESES_LISTA[periodoDesdeMes - 1]} a ${MESES_LISTA[periodoHastaMes - 1]} ${periodoAnio})
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setPeriodoModo('todos')}
+                              className="text-xs bg-slate-800 hover:bg-slate-900 text-white font-bold px-3 py-1.5 rounded-lg shadow-sm"
+                            >
+                              Ver Todos los Meses (${viewFacturasDb.length} pendientes)
+                            </button>
+                          </div>
+                        );
+                      }
                       return (
                         <div className="p-6 text-center">
                           <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-2" />
@@ -2519,8 +2650,14 @@ function ContribuyentesPageContent() {
 
                     return (
                       <div>
-                        <div className="p-4 bg-white border-b border-slate-100 flex justify-between items-center">
-                          <span className="font-semibold text-slate-600">Monto Total Adeudado:</span>
+                        <div className="p-4 bg-white border-b border-slate-100 flex flex-wrap justify-between items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-semibold text-slate-600">Monto Total Adeudado:</span>
+                            <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-amber-100 text-amber-900 border border-amber-200">
+                              {periodoModo === 'todos' ? 'HISTÓRICO ACUMULADO' : `PERÍODO: ${MESES_LISTA[periodoDesdeMes - 1]} A ${MESES_LISTA[periodoHastaMes - 1]} ${periodoAnio}`}
+                            </span>
+                            <span className="text-xs text-slate-500 font-medium">({deudas.length} mes{deudas.length === 1 ? '' : 'es'})</span>
+                          </div>
                           <span className="text-xl font-black text-red-600">Bs. {totalBs.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
                         </div>
                         <div className="bg-slate-50">
