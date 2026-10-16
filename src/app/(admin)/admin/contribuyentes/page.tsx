@@ -45,6 +45,7 @@ function ContribuyentesPageContent() {
   const [selectedCondominioModal, setSelectedCondominioModal] = useState<{ id: number, nombre: string, identidad: string } | null>(null);
   const [viewServiciosEsp, setViewServiciosEsp] = useState<any[]>([]);
   const [viewPagos, setViewPagos] = useState<any[]>([]);
+  const [viewAuditLogs, setViewAuditLogs] = useState<any[]>([]);
 
   const [debtModalOpen, setDebtModalOpen] = useState(false);
   const [selectedDebtRow, setSelectedDebtRow] = useState<any>(null);

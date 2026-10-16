@@ -4,28 +4,43 @@ import { supabase } from '@/lib/supabase';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { metodo, facturaIds, convenioIds, monto, referencia, banco, fecha, identidad } = body;
+    const { metodo, facturaIds, convenioIds, monto, referencia, banco, fecha, identidad, comprobante_b64, comprobante_nombre } = body;
 
     if (!identidad || !monto || !metodo) {
       return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
     }
 
-    if (metodo === 'transferencia' && !referencia) {
-      return NextResponse.json({ error: 'El número de referencia del comprobante es obligatorio para transferencias bancarias.' }, { status: 400 });
+    if (metodo === 'transferencia') {
+      if (!referencia || !referencia.trim()) {
+        return NextResponse.json({ error: 'El número de referencia es obligatorio para transferencias bancarias.' }, { status: 400 });
+      }
+      if (!comprobante_b64) {
+        return NextResponse.json({ error: '⚠️ COMPROBANTE OBLIGATORIO: Debe adjuntar la imagen o captura del comprobante bancario para evitar fallas de conciliación.' }, { status: 400 });
+      }
     }
 
     const fechaPago = fecha || new Date().toISOString().split('T')[0];
     const identidadNorm = identidad ? identidad.replace(/-/g, '').replace(/^([JVEG])(\d)/i, '$1-$2').toUpperCase() : '';
 
-    // Verificar duplicado si hay referencia
-    if (referencia) {
-      const { data: dupCheck } = await supabase
+    // Verificar duplicado si hay referencia (BLOQUEO ESTRICTO)
+    if (referencia && referencia.trim()) {
+      const refLimpia = referencia.trim();
+      const { data: dupReportados } = await supabase
         .from('pagos_reportados')
         .select('id')
-        .eq('referencia', referencia)
+        .eq('referencia', refLimpia)
         .limit(1);
-      if (dupCheck && dupCheck.length > 0) {
-        return NextResponse.json({ error: `El número de referencia "${referencia}" ya fue registrado previamente en el sistema.` }, { status: 400 });
+      if (dupReportados && dupReportados.length > 0) {
+        return NextResponse.json({ error: `⛔ BLOQUEO FINANCIERO: El número de referencia "${refLimpia}" ya fue registrado previamente en un pago. No se permite reutilizar referencias.` }, { status: 400 });
+      }
+
+      const { data: dupFacturas } = await supabase
+        .from('facturas')
+        .select('id')
+        .eq('referencia_pago', refLimpia)
+        .limit(1);
+      if (dupFacturas && dupFacturas.length > 0) {
+        return NextResponse.json({ error: `⛔ BLOQUEO FINANCIERO: La referencia "${refLimpia}" ya fue liquidada en una factura anterior.` }, { status: 400 });
       }
     }
 
@@ -110,7 +125,9 @@ export async function POST(request: Request) {
           recibos: recibosRefs,
           recibosIds: facturaIds,
           conveniosIds: convenioIds,
-          fecha_transaccion: fechaPago
+          fecha_transaccion: fechaPago,
+          comprobante_b64: comprobante_b64 || undefined,
+          comprobante_nombre: comprobante_nombre || 'comprobante_web.jpg'
         })
       });
 

@@ -1,6 +1,7 @@
 ﻿'use client';
 import { useState, useEffect } from 'react';
-import { Wrench, Search, Plus, Trash2, CheckCircle2, AlertCircle, FlaskConical, ClipboardCheck, ShieldCheck, X, RefreshCw, BookOpen, FileSpreadsheet, TreePine } from 'lucide-react';
+import { Wrench, Search, Plus, Trash2, CheckCircle2, AlertCircle, FlaskConical, ClipboardCheck, ShieldCheck, X, RefreshCw, BookOpen, FileSpreadsheet, TreePine, FileText } from 'lucide-react';
+import { generarPlanillaEspecialPDF } from '@/lib/pdfPlanillaEspecial';
 import { exportToExcelWithLogos } from '@/lib/excelExport';
 import { useAppContext } from '@/store/AppContext';
 import { ordenanzaData } from '@/data/ordenanza';
@@ -347,10 +348,20 @@ export default function ServiciosEspecialesPage() {
                           {s.estado}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-center">
-                        <button onClick={() => handleDelete(s.id)} className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all p-1 rounded">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                      <td className="px-4 py-3 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1">
+                          <button 
+                            type="button"
+                            onClick={() => generarPlanillaEspecialPDF({ ...s, tasaBcv: tcmmv })} 
+                            className="bg-purple-100 hover:bg-purple-200 text-purple-800 px-2 py-1 rounded transition-all flex items-center gap-1 text-xs font-bold"
+                            title="Descargar Planilla Oficial Detallada (PDF)"
+                          >
+                            <FileText className="w-3.5 h-3.5" /> Planilla
+                          </button>
+                          <button onClick={() => handleDelete(s.id)} className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all p-1 rounded">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

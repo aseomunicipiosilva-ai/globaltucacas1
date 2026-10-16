@@ -367,14 +367,33 @@ export default function CobroMovilPage() {
     if (!foundUser) return;
     setPayError(''); setIsProcessing(true);
     
-    // Verificar referencia duplicada
+    // Comprobante obligatorio para transferencias en cobro móvil
+    if (payMethod === 'Transferencia' && !comprobante) {
+      setPayError('⚠️ COMPROBANTE OBLIGATORIO: Adjunte la foto o captura del comprobante bancario.');
+      setIsProcessing(false);
+      return;
+    }
+
+    // Verificar referencia duplicada (BLOQUEO ESTRICTO)
+    const refTrim = referencia.trim();
     const { data: dupCheck } = await supabase
       .from('pagos_reportados')
       .select('id')
-      .eq('referencia', referencia)
+      .eq('referencia', refTrim)
       .limit(1);
     if (dupCheck && dupCheck.length > 0) {
-      setPayError(`El número de referencia "${referencia}" ya fue registrado previamente en el sistema.`);
+      setPayError(`⛔ BLOQUEO: El número de referencia "${refTrim}" ya fue registrado previamente en el sistema.`);
+      setIsProcessing(false);
+      return;
+    }
+
+    const { data: dupFact } = await supabase
+      .from('facturas')
+      .select('id')
+      .eq('referencia_pago', refTrim)
+      .limit(1);
+    if (dupFact && dupFact.length > 0) {
+      setPayError(`⛔ BLOQUEO: La referencia "${refTrim}" ya fue liquidada en una factura anterior.`);
       setIsProcessing(false);
       return;
     }

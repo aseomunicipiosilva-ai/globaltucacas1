@@ -192,7 +192,7 @@ export default function DondePagarPage() {
     if (!metodo) { alert('Debe seleccionar el método de pago.'); return; }
     if (metodo === 'transferencia' && !formData.bancoOrigen) { alert('Seleccione el banco origen.'); return; }
     if (metodo === 'transferencia' && !formData.referencia) { alert('Ingrese el número de referencia.'); return; }
-    if (metodo === 'transferencia' && !formData.comprobante) { alert('Adjunte el comprobante de pago.'); return; }
+    if (metodo === 'transferencia' && !formData.comprobante) { alert('⚠️ COMPROBANTE OBLIGATORIO: Adjunte la captura o foto del comprobante de transferencia bancaria.'); return; }
 
     setIsSubmitting(true);
     setResult(null);
@@ -203,6 +203,26 @@ export default function DondePagarPage() {
     const identidad = localStorage.getItem('portal_doc') || '';
 
     try {
+      let compB64 = '';
+      if (formData.comprobante) {
+        try {
+          compB64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(formData.comprobante as File);
+          });
+        } catch(e) {
+          console.warn('Error leyendo comprobante:', e);
+        }
+      }
+
+      if (metodo === 'transferencia' && !compB64) {
+        alert('⚠️ COMPROBANTE OBLIGATORIO: Debe seleccionar el archivo o captura del comprobante.');
+        setIsSubmitting(false);
+        return;
+      }
+
       const res = await fetch('/api/contribuyente/pago', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -214,7 +234,9 @@ export default function DondePagarPage() {
           referencia: formData.referencia,
           banco: formData.bancoOrigen,
           fecha: formData.fecha,
-          identidad
+          identidad,
+          comprobante_b64: compB64,
+          comprobante_nombre: formData.comprobante?.name || 'comprobante.jpg'
         })
       });
 

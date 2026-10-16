@@ -12,6 +12,8 @@ export default function DatosContribuyentePage() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [timelineEvents, setTimelineEvents] = useState<any[]>([]);
+  const [loadingTimeline, setLoadingTimeline] = useState(true);
 
   // Cambio de clave
   const [claveActual, setClaveActual] = useState('');
@@ -42,7 +44,105 @@ export default function DatosContribuyentePage() {
       }
     };
     fetchUserData();
+    const fullDoc = localStorage.getItem("portal_doc");
+    if (fullDoc) fetchTimeline(fullDoc);
   }, []);
+
+    const fetchTimeline = async (doc: string) => {
+      setLoadingTimeline(true);
+      try {
+        const idClean = doc.replace(/[-.s]/g, '').toUpperCase();
+        const idDash = doc.includes('-') ? doc : doc.charAt(0) + '-' + doc.slice(1);
+
+        const events: any[] = [];
+
+        // 1. Audit logs
+        const { data: aLogs } = await supabase
+          .from('audit_logs')
+          .select('*')
+          .or(`usuario.eq.${doc},usuario.eq.${idClean},usuario.eq.${idDash},detalles.ilike.%${idClean}%,detalles.ilike.%${idDash}%`)
+          .order('id', { ascending: false })
+          .limit(20);
+
+        (aLogs || []).forEach(l => {
+          events.push({
+            id: `log-${l.id}`,
+            fecha: l.created_at,
+            tipo: l.accion === 'ACTUALIZACION_DATOS_PORTAL' ? 'Cambio de Datos' :
+                  l.accion === 'CAMBIO_CLAVE_PORTAL' ? 'Seguridad' :
+                  l.accion === 'COBRO' ? 'Pago Realizado' : 'Gestión Administrativa',
+            accion: l.accion,
+            descripcion: l.detalles || 'Evento del sistema',
+            origen: (l.usuario || '').includes('-') ? 'Portal Contribuyente' : 'Taquilla / Operador',
+            icon: '📝'
+          });
+        });
+
+        // 2. Convenios
+        const { data: convs } = await supabase
+          .from('convenios')
+          .select('*')
+          .or(`identidad.eq.${doc},identidad.eq.${idClean},identidad.eq.${idDash}`);
+
+        (convs || []).forEach(c => {
+          events.push({
+            id: `conv-${c.id}`,
+            fecha: c.fecha_creacion,
+            tipo: 'Convenio de Pago',
+            accion: `Convenio N° ${c.numero}`,
+            descripcion: `Convenio de financiamiento en estado ${c.estado} por Bs. ${parseFloat(c.monto_total || '0').toLocaleString('es-VE', {minimumFractionDigits:2})}`,
+            origen: 'Administración ISMA',
+            icon: '🤝'
+          });
+        });
+
+        // 3. Servicios Especiales
+        const { data: servs } = await supabase
+          .from('servicios_especiales')
+          .select('*')
+          .or(`identidad.eq.${doc},identidad.eq.${idClean},identidad.eq.${idDash}`);
+
+        (servs || []).forEach(s => {
+          events.push({
+            id: `serv-${s.id}`,
+            fecha: s.fecha,
+            tipo: 'Servicio Especial',
+            accion: s.tipo === 'visto_bueno' ? 'Visto Bueno Ambiental' : 'Servicio / Inspección',
+            descripcion: `${s.descripcion} - Estado: ${s.estado}`,
+            origen: 'Gestión Ambiental',
+            icon: '🔧'
+          });
+        });
+
+        // 4. Pagos Reportados
+        const { data: pags } = await supabase
+          .from('pagos_reportados')
+          .select('*')
+          .or(`identidad.eq.${doc},identidad.eq.${idClean},identidad.eq.${idDash}`)
+          .order('id', { ascending: false })
+          .limit(10);
+
+        (pags || []).forEach(p => {
+          events.push({
+            id: `pag-${p.id}`,
+            fecha: p.created_at,
+            tipo: 'Pago Reportado',
+            accion: `Pago ${p.tipo} - Ref: ${p.referencia || 'S/R'}`,
+            descripcion: `Monto: Bs. ${parseFloat(p.monto || '0').toLocaleString('es-VE', {minimumFractionDigits:2})} - Estado: ${p.estado}`,
+            origen: p.tipo?.includes('Web') ? 'Portal Contribuyente' : 'Taquilla Caja',
+            icon: '💳'
+          });
+        });
+
+        // Ordenar por fecha descendente
+        events.sort((a, b) => new Date(b.fecha || 0).getTime() - new Date(a.fecha || 0).getTime());
+        setTimelineEvents(events);
+      } catch (err) {
+        console.warn('Error cargando timeline:', err);
+      }
+      setLoadingTimeline(false);
+    };
+
 
   const handleSave = async () => {
     const fullDoc = localStorage.getItem('portal_doc');
@@ -55,6 +155,15 @@ export default function DatosContribuyentePage() {
       const { error } = await supabase.from('inmuebles').update({ correo_electronico: userData.email, telefono: userData.telefonoMovil, direccion: userData.direccion })
         .or('identidad.eq.' + idFormateado + ',identidad.eq.' + idLimpio + ',identidad.eq.' + fullDoc.toUpperCase() + ',identidad.eq.' + soloNumeros);
       if (error) throw error;
+
+      // Registrar trazabilidad en bitácora
+      await supabase.from('audit_logs').insert([{
+        usuario: fullDoc,
+        accion: 'ACTUALIZACION_DATOS_PORTAL',
+        detalles: `Actualización de datos por contribuyente: Correo: ${userData.email}, Teléfono: ${userData.telefonoMovil}, Dirección: ${userData.direccion}`
+      }]);
+
+      if (typeof fetchTimeline === 'function') fetchTimeline(fullDoc);
       setMessage('Datos actualizados correctamente');
       setTimeout(() => setMessage(''), 3000);
     } catch { setMessage('Error al actualizar datos'); }
@@ -82,6 +191,15 @@ export default function DatosContribuyentePage() {
       const { error } = await supabase.from('inmuebles').update({ clave_portal: claveNueva })
         .or('identidad.eq.' + idFormateado + ',identidad.eq.' + idLimpio);
       if (error) throw error;
+
+      // Registrar trazabilidad
+      await supabase.from('audit_logs').insert([{
+        usuario: fullDoc,
+        accion: 'CAMBIO_CLAVE_PORTAL',
+        detalles: 'El contribuyente actualizó su contraseña de acceso al portal.'
+      }]);
+
+      if (typeof fetchTimeline === 'function') fetchTimeline(fullDoc);
       setClaveMsg({ type: 'ok', txt: 'Clave actualizada exitosamente.' });
       setClaveActual(''); setClaveNueva(''); setClaveConfirm('');
     } catch { setClaveMsg({ type: 'err', txt: 'Error al cambiar la clave.' }); }
@@ -194,6 +312,53 @@ export default function DatosContribuyentePage() {
             </button>
           </div>
         </form>
+      </div>
+
+      {/* HISTORIAL DE TRAZABILIDAD Y GESTIONES */}
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6 space-y-4">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div>
+            <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
+              <span>🕒</span> Historial de Trazabilidad y Gestiones
+            </h3>
+            <p className="text-xs text-slate-500">Registro histórico de modificaciones de perfil, solicitudes de convenios, servicios especiales y pagos.</p>
+          </div>
+          <span className="text-xs bg-emerald-50 text-emerald-800 font-bold px-2.5 py-1 rounded-full border border-emerald-100">
+            {timelineEvents.length} eventos registrados
+          </span>
+        </div>
+
+        {loadingTimeline ? (
+          <p className="text-xs text-slate-400 py-6 text-center">Cargando trazabilidad...</p>
+        ) : timelineEvents.length === 0 ? (
+          <p className="text-xs text-slate-400 py-6 text-center">No hay eventos registrados recientemente.</p>
+        ) : (
+          <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+            {timelineEvents.map((ev, i) => (
+              <div key={ev.id || i} className="relative flex items-start gap-3">
+                <span className="absolute -left-6 mt-1 w-5 h-5 rounded-full bg-white border-2 border-emerald-500 flex items-center justify-center text-[10px] shadow-xs">
+                  {ev.icon}
+                </span>
+                <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5 flex-1 hover:bg-slate-100/70 transition-colors">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-slate-800">{ev.accion}</span>
+                    <span className="text-[10px] font-mono text-slate-400">
+                      {ev.fecha ? new Date(ev.fecha).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 mt-1">{ev.descripcion}</p>
+                  <div className="mt-2 flex items-center gap-2 text-[10px]">
+                    <span className="bg-white border border-slate-200 px-2 py-0.5 rounded font-semibold text-slate-500">
+                      {ev.tipo}
+                    </span>
+                    <span className="text-slate-400">&bull;</span>
+                    <span className="text-slate-500 font-medium">Origen: {ev.origen}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

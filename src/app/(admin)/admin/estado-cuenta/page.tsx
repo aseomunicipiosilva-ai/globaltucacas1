@@ -22,6 +22,8 @@ export default function EstadoCuentaPage() {
   const [activeTab, setActiveTab] = useState<'General' | 'PorVerificar' | 'Historial'>('General');
   const [pagosVerificar, setPagosVerificar] = useState<any[]>([]);
   const [pagosHistorial, setPagosHistorial] = useState<any[]>([]);
+  const [filtroMesHistorial, setFiltroMesHistorial] = useState<string>('TODOS');
+  const [modalSeleccionRecibo, setModalSeleccionRecibo] = useState<{ pago: any; meses: string[]; refs: string[] } | null>(null);
   const [abonosAprobados, setAbonosAprobados] = useState<any[]>([]);
   const [allPagos, setAllPagos] = useState<any[]>([]);
   const [loadingPagos, setLoadingPagos] = useState(false);
@@ -92,6 +94,112 @@ export default function EstadoCuentaPage() {
       console.log('Tabla pagos_reportados no existe a├║n o hubo un error');
     }
     setLoadingPagos(false);
+  };
+
+
+  const generarReciboDesdePago = (pago: any, modo: 'consolidado' | 'individual' = 'consolidado') => {
+    const det = parseDetalles(pago.detalles);
+    const MESES_FULL = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+    const refs: string[] = det.recibos || [];
+    const montoTotal = Number(pago.monto || 0);
+
+    const matchInm = (inmuebles || []).find((i: any) => 
+      i.identidad === pago.identidad || 
+      (i.identidad && pago.identidad && i.identidad.replace(/-/g,'').toUpperCase() === pago.identidad.replace(/-/g,'').toUpperCase())
+    );
+
+    const razonSocial = matchInm?.contribuyente || pago.identidad;
+    const domicilio = (matchInm?.direccion || 'TUCACAS, MUNICIPIO SILVA, FALCÓN').toUpperCase();
+    const cajeroNombre = det.origen || det.cajero || pago.cajero || 'Cajero';
+
+    if (modo === 'consolidado' || refs.length <= 1) {
+      // Recibo Consolidado
+      const conceptos = refs.length > 0 
+        ? refs.map((ref: string) => {
+            const parts = ref.split('-');
+            let mesLabel = ref;
+            if (parts.length >= 5) {
+              const mm = parseInt(parts[parts.length - 2]);
+              const yyyy = parts[parts.length - 1];
+              if (!isNaN(mm) && mm >= 1 && mm <= 12) {
+                mesLabel = `${MESES_FULL[mm - 1]} ${yyyy}`;
+              }
+            }
+            const precioUnit = montoTotal / refs.length;
+            return {
+              descripcion: `Servicio Aseo Urbano - Período: ${mesLabel} (Ref: ${ref})`,
+              precioUnit,
+              total: precioUnit
+            };
+          })
+        : [{
+            descripcion: 'Servicio de Recolección de Aseo Urbano y Domiciliario',
+            precioUnit: montoTotal,
+            total: montoTotal
+          }];
+
+      const reciboNum = (pago.referencia || String(pago.id || '1')).replace(/\D/g, '').slice(-7).padStart(7, '0') || '0000001';
+
+      setSelectedRecibo({
+        reciboNo: reciboNum,
+        controlWeb: `WEB-${reciboNum}`,
+        fechaEmision: pago.created_at ? pago.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+        codContribuyente: matchInm?.cod_cont || pago.identidad,
+        razonSocial,
+        domicilioFiscal: domicilio,
+        rifCi: pago.identidad,
+        caja: cajeroNombre,
+        conceptos,
+        subTotal: montoTotal,
+        exento: montoTotal,
+        iva: 0,
+        total: montoTotal,
+        formaPago: pago.tipo === 'Debito' ? 'PUNTO DE VENTA' : (pago.tipo || 'TRANSFERENCIA').toUpperCase(),
+        banco: pago.banco || 'BANCO',
+        referencia: pago.referencia || 'S/R',
+        tasaBcv: det.tasa_bcv || tcmmv || undefined
+      });
+    } else {
+      // Recibos Individuales: uno por cada mes/referencia
+      const montoPorMes = montoTotal / refs.length;
+      const recibosArray = refs.map((ref: string, idx: number) => {
+        const parts = ref.split('-');
+        let mesLabel = ref;
+        if (parts.length >= 5) {
+          const mm = parseInt(parts[parts.length - 2]);
+          const yyyy = parts[parts.length - 1];
+          if (!isNaN(mm) && mm >= 1 && mm <= 12) {
+            mesLabel = `${MESES_FULL[mm - 1]} ${yyyy}`;
+          }
+        }
+        const refNum = (ref.replace(/\D/g, '') || String(idx + 1)).slice(-7).padStart(7, '0');
+        return {
+          reciboNo: refNum,
+          controlWeb: `WEB-${refNum}`,
+          fechaEmision: pago.created_at ? pago.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+          codContribuyente: matchInm?.cod_cont || pago.identidad,
+          razonSocial,
+          domicilioFiscal: domicilio,
+          rifCi: pago.identidad,
+          caja: cajeroNombre,
+          conceptos: [{
+            descripcion: `Servicio Aseo Urbano - Período Individual: ${mesLabel} (Ref: ${ref})`,
+            precioUnit: montoPorMes,
+            total: montoPorMes
+          }],
+          subTotal: montoPorMes,
+          exento: montoPorMes,
+          iva: 0,
+          total: montoPorMes,
+          formaPago: pago.tipo === 'Debito' ? 'PUNTO DE VENTA' : (pago.tipo || 'TRANSFERENCIA').toUpperCase(),
+          banco: pago.banco || 'BANCO',
+          referencia: pago.referencia || 'S/R',
+          tasaBcv: det.tasa_bcv || tcmmv || undefined
+        };
+      });
+
+      setSelectedRecibo(recibosArray);
+    }
   };
 
   const fetchHistorial = async () => {
@@ -1310,7 +1418,26 @@ if (p.estado === 'Rechazado' || p.estado === 'Eliminado') return false;
                   </tr>
                 </thead>
                 <tbody>
-                  {pagosHistorial.filter((p: any) => parseDetalles(p.detalles).es_abono !== true).map((pago: any, idx: number) => {
+                  {pagosHistorial
+                    .filter((p: any) => parseDetalles(p.detalles).es_abono !== true)
+                    .filter((p: any) => {
+                      if (filtroMesHistorial === 'TODOS') return true;
+                      const det = parseDetalles(p.detalles);
+                      const refs: string[] = det.recibos || [];
+                      const MESES_ABR = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+                      return refs.some(ref => {
+                        const parts = ref.split('-');
+                        if (parts.length >= 5) {
+                          const mm = parseInt(parts[parts.length - 2]);
+                          const yyyy = parts[parts.length - 1];
+                          if (!isNaN(mm) && mm >= 1 && mm <= 12) {
+                            return `${MESES_ABR[mm-1]}-${yyyy}` === filtroMesHistorial;
+                          }
+                        }
+                        return false;
+                      });
+                    })
+                    .map((pago: any, idx: number) => {
                     const det = parseDetalles(pago.detalles);
                     const esAbono = det.es_abono === true;
                     const metodo = pago.tipo === 'Debito' ? 'Punto de Venta' : pago.tipo || '---';
@@ -1378,6 +1505,70 @@ if (p.estado === 'Rechazado' || p.estado === 'Eliminado') return false;
         </div>
       )}
 
+
+      {/* MODAL SELECCION TIPO DE RECIBO (CONSOLIDADO VS INDIVIDUAL) */}
+      {modalSeleccionRecibo && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
+                <Printer className="w-5 h-5 text-indigo-600" />
+                Tipo de Recibo a Emitir
+              </h3>
+              <button onClick={() => setModalSeleccionRecibo(null)} className="text-slate-400 hover:text-slate-600 p-1">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="py-4 space-y-3">
+              <p className="text-xs text-slate-600">
+                Este pago ampara <strong>{modalSeleccionRecibo.meses.length} meses</strong> ({modalSeleccionRecibo.meses.join(', ')}). 
+                Seleccione cómo desea emitir el comprobante oficial:
+              </p>
+
+              <div className="space-y-2.5 pt-1">
+                <button
+                  onClick={() => {
+                    generarReciboDesdePago(modalSeleccionRecibo.pago, 'consolidado');
+                    setModalSeleccionRecibo(null);
+                  }}
+                  className="w-full p-3.5 rounded-xl border-2 border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100 text-left transition-all flex items-start gap-3"
+                >
+                  <span className="text-xl">📑</span>
+                  <div>
+                    <h4 className="font-bold text-indigo-950 text-sm">Recibo Consolidado (1 solo recibo)</h4>
+                    <p className="text-[11px] text-indigo-700 mt-0.5">Agrupa todos los meses en una sola factura con desglose detallado de conceptos y total.</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => {
+                    generarReciboDesdePago(modalSeleccionRecibo.pago, 'individual');
+                    setModalSeleccionRecibo(null);
+                  }}
+                  className="w-full p-3.5 rounded-xl border-2 border-slate-200 bg-slate-50 hover:bg-slate-100 text-left transition-all flex items-start gap-3"
+                >
+                  <span className="text-xl">📄</span>
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-sm">Recibos Individuales ({modalSeleccionRecibo.meses.length} recibos)</h4>
+                    <p className="text-[11px] text-slate-600 mt-0.5">Genera un recibo independiente por cada mes cancelado.</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setModalSeleccionRecibo(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {selectedRecibo && (
         <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col">
@@ -1410,7 +1601,18 @@ if (p.estado === 'Rechazado' || p.estado === 'Eliminado') return false;
                     #recibo-print-area { position: absolute; left: 0; top: 0; width: 100%; }
                   }
                 `}} />
-                <ReciboImprimible data={selectedRecibo} />
+                {Array.isArray(selectedRecibo) ? (
+                  selectedRecibo.map((r, i) => (
+                    <div key={i} className={i > 0 ? 'mt-8 pt-6 border-t border-slate-200' : ''}>
+                      {selectedRecibo.length > 1 && (
+                        <div className="text-xs font-bold text-slate-500 uppercase mb-2">Recibo Individual {i + 1} de {selectedRecibo.length}</div>
+                      )}
+                      <ReciboImprimible data={r} />
+                    </div>
+                  ))
+                ) : (
+                  <ReciboImprimible data={selectedRecibo} />
+                )}
               </div>
             </div>
           </div>

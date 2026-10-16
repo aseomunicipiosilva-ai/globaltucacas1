@@ -59,7 +59,8 @@ export default function Sidebar() {
     { icon: UserPlus, name: 'Trabajadores Aseo', href: '/admin/trabajadores' },
     { icon: Smartphone, name: 'Cobro Móvil', href: '/cobro-movil' },
     { icon: Map, name: 'Plan de Acción', href: '/admin/plan-accion' },
-    { icon: ShieldAlert, name: 'Auditoría', href: '/admin/auditoria' }
+    { icon: ShieldAlert, name: 'Auditoría', href: '/admin/auditoria' },
+    { icon: BookOpen, name: 'Manuales y Guías', href: '/admin/manuales' }
   ];
 
   if (isCajero) {

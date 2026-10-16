@@ -13,12 +13,16 @@ import { generarCuadreCajaPDF } from './generators/CuadreCaja';
 import { generarMorososExcel, generarMorososPDF } from './generators/Morosos';
 import CajaIngresosMain from './views/CajaIngresosMain';
 import CuadreCaja from './views/CuadreCaja';
+import NuevosInscritosView from './views/NuevosInscritosView';
+import ConveniosView from './views/ConveniosView';
+import SolventesView from './views/SolventesView';
+import BitacoraView from './views/BitacoraView';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-type ActiveView = null | 'ingresos' | 'corte' | 'libro-ventas' | 'fiscalizacion' | 'empleados' | 'saldos' | 'ingreso-bancario' | 'morosos' | 'transferencias';
+type ActiveView = null | 'ingresos' | 'corte' | 'libro-ventas' | 'fiscalizacion' | 'empleados' | 'saldos' | 'ingreso-bancario' | 'morosos' | 'transferencias' | 'inscritos' | 'convenios' | 'solventes' | 'bitacora';
 
 const CARDS = [
   { id: 'ingresos' as ActiveView,       label: 'Caja - Ingresos',         emoji: '🖨️',  desc: 'General de Ingresos, Corte, Libro de Ventas', adminOnly: false },
@@ -28,6 +32,10 @@ const CARDS = [
   { id: 'empleados' as ActiveView,      label: 'Gestion Empleados',       emoji: '👥',  desc: 'Reporte mensual del personal',                 adminOnly: true  },
   { id: 'morosos' as ActiveView,        label: 'Reporte Morosos',         emoji: '🔴',  desc: 'Contribuyentes con deuda pendiente',           adminOnly: true  },
   { id: 'transferencias' as ActiveView,  label: 'Transferencias',          emoji: '🏦',  desc: 'Por Verificar, Pendiente, Débito y Aprobadas',  adminOnly: true  },
+  { id: 'inscritos' as ActiveView,       label: 'Nuevos Inscritos',        emoji: '📋',  desc: 'Nuevos registros con filtros por fecha y sector', adminOnly: false },
+  { id: 'convenios' as ActiveView,       label: 'Convenios de Pago',       emoji: '🤝',  desc: 'Convenios, cuotas pendientes y al día',         adminOnly: false },
+  { id: 'solventes' as ActiveView,       label: 'Solventes',               emoji: '🎖️',  desc: 'Padrón de contribuyentes solventes por sector', adminOnly: false },
+  { id: 'bitacora' as ActiveView,        label: 'Bitácora Auditoría',      emoji: '🛡️',  desc: 'Historial y trazabilidad de eventos del sistema', adminOnly: true  },
 ];
 
 export default function ReportesPage() {
@@ -443,6 +451,12 @@ export default function ReportesPage() {
       </div>
     );
   }
+
+
+  if (activeView === 'inscritos') return <NuevosInscritosView onBack={() => setActiveView(null)} />;
+  if (activeView === 'convenios') return <ConveniosView onBack={() => setActiveView(null)} />;
+  if (activeView === 'solventes') return <SolventesView onBack={() => setActiveView(null)} />;
+  if (activeView === 'bitacora')  return <BitacoraView onBack={() => setActiveView(null)} />;
 
   // --- Main landing: Cards ---
   const visibleCards = CARDS.filter(c => isAdmin || !c.adminOnly);

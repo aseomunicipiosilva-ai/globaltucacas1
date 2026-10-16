@@ -105,6 +105,12 @@ export default function CajaPage() {
 
   // Recibo imprimible post-pago
   const [reciboData, setReciboData] = React.useState<any>(null);
+  const [tipoReciboEmision, setTipoReciboEmision] = useState<'consolidado' | 'individual'>('consolidado');
+  const [modalMesAnterior, setModalMesAnterior] = useState(false);
+  const [mesAnteriorMes, setMesAnteriorMes] = useState('01');
+  const [mesAnteriorAnio, setMesAnteriorAnio] = useState('2026');
+  const [mesAnteriorMonto, setMesAnteriorMonto] = useState('');
+  const [isAddingRetro, setIsAddingRetro] = useState(false);
   // Filtro de meses para el recibo
   const [reciboFiltro, setReciboFiltro] = React.useState<'todos' | 'rango'>('todos');
   const [reciboDesde, setReciboDesde] = React.useState<string>('');   // 'YYYY-MM' e.g. '2026-07'
@@ -593,6 +599,67 @@ export default function CajaPage() {
     alert(`Se buscará la tasa BCV del día ${selectedUcdDate}`);
   };
 
+
+  const handleAgregarMesAnterior = async () => {
+    if (!foundUser) return;
+    setIsAddingRetro(true);
+    try {
+      const userInms = (inmuebles || []).filter((i: any) => i.identidad === foundUser.Identidad || (i.identidad && foundUser.Identidad && i.identidad.replace(/-/g,'').toUpperCase() === foundUser.Identidad.replace(/-/g,'').toUpperCase()));
+      const userInm = userInms.length > 0 ? userInms[0] : null;
+      const mmv = parseFloat(userInm?.mmv_mes || '1.0');
+      const rate = currentBcvRate || tcmmv || 50;
+      const montoCalc = mesAnteriorMonto && parseFloat(mesAnteriorMonto) > 0 
+        ? parseFloat(mesAnteriorMonto) 
+        : parseFloat((mmv * rate).toFixed(2));
+
+      const refRetro = `RETRO-${(foundUser.Identidad || '').replace(/[^a-zA-Z0-9]/g, '')}-${mesAnteriorMes}-${mesAnteriorAnio}`;
+      const emisionDate = `${mesAnteriorAnio}-${mesAnteriorMes}-01`;
+
+      // Verificar si ya existe esa referencia en facturas
+      const { data: existFac } = await supabase
+        .from('facturas')
+        .select('id, referencia')
+        .eq('referencia', refRetro)
+        .limit(1);
+
+      if (existFac && existFac.length > 0) {
+        alert("Ese período ya se encuentra registrado en el sistema para este contribuyente.");
+        setIsAddingRetro(false);
+        return;
+      }
+
+      const { data: newFac, error: facErr } = await supabase.from('facturas').insert([{
+        identidad: foundUser.Identidad,
+        contribuyente: foundUser.Contribuyente,
+        referencia: refRetro,
+        monto: montoCalc,
+        estado: 'Pendiente',
+        emision: emisionDate,
+        vencimiento: `${mesAnteriorAnio}-${mesAnteriorMes}-28`
+      }]).select().single();
+
+      if (facErr) throw facErr;
+
+      const nuevaFactura = newFac || {
+        identidad: foundUser.Identidad,
+        contribuyente: foundUser.Contribuyente,
+        referencia: refRetro,
+        monto: montoCalc,
+        estado: 'Pendiente',
+        emision: emisionDate
+      };
+
+      setRecibos(prev => [nuevaFactura, ...prev]);
+      setSelectedRecibos(prev => [...prev, refRetro]);
+      setModalMesAnterior(false);
+      setMesAnteriorMonto('');
+      alert(`Período retroactivo (${mesAnteriorMes}/${mesAnteriorAnio}) agregado a la cuenta con éxito.`);
+    } catch (e: any) {
+      alert("Error al agregar período anterior: " + e.message);
+    }
+    setIsAddingRetro(false);
+  };
+
   const handlePayment = async () => {
     if (totalBs <= 0) return alert("Debe seleccionar al menos una deuda a pagar.");
     
@@ -641,14 +708,24 @@ export default function CajaPage() {
       if (!referenciaDebito.trim()) return alert("Debe ingresar el número de comprobante o referencia del pago por punto.");
       if (referenciaDebito.trim().length > 8) return alert("El número de referencia para Punto de Venta no puede superar los 8 dígitos.");
       
-      // Verificar referencia duplicada
+      // Verificar referencia duplicada (BLOQUEO ESTRICTO)
+      const refDebTrim = referenciaDebito.trim();
       const { data: dupCheck } = await supabase
         .from('pagos_reportados')
         .select('id')
-        .eq('referencia', referenciaDebito)
+        .eq('referencia', refDebTrim)
         .limit(1);
       if (dupCheck && dupCheck.length > 0) {
-        return alert(`⚠️ ADVERTENCIA: El número de comprobante "${referenciaDebito}" ya fue registrado previamente en el sistema. Verifique antes de continuar.`);
+        return alert(`⛔ BLOQUEO DE SEGURIDAD: El comprobante de Punto de Venta "${refDebTrim}" ya fue registrado previamente en el sistema. Verifique antes de continuar.`);
+      }
+
+      const { data: dupFacturas } = await supabase
+        .from('facturas')
+        .select('id')
+        .eq('referencia_pago', refDebTrim)
+        .limit(1);
+      if (dupFacturas && dupFacturas.length > 0) {
+        return alert(`⛔ BLOQUEO DE SEGURIDAD: El comprobante de Punto de Venta "${refDebTrim}" ya fue liquidado en otra factura.`);
       }
       if (montoDebito && (parseFloat(montoDebito) <= 0 || isNaN(parseFloat(montoDebito)))) {
         return alert("Si ingresa un monto manual, debe ser un valor válido mayor a 0.");
@@ -2136,6 +2213,101 @@ export default function CajaPage() {
       )}
 
       {/* ── MODAL RECIBO AUTOMÁTICO POST-PAGO ── */}
+
+      {/* MODAL COBRAR MES ANTERIOR / RETROACTIVO */}
+      {modalMesAnterior && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
+                <span>📅</span>
+                Cobrar Mes Anterior / Período Retroactivo
+              </h3>
+              <button onClick={() => setModalMesAnterior(false)} className="text-slate-400 hover:text-slate-600 p-1">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="py-4 space-y-4">
+              <p className="text-xs text-slate-600">
+                Seleccione el año y mes anterior que desea cobrar para el contribuyente <strong>{foundUser?.Contribuyente}</strong>:
+              </p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Año</label>
+                  <select
+                    value={mesAnteriorAnio}
+                    onChange={e => setMesAnteriorAnio(e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg p-2 text-sm bg-white font-medium"
+                  >
+                    <option value="2026">2026</option>
+                    <option value="2025">2025</option>
+                    <option value="2024">2024</option>
+                    <option value="2023">2023</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">Mes</label>
+                  <select
+                    value={mesAnteriorMes}
+                    onChange={e => setMesAnteriorMes(e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg p-2 text-sm bg-white font-medium"
+                  >
+                    <option value="01">Enero</option>
+                    <option value="02">Febrero</option>
+                    <option value="03">Marzo</option>
+                    <option value="04">Abril</option>
+                    <option value="05">Mayo</option>
+                    <option value="06">Junio</option>
+                    <option value="07">Julio</option>
+                    <option value="08">Agosto</option>
+                    <option value="09">Septiembre</option>
+                    <option value="10">Octubre</option>
+                    <option value="11">Noviembre</option>
+                    <option value="12">Diciembre</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">
+                  Monto a Cobrar (Bs) — Opcional
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Dejar en blanco para cálculo automático"
+                  value={mesAnteriorMonto}
+                  onChange={e => setMesAnteriorMonto(e.target.value)}
+                  className="w-full border border-slate-300 rounded-lg p-2 text-sm font-mono"
+                />
+                <span className="text-[10px] text-slate-400 mt-1 block">Si no ingresa monto, el sistema calculará según la ordenanza y tasa BCV actual.</span>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setModalMesAnterior(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isAddingRetro}
+                onClick={handleAgregarMesAnterior}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm disabled:opacity-50"
+              >
+                {isAddingRetro ? 'Agregando...' : 'Agregar Período a Cobrar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {reciboData && (
         <div className="fixed inset-0 z-50 bg-black/70 flex items-start justify-center overflow-y-auto py-6 px-2 print:bg-white print:items-start print:py-0">
           <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full print:shadow-none print:rounded-none">

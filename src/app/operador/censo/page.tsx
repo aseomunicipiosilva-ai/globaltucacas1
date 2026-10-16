@@ -25,6 +25,11 @@ export default function CensoMobilePage() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [modoCenso, setModoCenso] = useState<'nuevo' | 'actualizacion'>('nuevo');
+  const [searchContribQuery, setSearchContribQuery] = useState('');
+  const [matchingContribs, setMatchingContribs] = useState<any[]>([]);
+  const [isSearchingContrib, setIsSearchingContrib] = useState(false);
+  const [selectedInmuebleId, setSelectedInmuebleId] = useState<number | null>(null);
   
   // Calculation states
   const [isCalculating, setIsCalculating] = useState(false);
@@ -176,6 +181,88 @@ export default function CensoMobilePage() {
       console.error(e);
     }
     setIsCalculating(false);
+  };
+
+
+  const buscarContribuyentesExistentes = async (query: string) => {
+    setSearchContribQuery(query);
+    if (!query || query.trim().length < 2) {
+      setMatchingContribs([]);
+      return;
+    }
+    setIsSearchingContrib(true);
+    try {
+      const q = query.trim();
+      const { data } = await supabase
+        .from('inmuebles')
+        .select('id, identidad, contribuyente, telefono, correo_electronico, direccion, clasificacion, actividad_principal, area, cant_inmuebles, inmueble')
+        .or(`identidad.ilike.%${q}%,contribuyente.ilike.%${q}%`)
+        .limit(10);
+      setMatchingContribs(data || []);
+    } catch (e) {
+      console.warn('Error buscando contribuyentes:', e);
+    }
+    setIsSearchingContrib(false);
+  };
+
+  const seleccionarParaActualizar = (inm: any) => {
+    setSelectedInmuebleId(inm.id);
+    const idParts = (inm.identidad || '').split('-');
+    const tipoId = ['V','J','E','G','P'].includes(idParts[0]?.toUpperCase()) ? idParts[0].toUpperCase() : 'V';
+    const numId = idParts.length > 1 ? idParts.slice(1).join('') : (inm.identidad || '').replace(/^[VJEGP]-?/i, '');
+
+    const tel = (inm.telefono || '').trim();
+    let prefijo = '0414';
+    let telNum = tel;
+    if (tel.length >= 4) {
+      const p = tel.substring(0, 4);
+      if (['0414','0424','0412','0416','0426','0259'].includes(p)) {
+        prefijo = p;
+        telNum = tel.substring(4);
+      }
+    }
+
+    const email = (inm.correo_electronico || '').trim();
+    let correoNom = email;
+    let correoDom = '@gmail.com';
+    let correoOtro = '';
+    if (email.includes('@')) {
+      const [usr, dom] = email.split('@');
+      correoNom = usr;
+      const fullDom = '@' + dom;
+      if (['@gmail.com', '@hotmail.com', '@yahoo.com', '@outlook.com'].includes(fullDom)) {
+        correoDom = fullDom;
+      } else {
+        correoDom = 'Otro';
+        correoOtro = fullDom;
+      }
+    }
+
+    const clasif = inm.clasificacion?.includes('Comercial') ? 'Comercial' : 
+                   inm.clasificacion === 'Industrial' ? 'Industrial' : 'Residencial';
+
+    setFormData((prev: any) => ({
+      ...prev,
+      IdentidadTipo: tipoId,
+      IdentidadNumero: numId,
+      Contribuyente: inm.contribuyente || '',
+      NombreComercial: inm.clasificacion !== 'Residencial' ? (inm.actividad_principal || '') : '',
+      telefonoPrefijo: prefijo,
+      telefonoNumero: telNum,
+      correoNombre: correoNom,
+      correoDominio: correoDom,
+      correoDominioOtro: correoOtro,
+      Direccion: inm.direccion || '',
+      Clasificacion: clasif,
+      ActividadComercial: clasif !== 'Residencial' ? (inm.actividad_principal || '') : '',
+      TipoResidencia: clasif === 'Residencial' ? (inm.actividad_principal || prev.TipoResidencia) : prev.TipoResidencia,
+      isCondominio: (parseInt(inm.cant_inmuebles) || 1) > 1,
+      cantidadInmuebles: parseInt(inm.cant_inmuebles) || 1,
+      Nota: `Actualización de censo por Operador para inmueble: ${inm.inmueble || 'Principal'}`
+    }));
+
+    setMatchingContribs([]);
+    setSearchContribQuery(`${inm.identidad} - ${inm.contribuyente}`);
   };
 
   const handleSaveCenso = async (e: React.FormEvent) => {
