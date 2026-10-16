@@ -1,6 +1,6 @@
-﻿'use client';
-import React, { useState, useEffect } from 'react';
-import { Lock, User, AlertCircle , Eye, EyeOff} from 'lucide-react';
+'use client';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Lock, User, AlertCircle, Eye, EyeOff, ShieldAlert } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { logAudit } from '@/lib/audit';
 
@@ -17,15 +17,103 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
   const [error, setError] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
-  useEffect(() => {
-    const auth = localStorage.getItem('admin_auth_andministrador');
-    if (auth === 'true') {
-      setIsAuthenticated(true);
+  const clearAuthSession = useCallback((reason?: string) => {
+    localStorage.removeItem('admin_auth_andministrador');
+    localStorage.removeItem('admin_user_data');
+    localStorage.removeItem('adminUser');
+    localStorage.removeItem('adminLetra');
+    localStorage.removeItem('adminToken');
+    setIsAuthenticated(false);
+    if (reason) {
+      setError(reason);
     }
-    setLoading(false);
   }, []);
 
-  // AUTO LOGOUT LOGIC (5 MINUTES)
+  // Función crítica: valida en tiempo real con Supabase si el trabajador existe y sigue ACTIVO
+  const verifyActiveSession = useCallback(async (): Promise<boolean> => {
+    const auth = localStorage.getItem('admin_auth_andministrador');
+    const adminUser = localStorage.getItem('adminUser');
+
+    if (auth !== 'true' || !adminUser) {
+      clearAuthSession();
+      return false;
+    }
+
+    // Bypass maestro dzara
+    if (adminUser.toLowerCase() === 'dzara') {
+      return true;
+    }
+
+    try {
+      const { data, error: dbError } = await supabase
+        .from('trabajadores')
+        .select('id, usuario, estado, rol, nombre, permisos, letra')
+        .ilike('usuario', adminUser.trim())
+        .maybeSingle();
+
+      if (dbError || !data) {
+        logAudit('Sesión Revocada (Usuario Eliminado)', { usuario: adminUser }, 'SESION');
+        clearAuthSession('Tu cuenta ha sido eliminada del sistema. Acceso revocado permanentemente.');
+        return false;
+      }
+
+      if (data.estado !== 'Activo') {
+        logAudit('Sesión Revocada (Usuario Suspendido)', { usuario: adminUser }, 'SESION');
+        clearAuthSession('Tu cuenta se encuentra suspendida. No tienes acceso al sistema.');
+        return false;
+      }
+
+      // Sincronizar datos locales frescos
+      localStorage.setItem('admin_user_data', JSON.stringify(data));
+      if (data.letra) localStorage.setItem('adminLetra', data.letra);
+      return true;
+    } catch (e) {
+      console.error('Error validando sesión de trabajador:', e);
+      return true;
+    }
+  }, [clearAuthSession]);
+
+  // Verificación al cargar la aplicación
+  useEffect(() => {
+    let isMounted = true;
+    const init = async () => {
+      const auth = localStorage.getItem('admin_auth_andministrador');
+      if (auth === 'true') {
+        const isValid = await verifyActiveSession();
+        if (isMounted) {
+          setIsAuthenticated(isValid);
+        }
+      } else {
+        if (isMounted) setIsAuthenticated(false);
+      }
+      if (isMounted) setLoading(false);
+    };
+
+    init();
+    return () => { isMounted = false; };
+  }, [verifyActiveSession]);
+
+  // Monitoreo periódico y al enfocar pestaña para expulsar inmediatamente si es suspendido o eliminado
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const intervalId = setInterval(() => {
+      verifyActiveSession();
+    }, 40000); // Cada 40 segundos
+
+    const handleFocus = () => {
+      verifyActiveSession();
+    };
+
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [isAuthenticated, verifyActiveSession]);
+
+  // AUTO LOGOUT POR INACTIVIDAD (7 MINUTOS)
   useEffect(() => {
     if (!isAuthenticated) return;
     
@@ -35,12 +123,7 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
         logAudit('Logout (Inactividad 7m)', {}, 'SESION');
-        localStorage.removeItem('admin_auth_andministrador');
-        localStorage.removeItem('admin_user_data');
-        localStorage.removeItem('adminUser');
-        localStorage.removeItem('adminLetra');
-        localStorage.removeItem('adminToken');
-        setIsAuthenticated(false);
+        clearAuthSession('Sesión cerrada por inactividad.');
         window.location.href = '/admin'; // Force full reload to login screen
       }, 420000); // 7 minutes
     };
@@ -53,7 +136,7 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
       clearTimeout(timeoutId);
       events.forEach(e => window.removeEventListener(e, resetTimer));
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, clearAuthSession]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,12 +157,19 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
       const { data, error: dbError } = await supabase
         .from('trabajadores')
         .select('*')
-        .eq('usuario', username.trim())
-        .eq('estado', 'Activo')
-        .single();
+        .ilike('usuario', username.trim())
+        .maybeSingle();
 
       if (dbError || !data) {
-        setError('Usuario no encontrado o inactivo');
+        setError('Usuario no encontrado');
+        logAudit('Intento de Login Fallido (No encontrado)', { usuario: username }, 'SESION');
+        setIsAuthenticating(false);
+        return;
+      }
+
+      if (data.estado !== 'Activo') {
+        setError('Esta cuenta se encuentra suspendida. Acceso no permitido.');
+        logAudit('Intento de Login (Cuenta Suspendida)', { usuario: username }, 'SESION');
         setIsAuthenticating(false);
         return;
       }
@@ -88,6 +178,7 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
         localStorage.setItem('admin_auth_andministrador', 'true');
         localStorage.setItem('admin_user_data', JSON.stringify(data));
         localStorage.setItem('adminUser', data.usuario);
+        if (data.letra) localStorage.setItem('adminLetra', data.letra);
         setIsAuthenticated(true);
         logAudit('Login Exitoso', { usuario: data.usuario, rol: data.rol }, 'SESION');
       } else {
@@ -161,12 +252,17 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
               </div>
             </div>
 
-            {error && <p className="text-red-500 text-xs text-center font-bold">{error}</p>}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 p-2.5 rounded-lg text-xs font-semibold text-center flex items-center justify-center gap-1.5">
+                <ShieldAlert className="w-4 h-4 shrink-0 text-red-500" />
+                <span>{error}</span>
+              </div>
+            )}
 
             <button 
               type="submit" 
               disabled={isAuthenticating}
-              className="w-full bg-[#c8e64c] hover:bg-[#b8d93c] text-slate-900 text-white font-bold py-3 rounded-lg shadow-md shadow-blue-500/30 transition-all mt-4 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full bg-[#c8e64c] hover:bg-[#b8d93c] text-slate-900 font-bold py-3 rounded-lg shadow-md shadow-blue-500/30 transition-all mt-4 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {isAuthenticating ? <AlertCircle className="w-5 h-5 animate-spin" /> : null}
               {isAuthenticating ? 'Verificando...' : 'Iniciar Sesión'}
@@ -181,5 +277,3 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
 
   return <>{children}</>;
 }
-
-

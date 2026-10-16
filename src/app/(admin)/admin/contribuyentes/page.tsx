@@ -830,7 +830,14 @@ function ContribuyentesPageContent() {
       correoNombre = row.Correo;
     }
 
-    let autoClasificacion = row.Clasificacion || 'A';
+    const tipoMatch = (row.Identidad || '').match(/^([VEJG])-?/i);
+    const tipoIdentidad = tipoMatch ? tipoMatch[1].toUpperCase() : 'V';
+    const identidadNumero = (row.Identidad || '').replace(/^[VEJG]-?/i, '');
+
+    let autoClasificacion = row.Clasificacion || 'Residencial';
+    if (autoClasificacion.startsWith('TIPO') || autoClasificacion === 'A') {
+      autoClasificacion = 'Residencial';
+    }
     
     // Auto-detectar condominio si viene de una importación con clasificación 'A'
     if (autoClasificacion !== 'Condominio') {
@@ -885,6 +892,8 @@ function ContribuyentesPageContent() {
     setFormData({ 
       ...row,
       Clasificacion: autoClasificacion,
+      tipoIdentidad,
+      identidadNumero,
       telefonoPrefijo,
       telefonoNumero,
       correoNombre,
@@ -908,6 +917,8 @@ function ContribuyentesPageContent() {
   const handleAdd = () => {
     const defaultData = {
       Identidad: '',
+      tipoIdentidad: 'V',
+      identidadNumero: '',
       Contribuyente: '',
       Telefono: '',
       telefonoPrefijo: '0414',
@@ -1161,7 +1172,7 @@ function ContribuyentesPageContent() {
       }
       
       setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
+      setTimeout(() => { setShowSuccess(false); setEditingId(null); }, 1500);
     } catch (err) {
       console.error(err);
       alert('Ocurrió un error guardando en Supabase. Verifique la conexión.');
@@ -1528,7 +1539,7 @@ function ContribuyentesPageContent() {
                 })}
                 className="w-4 h-4 text-blue-600 rounded border-slate-300" 
               />
-              <label htmlFor="isCondominio" className="text-xs font-medium text-slate-700">Es un Condominio (Contiene múltiples inmuebles)</label>
+              <label htmlFor="isCondominio" className="text-xs font-medium text-slate-700">Tiene múltiples locales / actividades comerciales o es un Condominio</label>
             </div>
 
             {formData.isCondominio && (

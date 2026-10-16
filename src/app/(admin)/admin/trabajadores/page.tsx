@@ -1,8 +1,12 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Users, Save, ArrowLeft, Plus, Shield, ShieldAlert, ShieldCheck, AlertCircle } from 'lucide-react';
+import { 
+  Users, Save, ArrowLeft, Plus, Shield, ShieldAlert, ShieldCheck, 
+  AlertCircle, UserX, UserCheck, Trash2, CheckCircle2 
+} from 'lucide-react';
 import { DataTable } from '@/components/DataTable';
 import { createClient } from '@supabase/supabase-js';
+import { logAudit } from '@/lib/audit';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -26,6 +30,14 @@ export default function TrabajadoresPage() {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  // Modal de confirmación para eliminar
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; trabajador: any | null }>({
+    open: false,
+    trabajador: null
+  });
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchTrabajadores();
@@ -55,6 +67,8 @@ export default function TrabajadoresPage() {
   const handleEdit = (trabajador: any) => {
     setFormData({ ...trabajador });
     setIsEditing(true);
+    setErrorMsg('');
+    setSuccessMsg('');
   };
 
   const handleAdd = () => {
@@ -72,16 +86,18 @@ export default function TrabajadoresPage() {
     });
     setIsEditing(true);
     setErrorMsg('');
+    setSuccessMsg('');
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     setErrorMsg('');
+    setSuccessMsg('');
 
     try {
-      // Validar que la letra no este duplicada en otro trabajador activo
-      if (formData.letra && formData.letra.trim()) {
+      // Validar que la letra no esté duplicada en otro trabajador activo
+      if (formData.letra && formData.letra.trim() && formData.estado === 'Activo') {
         const { data: letraExistente } = await supabase
           .from('trabajadores')
           .select('id, nombre, letra')
@@ -104,7 +120,7 @@ export default function TrabajadoresPage() {
         clave: formData.clave,
         rol: formData.rol,
         estado: formData.estado,
-        letra: formData.letra || '',
+        letra: formData.letra ? formData.letra.toUpperCase() : '',
         permisos: formData.permisos
       };
 
@@ -112,19 +128,107 @@ export default function TrabajadoresPage() {
         // Update
         const { error } = await supabase.from('trabajadores').update(payload).eq('id', formData.id);
         if (error) throw error;
+        logAudit('Editar Trabajador', { id: formData.id, usuario: formData.usuario, estado: formData.estado, rol: formData.rol }, 'CONFIGURACION');
       } else {
         // Insert
         const { error } = await supabase.from('trabajadores').insert([payload]);
         if (error) throw error;
+        logAudit('Crear Trabajador', { usuario: formData.usuario, estado: formData.estado, rol: formData.rol }, 'CONFIGURACION');
       }
 
       await fetchTrabajadores();
       setIsEditing(false);
+      setSuccessMsg(`Trabajador ${formData.nombre} guardado correctamente.`);
     } catch (err: any) {
       console.error(err);
       setErrorMsg('Error al guardar: ' + err.message);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Alternar rápidamente entre Activo y Suspendido
+  const handleToggleEstado = async (trabajador: any, nuevoEstado: 'Activo' | 'Suspendido') => {
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      if (nuevoEstado === 'Activo' && trabajador.letra && trabajador.letra.trim()) {
+        const { data: letraExistente } = await supabase
+          .from('trabajadores')
+          .select('id, nombre, letra')
+          .eq('letra', trabajador.letra.trim().toUpperCase())
+          .neq('id', trabajador.id)
+          .eq('estado', 'Activo')
+          .maybeSingle();
+        if (letraExistente) {
+          setErrorMsg(`No se puede reactivar: La letra '${trabajador.letra.toUpperCase()}' ya está en uso por ${letraExistente.nombre}. Edita la letra antes de activarlo.`);
+          return;
+        }
+      }
+
+      const { error } = await supabase
+        .from('trabajadores')
+        .update({ estado: nuevoEstado })
+        .eq('id', trabajador.id);
+
+      if (error) throw error;
+
+      logAudit(nuevoEstado === 'Suspendido' ? 'Suspender Trabajador' : 'Activar Trabajador', {
+        id: trabajador.id,
+        usuario: trabajador.usuario,
+        nombre: trabajador.nombre,
+        nuevoEstado
+      }, 'CONFIGURACION');
+
+      await fetchTrabajadores();
+      setSuccessMsg(
+        nuevoEstado === 'Suspendido'
+          ? `El trabajador ${trabajador.nombre} ha sido SUSPENDIDO. Su acceso queda bloqueado de inmediato.`
+          : `El trabajador ${trabajador.nombre} ha sido ACTIVADO exitosamente.`
+      );
+
+      if (isEditing && formData?.id === trabajador.id) {
+        setFormData((prev: any) => ({ ...prev, estado: nuevoEstado }));
+      }
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg('Error al cambiar estado: ' + err.message);
+    }
+  };
+
+  // Eliminar permanentemente a un trabajador
+  const handleDelete = async (trabajador: any) => {
+    setIsDeleting(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const { error } = await supabase
+        .from('trabajadores')
+        .delete()
+        .eq('id', trabajador.id);
+
+      if (error) throw error;
+
+      logAudit('Eliminar Trabajador', {
+        id: trabajador.id,
+        usuario: trabajador.usuario,
+        nombre: trabajador.nombre,
+        rol: trabajador.rol
+      }, 'CONFIGURACION');
+
+      setDeleteModal({ open: false, trabajador: null });
+      if (isEditing && formData?.id === trabajador.id) {
+        setIsEditing(false);
+      }
+      await fetchTrabajadores();
+      setSuccessMsg(`El trabajador "${trabajador.nombre}" (${trabajador.usuario}) fue ELIMINADO permanentemente. Su acceso ha quedado revocado.`);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg('Error al eliminar trabajador: ' + err.message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -172,14 +276,51 @@ export default function TrabajadoresPage() {
       </span>
     )},
     { key: 'estado', header: 'Estado', render: (row: any) => (
-      <span className={`px-2 py-1 rounded text-xs font-semibold ${row.estado === 'Activo' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+        row.estado === 'Activo' 
+          ? 'bg-green-100 text-green-700 border border-green-200' 
+          : 'bg-red-100 text-red-700 border border-red-200'
+      }`}>
+        {row.estado === 'Activo' ? <UserCheck className="w-3 h-3" /> : <UserX className="w-3 h-3" />}
         {row.estado}
       </span>
     )},
     { key: 'actions', header: 'Acciones', render: (row: any) => (
-      <button onClick={() => handleEdit(row)} className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 rounded border border-slate-300">
-        Ver / Editar
-      </button>
+      <div className="flex items-center gap-1.5">
+        <button 
+          onClick={() => handleEdit(row)} 
+          className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded border border-slate-300 font-medium transition-colors"
+          title="Ver o editar datos y permisos"
+        >
+          Editar
+        </button>
+
+        {row.estado === 'Activo' ? (
+          <button 
+            onClick={() => handleToggleEstado(row, 'Suspendido')} 
+            className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 px-2.5 py-1 rounded border border-amber-200 font-medium transition-colors flex items-center gap-1"
+            title="Suspender acceso inmediato"
+          >
+            <UserX className="w-3 h-3" /> Suspender
+          </button>
+        ) : (
+          <button 
+            onClick={() => handleToggleEstado(row, 'Activo')} 
+            className="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded border border-emerald-200 font-medium transition-colors flex items-center gap-1"
+            title="Reactivar cuenta"
+          >
+            <UserCheck className="w-3 h-3" /> Activar
+          </button>
+        )}
+
+        <button 
+          onClick={() => setDeleteModal({ open: true, trabajador: row })} 
+          className="text-xs bg-red-50 hover:bg-red-100 text-red-600 px-2.5 py-1 rounded border border-red-200 font-medium transition-colors flex items-center gap-1"
+          title="Eliminar permanentemente del sistema"
+        >
+          <Trash2 className="w-3 h-3" /> Eliminar
+        </button>
+      </div>
     )}
   ];
 
@@ -209,6 +350,35 @@ export default function TrabajadoresPage() {
               {formData.nombre ? 'Editar Trabajador' : 'Nuevo Trabajador'}
             </h1>
           </div>
+
+          {formData.id && (
+            <div className="flex items-center gap-2">
+              {formData.estado === 'Activo' ? (
+                <button
+                  type="button"
+                  onClick={() => handleToggleEstado(formData, 'Suspendido')}
+                  className="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs font-semibold px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors"
+                >
+                  <UserX className="w-3.5 h-3.5" /> Suspender Cuenta
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleToggleEstado(formData, 'Activo')}
+                  className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors"
+                >
+                  <UserCheck className="w-3.5 h-3.5" /> Reactivar Cuenta
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setDeleteModal({ open: true, trabajador: formData })}
+                className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-semibold px-3 py-1.5 rounded flex items-center gap-1.5 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Eliminar
+              </button>
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -243,9 +413,9 @@ export default function TrabajadoresPage() {
 
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Estado de la Cuenta</label>
-                <select value={formData.estado} onChange={e => setFormData({...formData, estado: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500">
-                  <option value="Activo">Activo</option>
-                  <option value="Suspendido">Suspendido</option>
+                <select value={formData.estado} onChange={e => setFormData({...formData, estado: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 font-semibold">
+                  <option value="Activo">Activo (Con Acceso)</option>
+                  <option value="Suspendido">Suspendido (Sin Acceso)</option>
                 </select>
               </div>
               
@@ -307,19 +477,79 @@ export default function TrabajadoresPage() {
             </div>
 
             {errorMsg && (
-              <div className="bg-red-50 text-red-600 p-3 rounded text-sm mb-4 border border-red-200">
-                {errorMsg}
+              <div className="bg-red-50 text-red-600 p-3 rounded text-sm mb-4 border border-red-200 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{errorMsg}</span>
               </div>
             )}
 
-            <div className="flex justify-end pt-4">
-              <button type="submit" disabled={isSaving} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow flex items-center gap-2 font-medium transition-colors disabled:opacity-50">
+            <div className="flex items-center justify-between pt-4 border-t border-slate-200">
+              <button 
+                type="button" 
+                onClick={() => setIsEditing(false)} 
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-2 rounded text-sm font-medium border border-slate-300 transition-colors"
+              >
+                Cancelar
+              </button>
+              
+              <button 
+                type="submit" 
+                disabled={isSaving} 
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow flex items-center gap-2 font-medium transition-colors disabled:opacity-50"
+              >
                 {isSaving ? <AlertCircle className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} 
                 {isSaving ? 'Guardando...' : 'Guardar Trabajador'}
               </button>
             </div>
           </div>
         </form>
+
+        {/* Modal de confirmación al eliminar desde la edición */}
+        {deleteModal.open && deleteModal.trabajador && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center gap-3 text-red-600">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-base">¿Eliminar este trabajador?</h3>
+                  <p className="text-xs text-slate-500">Esta acción no se puede deshacer.</p>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-200 text-sm space-y-1">
+                <div><span className="text-slate-500 text-xs">Nombre:</span> <strong className="text-slate-800">{deleteModal.trabajador.nombre}</strong></div>
+                <div><span className="text-slate-500 text-xs">Usuario:</span> <code className="bg-slate-200 px-1 py-0.5 rounded text-xs text-slate-800 font-bold">{deleteModal.trabajador.usuario}</code></div>
+                <div><span className="text-slate-500 text-xs">Rol:</span> <span className="text-slate-700 font-medium">{deleteModal.trabajador.rol}</span></div>
+              </div>
+
+              <p className="text-xs text-red-600 font-medium">
+                Al eliminar este trabajador, su sesión se cerrará de forma automática e inmediata y nunca más podrá acceder al sistema.
+              </p>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setDeleteModal({ open: false, trabajador: null })}
+                  disabled={isDeleting}
+                  className="px-4 py-2 rounded text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(deleteModal.trabajador)}
+                  disabled={isDeleting}
+                  className="px-4 py-2 rounded text-xs font-bold bg-red-600 hover:bg-red-700 text-white flex items-center gap-1.5 shadow transition-colors disabled:opacity-50"
+                >
+                  {isDeleting ? <AlertCircle className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  {isDeleting ? 'Eliminando...' : 'Sí, Eliminar Permanentemente'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -338,10 +568,18 @@ export default function TrabajadoresPage() {
           <Plus className="w-4 h-4" /> Nuevo Trabajador
         </button>
       </div>
+
+      {successMsg && (
+        <div className="bg-green-50 text-green-700 p-3 rounded text-sm mb-4 border border-green-200 flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 shrink-0 text-green-600" />
+          <span>{successMsg}</span>
+        </div>
+      )}
       
       {errorMsg && (
-        <div className="bg-red-50 text-red-600 p-3 rounded text-sm mb-4 border border-red-200">
-          {errorMsg}
+        <div className="bg-red-50 text-red-600 p-3 rounded text-sm mb-4 border border-red-200 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{errorMsg}</span>
         </div>
       )}
 
@@ -350,7 +588,53 @@ export default function TrabajadoresPage() {
       ) : (
         <DataTable data={trabajadores} columns={columns} itemsPerPage={10} />
       )}
+
+      {/* Modal de confirmación para eliminar */}
+      {deleteModal.open && deleteModal.trabajador && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3 text-red-600">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-800 text-base">¿Eliminar este trabajador?</h3>
+                <p className="text-xs text-slate-500">Esta acción no se puede deshacer.</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 p-3.5 rounded-lg border border-slate-200 text-sm space-y-1">
+              <div><span className="text-slate-500 text-xs">Nombre:</span> <strong className="text-slate-800">{deleteModal.trabajador.nombre}</strong></div>
+              <div><span className="text-slate-500 text-xs">Usuario:</span> <code className="bg-slate-200 px-1 py-0.5 rounded text-xs text-slate-800 font-bold">{deleteModal.trabajador.usuario}</code></div>
+              <div><span className="text-slate-500 text-xs">Rol:</span> <span className="text-slate-700 font-medium">{deleteModal.trabajador.rol}</span></div>
+            </div>
+
+            <p className="text-xs text-red-600 font-medium">
+              Al eliminar este trabajador, su sesión se cerrará de forma automática e inmediata y nunca más podrá acceder al sistema.
+            </p>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDeleteModal({ open: false, trabajador: null })}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDelete(deleteModal.trabajador)}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded text-xs font-bold bg-red-600 hover:bg-red-700 text-white flex items-center gap-1.5 shadow transition-colors disabled:opacity-50"
+              >
+                {isDeleting ? <AlertCircle className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                {isDeleting ? 'Eliminando...' : 'Sí, Eliminar Permanentemente'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-

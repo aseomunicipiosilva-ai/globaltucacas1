@@ -162,7 +162,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           'DeudaMMV': parseFloat(row.deuda_mmv || 0),
           'DeudaCongelada': parseFloat(row.deuda_congelada_bs || 0),
           'Cant Inmuebles': 1,
-          'Actividad Principal': row.actividad || 'No aplica',
+          'Actividad Principal': row.actividad_principal || row.actividad || 'No aplica',
           'Direccion': row.direccion
         }));
         setInmuebles(mappedInmuebles);
@@ -171,22 +171,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dbInmuebles.forEach((row: any) => {
           if (row.identidad && !map.has(row.identidad)) {
             let clase = row.clasificacion;
-            const act = row.actividad_principal || '';
+            const act = row.actividad_principal || row.actividad || '';
             
-            if (!clase) {
+            if (!clase || clase.startsWith('TIPO') || clase === 'A') {
               clase = 'Residencial';
               if (ordenanzaData.actividadesIndustriales.some(a => a.label === act)) {
                 clase = 'Industrial';
               } else if (ordenanzaData.actividadesComerciales.some(a => a.label === act)) {
-                clase = 'Comercial';
+                clase = 'Comercial/Institucional';
               } else if (act && act !== 'No aplica') {
                 if (!act.toLowerCase().includes('condominio') && !act.toLowerCase().includes('residencial')) {
-                   clase = 'Comercial';
+                   clase = 'Comercial/Institucional';
                 }
               }
             }
 
             map.set(row.identidad, {
+              id: row.id,
               Identidad: row.identidad,
               Contribuyente: row.contribuyente,
               Telefono: row.telefono || 'No registrado',
@@ -195,15 +196,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
               cod_cont: row.cod_cont,
               Direccion: row.direccion,
               Actividad: act || 'No aplica',
+              ActividadComercial: act || '',
+              TipoResidencia: act || '',
               Clasificacion: clase,
               SaldoFavor: parseFloat(row.saldo_favor_bs || '0'),
               Estado: row.estado || 'Activo',
-              FechaRegistro: row.created_at || null
+              FechaRegistro: row.created_at || null,
+              Cant_Inmuebles: 1,
+              inmueblesCount: 1
             });
           } else if (row.identidad && map.has(row.identidad)) {
             // Si ya existe, sumar saldo a favor
             const existing = map.get(row.identidad);
             existing.SaldoFavor += parseFloat(row.saldo_favor_bs || '0');
+            existing.Cant_Inmuebles = (existing.Cant_Inmuebles || 1) + 1;
+            existing.inmueblesCount = (existing.inmueblesCount || 1) + 1;
+            const act = row.actividad_principal || row.actividad || '';
+            if (act && (!existing.Actividad || existing.Actividad === 'No aplica')) {
+              existing.Actividad = act;
+              existing.ActividadComercial = act;
+            }
             // Mantener el estado más severo si hay múltiples (Eliminado > Inactivo > Activo)
             if (row.estado === 'Eliminado' || (row.estado === 'Inactivo' && existing.Estado !== 'Eliminado')) {
               existing.Estado = row.estado;
@@ -266,28 +278,109 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return null;
       };
 
-      const isComercial = data.Clasificacion === 'Comercial' || data.Clasificacion === 'Industrial';
+      const isComercial = data.Clasificacion?.includes('Comercial') || data.Clasificacion === 'Industrial' || data.Clasificacion === 'Mixto';
+      const cleanId = (id || '').replace(/-/g, '').trim().toUpperCase();
+      const targetIdentidad = (data.Identidad || id || '').trim();
 
-      const { error } = await supabase
+      // Buscar todos los inmuebles asociados a este contribuyente
+      const { data: dbMatches } = await supabase
         .from('inmuebles')
-        .update({
+        .select('*')
+        .or(`identidad.eq.${id},identidad.eq.${cleanId},identidad.eq.${targetIdentidad}`);
+
+      const existingInms = dbMatches || [];
+
+      // Si tiene múltiples inmuebles/locales configurados
+      if (data.isCondominio && data.locales && data.locales.length > 0) {
+        for (let i = 0; i < data.locales.length; i++) {
+          const local = data.locales[i];
+          const localUsoCom = local.uso === 'Comercial' || local.uso?.includes('Comercial');
+          const localActividad = localUsoCom ? (local.actividad || '') : (local.tipoResidencia || 'No aplica');
+          const localArea = localUsoCom ? parseLevelToArea(local.nivel) : null;
+          const localMmv = calcularMmvMes(local, ordenanzasConfig);
+
+          // Si el local tiene un dbId o coincide por numeración / índice
+          const existingInm = existingInms.find((inm: any) => 
+            (local.dbId && inm.id === local.dbId) || 
+            (inm.inmueble && inm.inmueble === local.numeracion)
+          ) || (i < existingInms.length ? existingInms[i] : null);
+
+          if (existingInm) {
+            await supabase
+              .from('inmuebles')
+              .update({
+                identidad: targetIdentidad,
+                contribuyente: data.Contribuyente,
+                telefono: data.Telefono,
+                correo_electronico: data.Correo,
+                direccion: data.DireccionExacta ? `${data.Direccion} | Exacta: ${data.DireccionExacta}` : data.Direccion,
+                inmueble: local.numeracion || existingInm.inmueble || `Inmueble ${i + 1}`,
+                clasificacion: localUsoCom ? 'Comercial/Institucional' : 'Residencial',
+                actividad_principal: localActividad,
+                area: localArea,
+                area_operativa: localArea,
+                mmv_mes: localMmv
+              })
+              .eq('id', existingInm.id);
+          } else {
+            // Local nuevo agregado por el usuario
+            await supabase
+              .from('inmuebles')
+              .insert([{
+                identidad: targetIdentidad,
+                contribuyente: data.Contribuyente,
+                telefono: data.Telefono,
+                correo_electronico: data.Correo,
+                direccion: data.DireccionExacta ? `${data.Direccion} | Exacta: ${data.DireccionExacta}` : data.Direccion,
+                cod_cont: data.CodCont || `N-${Math.floor(Math.random() * 100000)}`,
+                inmueble: local.numeracion || `Inmueble ${i + 1}`,
+                clasificacion: localUsoCom ? 'Comercial/Institucional' : 'Residencial',
+                actividad_principal: localActividad,
+                area: localArea,
+                area_operativa: localArea,
+                mmv_mes: localMmv
+              }]);
+          }
+        }
+      } else {
+        // Inmueble individual
+        const actividadPrincipal = isComercial ? (data.ActividadComercial || data.Actividad || '') : (data.TipoResidencia || 'No aplica');
+        const areaVal = isComercial ? parseLevelToArea(data.NivelMetraje) : null;
+        const mmvMes = calcularMmvMes(data, ordenanzasConfig);
+
+        const updatePayload = {
+          identidad: targetIdentidad,
           contribuyente: data.Contribuyente,
           telefono: data.Telefono,
           correo_electronico: data.Correo,
           direccion: data.DireccionExacta ? `${data.Direccion} | Exacta: ${data.DireccionExacta}` : data.Direccion,
           clasificacion: data.Clasificacion || 'Residencial',
-          actividad_principal: data.Clasificacion === 'Residencial' ? data.TipoResidencia : data.ActividadComercial,
-          area: isComercial ? parseLevelToArea(data.NivelMetraje) : null,
-          mmv_mes: calcularMmvMes(data, ordenanzasConfig)
-        })
-        .eq('identidad', id);
-        
-      if (error) throw error;
+          actividad_principal: actividadPrincipal,
+          area: areaVal,
+          area_operativa: areaVal,
+          mmv_mes: mmvMes
+        };
+
+        if (existingInms.length > 0) {
+          const ids = existingInms.map(inm => inm.id);
+          const { error: updErr } = await supabase
+            .from('inmuebles')
+            .update(updatePayload)
+            .in('id', ids);
+          if (updErr) throw updErr;
+        } else {
+          const { error: updErr } = await supabase
+            .from('inmuebles')
+            .update(updatePayload)
+            .eq('identidad', id);
+          if (updErr) throw updErr;
+        }
+      }
+
+      // Re-cargar inmediatamente todo el estado para sincronizar la UI
+      await loadAllData();
       
-      // Update local state immediately for better UX
-      setContribuyentes(prev => prev.map(c => c.Identidad === id ? { ...c, ...data } : c));
-      
-      let logMsg = `Se actualizaron los datos del contribuyente: ${data.Contribuyente} (Identidad: ${id})`;
+      let logMsg = `Se actualizaron los datos del contribuyente: ${data.Contribuyente} (Identidad: ${targetIdentidad})`;
       if (data.Nota?.trim()) logMsg += ` | Nota Simple: ${data.Nota}`;
       if (data.Notas_Adicionales?.trim()) logMsg += ` | Notas Adicionales: ${data.Notas_Adicionales}`;
       
@@ -302,7 +395,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let mmv = 0;
     const clasificacion = localOrData.uso || localOrData.Clasificacion || 'Residencial';
     
-    if (clasificacion === 'Residencial') {
+    if (clasificacion === 'Residencial' || clasificacion.startsWith?.('TIPO')) {
       const tipo = localOrData.tipoResidencia || localOrData.TipoResidencia;
       const tarifa = config.tiposResidenciales?.find((t: any) => t.label === tipo);
       if (tarifa) mmv = tarifa.factor;
@@ -326,11 +419,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addContribuyente = async (data: any) => {
     try {
+      const parseLevelToArea = (nivel: string) => {
+        if (!nivel) return null;
+        if (nivel.includes('0 - 50')) return 50;
+        if (nivel.includes('51 - 100')) return 100;
+        if (nivel.includes('101 - 200')) return 200;
+        if (nivel.includes('201')) return 201;
+        return null;
+      };
+
       const codCont = data.CodCont || `N-${Math.floor(Math.random() * 100000)}`;
       const rowsToInsert = [];
+      const isComercial = data.Clasificacion?.includes('Comercial') || data.Clasificacion === 'Industrial' || data.Clasificacion === 'Mixto';
       
       if (data.isCondominio && data.locales && data.locales.length > 0) {
         data.locales.forEach((local: any) => {
+          const localUsoCom = local.uso === 'Comercial' || local.uso?.includes('Comercial');
+          const localArea = localUsoCom ? parseLevelToArea(local.nivel) : null;
           rowsToInsert.push({
             identidad: data.Identidad,
             contribuyente: data.Contribuyente,
@@ -338,13 +443,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
             correo_electronico: data.Correo,
             direccion: data.DireccionExacta ? `${data.Direccion} | Exacta: ${data.DireccionExacta}` : data.Direccion,
             cod_cont: codCont,
-            clasificacion: local.uso === 'Comercial' ? 'Comercial' : 'Residencial',
-            actividad_principal: local.uso === 'Comercial' ? local.actividad : (local.tipoResidencia || 'No aplica'),
+            clasificacion: localUsoCom ? 'Comercial/Institucional' : 'Residencial',
+            actividad_principal: localUsoCom ? (local.actividad || '') : (local.tipoResidencia || 'No aplica'),
             inmueble: local.numeracion,
+            area: localArea,
+            area_operativa: localArea,
             mmv_mes: calcularMmvMes(local, ordenanzasConfig)
           });
         });
       } else {
+        const areaVal = isComercial ? parseLevelToArea(data.NivelMetraje) : null;
         rowsToInsert.push({
           identidad: data.Identidad,
           contribuyente: data.Contribuyente,
@@ -353,8 +461,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           direccion: data.DireccionExacta ? `${data.Direccion} | Exacta: ${data.DireccionExacta}` : data.Direccion,
           cod_cont: codCont,
           clasificacion: data.Clasificacion || 'Residencial',
-          actividad_principal: data.Clasificacion === 'Residencial' ? data.TipoResidencia : data.ActividadComercial,
+          actividad_principal: isComercial ? (data.ActividadComercial || '') : (data.TipoResidencia || 'No aplica'),
           inmueble: 'Principal',
+          area: areaVal,
+          area_operativa: areaVal,
           mmv_mes: calcularMmvMes(data, ordenanzasConfig)
         });
       }

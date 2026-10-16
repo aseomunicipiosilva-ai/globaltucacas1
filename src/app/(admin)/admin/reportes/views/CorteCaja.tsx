@@ -49,9 +49,10 @@ export default function CorteCaja({ pagos, cajeros, isAdmin, currentUser, onBack
     const start = new Date(fechaInicio);
     const end = new Date(fechaFin);
     return pagos.filter(p => {
-      const d = new Date(p.created_at);
-      if (d < start || d > end) return false;
       const det = parseDet(p);
+      const fechaBase = det.fecha_registro || p.created_at;
+      const d = new Date(fechaBase);
+      if (d < start || d > end) return false;
       const cajero = det.cajero || '';
       if (!isAdmin && cajero !== currentUser) return false;
       if (isAdmin && selectedCajas.length > 0 && !selectedCajas.includes(cajero)) return false;

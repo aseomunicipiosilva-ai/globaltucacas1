@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { exportToExcelWithLogos } from '@/lib/excelExport';
-import { TreePine, Search, CreditCard, Landmark, CheckCircle, XCircle, FileText, Handshake, Calendar as CalendarIcon, Wrench, ShieldCheck, ClipboardCheck, FlaskConical, Printer, X } from 'lucide-react';
+import { TreePine, Search, CreditCard, Landmark, CheckCircle, XCircle, FileText, Handshake, Calendar as CalendarIcon, Wrench, ShieldCheck, ClipboardCheck, FlaskConical, Printer, X, RefreshCw } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
 import { formatBs } from '@/lib/formatCurrency';
@@ -58,6 +58,47 @@ export default function CajaPage() {
   // Modal de Confirmación de Pago
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [confirmPayload, setConfirmPayload] = useState<any>(null);
+
+  // Historial de pagos de hoy en caja (persistente desde base de datos)
+  const [todayPagos, setTodayPagos] = useState<any[]>([]);
+  const [isLoadingTodayPagos, setIsLoadingTodayPagos] = useState(false);
+
+  const fetchTodayPagos = async () => {
+    setIsLoadingTodayPagos(true);
+    try {
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const { data, error } = await supabase
+        .from('pagos_reportados')
+        .select('*')
+        .gte('created_at', todayStr + 'T00:00:00-04:00')
+        .not('estado', 'in', '(Anulado,Reversado,Condonado,Rechazado)')
+        .order('created_at', { ascending: false });
+
+      if (data) {
+        const u = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || '';
+        const norm = (s: string) => (s || '').replace(/^[A-Z]-/, '').trim().toLowerCase();
+        const isAdminUser = typeof window !== 'undefined' && ['administrador', 'admin', 'dzara', 'rvillegas'].includes(u.toLowerCase());
+
+        const filtered = data.filter((p: any) => {
+          let det: any = {};
+          try { det = typeof p.detalles === 'object' ? p.detalles : JSON.parse(p.detalles || '{}'); } catch(e){}
+          const pCajero = det.cajero || det.analista || det.usuario || det.operador || det.origen || '';
+          if (isAdminUser) return true;
+          return norm(pCajero) === norm(u);
+        });
+        setTodayPagos(filtered);
+      }
+    } catch(e) {
+      console.error('Error fetching today pagos:', e);
+    } finally {
+      setIsLoadingTodayPagos(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTodayPagos();
+  }, []);
 
   // Historial de pagos de la sesión actual
   const [sessionPagos, setSessionPagos] = useState<any[]>([]);
@@ -246,7 +287,7 @@ export default function CajaPage() {
         .from('trabajadores')
         .select('*')
         .eq('clave', adminPassword)
-        .in('rol', ['Administrador', 'Super Admin', 'Admin'])
+        .in('rol', ['Administrador', 'Super Admin', 'Admin']).eq('estado', 'Activo')
         .maybeSingle();
         
       if (error || !data) {
@@ -1116,6 +1157,7 @@ export default function CajaPage() {
         }, 'TRANSFERENCIA');
       }
 
+      fetchTodayPagos();
       // Agregar al historial de la sesión
       setSessionPagos(prev => [{
         contribuyente: foundUser?.Contribuyente || '',

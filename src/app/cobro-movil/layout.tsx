@@ -28,8 +28,28 @@ export default function CobroMovilLayout({ children }: { children: React.ReactNo
         const parsed = JSON.parse(stored);
         // Session valid for 8 hours
         if (parsed.ts && Date.now() - parsed.ts < 8 * 60 * 60 * 1000) {
-          setNombreCobrador(parsed.nombre || '');
-          setIsAuth(true);
+          const adminUser = localStorage.getItem('adminUser');
+          if (adminUser && adminUser.toLowerCase() !== 'dzara') {
+            supabase
+              .from('trabajadores')
+              .select('id, estado')
+              .ilike('usuario', adminUser.trim())
+              .maybeSingle()
+              .then(({ data }) => {
+                if (data && data.estado === 'Activo') {
+                  setNombreCobrador(parsed.nombre || '');
+                  setIsAuth(true);
+                } else {
+                  localStorage.removeItem(STORAGE_KEY);
+                  localStorage.removeItem('adminUser');
+                  setError('Cuenta suspendida o eliminada');
+                  setIsAuth(false);
+                }
+              });
+          } else {
+            setNombreCobrador(parsed.nombre || '');
+            setIsAuth(true);
+          }
         } else {
           localStorage.removeItem(STORAGE_KEY);
         }
@@ -58,12 +78,17 @@ export default function CobroMovilLayout({ children }: { children: React.ReactNo
       const { data, error: dbErr } = await supabase
         .from('trabajadores')
         .select('*')
-        .eq('usuario', usuario.trim())
-        .eq('estado', 'Activo')
-        .single();
+        .ilike('usuario', usuario.trim())
+        .maybeSingle();
 
       if (dbErr || !data) {
-        setError('Usuario no encontrado o inactivo.');
+        setError('Usuario no encontrado.');
+        setIsLogging(false);
+        return;
+      }
+
+      if (data.estado !== 'Activo') {
+        setError('Esta cuenta se encuentra suspendida. Acceso no permitido.');
         setIsLogging(false);
         return;
       }

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useAppContext } from '@/store/AppContext';
-import { Download } from 'lucide-react';
+import { Download, RefreshCw } from 'lucide-react';
 import * as xlsx from 'xlsx';
 import { generarLibroVentas as generarLibroVentasExcel } from './generators/LibroVentas';
 import { generarSaldosFavorExcel } from './generators/SaldoAFavor';
@@ -68,88 +68,79 @@ export default function ReportesPage() {
       } catch(e) {}
     }
     setIsAdmin(adminCheck);
+  }, []);
 
-    const loadPagos = async () => {
-      setLoadingPagos(true);
-      try {
-        const { data: trabData } = await supabase.from('trabajadores').select('usuario, letra, rol').eq('estado', 'Activo');
-        const cajerosSet = new Set<string>();
-        if (trabData) {
-          trabData.forEach((t: any) => {
-            if (t.usuario) {
-               cajerosSet.add(t.usuario);
-            }
-          });
-        }
-
-        const { data, error } = await supabase
-          .from('pagos_reportados')
-          .select(`
-            id, identidad, monto, banco, referencia, tipo, estado, created_at,
-            det_cajero:detalles->>cajero,
-            det_analista:detalles->>analista,
-            det_banco_destino:detalles->>banco_destino,
-            det_banco_receptor:detalles->>banco_receptor,
-            det_banco_origen:detalles->>banco_origen,
-            det_banco_emisor:detalles->>banco_emisor,
-            det_monto_conciliado:detalles->>monto_conciliado,
-            det_recibos:detalles->recibos,
-            det_fecha_banco:detalles->>fecha_banco,
-            det_fecha_registro:detalles->>fecha_registro,
-            det_fecha_transaccion:detalles->>fecha_transaccion,
-            det_aprobacion:detalles->>aprobacion,
-            det_lote:detalles->>lote,
-            det_origen:detalles->>origen,
-            det_saldo_favor:detalles->saldo_favor
-          `)
-          .not('estado','in','(Anulado,Reversado,Condonado)')
-          .order('created_at', { ascending: false });
-        
-        if (error) {
-          console.error('Error cargando pagos_reportados optimizado:', error);
-          const { data: fallbackData } = await supabase.from('pagos_reportados').select('*').not('estado','in','(Anulado,Reversado,Condonado)').order('created_at', { ascending: false });
-          if (fallbackData) {
-            setPagos(fallbackData);
-            fallbackData.forEach((p: any) => {
-              try {
-                const dets = typeof p.detalles === 'object' ? p.detalles : JSON.parse(p.detalles || '{}');
-                if (dets.cajero) cajerosSet.add(dets.cajero);
-              } catch(e) {}
-            });
+  const loadPagos = async () => {
+    setLoadingPagos(true);
+    try {
+      const { data: trabData } = await supabase.from('trabajadores').select('usuario, letra, rol').eq('estado', 'Activo');
+      const cajerosSet = new Set<string>();
+      if (trabData) {
+        trabData.forEach((t: any) => {
+          if (t.usuario) {
+            cajerosSet.add(t.usuario);
           }
-        } else if (data) {
-          const mapped = data.map((p: any) => ({
+        });
+      }
+
+      const { data, error } = await supabase
+        .from('pagos_reportados')
+        .select('id, identidad, monto, banco, referencia, tipo, estado, created_at, detalles')
+        .not('estado','in','(Anulado,Reversado,Condonado)')
+        .order('created_at', { ascending: false });
+      
+      let rawData = data;
+      if (error || !rawData) {
+        console.error('Error cargando pagos_reportados:', error);
+        const { data: fallbackData } = await supabase.from('pagos_reportados').select('*').not('estado','in','(Anulado,Reversado,Condonado)').order('created_at', { ascending: false });
+        rawData = fallbackData || [];
+      }
+
+      if (rawData) {
+        const mapped = rawData.map((p: any) => {
+          let det = p.detalles;
+          if (typeof det === 'string') {
+            try { det = JSON.parse(det); } catch(e) { det = {}; }
+          } else if (!det || typeof det !== 'object') {
+            det = {};
+          }
+          const cajeroVal = det.cajero || det.usuario || det.operador || det.origen || det.analista || p.cajero || '';
+          return {
             ...p,
             detalles: {
-              cajero: p.det_cajero || '',
-              analista: p.det_analista || '',
-              banco_destino: p.det_banco_destino || '',
-              banco_receptor: p.det_banco_receptor || '',
-              banco_origen: p.det_banco_origen || '',
-              banco_emisor: p.det_banco_emisor || '',
-              monto_conciliado: p.det_monto_conciliado || '',
-              recibos: Array.isArray(p.det_recibos) ? p.det_recibos : (typeof p.det_recibos === 'string' ? JSON.parse(p.det_recibos || '[]') : []),
-              fecha_banco: p.det_fecha_banco || '',
-              fecha_registro: p.det_fecha_registro || '',
-              fecha_transaccion: p.det_fecha_transaccion || '',
-              aprobacion: p.det_aprobacion || '',
-              lote: p.det_lote || '',
-              origen: p.det_origen || '',
-              saldo_favor: p.det_saldo_favor || 0
+              ...det,
+              cajero: cajeroVal,
+              analista: det.analista || '',
+              banco_destino: det.banco_destino || det.banco_receptor || '',
+              banco_receptor: det.banco_receptor || det.banco_destino || '',
+              banco_origen: det.banco_origen || det.banco_emisor || '',
+              banco_emisor: det.banco_emisor || det.banco_origen || '',
+              monto_conciliado: det.monto_conciliado || '',
+              recibos: Array.isArray(det.recibos) ? det.recibos : (typeof det.recibos === 'string' ? JSON.parse(det.recibos || '[]') : []),
+              fecha_banco: det.fecha_banco || '',
+              fecha_registro: det.fecha_registro || p.created_at || '',
+              fecha_transaccion: det.fecha_transaccion || '',
+              aprobacion: det.aprobacion || '',
+              lote: det.lote || '',
+              origen: det.origen || '',
+              saldo_favor: det.saldo_favor || 0
             }
-          }));
-          setPagos(mapped);
-          mapped.forEach((p: any) => {
-            if (p.detalles.cajero) cajerosSet.add(p.detalles.cajero);
-          });
-        }
-        setCajeros(Array.from(cajerosSet).sort());
-      } catch (err) {
-        console.error('Error en loadPagos:', err);
-      } finally {
-        setLoadingPagos(false);
+          };
+        });
+        setPagos(mapped);
+        mapped.forEach((p: any) => {
+          if (p.detalles.cajero) cajerosSet.add(p.detalles.cajero);
+        });
       }
-    };
+      setCajeros(Array.from(cajerosSet).sort());
+    } catch (err) {
+      console.error('Error en loadPagos:', err);
+    } finally {
+      setLoadingPagos(false);
+    }
+  };
+
+  useEffect(() => {
     loadPagos();
   }, []);
 
@@ -194,7 +185,7 @@ export default function ReportesPage() {
     <CajaIngresosMain
       pagos={pagos} cajeros={cajeros} isAdmin={isAdmin} currentUser={currentUser}
       tcmmv={tcmmv || 0} contribuyentes={contribuyentes} onBack={() => setActiveView(null)}
-      loading={loadingPagos}
+      loading={loadingPagos} onRefresh={loadPagos}
     />
   );
 
@@ -202,6 +193,7 @@ export default function ReportesPage() {
     <CuadreCaja
       pagos={pagos} cajeros={cajeros} isAdmin={isAdmin} currentUser={currentUser}
       onBack={() => setActiveView(null)}
+      loading={loadingPagos} onRefresh={loadPagos}
     />
   );
 
@@ -457,9 +449,19 @@ export default function ReportesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-black text-slate-800">Reportes</h1>
-        <p className="text-slate-500 text-sm mt-1">Selecciona un modulo para generar o visualizar el reporte</p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-slate-800">Reportes</h1>
+          <p className="text-slate-500 text-sm mt-1">Selecciona un modulo para generar o visualizar el reporte</p>
+        </div>
+        <button
+          onClick={loadPagos}
+          disabled={loadingPagos}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg text-sm font-bold text-slate-700 shadow-sm transition-colors disabled:opacity-60 cursor-pointer"
+        >
+          <RefreshCw className={`w-4 h-4 text-blue-600 ${loadingPagos ? 'animate-spin' : ''}`} />
+          {loadingPagos ? 'Actualizando datos...' : `Actualizar Datos (${pagos.length} pagos)`}
+        </button>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {visibleCards.map(card => (

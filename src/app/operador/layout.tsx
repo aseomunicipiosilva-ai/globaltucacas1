@@ -1,8 +1,13 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { LogOut, User, MapPin } from 'lucide-react';
 import { AppProvider } from '@/store/AppContext';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function OperadorLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -10,6 +15,27 @@ export default function OperadorLayout({ children }: { children: React.ReactNode
   const [operador, setOperador] = useState<string | null>(null);
 
   const isLoginPage = pathname === '/operador/login';
+
+  const checkOperatorStatus = useCallback(async (opName: string) => {
+    if (opName === 'CATASTRO' || opName === 'HACIENDA') return true;
+    try {
+      const { data } = await supabase
+        .from('trabajadores')
+        .select('id, usuario, estado')
+        .ilike('usuario', opName.trim())
+        .maybeSingle();
+
+      if (!data || data.estado !== 'Activo') {
+        localStorage.removeItem('operador_censo_auth');
+        localStorage.removeItem('operador_user_data');
+        router.replace('/operador/login?error=suspended');
+        return false;
+      }
+      return true;
+    } catch (e) {
+      return true;
+    }
+  }, [router]);
 
   useEffect(() => {
     if (isLoginPage) return;
@@ -19,12 +45,29 @@ export default function OperadorLayout({ children }: { children: React.ReactNode
     if (!storedOp) {
       router.replace('/operador/login');
     } else {
-      setOperador(storedOp);
+      checkOperatorStatus(storedOp).then((active) => {
+        if (active) setOperador(storedOp);
+      });
     }
-  }, [router, pathname]);
+  }, [router, pathname, isLoginPage, checkOperatorStatus]);
+
+  // Periodic and focus check
+  useEffect(() => {
+    if (isLoginPage || !operador) return;
+    const interval = setInterval(() => {
+      checkOperatorStatus(operador);
+    }, 40000);
+    const onFocus = () => checkOperatorStatus(operador);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [isLoginPage, operador, checkOperatorStatus]);
 
   const handleLogout = () => {
     localStorage.removeItem('operador_censo_auth');
+    localStorage.removeItem('operador_user_data');
     router.replace('/');
   };
 

@@ -44,12 +44,17 @@ export default function OperadorLogin() {
         .from('trabajadores')
         .select('*')
         .ilike('usuario', usuario.trim())
-        .eq('estado', 'Activo')
         .limit(1)
         .maybeSingle();
 
       if (dbError || !data) {
-        setError('Usuario no encontrado o inactivo');
+        setError('Usuario no encontrado');
+        setIsAuthenticating(false);
+        return;
+      }
+
+      if (data.estado !== 'Activo') {
+        setError('Esta cuenta se encuentra suspendida. Acceso denegado.');
         setIsAuthenticating(false);
         return;
       }

@@ -1,6 +1,6 @@
 ﻿'use client';
 import { useState, useMemo, useEffect } from 'react';
-import { ChevronDown, Lock, CheckCircle, Loader2, Printer, ArrowLeft, FileSpreadsheet, FileText } from 'lucide-react';
+import { ChevronDown, Lock, CheckCircle, Loader2, Printer, ArrowLeft, FileSpreadsheet, FileText, RefreshCw } from 'lucide-react';
 import { generarCorteCajaPDF, generarIngresoBancarioPDF } from '../generators/PdfReports';
 import { generarLibroVentas } from '../generators/LibroVentas';
 import { generarGeneralIngresosExcel } from '../generators/ExcelGeneralIngresos';
@@ -14,6 +14,7 @@ interface Props {
   contribuyentes: any[];
   onBack: () => void;
   loading?: boolean;
+  onRefresh?: () => Promise<void>;
 }
 
 type SubTipo = 'General de Ingresos' | 'Corte de Caja' | 'Ingresos por Banco' | 'Libro de Ventas' | 'Resumen Libro de Ventas';
@@ -49,17 +50,37 @@ function getNombre(p: any, contribuyentes: any[]): string {
 }
 
 const SUB_TIPOS: SubTipo[] = ['General de Ingresos', 'Corte de Caja', 'Ingresos por Banco', 'Libro de Ventas', 'Resumen Libro de Ventas'];
+
+const getTodayStr = () => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+const normalizeCajero = (s: string) => (s || '').replace(/^[A-Z]-/, '').trim().toLowerCase();
+const matchCajero = (cajeroVal: string, filterVal: string) => {
+  if (!filterVal || filterVal === '__todos__' || filterVal === 'Todos') return true;
+  return normalizeCajero(cajeroVal) === normalizeCajero(filterVal);
+};
+
 const BANCOS = ['BANESCO','BANCO NACIONAL CREDITO BNC','BDT','BANCO DE VENEZUELA','PROVINCIAL','MERCANTIL','BOD','BANCO DEL CARIBE','BANCO PLAZA','BANCO EXTERIOR','SOFITASA','BANCAMIGA','MIBANCO'];
 
-export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser, tcmmv, contribuyentes, onBack, loading }: Props) {
-  const today = new Date().toISOString().slice(0, 10);
+export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser, tcmmv, contribuyentes, onBack, loading, onRefresh }: Props) {
+  const today = getTodayStr();
   const [subTipo, setSubTipo] = useState<SubTipo>('General de Ingresos');
   const [selectedCajas, setSelectedCajas] = useState<string[]>(isAdmin ? [] : [currentUser]);
   const [tipoFilter, setTipoFilter] = useState('Todos');
   const [bancFilter, setBancFilter] = useState('');
   const [fechaInicio, setFechaInicio] = useState(today + 'T00:00');
   const [fechaFin, setFechaFin] = useState(today + 'T23:59');
-  const [showReport, setShowReport] = useState(false);
+  const [showReport, setShowReport] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try { if (onRefresh) await onRefresh(); } finally { setIsRefreshing(false); }
+  };
   const [showCajaDD, setShowCajaDD] = useState(false);
   const [cerrando, setCerrando] = useState(false);
   const [cajaCerrada, setCajaCerrada] = useState(false);
@@ -89,9 +110,10 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
     return pagos.filter(p => {
       // Excluir pagos anulados, reversados o condonados de todos los reportes
       if (p.estado === 'Anulado' || p.estado === 'Reversado' || p.estado === 'Condonado' || p.estado === 'Rechazado') return false;
-      const d = new Date(p.created_at);
-      if (d < s || d > e) return false;
       const det = parseDet(p);
+      const fechaBase = det.fecha_registro || p.created_at;
+      const d = new Date(fechaBase);
+      if (d < s || d > e) return false;
       // Para debitos: det.cajero. Para transferencias conciliadas: det.analista o det.cajero
       const cajero = det.cajero || det.analista || '';
       if (!isAdmin && cajero !== currentUser) return false;
@@ -187,7 +209,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
             <td style={S.td}>{det.aprobacion || '-'}</td><td style={S.td}>{det.lote || '-'}</td>
             <td style={{ ...S.td, textAlign: 'right', fontWeight: 700 }}>{fmtBs(parseFloat(p.monto) || 0)}</td>
           </tr>); })}</tbody>
-          <tfoot><tr><td colSpan={9} style={S.tf}>Total Items: {debitos.length}</td><td style={{ ...S.tf, textAlign: 'right' }}>Total Debito: {fmtBs(totalDebito)}</td></tr></tfoot>
+          <tfoot><tr><td colSpan={10} style={S.tf}>Total Items: {debitos.length}</td><td style={{ ...S.tf, textAlign: 'right' }}>Total Debito: {fmtBs(totalDebito)}</td></tr></tfoot>
         </table>
       </div>
     </>}
@@ -261,7 +283,7 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
         <div style={S.hdrRow}>
           <div style={S.fw}>
             <span style={S.fl}>Recaudacion - {subTipo}</span>
-            <select value={subTipo} onChange={e => { setSubTipo(e.target.value as SubTipo); setShowReport(false); }} style={S.fi}>
+            <select value={subTipo} onChange={e => { setSubTipo(e.target.value as SubTipo); setShowReport(true); }} style={S.fi}>
               {SUB_TIPOS.map(t => <option key={t}>{t}</option>)}
             </select>
           </div>
@@ -321,6 +343,20 @@ export default function CajaIngresosMain({ pagos, cajeros, isAdmin, currentUser,
             </div>
           )}
           <button onClick={() => { setShowReport(true); setShowCajaDD(false); }} disabled={loading} style={{ ...S.btnGen, opacity: loading ? 0.7 : 1, display: 'inline-flex', alignItems: 'center', gap: 6 }}>{loading && <Loader2 size={13} className="animate-spin" />}Generar Reporte</button>
+
+          <button
+            onClick={handleRefresh}
+            disabled={loading || isRefreshing}
+            style={{
+              background: '#3b82f6', color: '#fff', border: 'none', padding: '8px 18px', borderRadius: 6,
+              fontWeight: 700, cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap', alignSelf: 'flex-end',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              opacity: (loading || isRefreshing) ? 0.7 : 1,
+            }}
+          >
+            <RefreshCw size={14} className={(loading || isRefreshing) ? 'animate-spin' : ''} />
+            {(loading || isRefreshing) ? 'Actualizando...' : 'Actualizar'}
+          </button>
 
           <button
             onClick={() => setShowConfirmCierre(true)}
