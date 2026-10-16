@@ -332,11 +332,11 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
       // Contribuyente data
       doc.text("Razón Social:", 15, 62);
       doc.setFont("helvetica", "bold");
-      doc.text(unidad.propietario || 'Propietario No Asignado', 40, 62);
+      doc.text(String(unidad.propietario || 'Propietario No Asignado'), 40, 62);
       
       doc.setFont("helvetica", "normal");
       doc.text("RIF / C.I.:", 15, 68);
-      doc.text(condominioIdentidad || 'N/A', 40, 68);
+      doc.text(String(condominioIdentidad || 'N/A'), 40, 68);
       
       doc.text("Teléfono:", 15, 74);
       doc.text('+58 412-9030238', 40, 74);
@@ -347,10 +347,10 @@ export function UnidadesModal({ condominioId, condominioNombre, condominioIdenti
       // Inmueble data
       doc.setFont("helvetica", "normal");
       doc.text("Nro de Inmueble:", 110, 62);
-      doc.text(unidad.numero_unidad, 135, 62);
+      doc.text(String(unidad.numero_unidad ?? ''), 135, 62);
       
       doc.text("Condominio:", 110, 68);
-      doc.text(condominioNombre, 130, 68);
+      doc.text(String(condominioNombre || ''), 130, 68);
       
       doc.text("Dirección:", 110, 74);
       const dirSplit = doc.splitTextToSize('Tucacas Municipio Silva', 70);

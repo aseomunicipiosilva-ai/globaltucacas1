@@ -46,28 +46,28 @@ export const dibujarYDescargarPDF = async (data: any, isPreview = false) => {
     // Contribuyente data
     doc.text("Razón Social:", 15, 62);
     doc.setFont("helvetica", "bold");
-    doc.text(data.contribuyente || '', 40, 62);
+    doc.text(String(data.contribuyente || ''), 40, 62);
     
     doc.setFont("helvetica", "normal");
     doc.text("RIF / C.I.:", 15, 68);
-    doc.text(data.identidad || '', 40, 68);
+    doc.text(String(data.identidad || ''), 40, 68);
     
     doc.text("Teléfono:", 15, 74);
-    doc.text(data.telefono || '+58 412-9030238', 40, 74);
+    doc.text(String(data.telefono || '+58 412-9030238'), 40, 74);
     
     doc.text("Código:", 15, 80);
-    doc.text(data.codigoContribuyente || '', 40, 80);
+    doc.text(String(data.codigoContribuyente ?? ''), 40, 80);
     
     // Inmueble data
     doc.setFont("helvetica", "normal");
     doc.text("Código:", 110, 62);
-    doc.text(data.inmuebleSpec !== 'general' ? data.inmuebleSpec : 'N/A', 130, 62);
+    doc.text(String(data.inmuebleSpec && data.inmuebleSpec !== 'general' ? data.inmuebleSpec : 'N/A'), 130, 62);
     
     doc.text("Patente:", 110, 68);
-    doc.text(data.patente || 'S/N', 130, 68);
+    doc.text(String(data.patente || 'S/N'), 130, 68);
     
     doc.text("Dirección:", 110, 74);
-    const dirSplit = doc.splitTextToSize(data.direccion || 'Tucacas Municipio Silva, Falcón', 70);
+    const dirSplit = doc.splitTextToSize(String(data.direccion || 'Tucacas Municipio Silva, Falcón'), 70);
     doc.text(dirSplit, 130, 74);
     
     // Section 2: PERÍODO DE SOLVENCIA
@@ -144,12 +144,13 @@ export const generarSolvenciaPDF = async (
     let fechaVencimiento = new Date(fechaEmision.getFullYear(), fechaEmision.getMonth() + 1, 0);
     fechaVencimiento.setHours(23, 59, 59, 999);
     
-    const codigoUnico = `SOL-${contribuyente.Identidad}-${Date.now().toString().slice(-6)}`;
+    const idStr = String(contribuyente.Identidad || contribuyente.identidad || 'N/A');
+    const codigoUnico = `SOL-${idStr}-${Date.now().toString().slice(-6)}`;
     
     const dbRecord = {
       codigo: codigoUnico,
-      contribuyente: contribuyente.Contribuyente,
-      identidad: contribuyente.Identidad,
+      contribuyente: String(contribuyente.Contribuyente || contribuyente.contribuyente || ''),
+      identidad: idStr,
       tipo: 'Solvencia Municipal',
       emision: fechaEmision.toISOString(),
       vencimiento: fechaVencimiento.toISOString(),
@@ -165,10 +166,10 @@ export const generarSolvenciaPDF = async (
 
     await dibujarYDescargarPDF({
       ...dbRecord,
-      inmuebleSpec,
-      telefono: '+58 412-9030238',
-      codigoContribuyente: contribuyente.id || 'C-0000',
-      direccion: contribuyente.Direccion || 'Tucacas Municipio Silva'
+      inmuebleSpec: String(inmuebleSpec || 'general'),
+      telefono: String(contribuyente.Telefono || contribuyente.telefono || '+58 412-9030238'),
+      codigoContribuyente: String(contribuyente.id || contribuyente.codigo || 'C-0000'),
+      direccion: String(contribuyente.Direccion || contribuyente.direccion || 'Tucacas Municipio Silva')
     });
 
     return dbRecord;
