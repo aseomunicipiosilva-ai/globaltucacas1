@@ -3,7 +3,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
 import { useAppContext } from '@/store/AppContext';
-import { Users, Save, ArrowLeft, Plus, Building, Home as HomeIcon, MapPin, Edit, DollarSign, Handshake, Eye, X, CheckCircle, Calculator, AlertCircle, Download, FileText, Trash2, Power } from 'lucide-react';
+import { Users, Save, ArrowLeft, Plus, Building, Home as HomeIcon, MapPin, Edit, DollarSign, Handshake, Eye, X, CheckCircle, Calculator, AlertCircle, Download, FileText, Trash2, Power, Calendar, Filter } from 'lucide-react';
 import { generarSolvenciaPDF } from '@/lib/pdfGenerator';
 import { ordenanzaData } from '@/data/ordenanza';
 import Select from 'react-select';
@@ -28,6 +28,39 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+
+const MESES_LISTA = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+
+const getFacturaYearMonth = (f: any): { year: number; month: number } => {
+  if (f.emision) {
+    const parts = f.emision.split('-');
+    if (parts.length >= 2) {
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      if (!isNaN(y) && !isNaN(m) && m >= 1 && m <= 12) {
+        return { year: y, month: m };
+      }
+    }
+  }
+  if (f.referencia) {
+    const parts = f.referencia.split('-');
+    if (parts.length >= 5) {
+      const m = parseInt(parts[parts.length - 2], 10);
+      const y = parseInt(parts[parts.length - 1], 10);
+      if (!isNaN(y) && !isNaN(m) && m >= 1 && m <= 12) {
+        return { year: y, month: m };
+      }
+    }
+  }
+  return { year: new Date().getFullYear(), month: 1 };
+};
+
+const formatPeriodoLabel = (desdeM: number, hastaM: number, anio: number, modo: 'todos' | 'rango') => {
+  if (modo === 'todos') return 'HISTÓRICO ACUMULADO (TODOS LOS PERÍODOS)';
+  if (desdeM === hastaM) return `${MESES_LISTA[desdeM - 1]} ${anio}`;
+  return `${MESES_LISTA[desdeM - 1]} A ${MESES_LISTA[hastaM - 1]} ${anio}`;
+};
+
 function ContribuyentesPageContent() {
   const { inmuebles, contribuyentes, recibos, setFacturas, convenios, updateContribuyente, addContribuyente, addAuditLog, tcmmv, addCertificado, auditLogs } = useAppContext();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -46,6 +79,11 @@ function ContribuyentesPageContent() {
   const [viewServiciosEsp, setViewServiciosEsp] = useState<any[]>([]);
   const [viewPagos, setViewPagos] = useState<any[]>([]);
   const [viewAuditLogs, setViewAuditLogs] = useState<any[]>([]);
+  const [modalPeriodoOpen, setModalPeriodoOpen] = useState(false);
+  const [periodoModo, setPeriodoModo] = useState<'rango' | 'todos'>('rango');
+  const [periodoAnio, setPeriodoAnio] = useState<number>(new Date().getFullYear());
+  const [periodoDesdeMes, setPeriodoDesdeMes] = useState<number>(1); // Enero
+  const [periodoHastaMes, setPeriodoHastaMes] = useState<number>(9); // Septiembre
 
   const [debtModalOpen, setDebtModalOpen] = useState(false);
   const [selectedDebtRow, setSelectedDebtRow] = useState<any>(null);
