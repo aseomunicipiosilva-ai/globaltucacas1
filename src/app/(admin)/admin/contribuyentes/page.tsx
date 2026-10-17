@@ -61,6 +61,27 @@ const formatPeriodoLabel = (desdeM: number, hastaM: number, anio: number, modo: 
   return `${MESES_LISTA[desdeM - 1]} A ${MESES_LISTA[hastaM - 1]} ${anio}`;
 };
 
+
+const calcularPeriodoDeudas = (facturas: any[]): string => {
+  if (!facturas || facturas.length === 0) return 'AL DÍA (SIN DEUDA)';
+  const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+  
+  const parsed = facturas.map((f: any) => getFacturaYearMonth(f)).filter(ym => ym.month >= 1 && ym.month <= 12);
+  if (parsed.length === 0) return 'PERÍODO ACTUAL';
+
+  parsed.sort((a, b) => (a.year * 100 + a.month) - (b.year * 100 + b.month));
+  const min = parsed[0];
+  const max = parsed[parsed.length - 1];
+
+  if (min.year === max.year && min.month === max.month) {
+    return `${MESES[min.month - 1]} ${min.year}`;
+  }
+  if (min.year === max.year) {
+    return `${MESES[min.month - 1]} A ${MESES[max.month - 1]} ${min.year}`;
+  }
+  return `${MESES[min.month - 1]} ${min.year} A ${MESES[max.month - 1]} ${max.year}`;
+};
+
 function ContribuyentesPageContent() {
   const { inmuebles, contribuyentes, recibos, setFacturas, convenios, updateContribuyente, addContribuyente, addAuditLog, tcmmv, addCertificado, auditLogs } = useAppContext();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -80,6 +101,7 @@ function ContribuyentesPageContent() {
   const [viewPagos, setViewPagos] = useState<any[]>([]);
   const [viewAuditLogs, setViewAuditLogs] = useState<any[]>([]);
   const [modalPeriodoOpen, setModalPeriodoOpen] = useState(false);
+  const [tipoVistaDeuda, setTipoVistaDeuda] = useState<'agrupado' | 'detallada'>('detallada');
   const [periodoModo, setPeriodoModo] = useState<'rango' | 'todos'>('rango');
   const [periodoAnio, setPeriodoAnio] = useState<number>(new Date().getFullYear());
   const [periodoDesdeMes, setPeriodoDesdeMes] = useState<number>(1); // Enero
@@ -449,7 +471,7 @@ function ContribuyentesPageContent() {
     });
   };
 
-  const imprimirEstadoDeCuenta = async () => {
+  const imprimirEstadoDeCuenta = async (formato: 'agrupado' | 'detallada' = tipoVistaDeuda) => {
     if (!viewData) return;
 
     const idLimpio = (viewData.Identidad || '').replace(/-/g, '').toUpperCase();
@@ -516,6 +538,7 @@ function ContribuyentesPageContent() {
     const today = new Date();
     const tasaVigente = today.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const cajero = typeof window !== 'undefined' ? (localStorage.getItem('adminUser') || 'Administrador') : 'Administrador';
+    const periodoTexto = calcularPeriodoDeudas(deudas);
 
     // Si hay múltiples inmuebles → 1 PDF por inmueble (estados de cuenta separados)
     // Si hay 1 solo inmueble → 1 PDF con todos los meses pendientes
@@ -707,25 +730,40 @@ function ContribuyentesPageContent() {
       doc.line(14, y, 196, y);
       y += 8;
 
-      // ── ESTADO DE CUENTA DETALLADO ──
+      // ── ESTADO DE CUENTA DETALLADO O CONSOLIDADO ──
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
-      doc.text('ESTADO DE CUENTA DETALLADO', 105, y, { align: 'center' });
+      doc.text(formato === 'agrupado' ? 'ESTADO DE CUENTA (CONSOLIDADO POR PERÍODO)' : 'ESTADO DE CUENTA DETALLADO', 105, y, { align: 'center' });
       y += 4;
 
-      const detalleRows = inmRecibos.map((f: any) => {
-        const monto = calcMonto(f);
-        const det = inm.actividad_principal
-          ? `Aseo ${inm.actividad_principal}`
-          : 'Aseo residencial';
-        return [
-          f.emision || '—',
-          det,
-          monto.toLocaleString('es-VE', { minimumFractionDigits: 2 }),
+      let detalleRows: any[] = [];
+      if (formato === 'agrupado') {
+        const baseAseoMonto = inmRecibos.reduce((s: number, f: any) => s + calcMonto(f), 0);
+        const detAgrupado = inm.actividad_principal
+          ? `Aseo ${inm.actividad_principal} - Período Consolidado: ${periodoTexto} (${inmRecibos.length} meses agrupados)`
+          : `Aseo residencial - Período Consolidado: ${periodoTexto} (${inmRecibos.length} meses agrupados)`;
+        detalleRows.push([
+          periodoTexto,
+          detAgrupado,
+          baseAseoMonto.toLocaleString('es-VE', { minimumFractionDigits: 2 }),
           '0,00', '0,00', '0,00',
-          monto.toLocaleString('es-VE', { minimumFractionDigits: 2 })
-        ];
-      });
+          baseAseoMonto.toLocaleString('es-VE', { minimumFractionDigits: 2 })
+        ]);
+      } else {
+        detalleRows = inmRecibos.map((f: any) => {
+          const monto = calcMonto(f);
+          const det = inm.actividad_principal
+            ? `Aseo ${inm.actividad_principal}`
+            : 'Aseo residencial';
+          return [
+            f.emision || '—',
+            det,
+            monto.toLocaleString('es-VE', { minimumFractionDigits: 2 }),
+            '0,00', '0,00', '0,00',
+            monto.toLocaleString('es-VE', { minimumFractionDigits: 2 })
+          ];
+        });
+      }
 
       if (idx === 0 && serviciosPendientes.length > 0) {
         const TIPO_LABEL: any = { 'tala_poda': 'Tala y Poda', 'especial': 'Serv. Especial', 'visto_bueno': 'Visto Bueno', 'inspeccion': 'Inspección', 'extraordinario': 'Serv. Extraordinario' };
@@ -2397,7 +2435,8 @@ function ContribuyentesPageContent() {
                 </div>
               )}
 
-              <div className="mt-6 border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+              <div className="mt-6 border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                {/* CABECERA ROJA CON LOS DOS BOTONES DE EXPORTACIÓN */}
                 <div className="bg-red-50 px-4 py-3 border-b border-red-100 flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <DollarSign className="w-5 h-5 text-red-600" />
@@ -2406,134 +2445,68 @@ function ContribuyentesPageContent() {
                   <div className="flex items-center gap-2">
                     <button 
                       type="button"
-                      onClick={() => setModalPeriodoOpen(true)}
+                      onClick={() => imprimirEstadoDeCuenta('agrupado')}
                       className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-900 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-95"
+                      title="Exportar PDF consolidando todos los meses en un solo período"
                     >
-                      <Calendar className="w-4 h-4 text-amber-400" /> Seleccionar Período
+                      <FileText className="w-4 h-4 text-amber-400" /> 📦 Exportar Agrupado (Período)
                     </button>
                     <button 
                       type="button"
-                      onClick={() => imprimirEstadoDeCuenta()}
+                      onClick={() => imprimirEstadoDeCuenta('detallada')}
                       className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-95"
-                      title="Exportar PDF con el período seleccionado"
+                      title="Exportar PDF con desglose detallado mes a mes"
                     >
-                      <FileText className="w-4 h-4" /> Exportar PDF
+                      <FileText className="w-4 h-4" /> 📋 Exportar Detallado
                     </button>
                   </div>
                 </div>
 
-                {/* ── BARRA SELECTORA DE PERÍODO (EJ. ENERO HASTA SEPTIEMBRE) ── */}
-                <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <span className="font-bold text-slate-700 text-xs flex items-center gap-1.5">
-                      <Filter className="w-4 h-4 text-red-600" /> Filtrar Período:
-                    </span>
-                    <select
-                      value={periodoModo}
-                      onChange={(e) => setPeriodoModo(e.target.value as any)}
-                      className="border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-xs font-bold text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-                    >
-                      <option value="todos">Todos los Meses Pendientes</option>
-                      <option value="rango">Rango de Meses Específico</option>
-                    </select>
-
-                    {periodoModo === 'rango' && (
-                      <div className="flex flex-wrap items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-300 shadow-sm text-xs">
-                        <span className="text-slate-500 font-semibold">Año:</span>
-                        <select
-                          value={periodoAnio}
-                          onChange={(e) => setPeriodoAnio(Number(e.target.value))}
-                          className="bg-transparent font-bold text-slate-800 focus:outline-none"
-                        >
-                          <option value={2026}>2026</option>
-                          <option value={2025}>2025</option>
-                          <option value={2024}>2024</option>
-                        </select>
-
-                        <span className="text-slate-300">|</span>
-                        <span className="text-slate-500 font-semibold">Desde:</span>
-                        <select
-                          value={periodoDesdeMes}
-                          onChange={(e) => setPeriodoDesdeMes(Number(e.target.value))}
-                          className="bg-transparent font-bold text-slate-800 focus:outline-none"
-                        >
-                          {MESES_LISTA.map((m, idx) => (
-                            <option key={idx} value={idx + 1}>{m}</option>
-                          ))}
-                        </select>
-
-                        <span className="text-slate-300">|</span>
-                        <span className="text-slate-500 font-semibold">Hasta:</span>
-                        <select
-                          value={periodoHastaMes}
-                          onChange={(e) => setPeriodoHastaMes(Number(e.target.value))}
-                          className="bg-transparent font-bold text-slate-800 focus:outline-none"
-                        >
-                          {MESES_LISTA.map((m, idx) => (
-                            <option key={idx} value={idx + 1}>{m}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
+                {/* SELECTOR DE VISTA: DOS BOTONES DIRECTOS (AGRUPADO VS DETALLADA) */}
+                <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Modo de visualización:</span>
+                    <div className="inline-flex rounded-lg border border-slate-300 p-0.5 bg-slate-200 shadow-inner">
+                      <button
+                        type="button"
+                        onClick={() => setTipoVistaDeuda('agrupado')}
+                        className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
+                          tipoVistaDeuda === 'agrupado'
+                            ? 'bg-slate-900 text-white shadow-sm'
+                            : 'text-slate-700 hover:bg-slate-300/60'
+                        }`}
+                      >
+                        📦 Agrupado por Período
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTipoVistaDeuda('detallada')}
+                        className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
+                          tipoVistaDeuda === 'detallada'
+                            ? 'bg-red-600 text-white shadow-sm'
+                            : 'text-slate-700 hover:bg-slate-300/60'
+                        }`}
+                      >
+                        📋 Detallada (Mes a Mes)
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Accesos rápidos */}
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => { setPeriodoModo('rango'); setPeriodoDesdeMes(1); setPeriodoHastaMes(9); setPeriodoAnio(2026); }}
-                      className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
-                        periodoModo === 'rango' && periodoDesdeMes === 1 && periodoHastaMes === 9
-                          ? 'bg-red-600 text-white ring-2 ring-red-400'
-                          : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      ⭐ Enero a Septiembre
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setPeriodoModo('rango'); setPeriodoDesdeMes(1); setPeriodoHastaMes(12); setPeriodoAnio(2026); }}
-                      className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
-                        periodoModo === 'rango' && periodoDesdeMes === 1 && periodoHastaMes === 12
-                          ? 'bg-red-600 text-white ring-2 ring-red-400'
-                          : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      Todo 2026
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setPeriodoModo('todos'); }}
-                      className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
-                        periodoModo === 'todos'
-                          ? 'bg-red-600 text-white ring-2 ring-red-400'
-                          : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      Todos
-                    </button>
+                  <div className="text-xs text-slate-600 font-semibold bg-white px-3 py-1 rounded-md border border-slate-200 shadow-sm">
+                    Período Detectado: <strong className="text-slate-900">{calcularPeriodoDeudas(viewFacturasDb)}</strong>
                   </div>
                 </div>
+
                 <div className="p-0">
                   {(() => {
-                    // Filtrar por período seleccionado si modo es rango
-                    const deudas = [...viewFacturasDb]
-                      .filter((f: any) => {
-                        if (periodoModo === 'todos') return true;
-                        const ym = getFacturaYearMonth(f);
-                        const fKey = ym.year * 100 + ym.month;
-                        const startKey = periodoAnio * 100 + periodoDesdeMes;
-                        const endKey = periodoAnio * 100 + periodoHastaMes;
-                        return fKey >= startKey && fKey <= endKey;
-                      })
-                      .sort((a: any, b: any) => {
-                        const dA = new Date(a.emision || '1900-01-01').getTime();
-                        const dB = new Date(b.emision || '1900-01-01').getTime();
-                        return dA - dB;
-                      });
+                    const deudas = [...viewFacturasDb].sort((a: any, b: any) => {
+                      const dA = new Date(a.emision || '1900-01-01').getTime();
+                      const dB = new Date(b.emision || '1900-01-01').getTime();
+                      return dA - dB;
+                    });
 
-                    // Helper: para CM- recalcular con tasa BCV actual (fluctúa cada día)
-                    // Para RECIB- usar monto guardado (deuda acumulada ajustada por Ajustar Deuda)
+                    const periodoTexto = calcularPeriodoDeudas(deudas);
+
                     const userInms = inmuebles.filter((i: any) =>
                       (i.identidad || '').replace(/-/g,'').toUpperCase() === (viewData?.Identidad || '').replace(/-/g,'').toUpperCase()
                     );
@@ -2541,7 +2514,6 @@ function ContribuyentesPageContent() {
                       if (f.estado === 'Abonado') return parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
                       let base = parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
                       if (f.referencia?.startsWith('CM-')) {
-                        // Buscar el inmueble que corresponde a esta factura por código en la referencia
                         const matchedInm = userInms.find((inm: any) =>
                           (inm.inmueble && f.referencia.includes(inm.inmueble)) ||
                           (inm.cod_cont && f.referencia.includes(inm.cod_cont))
@@ -2554,7 +2526,6 @@ function ContribuyentesPageContent() {
                         }
                       }
                       
-                                            // Descontar pagos en proceso (Por Verificar)
                       let montoPendiente = 0;
                       let tasaPago = null;
                       viewPagos.filter((p: any) => p.estado === 'Por Verificar').forEach((p: any) => {
@@ -2587,24 +2558,6 @@ function ContribuyentesPageContent() {
                     const totalBs = deudas.reduce((acc: number, f: any) => acc + getMontoActual(f), 0);
 
                     if (deudas.length === 0) {
-                      if (viewFacturasDb.length > 0 && periodoModo === 'rango') {
-                        return (
-                          <div className="p-8 text-center bg-white">
-                            <AlertCircle className="w-10 h-10 text-amber-500 mx-auto mb-2" />
-                            <p className="text-slate-800 font-bold mb-1">Sin deudas pendientes en el período seleccionado.</p>
-                            <p className="text-slate-500 text-xs mb-3">
-                              (${MESES_LISTA[periodoDesdeMes - 1]} a ${MESES_LISTA[periodoHastaMes - 1]} ${periodoAnio})
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => setPeriodoModo('todos')}
-                              className="text-xs bg-slate-800 hover:bg-slate-900 text-white font-bold px-3 py-1.5 rounded-lg shadow-sm"
-                            >
-                              Ver Todos los Meses (${viewFacturasDb.length} pendientes)
-                            </button>
-                          </div>
-                        );
-                      }
                       return (
                         <div className="p-6 text-center">
                           <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-2" />
@@ -2650,67 +2603,112 @@ function ContribuyentesPageContent() {
 
                     return (
                       <div>
+                        {/* BARRA DE MONTO TOTAL Y PERÍODO */}
                         <div className="p-4 bg-white border-b border-slate-100 flex flex-wrap justify-between items-center gap-2">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="font-semibold text-slate-600">Monto Total Adeudado:</span>
                             <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-amber-100 text-amber-900 border border-amber-200">
-                              {periodoModo === 'todos' ? 'HISTÓRICO ACUMULADO' : `PERÍODO: ${MESES_LISTA[periodoDesdeMes - 1]} A ${MESES_LISTA[periodoHastaMes - 1]} ${periodoAnio}`}
+                              PERÍODO: {periodoTexto}
                             </span>
                             <span className="text-xs text-slate-500 font-medium">({deudas.length} mes{deudas.length === 1 ? '' : 'es'})</span>
                           </div>
                           <span className="text-xl font-black text-red-600">Bs. {totalBs.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
                         </div>
-                        <div className="bg-slate-50">
-                          <table className="w-full text-sm text-left">
-                            <thead className="bg-slate-100 text-slate-500 font-medium text-[10px] uppercase">
-                              <tr>
-                                <th className="px-4 py-2">Referencia</th>
-                                <th className="px-4 py-2">Mes</th>
-                                <th className="px-4 py-2">Estado</th>
-                                <th className="px-4 py-2 text-right">Monto (Bs)</th>
-                                <th className="px-4 py-2 text-center w-10">Acción</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {deudas.map((d: any, idx: number) => {
-                                const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
-                                let mesLabel = d.emision || 'N/A';
-                                if (d.emision) {
-                                  const parts = d.emision.split('-');
-                                  if (parts.length >= 2) mesLabel = `${MESES[parseInt(parts[1])-1] || parts[1]} ${parts[0]}`;
-                                }
-                                const montoNum = parseFloat(String(d.monto || '0').replace(/[^\d.]/g, '')) || 0;
-                                return (
-                                  <tr key={idx} className="border-b border-slate-100 last:border-0 bg-white group">
-                                    <td className="px-4 py-2 font-medium text-slate-700 text-xs">{d.referencia}</td>
-                                    <td className="px-4 py-2 text-slate-700 font-semibold text-xs whitespace-nowrap">{mesLabel}</td>
-                                    <td className="px-4 py-2">
-                                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${d.estado === 'Por Verificar' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                        {d.estado || 'Pendiente'}
-                                      </span>
-                                    </td>
-                                    <td className="px-4 py-2 text-right font-bold text-slate-800">
-                                      {getMontoActual(d) <= 0 && d.estado !== 'Abonado' && d.estado !== 'Pagado' ? (
-                                        <span className="text-emerald-600">En Verificación</span>
-                                      ) : (
-                                        getMontoActual(d).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})
-                                      )}
-                                    </td>
-                                    <td className="px-4 py-2 text-center">
-                                      <button 
-                                        onClick={() => handleDeleteFactura(d)}
-                                        className="text-red-400 hover:text-red-600 p-1 rounded-full hover:bg-red-50 transition-colors"
-                                        title="Eliminar Deuda"
-                                      >
-                                        <X className="w-4 h-4" />
-                                      </button>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
+
+                        {/* OPCIÓN 1: VISTA AGRUPADA POR PERÍODO */}
+                        {tipoVistaDeuda === 'agrupado' ? (
+                          <div className="p-4 bg-slate-50/50">
+                            <div className="bg-white border-2 border-indigo-100 rounded-xl p-4 shadow-sm">
+                              <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-lg">
+                                    📦
+                                  </div>
+                                  <div>
+                                    <div className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Período Consolidado / Agrupado</div>
+                                    <div className="text-base font-black text-slate-900">{periodoTexto}</div>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-[10px] font-bold text-slate-400 uppercase">Monto Total Consolidado</div>
+                                  <div className="text-xl font-black text-indigo-700">Bs. {totalBs.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
+                                </div>
+                              </div>
+
+                              <div className="pt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                                  <span className="text-slate-400 font-medium block text-[10px]">Meses Agrupados</span>
+                                  <span className="font-bold text-slate-800 text-sm">{deudas.length} meses</span>
+                                </div>
+                                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                                  <span className="text-slate-400 font-medium block text-[10px]">Estado de Deuda</span>
+                                  <span className="font-bold text-amber-600 text-sm">Pendiente</span>
+                                </div>
+                                <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex items-center justify-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => imprimirEstadoDeCuenta('agrupado')}
+                                    className="w-full bg-slate-900 hover:bg-black text-white py-2 px-3 rounded-lg font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition-colors"
+                                  >
+                                    <FileText className="w-3.5 h-3.5 text-amber-400" /> Exportar Recibo Agrupado
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          /* OPCIÓN 2: VISTA DETALLADA MES A MES (LA ORIGINAL DE LA CAPTURA) */
+                          <div className="bg-slate-50">
+                            <table className="w-full text-sm text-left">
+                              <thead className="bg-slate-100 text-slate-500 font-medium text-[10px] uppercase">
+                                <tr>
+                                  <th className="px-4 py-2">Referencia</th>
+                                  <th className="px-4 py-2">Mes</th>
+                                  <th className="px-4 py-2">Estado</th>
+                                  <th className="px-4 py-2 text-right">Monto (Bs)</th>
+                                  <th className="px-4 py-2 text-center w-10">Acción</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {deudas.map((d: any, idx: number) => {
+                                  const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+                                  let mesLabel = d.emision || 'N/A';
+                                  if (d.emision) {
+                                    const parts = d.emision.split('-');
+                                    if (parts.length >= 2) mesLabel = `${MESES[parseInt(parts[1])-1] || parts[1]} ${parts[0]}`;
+                                  }
+                                  return (
+                                    <tr key={idx} className="border-b border-slate-100 last:border-0 bg-white group">
+                                      <td className="px-4 py-2 font-medium text-slate-700 text-xs">{d.referencia}</td>
+                                      <td className="px-4 py-2 text-slate-700 font-semibold text-xs whitespace-nowrap">{mesLabel}</td>
+                                      <td className="px-4 py-2">
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${d.estado === 'Por Verificar' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                          {d.estado || 'Pendiente'}
+                                        </span>
+                                      </td>
+                                      <td className="px-4 py-2 text-right font-bold text-slate-800">
+                                        {getMontoActual(d) <= 0 && d.estado !== 'Abonado' && d.estado !== 'Pagado' ? (
+                                          <span className="text-emerald-600">En Verificación</span>
+                                        ) : (
+                                          getMontoActual(d).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-2 text-center">
+                                        <button 
+                                          onClick={() => handleDeleteFactura(d)}
+                                          className="text-red-400 hover:text-red-600 p-1 rounded-full hover:bg-red-50 transition-colors"
+                                          title="Eliminar Deuda"
+                                        >
+                                          <X className="w-4 h-4" />
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </div>
                     );
                   })()}
