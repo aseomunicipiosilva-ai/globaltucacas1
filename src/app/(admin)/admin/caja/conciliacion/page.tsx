@@ -540,6 +540,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
         analista: det.analista || current_analista,
         ...det,
         fecha_registro: det.fecha_registro || pago.created_at,
+        fecha_conciliacion: new Date().toISOString(),
         correo: correoResponsable,
         telefono: telefonoResponsable,
         fecha_transaccion: fechaTransaccion,
@@ -575,9 +576,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
         estado: estatus,
         banco: bancoEmisor,
         tipo: pago.tipo,
-        detalles: updatedDet,
-        // Se preserva el created_at original del cajero
-        fecha_conciliacion: new Date().toISOString()
+        detalles: updatedDet
       }).eq('id', pago.id);
       if (error) throw error;
 
