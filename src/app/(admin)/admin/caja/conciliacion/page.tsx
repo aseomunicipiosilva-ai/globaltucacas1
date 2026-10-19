@@ -592,7 +592,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
         }
       }
 
-      if (estatus === 'Aprobado' && recibos.length > 0) {
+      if ((estatus === 'Aprobado' || estatus === 'Con Diferencia') && recibos.length > 0) {
         const { data: facs } = await supabase.from('facturas').select('*').in('referencia', recibos);
         if (facs && facs.length > 0) {
           // Calcular deuda total de los recibos seleccionados
@@ -660,50 +660,32 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
               await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', recibos);
             }
             
-            // Si pago mas de la deuda, el excedente va a saldo a favor
+            // Si pago mas de la deuda, solo el excedente real va a saldo a favor
             if (montoConciliadoNum > deudaTotal + 0.01) {
-              const dineroSobrante = montoConciliadoNum - deudaTotal;
+              const dineroSobrante = parseFloat((montoConciliadoNum - deudaTotal).toFixed(2));
               const { data: inmList } = await supabase.from('inmuebles').select('id, saldo_favor_bs').eq('identidad', pago.identidad);
               if (inmList && inmList.length > 0) {
                 const saldoActual = parseFloat(inmList[0].saldo_favor_bs || '0') || 0;
                 await supabase.from('inmuebles').update({ saldo_favor_bs: saldoActual + dineroSobrante }).eq('id', inmList[0].id);
+                try {
+                  await supabase.from('documentos').insert([{
+                    identidad: pago.identidad,
+                    contribuyente: pago.contribuyente || contribInfo?.Contribuyente || contribInfo?.nombre || '',
+                    tipo: 'Nota de Credito',
+                    estado: 'Vigente',
+                    detalles: JSON.stringify({
+                      monto: dineroSobrante.toFixed(2),
+                      origen_referencia: `Excedente de conciliación. Referencia: ${pago.referencia || pago.id}`,
+                      fecha_emision: new Date().toISOString(),
+                      analista: updatedDet.analista,
+                    })
+                  }]);
+                } catch(e) {}
               }
             }
           }
         }
       }
-      // Con Diferencia: agregar monto de diferencia como saldo a favor
-      if (estatus === 'Con Diferencia' && montoConciliadoNum > 0) {
-        // Buscar inmueble del contribuyente para actualizar saldo_favor_bs
-        const { data: inmList } = await supabase
-          .from('inmuebles')
-          .select('id, saldo_favor_bs')
-          .eq('identidad', pago.identidad);
-        if (inmList && inmList.length > 0) {
-          const inm = inmList[0];
-          const saldoActual = parseFloat(inm.saldo_favor_bs || '0') || 0;
-          const nuevoSaldo = saldoActual + montoConciliadoNum;
-          await supabase.from('inmuebles').update({ saldo_favor_bs: nuevoSaldo }).eq('id', inm.id);
-          // Registrar en documentos como Nota de Credito
-          await supabase.from('documentos').insert([{
-            identidad: pago.identidad,
-            contribuyente: pago.contribuyente || contribInfo?.Contribuyente || contribInfo?.nombre || '',
-            tipo: 'Nota de Credito',
-            estado: 'Vigente',
-            detalles: JSON.stringify({
-              monto: montoConciliadoNum.toFixed(2),
-              origen_referencia: `Conciliaci�n con diferencia. Referencia: ${pago.referencia || pago.id}`,
-              fecha_emision: new Date().toISOString(),
-              analista: updatedDet.analista,
-            })
-          }]);
-        }
-        // Marcar recibos como Pagado tambi�n (el pago se concilia aunque con diferencia)
-        if (recibos.length > 0) {
-          await supabase.from('facturas').update({ estado: 'Pagado' }).in('referencia', recibos);
-        }
-      }
-
       alert('Conciliacion guardada exitosamente.');
       onSuccess();
     } catch (e: any) { alert('Error al conciliar: ' + e.message); }
@@ -876,14 +858,12 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                 </select>
                 {estatus === 'Con Diferencia' && (
                   <p className="text-[10px] text-amber-600 mt-1 font-medium">
-                    ⚠️ El monto ingresado se agregar� como saldo a favor del contribuyente.
+                    ℹ️ Si el monto en banco supera la deuda, el excedente exacto se acreditará como saldo a favor.
                   </p>
                 )}
               </div>
               <div>
-                <label className={lc}>
-                  {estatus === 'Con Diferencia' ? 'Monto de Diferencia (→ Saldo a Favor)' : 'Monto Conciliado'}
-                </label>
+                <label className={lc}>Monto Conciliado (en Banco)</label>
                 <input
                   value={montoConciliado}
                   onChange={e => setMontoConciliado(e.target.value)}
