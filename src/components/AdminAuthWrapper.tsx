@@ -184,7 +184,7 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
         return;
       }
 
-      if (data.clave === password) {
+      if (String(data.clave || "").trim() === String(password || "").trim()) {
         localStorage.setItem('admin_auth_andministrador', 'true');
         localStorage.setItem('admin_user_data', JSON.stringify(data));
         localStorage.setItem('adminUser', data.usuario);

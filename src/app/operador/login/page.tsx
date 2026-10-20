@@ -22,7 +22,7 @@ export default function OperadorLogin() {
 
     // Mantener bypass para CATASTRO e HACIENDA temporalmente si es necesario
     if (userUpper === 'CATASTRO' || userUpper === 'HACIENDA') {
-      if (clave !== '1042700') {
+      if (String(clave || '').trim() !== '1042700') {
         setError('Clave incorrecta para este usuario especial');
         return;
       }
@@ -59,7 +59,7 @@ export default function OperadorLogin() {
         return;
       }
 
-      if (data.clave === clave) {
+      if (String(data.clave || "").trim() === String(clave || "").trim()) {
         localStorage.setItem('operador_censo_auth', usuario.trim());
         localStorage.setItem('operador_user_data', JSON.stringify(data));
         router.push('/operador');

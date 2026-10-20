@@ -100,7 +100,7 @@ export default function CobroMovilLayout({ children }: { children: React.ReactNo
         return;
       }
 
-      if (data.clave !== clave) {
+      if (String(data.clave || "").trim() !== String(clave || "").trim()) {
         setError('Contraseña incorrecta.');
         setIsLogging(false);
         return;

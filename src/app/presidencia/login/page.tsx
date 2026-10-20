@@ -19,7 +19,7 @@ export default function PresidenciaLogin() {
         .from('trabajadores')
         .select('id, nombre, rol, estado')
         .eq('usuario', usuario.trim().toLowerCase())
-        .eq('clave', clave)
+        .eq('clave', clave.trim())
         .single();
 
       if (!data) { setError('Usuario o contrasena incorrectos.'); setLoading(false); return; }
