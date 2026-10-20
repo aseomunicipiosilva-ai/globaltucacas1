@@ -30,12 +30,19 @@ export default function CobroMovilLayout({ children }: { children: React.ReactNo
         if (parsed.ts && Date.now() - parsed.ts < 8 * 60 * 60 * 1000) {
           const adminUser = localStorage.getItem('adminUser');
           if (adminUser && adminUser.toLowerCase() !== 'dzara') {
+            const cleanUser = adminUser.includes('-') ? adminUser.split('-').slice(1).join('-').trim() : adminUser.trim();
             supabase
               .from('trabajadores')
               .select('id, estado')
-              .ilike('usuario', adminUser.trim())
+              .ilike('usuario', cleanUser)
               .maybeSingle()
-              .then(({ data }) => {
+              .then(({ data, error: dbErr }) => {
+                if (dbErr) {
+                  // Error temporal de conexión: no cerrar sesión
+                  setNombreCobrador(parsed.nombre || '');
+                  setIsAuth(true);
+                  return;
+                }
                 if (data && data.estado === 'Activo') {
                   setNombreCobrador(parsed.nombre || '');
                   setIsAuth(true);

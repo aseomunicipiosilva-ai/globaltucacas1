@@ -19,11 +19,14 @@ export default function OperadorLayout({ children }: { children: React.ReactNode
   const checkOperatorStatus = useCallback(async (opName: string) => {
     if (opName === 'CATASTRO' || opName === 'HACIENDA') return true;
     try {
-      const { data } = await supabase
+      const cleanOp = opName.includes('-') ? opName.split('-').slice(1).join('-').trim() : opName.trim();
+      const { data, error: dbErr } = await supabase
         .from('trabajadores')
         .select('id, usuario, estado')
-        .ilike('usuario', opName.trim())
+        .ilike('usuario', cleanOp)
         .maybeSingle();
+
+      if (dbErr) return true; // Evitar cierre por fallo de conexión
 
       if (!data || data.estado !== 'Activo') {
         localStorage.removeItem('operador_censo_auth');

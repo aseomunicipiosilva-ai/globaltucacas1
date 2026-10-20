@@ -45,13 +45,23 @@ export default function AdminAuthWrapper({ children }: { children: React.ReactNo
     }
 
     try {
+      // Normalizar nombre de usuario si viene con prefijo de letra (ej. "Q-rvillegas" -> "rvillegas")
+      const cleanUser = adminUser.includes('-') ? adminUser.split('-').slice(1).join('-').trim() : adminUser.trim();
+
       const { data, error: dbError } = await supabase
         .from('trabajadores')
         .select('id, usuario, estado, rol, nombre, permisos, letra')
-        .ilike('usuario', adminUser.trim())
+        .ilike('usuario', cleanUser)
         .maybeSingle();
 
-      if (dbError || !data) {
+      // Si hay error de red o timeout con Supabase, NO revocar sesión (evita falsos positivos por microcortes de internet)
+      if (dbError) {
+        console.warn('Aviso temporal conectando con base de datos al verificar sesión:', dbError.message);
+        return true;
+      }
+
+      // Si la consulta fue exitosa pero el registro NO existe en absoluto
+      if (!data) {
         logAudit('Sesión Revocada (Usuario Eliminado)', { usuario: adminUser }, 'SESION');
         clearAuthSession('Tu cuenta ha sido eliminada del sistema. Acceso revocado permanentemente.');
         return false;
