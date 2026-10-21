@@ -131,14 +131,8 @@ export default function EstadoCuentaPage() {
 
     let baseMonto = parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
 
-    // RECIB-
-    if (r.referencia?.startsWith('RECIB-')) {
-      let totalDeudaMMV = 0;
-      misInmuebles.forEach((inm: any) => { totalDeudaMMV += parseFloat(inm.deuda_mmv || 0); });
-      if (totalDeudaMMV > 0) baseMonto = totalDeudaMMV * tasaBcv;
-    }
     // CM-
-    else if (r.referencia?.startsWith('CM-')) {
+    if (r.referencia?.startsWith('CM-')) {
       let monthlyMMV = 0;
       const matchedInmueble = misInmuebles.find((inm: any) => inm.inmueble && r.referencia.includes(inm.inmueble));
       

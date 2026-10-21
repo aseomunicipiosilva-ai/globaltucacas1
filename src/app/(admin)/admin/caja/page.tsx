@@ -172,7 +172,7 @@ export default function CajaPage() {
     return false;
   };
 
-    const getReciboMonto = (r: any) => {
+  const getReciboMonto = (r: any) => {
     // Si no hay usuario encontrado o no tenemos tcmmv, fallback al monto original
     if (!foundUser) {
       return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
@@ -198,47 +198,20 @@ export default function CajaPage() {
         ? parseFloat(customBcvRate) 
         : (tcmmv || 0);
 
-    if (tasaActual <= 0) {
-      return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
-    }
-
     const userInms = inmuebles.filter((i: any) =>
-      (i.identidad || '').replace(/-/g,'').toUpperCase() === (foundUser.Identidad || '').replace(/-/g,'').toUpperCase()
+      (i.identidad || '').replace(/-/g,'').toUpperCase() === (foundUser.Identidad || '').replace(/-/g,'').toUpperCase() &&
+      i.estado !== 'Eliminado'
     );
 
-    // RECIB- = deuda acumulada de N meses → usar deuda_mmv del inmueble × tasa actual
-    if (r.referencia?.startsWith('RECIB-') && r.estado !== 'Abonado') {
-      let totalDeudaMMV = 0;
-      userInms.forEach((inm: any) => {
-        totalDeudaMMV += parseFloat(inm.deuda_mmv || 0);
-      });
-      if (totalDeudaMMV > 0) {
-        let baseMonto = totalDeudaMMV * tasaActual;
-        let montoPendiente = 0;
-        let tasaPago = null;
-        pagosPendientes.forEach((p: any) => {
-          let det: any = {};
-          try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}
-          const refs: string[] = det.recibos || [];
-          if (refs.includes(r.referencia)) {
-            const montoPago = parseFloat(String(p.monto || '0').replace(/[^0-9.]/g, '')) || 0;
-            if (refs.length > 0) montoPendiente += (montoPago / refs.length);
-            if (det.tasa_bcv) tasaPago = parseFloat(det.tasa_bcv);
-          }
-        });
-        if (tasaPago && tasaPago > 0) baseMonto = totalDeudaMMV * tasaPago;
-        return String(Math.max(0, baseMonto - montoPendiente).toFixed(2));
-      }
-      // Fallback si no hay deuda_mmv registrado
-      return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
-    }
+    // Monto base por defecto: el monto registrado en la factura (igual que en Estado de Cuenta / Detalles del Contribuyente)
+    let baseMonto = parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
 
-    // CM- = exactamente 1 mes del inmueble específico referenciado en la factura
-    // Usa el mismo matching que la UI: r.referencia.includes(inm.inmueble)
-    if (r.referencia?.startsWith('CM-') && r.estado !== 'Abonado') {
+    // CM- = exactamente 1 mes del inmueble específico referenciado en la factura, recalculado con la tasa actual
+    if (r.referencia?.startsWith('CM-') && r.estado !== 'Abonado' && tasaActual > 0) {
       // Buscar el inmueble cuyo código está contenido en la referencia
       let targetInms = userInms.filter((inm: any) =>
-        inm.inmueble && (r.referencia || '').includes(inm.inmueble)
+        (inm.inmueble && (r.referencia || '').includes(inm.inmueble)) ||
+        (inm.cod_cont && (r.referencia || '').includes(inm.cod_cont))
       );
 
       // Fallback: si no hay match (contribuyente con 1 solo inmueble o ref sin código), usar todos
@@ -251,27 +224,43 @@ export default function CajaPage() {
         if (mmv > 0) monthlyMMV += cant * mmv;
       });
       if (monthlyMMV > 0) {
-        let baseMonto = monthlyMMV * tasaActual;
-        let montoPendiente = 0;
-        let tasaPago = null;
-        pagosPendientes.forEach((p: any) => {
-          let det: any = {};
-          try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}
-          const refs: string[] = det.recibos || [];
-          if (refs.includes(r.referencia)) {
-            const montoPago = parseFloat(String(p.monto || '0').replace(/[^0-9.]/g, '')) || 0;
-            if (refs.length > 0) montoPendiente += (montoPago / refs.length);
-            if (det.tasa_bcv) tasaPago = parseFloat(det.tasa_bcv);
-          }
-        });
-        if (tasaPago && tasaPago > 0) baseMonto = monthlyMMV * tasaPago;
-        return String(Math.max(0, baseMonto - montoPendiente).toFixed(2));
+        baseMonto = monthlyMMV * tasaActual;
       }
     }
 
-    // Fallback genérico (para otros tipos de recibos que no sean CM- o RECIB- y no tengan cálculo MMV)
-    return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
+    let montoPendiente = 0;
+    let tasaPago = null;
+    pagosPendientes.forEach((p: any) => {
+      let det: any = {};
+      try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}
+      const refs: string[] = det.recibos || [];
+      if (refs.includes(r.referencia)) {
+        const montoPago = parseFloat(String(p.monto || '0').replace(/[^0-9.]/g, '')) || 0;
+        if (refs.length > 0) montoPendiente += (montoPago / refs.length);
+        if (det.tasa_bcv) tasaPago = parseFloat(det.tasa_bcv);
+      }
+    });
+
+    if (tasaPago && tasaPago > 0 && r.referencia?.startsWith('CM-')) {
+      let targetInms = userInms.filter((inm: any) =>
+        (inm.inmueble && (r.referencia || '').includes(inm.inmueble)) ||
+        (inm.cod_cont && (r.referencia || '').includes(inm.cod_cont))
+      );
+      if (targetInms.length === 0) targetInms = userInms;
+      let monthlyMMV = 0;
+      targetInms.forEach((inm: any) => {
+        const cant = parseFloat(inm.cant_inmuebles || 1);
+        const mmv  = parseFloat(inm.mmv_mes || 0);
+        if (mmv > 0) monthlyMMV += cant * mmv;
+      });
+      if (monthlyMMV > 0) {
+        baseMonto = monthlyMMV * tasaPago;
+      }
+    }
+
+    return String(Math.max(0, baseMonto - montoPendiente).toFixed(2));
   };
+
 
 
   const bancosVenezuela = [
@@ -423,6 +412,7 @@ export default function CajaPage() {
       });
 
       setRecibos(combined);
+      setSelectedRecibos(combined.map((r: any) => r.referencia));
 
       
       // Load Convenios Cuotas
@@ -1657,10 +1647,10 @@ export default function CajaPage() {
                           {isItemPending(r.referencia) ? (
                             <>
                               <span className="text-[10px] text-orange-600 font-bold bg-orange-100 px-2 py-0.5 rounded uppercase mb-0.5">Transf. por conciliar</span>
-                              <span className="font-bold text-orange-700">{getPendingMontoForRecibo(r.referencia).toFixed(2)}</span>
+                              <span className="font-bold text-orange-700">Bs. {formatBs(getPendingMontoForRecibo(r.referencia))}</span>
                             </>
                           ) : (
-                            <span className="font-bold text-emerald-700">{getReciboMonto(r)}</span>
+                            <span className="font-bold text-emerald-700">Bs. {formatBs(getReciboMonto(r))}</span>
                           )}
                         </div>
                       </label>

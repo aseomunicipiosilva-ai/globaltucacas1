@@ -59,12 +59,7 @@ export default function DondePagarPage() {
           return portalDoc && (id === docNorm || idFmt2 === docFmt || id === portalDoc.toUpperCase() || id === soloNum);
         });
 
-        if (tcmmv > 0) {
-          if (f.referencia?.startsWith('RECIB-')) {
-            let totalDeudaMMV = 0;
-            misInmuebles.forEach((inm: any) => { totalDeudaMMV += parseFloat(inm.deuda_mmv || 0); });
-            if (totalDeudaMMV > 0) baseMonto = totalDeudaMMV * tcmmv;
-          } else if (f.referencia?.startsWith('CM-')) {
+        if (tcmmv > 0 && f.referencia?.startsWith('CM-')) {
             let monthlyMMV = 0;
             const matchedInmueble = misInmuebles.find((inm: any) => inm.inmueble && f.referencia.includes(inm.inmueble));
             if (matchedInmueble) {
@@ -80,7 +75,6 @@ export default function DondePagarPage() {
             }
             if (monthlyMMV > 0) baseMonto = monthlyMMV * tcmmv;
           }
-        }
 
         let montoPendiente = 0;
         let tasaPago = null;

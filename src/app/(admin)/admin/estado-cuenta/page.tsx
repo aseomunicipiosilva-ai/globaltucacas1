@@ -455,13 +455,6 @@ export default function EstadoCuentaPage() {
             if (mmv > 0) monthlyMMV += cant * mmv;
           });
           if (monthlyMMV > 0) montoNumerico = parseFloat((monthlyMMV * tcmmv).toFixed(2));
-        } else if (row.referencia.startsWith('RECIB-')) {
-          // RECIB- = deuda acumulada: deuda_mmv × tcmmv
-          let totalDeudaMMV = 0;
-          userInmsForCalc.forEach((inm: any) => {
-            totalDeudaMMV += parseFloat(inm.deuda_mmv || 0);
-          });
-          if (totalDeudaMMV > 0) montoNumerico = parseFloat((totalDeudaMMV * tcmmv).toFixed(2));
         }
       }
     }
@@ -698,10 +691,6 @@ export default function EstadoCuentaPage() {
                   mmv += parseFloat(inm.cant_inmuebles || 1) * parseFloat(inm.mmv_mes || 0);
                 });
                 if (mmv > 0) mF = parseFloat((mmv * tcmmv).toFixed(2));
-              } else if (f.referencia?.startsWith('RECIB-') && f.estado !== 'Abonado') {
-                let deuda = 0;
-                userInmsForAll.forEach((inm: any) => { deuda += parseFloat(inm.deuda_mmv || 0); });
-                if (deuda > 0) mF = parseFloat((deuda * tcmmv).toFixed(2));
               }
             }
             return {
