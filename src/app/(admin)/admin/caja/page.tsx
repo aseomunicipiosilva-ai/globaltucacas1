@@ -415,27 +415,73 @@ export default function CajaPage() {
       setSelectedRecibos(combined.map((r: any) => r.referencia));
 
       
-      // Load Convenios Cuotas
-      const userConvenios = convenios.filter((c: any) => {
-        const idCleanConv = (c.identidad || '').replace(/-/g, '').toUpperCase();
-        return idCleanConv === cleanFullDoc && c.estado === 'Al Día';
+      // Cargar convenios frescos directamente desde Supabase
+      const { data: dbConvenios } = await supabase
+        .from('convenios')
+        .select('*')
+        .or(`identidad.eq.${user.Identidad},identidad.eq.${cleanFullDoc},identidad.eq.${identidadClean}`)
+        .not('estado', 'in', '(Anulado,Liquidado,Solvente,Condonado)');
+
+      let allConvenios = dbConvenios || [];
+      if (allConvenios.length === 0 && user.Contribuyente) {
+        const { data: convByName } = await supabase
+          .from('convenios')
+          .select('*')
+          .ilike('contribuyente', `%${user.Contribuyente.trim()}%`)
+          .not('estado', 'in', '(Anulado,Liquidado,Solvente,Condonado)');
+        if (convByName) allConvenios = convByName;
+      }
+
+      // Buscar pagos existentes de convenios para este usuario
+      const { data: pagosConv } = await supabase
+        .from('pagos_reportados')
+        .select('*')
+        .or(`identidad.eq.${user.Identidad},identidad.eq.${cleanFullDoc},identidad.eq.${identidadClean}`)
+        .in('estado', ['Aprobado', 'Por Verificar']);
+
+      const cuotasPagadasSet = new Set<string>();
+      (pagosConv || []).forEach((p: any) => {
+        let det: any = {};
+        try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+        const pCuotas = det.cuotas || [];
+        pCuotas.forEach((cq: any) => {
+          cuotasPagadasSet.add(`${cq.convId || cq.numeroConv}_${cq.cuotaId}`);
+        });
+        if (det.convenio_numero) {
+          if (det.cuota_pagada && (det.cuota_pagada.includes('Inicial') || det.cuota_pagada.includes('Cuota 1'))) {
+            cuotasPagadasSet.add(`${det.convenio_numero}_0`);
+          }
+          if (det.cuota_pagada === 'Total' || det.tipo_pago === 'contado') {
+            for (let i = 0; i < 20; i++) cuotasPagadasSet.add(`${det.convenio_numero}_${i}`);
+          }
+        }
       });
+
       const pendingCuotas: any[] = [];
-      userConvenios.forEach((conv: any) => {
-        let parsed = [];
-        try { parsed = JSON.parse(conv.detalle_cuotas || '[]'); } catch(e){}
-        parsed.forEach((c: any) => {
-          if (c.estado === 'Pendiente') {
+      allConvenios.forEach((conv: any) => {
+        const totalBs = parseFloat(String(conv.monto_total || '0').replace(/[^\d.]/g, '')) || 0;
+        const nCuotas = conv.cuotas === 'N/A' || !conv.cuotas ? 1 : (parseInt(String(conv.cuotas)) || 1);
+        const montoPorCuota = (totalBs / nCuotas).toFixed(2);
+        const startDate = new Date(conv.inicio || conv.created_at || new Date());
+
+        for (let i = 0; i < nCuotas; i++) {
+          const key1 = `${conv.id}_${i}`;
+          const key2 = `${conv.numero}_${i}`;
+          if (!cuotasPagadasSet.has(key1) && !cuotasPagadasSet.has(key2)) {
+            const dueDate = new Date(startDate);
+            dueDate.setMonth(dueDate.getMonth() + i);
             pendingCuotas.push({
-              convId: conv.id,
+              convId: String(conv.id),
               numeroConv: conv.numero,
-              cuotaId: c.id,
-              fecha: c.fecha,
-              monto: c.monto,
+              cuotaId: i,
+              cuotaNum: i + 1,
+              totalCuotas: nCuotas,
+              fecha: dueDate.toISOString().slice(0, 10),
+              monto: montoPorCuota,
               rawConv: conv
             });
           }
-        });
+        }
       });
       setCuotas(pendingCuotas);
 
@@ -894,14 +940,10 @@ export default function CajaPage() {
           });
           
           for (const [cId, data] of convMap.entries()) {
-            let parsed = [];
-            try { parsed = JSON.parse(data.raw.detalle_cuotas); } catch(e){}
-            parsed.forEach((c: any) => {
-              if (data.toUpdate.includes(c.id)) {
-                c.estado = 'Pagado';
-              }
-            });
-            await supabase.from('convenios').update({ detalle_cuotas: JSON.stringify(parsed) }).eq('id', cId);
+            const remaining = cuotas.filter((q: any) => q.convId === cId && !data.toUpdate.includes(q.cuotaId));
+            if (remaining.length === 0) {
+              await supabase.from('convenios').update({ estado: 'Solvente' }).eq('id', cId);
+            }
           }
         }
         
@@ -1680,7 +1722,7 @@ export default function CajaPage() {
                             className="w-4 h-4 text-orange-600 rounded border-slate-300 focus:ring-orange-500"
                           />
                           <div>
-                            <p className="font-semibold text-sm text-slate-800">{c.numeroConv} - Cuota {c.cuotaId + 1}</p>
+                            <p className="font-semibold text-sm text-slate-800">{c.numeroConv} - Cuota {c.cuotaNum || (c.cuotaId + 1)} de {c.totalCuotas || 1}</p>
                             <p className="text-xs text-slate-500">Fecha de Pago: {c.fecha}</p>
                           </div>
                         </div>

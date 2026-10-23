@@ -1,7 +1,9 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, FileCheck, CheckCircle2, XCircle, Calculator, X, RotateCcw, CreditCard, UserCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { generarPlanillaConvenioPDF } from '@/lib/pdfPlanillaConvenio';
+import { Download, FileText } from 'lucide-react';
 
 const bancosVenezuela = [
   '100% Banco', 'Bancamiga', 'Bancaribe', 'Banco Activo', 'Banco Agrícola de Venezuela',
@@ -14,6 +16,53 @@ const bancosVenezuela = [
 
 export default function DecretosPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [decretosActivos, setDecretosActivos] = useState<any[]>([]);
+  const [loadingDecretos, setLoadingDecretos] = useState(false);
+  const [filterDecretos, setFilterDecretos] = useState('');
+  const [ultimoConvenioProcesado, setUltimoConvenioProcesado] = useState<any>(null);
+
+  const fetchDecretosActivos = async () => {
+    setLoadingDecretos(true);
+    try {
+      const { data: convs, error } = await supabase
+        .from('convenios')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Join with inmuebles for extra info
+      const { data: inms } = await supabase
+        .from('inmuebles')
+        .select('identidad, contribuyente, direccion, telefono, correo_electronico, clasificacion, inmueble, cod_cont');
+
+      const inmsMap = new Map();
+      (inms || []).forEach((i: any) => {
+        const clean = (i.identidad || '').replace(/[-.s]/g, '').toUpperCase();
+        if (clean && !inmsMap.has(clean)) inmsMap.set(clean, i);
+      });
+
+      const enriched = (convs || []).map((c: any) => {
+        const clean = (c.identidad || '').replace(/[-.s]/g, '').toUpperCase();
+        const inm = inmsMap.get(clean) || {};
+        return {
+          ...c,
+          inmuebleInfo: inm
+        };
+      });
+
+      setDecretosActivos(enriched);
+    } catch (e: any) {
+      console.error('Error cargando decretos activos:', e);
+    } finally {
+      setLoadingDecretos(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDecretosActivos();
+  }, []);
+
   const [inmuebles, setInmuebles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
@@ -121,6 +170,32 @@ export default function DecretosPage() {
     }
   };
 
+  
+  const handleDescargarPlanilla = (conv: any) => {
+    const rawMonto = parseFloat(String(conv.monto_total || '0').replace(/[^\d.]/g, '')) || 0;
+    const inm = conv.inmuebleInfo || {};
+    generarPlanillaConvenioPDF({
+      numero: conv.numero,
+      decreto: conv.numero?.startsWith('DEC-') ? 'Plan Especial "Borra tu Deuda" 2026' : 'Convenio de Pago Ordinario',
+      contribuyente: conv.contribuyente,
+      identidad: conv.identidad,
+      direccion: inm.direccion || 'Tucacas Municipio Silva, Falcón',
+      telefono: inm.telefono || 'N/A',
+      correo: inm.correo_electronico || 'N/A',
+      sector: inm.clasificacion || (conv.numero?.startsWith('DEC-') ? 'CONDOMINIO / COMERCIAL' : 'GENERAL'),
+      codigoInmueble: inm.cod_cont || inm.inmueble || 'N/A',
+      capitalOriginal: rawMonto * 2,
+      rebajaCapital: rawMonto,
+      montoTotalBs: rawMonto,
+      cuotas: conv.cuotas === 'N/A' ? 1 : (parseInt(String(conv.cuotas)) || 1),
+      frecuencia: conv.frecuencia || 'Mensual',
+      inicio: conv.inicio || new Date().toISOString().slice(0, 10),
+      estado: conv.estado || 'Al Día',
+      tipoPago: conv.cuotas === '1' || conv.cuotas === 1 ? 'contado' : 'fraccionado',
+      operador: getLoggedUser()
+    });
+  };
+
   const handleProcesarConvenio = async () => {
     if (!selectedInmueble || !evaluacionResult || !evaluacionResult.eligible) return;
 
@@ -186,6 +261,26 @@ export default function DecretosPage() {
       mensaje += `\nLas facturas del período han sido refinanciadas exitosamente.`;
 
       setProcesadoExito(mensaje);
+      setUltimoConvenioProcesado({
+        numero: data.convenio?.numero || ('DEC-' + Date.now().toString().slice(-6)),
+        contribuyente: selectedInmueble.contribuyente,
+        identidad: selectedInmueble.identidad,
+        direccion: selectedInmueble.direccion,
+        telefono: selectedInmueble.telefono,
+        correo: selectedInmueble.correo_electronico,
+        sector: selectedInmueble.clasificacion,
+        codigoInmueble: selectedInmueble.cod_cont || selectedInmueble.inmueble,
+        capitalOriginal: evaluacionResult?.detalles?.capitalOriginal || (montoTotal * 2),
+        rebajaCapital: evaluacionResult?.detalles?.rebajaCapital || montoTotal,
+        montoTotalBs: montoTotal,
+        cuotas: tipoPago === 'contado' ? 1 : cuotas,
+        frecuencia: tipoPago === 'contado' ? 'Única' : 'Mensual',
+        inicio: new Date().toISOString().slice(0, 10),
+        estado: 'Al Día',
+        tipoPago,
+        operador: currentUser
+      });
+      fetchDecretosActivos();
 
       // Actualizar estado local
       setInmuebles(prev => prev.map(item => 
@@ -197,6 +292,7 @@ export default function DecretosPage() {
       if (searchTerm) {
         searchInmuebles();
       }
+      fetchDecretosActivos();
     } catch (e: any) {
       setErrorMsg(e.message || 'Error desconocido al procesar el convenio');
     } finally {
@@ -336,6 +432,32 @@ export default function DecretosPage() {
                           <Calculator className="w-3.5 h-3.5" />
                           Evaluar Decreto
                         </button>
+                        {(c.decreto_activo || c.convenio_activo) && (
+                          <button
+                            onClick={() => {
+                              const match = decretosActivos.find((d: any) => 
+                                (d.identidad || '').replace(/[-.\s]/g, '').toUpperCase() === (c.identidad || '').replace(/[-.\s]/g, '').toUpperCase()
+                              );
+                              if (match) {
+                                handleDescargarPlanilla(match);
+                              } else {
+                                handleDescargarPlanilla({
+                                  numero: 'DEC-ACTIVO',
+                                  contribuyente: c.contribuyente,
+                                  identidad: c.identidad,
+                                  inmuebleInfo: c,
+                                  monto_total: c.deuda_congelada_bs || '0',
+                                  cuotas: 1
+                                });
+                              }
+                            }}
+                            title="Descargar Planilla Oficial en PDF"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors border border-blue-200"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            Planilla PDF
+                          </button>
+                        )}
                         {(c.decreto_activo || c.convenio_activo) && (
                           <button
                             onClick={() => handleAnularConvenio(c)}
@@ -687,6 +809,133 @@ export default function DecretosPage() {
           </div>
         </div>
       )}
-    </div>
+    
+      {/* SECCION: LISTADO DE DECRETOS Y CONVENIOS ACTIVOS */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="p-4 border-b border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <FileText className="w-5 h-5 text-emerald-600" />
+            <h3 className="font-bold text-slate-800 text-lg">Listado de Decretos y Convenios Activos</h3>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+              {decretosActivos.length} Registrados
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Filtrar convenios activos..."
+                value={filterDecretos}
+                onChange={(e) => setFilterDecretos(e.target.value)}
+                className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 w-64"
+              />
+            </div>
+            <button
+              onClick={fetchDecretosActivos}
+              disabled={loadingDecretos}
+              className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded-lg transition-colors"
+              title="Recargar lista"
+            >
+              <RotateCcw className={`w-4 h-4 ${loadingDecretos ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm text-slate-600">
+            <thead className="bg-slate-50 text-slate-500 font-semibold text-xs border-b">
+              <tr>
+                <th className="px-4 py-3">N° Convenio</th>
+                <th className="px-4 py-3">RIF / Cédula</th>
+                <th className="px-4 py-3">Contribuyente</th>
+                <th className="px-4 py-3">Monto Total</th>
+                <th className="px-4 py-3">Cuotas / Mod.</th>
+                <th className="px-4 py-3">Fecha Inicio</th>
+                <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3 text-center">Planilla & Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-xs">
+              {loadingDecretos ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
+                    Cargando listado de convenios y decretos activos...
+                  </td>
+                </tr>
+              ) : decretosActivos.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-8 text-center text-slate-500">
+                    No se han registrado convenios o decretos todavía.
+                  </td>
+                </tr>
+              ) : (
+                decretosActivos
+                  .filter((conv: any) => {
+                    if (!filterDecretos) return true;
+                    const q = filterDecretos.toLowerCase();
+                    return (
+                      (conv.numero || '').toLowerCase().includes(q) ||
+                      (conv.contribuyente || '').toLowerCase().includes(q) ||
+                      (conv.identidad || '').toLowerCase().includes(q)
+                    );
+                  })
+                  .map((conv: any) => (
+                    <tr key={conv.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-4 py-3 font-bold text-slate-900">
+                        <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono text-[11px]">
+                          {conv.numero}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-slate-700">{conv.identidad}</td>
+                      <td className="px-4 py-3 font-medium text-slate-800">{conv.contribuyente}</td>
+                      <td className="px-4 py-3 font-black text-emerald-700">
+                        {conv.monto_total}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        {conv.cuotas === '1' || conv.cuotas === 1 ? 'Contado (1)' : `${conv.cuotas} (${conv.frecuencia || 'Mensual'})`}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500">{conv.inicio}</td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                          {conv.estado || 'Al Día'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleDescargarPlanilla(conv)}
+                            title="Descargar Planilla Oficial de Convenio en PDF"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            Planilla
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAnularConvenio({
+                              id: conv.inmuebleInfo?.id || null,
+                              identidad: conv.identidad,
+                              contribuyente: conv.contribuyente
+                            })}
+                            title="Anular Convenio y restaurar facturas"
+                            className="inline-flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium text-red-600 hover:bg-red-50 transition-colors border border-red-200"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            Anular
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+</div>
   );
 }
