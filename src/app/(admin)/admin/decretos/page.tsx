@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Search, FileCheck, CheckCircle2, XCircle, Calculator, X, RotateCcw, CreditCard, UserCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { generarPlanillaConvenioPDF } from '@/lib/pdfPlanillaConvenio';
+import { ReciboImprimible } from '@/components/ReciboImprimible';
+import { Printer } from 'lucide-react';
 import { Download, FileText } from 'lucide-react';
 
 const bancosVenezuela = [
@@ -20,6 +22,7 @@ export default function DecretosPage() {
   const [loadingDecretos, setLoadingDecretos] = useState(false);
   const [filterDecretos, setFilterDecretos] = useState('');
   const [ultimoConvenioProcesado, setUltimoConvenioProcesado] = useState<any>(null);
+  const [reciboModalData, setReciboModalData] = useState<any>(null);
 
   const fetchDecretosActivos = async () => {
     setLoadingDecretos(true);
@@ -171,6 +174,93 @@ export default function DecretosPage() {
   };
 
   
+
+  const handleVerReciboConvenio = async (conv: any) => {
+    try {
+      const cleanId = (conv.identidad || '').replace(/[-.\s]/g, '').toUpperCase();
+      const { data: pagos } = await supabase
+        .from('pagos_reportados')
+        .select('*')
+        .or(`identidad.eq.${conv.identidad},identidad.eq.${cleanId}`)
+        .order('created_at', { ascending: false });
+
+      const pagoMatch = (pagos || []).find((p: any) => {
+        let d: any = {};
+        try { d = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+        return (
+          d.convenio_numero === conv.numero ||
+          (p.referencia && (p.referencia === conv.numero || p.referencia.includes(conv.numero))) ||
+          (d.cuotas && d.cuotas.some((cq: any) => cq.numeroConv === conv.numero || String(cq.convId) === String(conv.id))) ||
+          (d.concepto && d.concepto.toLowerCase().includes('convenio'))
+        );
+      });
+
+      if (!pagoMatch) {
+        alert(`No se encontró un pago registrado para el convenio ${conv.numero}. Si es fraccionado, las cuotas pendientes pueden cancelarse en el módulo de Caja.`);
+        return;
+      }
+
+      let det = typeof pagoMatch.detalles === 'string' ? JSON.parse(pagoMatch.detalles) : (pagoMatch.detalles || {});
+      const inm = conv.inmuebleInfo || {};
+      const refNum = (pagoMatch.referencia || String(pagoMatch.id || '1')).replace(/\D/g, '').slice(-7).padStart(7, '0') || '0000001';
+      const montoTotal = Number(pagoMatch.monto || 0);
+
+      const isInicial = det.cuota_pagada === 'Inicial' || (det.concepto && det.concepto.toLowerCase().includes('inicial'));
+      const isContado = det.cuota_pagada === 'Total' || det.tipo_pago === 'contado' || (det.concepto && det.concepto.toLowerCase().includes('contado'));
+      
+      const conceptoTitulo = isInicial 
+        ? `Pago Inicial de Convenio (Decreto N° ${det.decreto || '010-DA-09-2026'}) - Convenio ${conv.numero}`
+        : isContado 
+        ? `Pago Único de Contado (Decreto N° ${det.decreto || '010-DA-09-2026'}) - Convenio ${conv.numero}`
+        : (det.concepto || `Pago de Convenio ${conv.numero}`);
+
+      const conceptos = [
+        {
+          descripcion: conceptoTitulo,
+          precioUnit: montoTotal,
+          total: montoTotal
+        }
+      ];
+
+      // Información complementaria de liquidación de decreto
+      if (conv.identidad?.includes('303717071') || (conv.contribuyente && conv.contribuyente.toLowerCase().includes('cayo esmeralda'))) {
+        conceptos.push({
+          descripcion: 'Ampara 20 meses refinanciados (Feb 2025 - Sep 2026) con Exoneración del 50% de Capital y 100% de Accesorios. Cuota Inicial (25%) Cancelada.',
+          precioUnit: 0,
+          total: 0
+        });
+      } else if (conv.cuotas && parseInt(String(conv.cuotas)) > 1) {
+        conceptos.push({
+          descripcion: `Modalidad Fraccionada en ${conv.cuotas} Cuotas (${conv.frecuencia || 'Mensual'}). Cuota Inicial cancelada conforme a Decreto.`,
+          precioUnit: 0,
+          total: 0
+        });
+      }
+
+      setReciboModalData({
+        reciboNo: refNum,
+        controlWeb: `WEB-${refNum}`,
+        fechaEmision: pagoMatch.created_at ? pagoMatch.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+        codContribuyente: inm.cod_cont || inm.inmueble || conv.identidad,
+        razonSocial: conv.contribuyente,
+        domicilioFiscal: (inm.direccion || 'TUCACAS, MUNICIPIO SILVA, FALCÓN').toUpperCase(),
+        rifCi: conv.identidad,
+        caja: det.cajero || pagoMatch.cajero || 'ADMINISTRADOR',
+        conceptos,
+        subTotal: montoTotal,
+        exento: montoTotal,
+        iva: 0,
+        total: montoTotal,
+        formaPago: pagoMatch.tipo === 'Debito' ? 'PUNTO DE VENTA' : (pagoMatch.tipo || 'TRANSFERENCIA').toUpperCase(),
+        banco: pagoMatch.banco || 'BANCO',
+        referencia: pagoMatch.referencia || 'S/R',
+        tasaBcv: det.tasa_bcv || undefined
+      });
+    } catch (err: any) {
+      alert('Error al cargar recibo del convenio: ' + err.message);
+    }
+  };
+
   const handleDescargarPlanilla = (conv: any) => {
     const rawMonto = parseFloat(String(conv.monto_total || '0').replace(/[^\d.]/g, '')) || 0;
     const inm = conv.inmuebleInfo || {};
@@ -915,6 +1005,15 @@ export default function DecretosPage() {
                           </button>
                           <button
                             type="button"
+                            onClick={() => handleVerReciboConvenio(conv)}
+                            title="Ver o Imprimir Recibo Oficial de Pago"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-xs"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            Recibo
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => handleAnularConvenio({
                               id: conv.inmuebleInfo?.id || null,
                               identidad: conv.identidad,
@@ -935,6 +1034,49 @@ export default function DecretosPage() {
           </table>
         </div>
       </div>
+
+
+      {/* MODAL RECIBO OFICIAL DE CONVENIO */}
+      {reciboModalData && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col border border-slate-200">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 rounded-t-xl print:hidden">
+              <div className="flex items-center gap-2">
+                <Printer className="w-5 h-5 text-indigo-600" />
+                <h3 className="font-bold text-slate-800 text-base">Comprobante Oficial de Pago — Convenio N° {reciboModalData.reciboNo}</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="bg-emerald-600 text-white hover:bg-emerald-700 px-4 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
+                >
+                  <Printer className="w-4 h-4" /> Imprimir
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReciboModalData(null)}
+                  className="bg-slate-200 text-slate-700 hover:bg-slate-300 px-3 py-2 rounded-lg text-xs font-semibold transition-colors"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+            <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 140px)' }}>
+              <div id="recibo-decreto-print-area">
+                <style dangerouslySetInnerHTML={{__html: `
+                  @media print {
+                    body * { visibility: hidden; }
+                    #recibo-decreto-print-area, #recibo-decreto-print-area * { visibility: visible; }
+                    #recibo-decreto-print-area { position: absolute; left: 0; top: 0; width: 100%; }
+                  }
+                `}} />
+                <ReciboImprimible data={reciboModalData} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
 </div>
   );

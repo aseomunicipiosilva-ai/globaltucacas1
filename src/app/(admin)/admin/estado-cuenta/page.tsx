@@ -103,6 +103,14 @@ export default function EstadoCuentaPage() {
     const refs: string[] = det.recibos || [];
     const montoTotal = Number(pago.monto || 0);
 
+    const isConvenioPago = !!(
+      det.convenio_numero ||
+      det.decreto ||
+      (det.concepto && det.concepto.toLowerCase().includes('convenio')) ||
+      (det.cuotas && det.cuotas.length > 0) ||
+      (pago.referencia && pago.referencia.startsWith('DEC-'))
+    );
+
     const matchInm = (inmuebles || []).find((i: any) => 
       i.identidad === pago.identidad || 
       (i.identidad && pago.identidad && i.identidad.replace(/-/g,'').toUpperCase() === pago.identidad.replace(/-/g,'').toUpperCase())
@@ -112,31 +120,60 @@ export default function EstadoCuentaPage() {
     const domicilio = (matchInm?.direccion || 'TUCACAS, MUNICIPIO SILVA, FALCÓN').toUpperCase();
     const cajeroNombre = det.origen || det.cajero || pago.cajero || 'Cajero';
 
-    if (modo === 'consolidado' || refs.length <= 1) {
-      // Recibo Consolidado
-      const conceptos = refs.length > 0 
-        ? refs.map((ref: string) => {
-            const parts = ref.split('-');
-            let mesLabel = ref;
-            if (parts.length >= 5) {
-              const mm = parseInt(parts[parts.length - 2]);
-              const yyyy = parts[parts.length - 1];
-              if (!isNaN(mm) && mm >= 1 && mm <= 12) {
-                mesLabel = `${MESES_FULL[mm - 1]} ${yyyy}`;
-              }
+    if (isConvenioPago || modo === 'consolidado' || refs.length <= 1) {
+      // Recibo Consolidado (los convenios siempre son consolidados, nunca individuales)
+      let conceptos: any[] = [];
+      if (isConvenioPago) {
+        const isInicial = det.cuota_pagada === 'Inicial' || (det.concepto && det.concepto.toLowerCase().includes('inicial'));
+        const isContado = det.cuota_pagada === 'Total' || det.tipo_pago === 'contado' || (det.concepto && det.concepto.toLowerCase().includes('contado'));
+        const convNum = det.convenio_numero || 'DEC-337442';
+        const decNum = det.decreto || '010-DA-09-2026';
+
+        const conceptoTitulo = isInicial
+          ? `Pago Inicial de Convenio (Decreto N° ${decNum}) - Convenio ${convNum}`
+          : isContado
+          ? `Pago Único de Contado (Decreto N° ${decNum}) - Convenio ${convNum}`
+          : (det.concepto || `Pago de Convenio ${convNum}`);
+
+        conceptos.push({
+          descripcion: conceptoTitulo,
+          precioUnit: montoTotal,
+          total: montoTotal
+        });
+
+        // Detalle específico para Cayo Esmeralda o acuerdos fraccionados con exoneración
+        if ((pago.identidad && pago.identidad.includes('303717071')) || (razonSocial && razonSocial.toLowerCase().includes('cayo esmeralda'))) {
+          conceptos.push({
+            descripcion: 'Ampara 20 meses refinanciados (Feb 2025 - Sep 2026) con Exoneración del 50% de Capital y 100% de Accesorios. Cuota Inicial (25%) Cancelada.',
+            precioUnit: 0,
+            total: 0
+          });
+        }
+      } else if (refs.length > 0) {
+        conceptos = refs.map((ref: string) => {
+          const parts = ref.split('-');
+          let mesLabel = ref;
+          if (parts.length >= 5) {
+            const mm = parseInt(parts[parts.length - 2]);
+            const yyyy = parts[parts.length - 1];
+            if (!isNaN(mm) && mm >= 1 && mm <= 12) {
+              mesLabel = `${MESES_FULL[mm - 1]} ${yyyy}`;
             }
-            const precioUnit = montoTotal / refs.length;
-            return {
-              descripcion: `Servicio Aseo Urbano - Período: ${mesLabel} (Ref: ${ref})`,
-              precioUnit,
-              total: precioUnit
-            };
-          })
-        : [{
-            descripcion: 'Servicio de Recolección de Aseo Urbano y Domiciliario',
-            precioUnit: montoTotal,
-            total: montoTotal
-          }];
+          }
+          const precioUnit = montoTotal / refs.length;
+          return {
+            descripcion: `Servicio Aseo Urbano - Período: ${mesLabel} (Ref: ${ref})`,
+            precioUnit,
+            total: precioUnit
+          };
+        });
+      } else {
+        conceptos = [{
+          descripcion: 'Servicio de Recolección de Aseo Urbano y Domiciliario',
+          precioUnit: montoTotal,
+          total: montoTotal
+        }];
+      }
 
       const reciboNum = (pago.referencia || String(pago.id || '1')).replace(/\D/g, '').slice(-7).padStart(7, '0') || '0000001';
 
@@ -489,6 +526,32 @@ export default function EstadoCuentaPage() {
     let formaPagoStr = 'TRANSFERENCIA';
     let bancoReal = '---';
     let referenciaReal = '---';
+
+    // Si la factura fue Refinanciada (por decreto o convenio), abrir el recibo de pago consolidado del convenio
+    if (row.estado === 'Refinanciado') {
+      try {
+        const idBusc = (row.identidad || '').trim();
+        const idClean = idBusc.replace(/[-.\s]/g, '').toUpperCase();
+        const { data: pagosConv } = await supabase
+          .from('pagos_reportados')
+          .select('*')
+          .or(`identidad.eq.${idBusc},identidad.eq.${idClean}`)
+          .order('created_at', { ascending: false });
+
+        const pagoConvenio = (pagosConv || []).find((p: any) => {
+          let d: any = {};
+          try { d = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+          return d.convenio_numero || d.decreto || (d.concepto && d.concepto.toLowerCase().includes('convenio')) || (d.cuotas && d.cuotas.length > 0);
+        });
+
+        if (pagoConvenio) {
+          generarReciboDesdePago(pagoConvenio, 'consolidado');
+          return;
+        }
+      } catch (err) {
+        console.warn('Error verificando pago de convenio para factura refinanciada:', err);
+      }
+    }
 
     // Si viene de abono parcial, usar los datos del abono directamente
     if (abonoOverride) {
@@ -1404,6 +1467,7 @@ if (p.estado === 'Rechazado' || p.estado === 'Eliminado') return false;
                     <th className="px-4 py-3">Meses Pagados</th>
                     <th className="px-4 py-3">Estado</th>
                     <th className="px-4 py-3">Referencia</th>
+                    <th className="px-4 py-3 text-center">Recibo</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1484,6 +1548,23 @@ if (p.estado === 'Rechazado' || p.estado === 'Eliminado') return false;
                           }`}>{pago.estado}</span>
                         </td>
                         <td className="px-4 py-3 text-slate-500 text-xs font-mono">{pago.referencia || '---'}</td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const isConv = det.convenio_numero || det.decreto || (det.concepto && det.concepto.toLowerCase().includes('convenio')) || (det.cuotas && det.cuotas.length > 0);
+                              if (mesesPagados.length > 1 && !isConv) {
+                                setModalSeleccionRecibo({ pago, meses: mesesPagados, refs: recibosRefs });
+                              } else {
+                                generarReciboDesdePago(pago, 'consolidado');
+                              }
+                            }}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1 mx-auto"
+                            title="Ver o imprimir recibo oficial"
+                          >
+                            <Printer size={12} /> Recibo
+                          </button>
+                        </td>
                       </tr>
                     );
                   })}

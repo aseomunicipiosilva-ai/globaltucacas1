@@ -225,6 +225,20 @@ export async function POST(request: Request) {
       const nCuotas = tipoPago === 'contado' ? '1' : String(cuotas || 1);
       const frecuencia = tipoPago === 'contado' ? 'Única' : 'Mensual';
 
+      // Determinar estado inicial del convenio:
+      // Si es pago de contado y se registra pago inmediato (Debito, Punto de Venta, Efectivo) -> 'Solvente'
+      // Si es pago de contado y se registra transferencia -> 'Por Verificar'
+      // Si es fraccionado o no se registró pago -> 'Al Día'
+      let estadoConvenio = 'Al Día';
+      const esContado = tipoPago === 'contado';
+      let isAprobado = false;
+
+      if (esContado && registrarPago && datosPago) {
+        const metodo = datosPago.metodo || 'Punto de Venta / Débito';
+        isAprobado = ['Debito', 'Punto de Venta', 'Punto de Venta / Débito', 'Efectivo'].includes(metodo);
+        estadoConvenio = isAprobado ? 'Solvente' : 'Por Verificar';
+      }
+
       // 1. Crear registro en tabla convenios
       const { data: nuevoConvenio, error: convError } = await supabase
         .from('convenios')
@@ -236,7 +250,7 @@ export async function POST(request: Request) {
           cuotas: nCuotas,
           frecuencia: frecuencia,
           inicio: hoyStr,
-          estado: 'Al Día',
+          estado: estadoConvenio,
           documento_url: null
         })
         .select()
@@ -270,11 +284,13 @@ export async function POST(request: Request) {
               convenio_numero: numConvenio,
               decreto: parametros.numero_decreto,
               concepto: tipoPago === 'contado' ? 'Pago Único de Contado (Decreto)' : 'Pago Inicial de Convenio (Decreto)',
+              tipo_pago: tipoPago,
+              cuota_pagada: tipoPago === 'contado' ? 'Total' : 'Inicial',
               cajero: usuario || 'Administrador',
               fecha_transaccion: fechaTransaccion,
               monto_conciliado: montoPago.toFixed(2),
               recibos: [],
-              cuotas: []
+              cuotas: tipoPago === 'contado' ? [] : [{ convId: String(nuevoConvenio?.id || ''), numeroConv: numConvenio, cuotaId: 0 }]
             }
           })
           .select()
@@ -297,10 +313,12 @@ export async function POST(request: Request) {
       }
 
       // 4. Actualizar inmueble(s) con convenio_activo y decreto_activo
+      // Si se liquidó de contado de inmediato, convenio_activo queda en false (sin cuotas pendientes), pero decreto_activo = true
+      const esLiquidadoContado = esContado && registrarPago && isAprobado;
       await supabase
         .from('inmuebles')
         .update({
-          convenio_activo: true,
+          convenio_activo: !esLiquidadoContado,
           decreto_activo: true
         })
         .eq('id', inmueble_id);
@@ -309,7 +327,7 @@ export async function POST(request: Request) {
         await supabase
           .from('inmuebles')
           .update({
-            convenio_activo: true,
+            convenio_activo: !esLiquidadoContado,
             decreto_activo: true
           })
           .eq('identidad', searchId);

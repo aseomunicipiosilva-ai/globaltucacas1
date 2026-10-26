@@ -592,6 +592,13 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
         }
       }
 
+            // Si es un pago de convenio/decreto de contado conciliado, marcar convenio como Solvente
+      if ((estatus === 'Aprobado' || estatus === 'Con Diferencia') && det.convenio_numero) {
+        if (det.tipo_pago === 'contado' || det.cuota_pagada === 'Total' || (det.concepto && det.concepto.toLowerCase().includes('contado'))) {
+          await supabase.from('convenios').update({ estado: 'Solvente' }).eq('numero', det.convenio_numero);
+        }
+      }
+
       if ((estatus === 'Aprobado' || estatus === 'Con Diferencia') && recibos.length > 0) {
         const { data: facs } = await supabase.from('facturas').select('*').in('referencia', recibos);
         if (facs && facs.length > 0) {
