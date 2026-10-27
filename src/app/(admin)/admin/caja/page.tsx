@@ -553,15 +553,16 @@ export default function CajaPage() {
         // Monto de la cuota inicial (lo pactado si no se ha pagado, o lo cobrado)
         const montoInicial = pagoInicialCobradoReal ? pagoInicialPagado : (cuotaInicialPactada > 0 ? cuotaInicialPactada : (nCuotas > 1 ? (totalBs * 0.25) : totalBs));
         
-        // Monto de las cuotas restantes
-        const montoCuotaRestante = (montoInicial > 0 && nCuotas > 1)
-          ? Math.max(0, (totalBs - montoInicial) / (nCuotas - 1)).toFixed(2)
-          : (totalBs / nCuotas).toFixed(2);
+        // Monto de las cuotas mensuales (restando la inicial del total y dividiendo exactamente entre el número de cuotas escogidas)
+        const cuotasMensualesCount = nCuotas;
+        const montoCuotaRestante = (montoInicial > 0)
+          ? Math.max(0, (totalBs - montoInicial) / cuotasMensualesCount).toFixed(2)
+          : (totalBs / cuotasMensualesCount).toFixed(2);
 
         let convCuotasPendientes = 0;
         
         // 1. Cuota Inicial (si es convenio fraccionado)
-        if (nCuotas > 1) {
+        if (conv.frecuencia !== 'Única') {
           const keyIni1 = `${conv.id}_0`;
           const keyIni2 = `${conv.numero}_0`;
           if (!cuotasPagadasSet.has(keyIni1) && !cuotasPagadasSet.has(keyIni2)) {
@@ -573,7 +574,7 @@ export default function CajaPage() {
               cuotaNum: 0,
               esInicial: true,
               label: 'Cuota Inicial',
-              totalCuotas: nCuotas,
+              totalCuotas: cuotasMensualesCount,
               fecha: startDate.toISOString().slice(0, 10),
               monto: montoInicial.toFixed(2),
               rawConv: conv
@@ -581,10 +582,9 @@ export default function CajaPage() {
           }
         }
 
-        // 2. Cuotas Mensuales restantes (numeradas Cuota 1 de N, Cuota 2 de N...)
-        const cuotasMensualesCount = (nCuotas > 1) ? (nCuotas - 1) : 1;
+        // 2. Cuotas Mensuales (Cuota 1 de N, Cuota 2 de N, ... Cuota N de N)
         for (let m = 1; m <= cuotasMensualesCount; m++) {
-          const cuotaIndex = (nCuotas > 1) ? m : 0;
+          const cuotaIndex = m;
           const key1 = `${conv.id}_${cuotaIndex}`;
           const key2 = `${conv.numero}_${cuotaIndex}`;
           if (!cuotasPagadasSet.has(key1) && !cuotasPagadasSet.has(key2)) {
@@ -592,7 +592,7 @@ export default function CajaPage() {
             const dueDate = new Date(startDate);
             dueDate.setMonth(dueDate.getMonth() + m);
 
-            const esSoloContado = (nCuotas === 1);
+            const esSoloContado = (conv.frecuencia === 'Única');
             const montoEsta = esSoloContado ? totalBs.toFixed(2) : montoCuotaRestante;
             const labelCuota = esSoloContado ? 'Pago Único de Contado' : `Cuota ${m} de ${cuotasMensualesCount}`;
 
