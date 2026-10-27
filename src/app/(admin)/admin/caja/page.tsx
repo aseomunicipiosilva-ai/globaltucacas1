@@ -43,6 +43,11 @@ export default function CajaPage() {
   const [montoTransferido, setMontoTransferido] = useState<string>('');
   const [fechaTransaccion, setFechaTransaccion] = useState<string>(new Date().toISOString().split('T')[0]);
   const [dupRefWarning, setDupRefWarning] = useState<string>('');
+  const [transferenciasMultiples, setTransferenciasMultiples] = useState<
+    { id: string; banco: string; referencia: string; monto: string; fecha: string; dupWarning?: string }[]
+  >([
+    { id: '1', banco: 'Banesco', referencia: '', monto: '', fecha: new Date().toISOString().split('T')[0] }
+  ]);
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
@@ -98,6 +103,17 @@ export default function CajaPage() {
 
   useEffect(() => {
     fetchTodayPagos();
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      const docParam = sp.get('doc');
+      if (docParam) {
+        setDocNumber(docParam);
+        setTimeout(() => {
+          const btn = document.getElementById('btn-buscar-caja');
+          if (btn) btn.click();
+        }, 300);
+      }
+    }
   }, []);
 
   // Historial de pagos de la sesión actual
@@ -316,7 +332,9 @@ export default function CajaPage() {
     setTotalBs(0);
 
     const idLimpioSearch = docNumber.replace(/-/g, '').toUpperCase();
-    const cleanFullDoc = `${docType}${idLimpioSearch}`;
+    const cleanFullDoc = (idLimpioSearch.startsWith('J') || idLimpioSearch.startsWith('V') || idLimpioSearch.startsWith('G') || idLimpioSearch.startsWith('E') || idLimpioSearch.startsWith('C'))
+      ? idLimpioSearch
+      : `${docType}${idLimpioSearch}`;
 
     let user = contribuyentes.find((c: any) => {
       if (!c.Identidad) return false;
@@ -509,20 +527,35 @@ export default function CajaPage() {
           return;
         }
 
-        // Buscar si hubo pago inicial registrado para ajustar el monto de las cuotas restantes
-        let pagoInicialMonto = 0;
+        // 1. Obtener la cuota inicial pactada (desde metadata en documento_url)
+        let cuotaInicialPactada = 0;
+        if (conv.documento_url && conv.documento_url.startsWith('meta:')) {
+          try {
+            const meta = JSON.parse(conv.documento_url.slice(5));
+            if (meta.pago_inicial) cuotaInicialPactada = parseFloat(meta.pago_inicial) || 0;
+          } catch(e){}
+        }
+
+        // Buscar si hubo pago inicial ya efectivamente cobrado/reportado
+        let pagoInicialPagado = 0;
+        let pagoInicialCobradoReal = false;
         (pagosConv || []).forEach((p: any) => {
           let det: any = {};
           try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
           const isThisConv = det.convenio_numero === conv.numero || (p.referencia && p.referencia.includes(conv.numero));
           const isIni = (det.cuota_pagada && det.cuota_pagada.includes('Inicial')) || (det.concepto && det.concepto.toLowerCase().includes('inicial'));
           if (isThisConv && isIni) {
-            pagoInicialMonto = parseFloat(p.monto || '0') || 0;
+            pagoInicialPagado = parseFloat(p.monto || '0') || 0;
+            pagoInicialCobradoReal = true;
           }
         });
 
-        const montoCuotaRestante = (pagoInicialMonto > 0 && nCuotas > 1)
-          ? ((totalBs - pagoInicialMonto) / (nCuotas - 1)).toFixed(2)
+        // Monto de la cuota inicial (lo pactado si no se ha pagado, o lo cobrado)
+        const montoInicial = pagoInicialCobradoReal ? pagoInicialPagado : (cuotaInicialPactada > 0 ? cuotaInicialPactada : (nCuotas > 1 ? (totalBs * 0.25) : totalBs));
+        
+        // Monto de las cuotas restantes
+        const montoCuotaRestante = (montoInicial > 0 && nCuotas > 1)
+          ? Math.max(0, (totalBs - montoInicial) / (nCuotas - 1)).toFixed(2)
           : (totalBs / nCuotas).toFixed(2);
 
         let convCuotasPendientes = 0;
@@ -533,14 +566,22 @@ export default function CajaPage() {
             convCuotasPendientes++;
             const dueDate = new Date(startDate);
             dueDate.setMonth(dueDate.getMonth() + i);
+
+            // Si es la cuota 0 y es convenio fraccionado, es la Cuota Inicial
+            const esCuotaInicial = (i === 0 && nCuotas > 1);
+            const montoEstaCuota = esCuotaInicial ? montoInicial.toFixed(2) : montoCuotaRestante;
+            const labelCuota = esCuotaInicial ? 'Cuota Inicial' : `Cuota ${i + 1} de ${nCuotas}`;
+
             pendingCuotas.push({
               convId: String(conv.id),
               numeroConv: conv.numero,
               cuotaId: i,
               cuotaNum: i + 1,
+              esInicial: esCuotaInicial,
+              label: labelCuota,
               totalCuotas: nCuotas,
               fecha: dueDate.toISOString().slice(0, 10),
-              monto: montoCuotaRestante,
+              monto: montoEstaCuota,
               rawConv: conv
             });
           }
@@ -625,8 +666,8 @@ export default function CajaPage() {
     
     const currentIndex = sortedRecibos.findIndex(r => r.referencia === ref);
     if (currentIndex === -1) return;
-    if (isItemPending(ref)) {
-      alert('Este recibo tiene un pago por transferencia asociado que está Por Verificar. Espere su aprobación (Conciliación) para pagar el restante (Pago Múltiple).');
+    if (isItemPending(ref) && !isPagoMultiple) {
+      alert('Este recibo tiene un pago por transferencia asociado que está Por Verificar. Para registrar otra transferencia adicional o complementaria (Pago Múltiple), active la casilla "Pago Múltiple".');
       return;
     }
 
@@ -782,31 +823,70 @@ export default function CajaPage() {
     const reqRef = ['Transferencia'].includes(paymentMethod);
 
     if (reqRef) {
-      if (!banco) return alert("Debe seleccionar el banco emisor.");
-      if (referencia.length < 4) return alert("Debe ingresar la referencia de la transacción.");
-      if (!fechaTransaccion) return alert("La fecha de transacción es obligatoria.");
-      
-      // Verificar referencia duplicada
-      const { data: dupCheck } = await supabase
-        .from('pagos_reportados')
-        .select('id')
-        .eq('referencia', referencia)
-        .limit(1);
-      if (dupCheck && dupCheck.length > 0) {
-        return alert(`⚠️ ADVERTENCIA: El número de referencia "${referencia}" ya fue registrado previamente en el sistema. Verifique antes de continuar.`);
-      }
-
-      const transferido = parseFloat(montoTransferido);
-      if (isNaN(transferido) || transferido <= 0) return alert("Debe ingresar un monto transferido válido.");
-      
-      if (transferido < finalTotal || isPagoMultiple) {
-        esAbono = true;
-        montoReal = transferido;
-      } else if (transferido > finalTotal) {
-        saldoAFavorNuevo = transferido - finalTotal;
-        montoReal = transferido;
+      if (isPagoMultiple && transferenciasMultiples.length > 1) {
+        // Validación de múltiples transferencias
+        for (let i = 0; i < transferenciasMultiples.length; i++) {
+          const t = transferenciasMultiples[i];
+          if (!t.banco) return alert(`Debe seleccionar el banco emisor en la transferencia #${i + 1}.`);
+          if (!t.referencia || t.referencia.trim().length < 4) return alert(`La referencia en la transferencia #${i + 1} debe tener al menos 4 caracteres.`);
+          if (!t.fecha) return alert(`La fecha de transacción es obligatoria en la transferencia #${i + 1}.`);
+          const mMonto = parseFloat(t.monto);
+          if (isNaN(mMonto) || mMonto <= 0) return alert(`Debe ingresar un monto válido mayor a 0 en la transferencia #${i + 1}.`);
+        }
+        // Verificar duplicados entre ellas
+        const refList = transferenciasMultiples.map(t => t.referencia.trim());
+        const uniqueRefs = new Set(refList);
+        if (uniqueRefs.size !== refList.length) {
+          return alert('No puede ingresar referencias duplicadas entre las transferencias.');
+        }
+        // Verificar en BD
+        for (const t of transferenciasMultiples) {
+          const { data: dupCheck } = await supabase
+            .from('pagos_reportados')
+            .select('id')
+            .eq('referencia', t.referencia.trim())
+            .limit(1);
+          if (dupCheck && dupCheck.length > 0) {
+            return alert(`⚠️ ADVERTENCIA: La referencia "${t.referencia.trim()}" ya fue registrada previamente en el sistema.`);
+          }
+        }
+        const transferido = transferenciasMultiples.reduce((acc, t) => acc + (parseFloat(t.monto) || 0), 0);
+        if (transferido < finalTotal) {
+          esAbono = true;
+          montoReal = transferido;
+        } else if (transferido > finalTotal) {
+          saldoAFavorNuevo = transferido - finalTotal;
+          montoReal = transferido;
+        } else {
+          montoReal = transferido;
+        }
       } else {
-        montoReal = transferido;
+        if (!banco) return alert("Debe seleccionar el banco emisor.");
+        if (referencia.length < 4) return alert("Debe ingresar la referencia de la transacción.");
+        if (!fechaTransaccion) return alert("La fecha de transacción es obligatoria.");
+        
+        // Verificar referencia duplicada
+        const { data: dupCheck } = await supabase
+          .from('pagos_reportados')
+          .select('id')
+          .eq('referencia', referencia)
+          .limit(1);
+        if (dupCheck && dupCheck.length > 0) {
+          return alert(`⚠️ ADVERTENCIA: El número de referencia "${referencia}" ya fue registrado previamente en el sistema. Verifique antes de continuar.`);
+        }
+
+        const transferido = parseFloat(montoTransferido);
+        if (isNaN(transferido) || transferido <= 0) return alert("Debe ingresar un monto transferido válido.");
+        
+        if (transferido < finalTotal || isPagoMultiple) {
+          esAbono = true;
+          montoReal = transferido;
+        } else if (transferido > finalTotal) {
+          saldoAFavorNuevo = transferido - finalTotal;
+          montoReal = transferido;
+        } else {
+          montoReal = transferido;
+        }
       }
     } else if (paymentMethod === 'Debito') {
       if (!referenciaDebito.trim()) return alert("Debe ingresar el número de comprobante o referencia del pago por punto.");
@@ -1307,36 +1387,95 @@ export default function CajaPage() {
           }
         }
 
-        const { error: pErr } = await supabase.from('pagos_reportados').insert({
-          identidad: foundUser.Identidad,
-          monto: montoReal,
-          banco: banco,
-          referencia: referencia,
-          tipo: paymentMethod,
-          estado: 'Por Verificar',
-          detalles: JSON.stringify({ 
-            recibos: selectedRecibos, 
-            cuotas: selectedCuotas,
-            servicios: selectedServicios,
-            tala_poda: selectedTalaPoda,
-            cajero: cajero_id,
-            saldo_favor: saldoAFavorNuevo,
-            es_abono: esAbono,
-            monto_abonado: esAbono ? montoReal : undefined,
-            total_seleccionado: totalBs,
-            saldo_usado: descuentoSaldoFavor,
-            tasa_bcv: currentBcvRate,
-            deuda_total_sistema: foundUser.DeudaTotal,
-            comprobante_nombre: comprobante?.name || '',
-            comprobante_url: comprobanteUrl,
-            comprobante_b64: comprobanteB64 || undefined,
-            fecha_transaccion: fechaTransaccion,
-            tasa_bcv_aplicada: customBcvRate ? customBcvRate : undefined,
-            nota_cambio_tasa: justificacionBcv ? justificacionBcv : undefined
-          })
-        });
-        
-        if (pErr) throw pErr;
+        if (reqRef && isPagoMultiple && transferenciasMultiples.length > 1) {
+          const sumTransferido = transferenciasMultiples.reduce((acc, t) => acc + (parseFloat(t.monto) || 0), 0);
+          for (let i = 0; i < transferenciasMultiples.length; i++) {
+            const t = transferenciasMultiples[i];
+            const { error: pErr } = await supabase.from('pagos_reportados').insert({
+              identidad: foundUser.Identidad,
+              monto: parseFloat(t.monto),
+              banco: t.banco,
+              referencia: t.referencia.trim(),
+              tipo: 'Transferencia',
+              estado: 'Por Verificar',
+              detalles: JSON.stringify({
+                recibos: selectedRecibos,
+                cuotas: selectedCuotas,
+                servicios: selectedServicios,
+                tala_poda: selectedTalaPoda,
+                cajero: cajero_id,
+                pago_multiple: true,
+                transferencia_num: i + 1,
+                total_transferencias: transferenciasMultiples.length,
+                monto_total_grupo: sumTransferido,
+                transferencias_grupo: transferenciasMultiples.map(item => ({
+                  banco: item.banco,
+                  referencia: item.referencia.trim(),
+                  monto: item.monto,
+                  fecha: item.fecha
+                })),
+                otras_referencias: transferenciasMultiples.filter((_, idx) => idx !== i).map(item => item.referencia.trim()),
+                saldo_favor: i === 0 ? saldoAFavorNuevo : 0,
+                es_abono: esAbono,
+                monto_abonado: esAbono ? sumTransferido : undefined,
+                total_seleccionado: totalBs,
+                saldo_usado: i === 0 ? descuentoSaldoFavor : 0,
+                tasa_bcv: currentBcvRate,
+                deuda_total_sistema: foundUser.DeudaTotal,
+                comprobante_nombre: comprobante?.name || '',
+                comprobante_url: comprobanteUrl,
+                comprobante_b64: comprobanteB64 || undefined,
+                fecha_transaccion: t.fecha,
+                tasa_bcv_aplicada: customBcvRate ? customBcvRate : undefined,
+                nota_cambio_tasa: justificacionBcv ? justificacionBcv : undefined
+              })
+            });
+            if (pErr) throw pErr;
+            
+            logAudit(`Transferencia Múltiple #${i + 1} Registrada (Por Verificar)`, {
+              contribuyente: foundUser.Contribuyente,
+              identidad: foundUser.Identidad,
+              monto_bs: parseFloat(t.monto),
+              banco: t.banco,
+              referencia: t.referencia.trim(),
+              fecha_transaccion: t.fecha,
+              referencias_facturas: selectedRecibos,
+              es_abono: esAbono,
+              pago_multiple: true,
+              total_transferencias: transferenciasMultiples.length
+            }, 'TRANSFERENCIA');
+          }
+        } else {
+          const { error: pErr } = await supabase.from('pagos_reportados').insert({
+            identidad: foundUser.Identidad,
+            monto: montoReal,
+            banco: banco,
+            referencia: referencia,
+            tipo: paymentMethod,
+            estado: 'Por Verificar',
+            detalles: JSON.stringify({ 
+              recibos: selectedRecibos, 
+              cuotas: selectedCuotas,
+              servicios: selectedServicios,
+              tala_poda: selectedTalaPoda,
+              cajero: cajero_id,
+              saldo_favor: saldoAFavorNuevo,
+              es_abono: esAbono,
+              monto_abonado: esAbono ? montoReal : undefined,
+              total_seleccionado: totalBs,
+              saldo_usado: descuentoSaldoFavor,
+              tasa_bcv: currentBcvRate,
+              deuda_total_sistema: foundUser.DeudaTotal,
+              comprobante_nombre: comprobante?.name || '',
+              comprobante_url: comprobanteUrl,
+              comprobante_b64: comprobanteB64 || undefined,
+              fecha_transaccion: fechaTransaccion,
+              tasa_bcv_aplicada: customBcvRate ? customBcvRate : undefined,
+              nota_cambio_tasa: justificacionBcv ? justificacionBcv : undefined
+            })
+          });
+          if (pErr) throw pErr;
+        }
         
         // Update items to 'Por Verificar'
         if (selectedRecibos.length > 0 && !esAbono) {
@@ -1633,16 +1772,7 @@ export default function CajaPage() {
             <option value="G">G -</option>
             <option value="P">P -</option>
           </select>
-                  {(!bancosVenezuela.includes(banco) && banco !== '' || banco === 'Otro') && (
-                    <input 
-                      type="text" 
-                      placeholder="Escriba el nombre del banco" 
-                      value={banco === 'Otro' ? '' : banco}
-                      onChange={(e) => setBanco(e.target.value)}
-                      className="mt-2 w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                      required
-                    />
-                  )}
+
           <input 
             type="text" 
             placeholder="Número de documento o Código Usuario (Ej. N-12345)..."
@@ -1652,6 +1782,7 @@ export default function CajaPage() {
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           />
           <button 
+            id="btn-buscar-caja"
             onClick={handleSearch}
             disabled={isSearching || !docNumber}
             className="bg-emerald-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2 transition-colors"
@@ -1758,16 +1889,6 @@ export default function CajaPage() {
                           <option key={n} value={n}>{n} {n === 1 ? 'mes' : 'meses'}</option>
                         ))}
                       </select>
-                  {(!bancosVenezuela.includes(banco) && banco !== '' || banco === 'Otro') && (
-                    <input 
-                      type="text" 
-                      placeholder="Escriba el nombre del banco" 
-                      value={banco === 'Otro' ? '' : banco}
-                      onChange={(e) => setBanco(e.target.value)}
-                      className="mt-2 w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                      required
-                    />
-                  )}
                     </div>
                   </div>
                 )}
@@ -1844,7 +1965,7 @@ export default function CajaPage() {
                             className="w-4 h-4 text-orange-600 rounded border-slate-300 focus:ring-orange-500"
                           />
                           <div>
-                            <p className="font-semibold text-sm text-slate-800">{c.numeroConv} - Cuota {c.cuotaNum || (c.cuotaId + 1)} de {c.totalCuotas || 1}</p>
+                            <p className="font-semibold text-sm text-slate-800">{c.numeroConv} - {c.label || (c.esInicial ? 'Cuota Inicial' : `Cuota ${c.cuotaNum || (c.cuotaId + 1)} de ${c.totalCuotas || 1}`)}</p>
                             <p className="text-xs text-slate-500">Fecha de Pago: {c.fecha}</p>
                           </div>
                         </div>
@@ -2027,80 +2148,225 @@ export default function CajaPage() {
 
                   {['Transferencia'].includes(paymentMethod) && (
                 <div className="space-y-3 bg-white p-3 rounded border border-slate-200">
-                  <label className="block">
-                    <span className="text-xs font-semibold text-slate-600 mb-1 block">Fecha de Transacción</span>
-                    <input
-                      type="date"
-                      value={fechaTransaccion}
-                      onChange={(e) => setFechaTransaccion(e.target.value)}
-                      className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="text-xs font-semibold text-slate-600 mb-1 block">Banco Emisor</span>
-                    <select
-                      value={bancosVenezuela.includes(banco) ? banco : (banco ? 'Otro' : '')}
-                      onChange={(e) => setBanco(e.target.value === 'Otro' ? 'Otro' : e.target.value)}
-                      className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                    >
-                      <option value="" disabled>Seleccione un Banco...</option>
-                      {bancosVenezuela.map(b => (
-                        <option key={b} value={b}>{b}</option>
+                  {isPagoMultiple ? (
+                    /* UI PARA PAGO MÚLTIPLE CON VARIAS TRANSFERENCIAS */
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                        <span className="text-xs font-bold text-slate-700 uppercase">Transferencias del Pago Múltiple ({transferenciasMultiples.length})</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTransferenciasMultiples(prev => [
+                              ...prev,
+                              {
+                                id: String(Date.now()),
+                                banco: 'Banesco',
+                                referencia: '',
+                                monto: '',
+                                fecha: new Date().toISOString().split('T')[0]
+                              }
+                            ]);
+                          }}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold px-2.5 py-1 rounded transition-colors shadow-sm"
+                        >
+                          + Agregar otra transferencia
+                        </button>
+                      </div>
+
+                      {transferenciasMultiples.map((t, idx) => (
+                        <div key={t.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2 relative">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-800">Transferencia #{idx + 1}</span>
+                            {transferenciasMultiples.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTransferenciasMultiples(prev => prev.filter(x => x.id !== t.id));
+                                }}
+                                className="text-red-500 hover:text-red-700 text-xs font-bold px-2 py-0.5 rounded hover:bg-red-50"
+                              >
+                                ✕ Eliminar
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                              <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Fecha</span>
+                              <input
+                                type="date"
+                                value={t.fecha}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setTransferenciasMultiples(prev => prev.map(x => x.id === t.id ? { ...x, fecha: val } : x));
+                                }}
+                                className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white focus:ring-1 focus:ring-emerald-500 outline-none"
+                              />
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Banco</span>
+                              <select
+                                value={t.banco}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setTransferenciasMultiples(prev => prev.map(x => x.id === t.id ? { ...x, banco: val } : x));
+                                }}
+                                className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white focus:ring-1 focus:ring-emerald-500 outline-none"
+                              >
+                                <option value="" disabled>Seleccione...</option>
+                                {bancosVenezuela.map(b => (
+                                  <option key={b} value={b}>{b}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                              <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Referencia (hasta 20 dígitos)</span>
+                              <input
+                                type="text"
+                                placeholder="Ej: 62990484618"
+                                value={t.referencia}
+                                onChange={async (e) => {
+                                  const val = e.target.value.replace(/[^\w]/g, '').slice(0, 20);
+                                  setTransferenciasMultiples(prev => prev.map(x => x.id === t.id ? { ...x, referencia: val, dupWarning: '' } : x));
+                                  if (val.length >= 4) {
+                                    const { data } = await supabase.from('pagos_reportados').select('id').eq('referencia', val).limit(1);
+                                    if (data && data.length > 0) {
+                                      setTransferenciasMultiples(prev => prev.map(x => x.id === t.id ? { ...x, dupWarning: '⚠️ Referencia ya registrada en el sistema' } : x));
+                                    }
+                                  }
+                                }}
+                                maxLength={20}
+                                className={`w-full border rounded px-2.5 py-1.5 text-xs bg-white focus:ring-1 outline-none ${t.dupWarning ? 'border-red-400 bg-red-50' : 'border-slate-300 focus:ring-emerald-500'}`}
+                              />
+                              {t.dupWarning && <p className="text-[9px] text-red-600 font-bold mt-0.5">{t.dupWarning}</p>}
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Monto Pagado (Bs)</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                placeholder="Ej: 261339.15"
+                                value={t.monto}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setTransferenciasMultiples(prev => prev.map(x => x.id === t.id ? { ...x, monto: val } : x));
+                                }}
+                                className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white font-bold text-slate-800 focus:ring-1 focus:ring-emerald-500 outline-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
                       ))}
-                    </select>
-                  {(!bancosVenezuela.includes(banco) && banco !== '' || banco === 'Otro') && (
-                    <input 
-                      type="text" 
-                      placeholder="Escriba el nombre del banco" 
-                      value={banco === 'Otro' ? '' : banco}
-                      onChange={(e) => setBanco(e.target.value)}
-                      className="mt-2 w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                      required
-                    />
+
+                      {/* Resumen de totales de múltiples transferencias */}
+                      {(() => {
+                        const sumT = transferenciasMultiples.reduce((acc, t) => acc + (parseFloat(t.monto) || 0), 0);
+                        const reqT = Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0));
+                        const diff = sumT - reqT;
+                        return (
+                          <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-xs space-y-1">
+                            <div className="flex justify-between font-bold text-indigo-950">
+                              <span>Total Transferencias ({transferenciasMultiples.length}):</span>
+                              <span>Bs. {formatBs(sumT)}</span>
+                            </div>
+                            <div className="flex justify-between text-indigo-700">
+                              <span>Total Requerido:</span>
+                              <span>Bs. {formatBs(reqT)}</span>
+                            </div>
+                            <div className="flex justify-between font-bold pt-1 border-t border-indigo-200">
+                              <span>Diferencia:</span>
+                              <span className={diff > 0.01 ? 'text-emerald-700' : diff < -0.01 ? 'text-orange-700' : 'text-slate-700'}>
+                                {diff > 0.01 ? `+ Bs. ${formatBs(diff)} (Saldo a Favor)` : diff < -0.01 ? `- Bs. ${formatBs(Math.abs(diff))} (Abono Parcial)` : 'Bs. 0,00 (Exacto)'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    /* UI PARA TRANSFERENCIA INDIVIDUAL */
+                    <>
+                      <label className="block">
+                        <span className="text-xs font-semibold text-slate-600 mb-1 block">Fecha de Transacción</span>
+                        <input
+                          type="date"
+                          value={fechaTransaccion}
+                          onChange={(e) => setFechaTransaccion(e.target.value)}
+                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-xs font-semibold text-slate-600 mb-1 block">Banco Emisor</span>
+                        <select
+                          value={bancosVenezuela.includes(banco) ? banco : (banco ? 'Otro' : '')}
+                          onChange={(e) => setBanco(e.target.value === 'Otro' ? 'Otro' : e.target.value)}
+                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                        >
+                          <option value="" disabled>Seleccione un Banco...</option>
+                          {bancosVenezuela.map(b => (
+                            <option key={b} value={b}>{b}</option>
+                          ))}
+                        </select>
+                      {(!bancosVenezuela.includes(banco) && banco !== '' || banco === 'Otro') && (
+                        <input 
+                          type="text" 
+                          placeholder="Escriba el nombre del banco" 
+                          value={banco === 'Otro' ? '' : banco}
+                          onChange={(e) => setBanco(e.target.value)}
+                          className="mt-2 w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                          required
+                        />
+                      )}
+                      </label>
+                      <label className="block">
+                        <span className="text-xs font-semibold text-slate-600 mb-1 block">Referencia de Transferencia (hasta 20 dígitos)</span>
+                        <input 
+                          type="text" 
+                          placeholder="Ej: 62990484618"
+                          value={referencia}
+                          onChange={async (e) => {
+                            const val = e.target.value.replace(/[^\w]/g, '').slice(0, 20);
+                            setReferencia(val);
+                            setDupRefWarning('');
+                            if (val.length >= 4) {
+                              const { data } = await supabase.from('pagos_reportados').select('id').eq('referencia', val).limit(1);
+                              if (data && data.length > 0) setDupRefWarning(`⚠️ Esta referencia "${val}" ya fue registrada antes.`);
+                            }
+                          }}
+                          maxLength={20}
+                          className={`w-full border rounded px-3 py-2 text-sm focus:ring-2 outline-none ${dupRefWarning ? 'border-red-400 focus:ring-red-400 bg-red-50' : 'border-slate-300 focus:ring-emerald-500'}`}
+                        />
+                        {dupRefWarning && <p className="text-[10px] text-red-600 font-bold mt-1">{dupRefWarning}</p>}
+                        <span className="text-[10px] text-slate-400">{referencia.length}/20 caracteres</span>
+                      </label>
+                      <label className="block">
+                        <span className="text-xs font-semibold text-slate-600 mb-1 block">Monto Total Pagado (Bs)</span>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          placeholder="Ej: 500.00"
+                          value={montoTransferido}
+                          onChange={(e) => setMontoTransferido(e.target.value)}
+                          className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                        />
+                        {parseFloat(montoTransferido) > Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0)) && (
+                          <p className="text-[10px] text-emerald-600 mt-1 font-bold">
+                            * Se generará un saldo a favor de Bs. {formatBs(parseFloat(montoTransferido) - Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0)))}
+                          </p>
+                        )}
+                        {(parseFloat(montoTransferido) > 0 && parseFloat(montoTransferido) < Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0))) && (
+                          <p className="text-[10px] text-orange-600 mt-1 font-bold">
+                            * Es un ABONO. Quedará un saldo pendiente de Bs. {formatBs(Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0)) - parseFloat(montoTransferido))}
+                          </p>
+                        )}
+                      </label>
+                    </>
                   )}
-                  </label>
-                  <label className="block">
-                    <span className="text-xs font-semibold text-slate-600 mb-1 block">Referencia de Transferencia (máx. 8 dígitos)</span>
-                    <input 
-                      type="text" 
-                      placeholder="12345678"
-                      value={referencia}
-                      onChange={async (e) => {
-                        const val = e.target.value.replace(/\D/g, '').slice(0, 8);
-                        setReferencia(val);
-                        setDupRefWarning('');
-                        if (val.length >= 4) {
-                          const { data } = await supabase.from('pagos_reportados').select('id').eq('referencia', val).limit(1);
-                          if (data && data.length > 0) setDupRefWarning(`âš ï¸ Esta referencia "${val}" ya fue registrada antes.`);
-                        }
-                      }}
-                      maxLength={8}
-                      className={`w-full border rounded px-3 py-2 text-sm focus:ring-2 outline-none ${dupRefWarning ? 'border-red-400 focus:ring-red-400 bg-red-50' : 'border-slate-300 focus:ring-emerald-500'}`}
-                    />
-                    {dupRefWarning && <p className="text-[10px] text-red-600 font-bold mt-1">{dupRefWarning}</p>}
-                    <span className="text-[10px] text-slate-400">{referencia.length}/8 dígitos</span>
-                  </label>
-                  <label className="block">
-                    <span className="text-xs font-semibold text-slate-600 mb-1 block">Monto Total Pagado (Bs)</span>
-                    <input 
-                      type="number" 
-                      step="0.01"
-                      placeholder="Ej: 500.00"
-                      value={montoTransferido}
-                      onChange={(e) => setMontoTransferido(e.target.value)}
-                      className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-                    />
-                    {parseFloat(montoTransferido) > Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0)) && (
-                      <p className="text-[10px] text-emerald-600 mt-1 font-bold">
-                        * Se generará un saldo a favor de Bs. {formatBs(parseFloat(montoTransferido) - Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0)))}
-                      </p>
-                    )}
-                    {(parseFloat(montoTransferido) > 0 && parseFloat(montoTransferido) < Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0))) && (
-                      <p className="text-[10px] text-orange-600 mt-1 font-bold">
-                        * Es un ABONO. Quedará un saldo pendiente de Bs. {formatBs(Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0)) - parseFloat(montoTransferido))}
-                      </p>
-                    )}
-                  </label>
+
+                  {/* Comprobante de Pago */}
                   <label className="block">
                     <span className="text-xs font-semibold text-slate-600 mb-1 block">Comprobante de Pago <span className="text-red-500">*</span></span>
                     <div className="border-2 border-dashed border-slate-300 bg-slate-50 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors relative">

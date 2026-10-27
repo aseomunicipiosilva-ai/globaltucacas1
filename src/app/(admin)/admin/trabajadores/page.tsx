@@ -112,17 +112,22 @@ export default function TrabajadoresPage() {
         }
       }
 
-      const payload = {
+      const payload: any = {
         nombre: formData.nombre,
         cedula: formData.cedula,
         correo: formData.correo,
         usuario: formData.usuario,
-        clave: formData.clave,
         rol: formData.rol,
         estado: formData.estado,
         letra: formData.letra ? formData.letra.toUpperCase() : '',
         permisos: formData.permisos
       };
+      // Solo sobreescribir clave si fue escrita/ingresada, o si es nuevo registro
+      if (formData.clave && String(formData.clave).trim()) {
+        payload.clave = String(formData.clave).trim();
+      } else if (!formData.id) {
+        payload.clave = formData.clave || '123456';
+      }
 
       if(formData.id) {
         // Update

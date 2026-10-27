@@ -239,6 +239,17 @@ export async function POST(request: Request) {
         estadoConvenio = isAprobado ? 'Solvente' : 'Por Verificar';
       }
 
+      // Guardar metadata del convenio (pago inicial acordado, cuotas, etc.)
+      const convenioMeta = {
+        pago_inicial: tipoPago === 'contado' ? montoTotalPagarBs : (parseFloat(String(pagoInicial)) || 0),
+        cuotas: nCuotas,
+        tipo_pago: tipoPago,
+        inicio: hoyStr,
+        decreto: parametros.numero_decreto,
+        capital_original: capitalTotal,
+        rebaja_capital: rebajaCapital
+      };
+
       // 1. Crear registro en tabla convenios
       const { data: nuevoConvenio, error: convError } = await supabase
         .from('convenios')
@@ -251,7 +262,7 @@ export async function POST(request: Request) {
           frecuencia: frecuencia,
           inicio: hoyStr,
           estado: estadoConvenio,
-          documento_url: null
+          documento_url: 'meta:' + JSON.stringify(convenioMeta)
         })
         .select()
         .single();

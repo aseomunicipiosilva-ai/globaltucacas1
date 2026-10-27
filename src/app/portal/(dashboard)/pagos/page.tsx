@@ -44,9 +44,20 @@ export default function DondePagarPage() {
     const portalDoc = localStorage.getItem('portal_doc') || '';
     const portalUser = localStorage.getItem('portal_user') || '';
 
+    const docNorm = portalDoc.replace(/-/g, '').toUpperCase();
+    const docFmt = docNorm ? docNorm.charAt(0) + '-' + docNorm.slice(1) : '';
+    const soloNum = portalDoc.replace(/\D/g, '');
+
     const facturasPendientes = recibos
-      .filter((f: any) => (f.estado === 'Pendiente' || f.estado === 'Abonado') && 
-        (f.contribuyente === portalUser || f.contribuyente === portalDoc))
+      .filter((f: any) => {
+        if (f.estado !== 'Pendiente' && f.estado !== 'Abonado') return false;
+        const fIdent = (f.identidad || '').replace(/-/g, '').toUpperCase();
+        const fNum = (f.identidad || '').replace(/\D/g, '');
+        const matchIdent = docNorm && (fIdent === docNorm || fIdent === docFmt || (soloNum && fNum === soloNum));
+        const matchUser = (portalUser && f.contribuyente && f.contribuyente.trim().toLowerCase() === portalUser.trim().toLowerCase()) ||
+                          (portalDoc && f.contribuyente && f.contribuyente.trim().toLowerCase() === portalDoc.trim().toLowerCase());
+        return matchIdent || matchUser;
+      })
       .map((f: any) => {
         let baseMonto = parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
         

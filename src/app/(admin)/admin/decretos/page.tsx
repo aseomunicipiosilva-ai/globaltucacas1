@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Search, FileCheck, CheckCircle2, XCircle, Calculator, X, RotateCcw, CreditCard, UserCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { generarPlanillaConvenioPDF } from '@/lib/pdfPlanillaConvenio';
@@ -17,6 +18,7 @@ const bancosVenezuela = [
 ].sort();
 
 export default function DecretosPage() {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [decretosActivos, setDecretosActivos] = useState<any[]>([]);
   const [loadingDecretos, setLoadingDecretos] = useState(false);
@@ -314,6 +316,7 @@ export default function DecretosPage() {
           sector: sectorCalculado,
           tipoPago,
           pagoInicial,
+          pago_inicial: pagoInicial,
           cuotas: tipoPago === 'contado' ? 1 : cuotas,
           usuario: currentUser,
           registrarPago,
@@ -592,12 +595,29 @@ export default function DecretosPage() {
                   <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 p-4 rounded-lg text-left text-sm whitespace-pre-line max-w-lg mx-auto font-mono">
                     {procesadoExito}
                   </div>
-                  <button
-                    onClick={closeModal}
-                    className="mt-4 px-8 py-2.5 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
-                  >
-                    Aceptar y Cerrar
-                  </button>
+                  <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
+                    <button
+                      onClick={() => {
+                        const targetId = selectedInmueble?.cod_cont || selectedInmueble?.identidad || '';
+                        closeModal();
+                        if (targetId) {
+                          router.push('/admin/caja?doc=' + encodeURIComponent(targetId));
+                        } else {
+                          router.push('/admin/caja');
+                        }
+                      }}
+                      className="px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors shadow-sm flex items-center gap-2"
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      Ir a Caja a Pagar / Pago Múltiple
+                    </button>
+                    <button
+                      onClick={closeModal}
+                      className="px-6 py-2.5 bg-slate-200 text-slate-700 font-medium rounded-lg hover:bg-slate-300 transition-colors shadow-sm"
+                    >
+                      Aceptar y Cerrar
+                    </button>
+                  </div>
                 </div>
               ) : evaluacionLoading ? (
                 <div className="text-center py-10">

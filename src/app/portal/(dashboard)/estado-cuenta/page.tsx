@@ -56,7 +56,7 @@ export default function EstadoCuentaPage() {
   const [periodoModo, setPeriodoModo] = useState<'rango' | 'todos'>('rango');
   const [periodoAnio, setPeriodoAnio] = useState<number>(new Date().getFullYear());
   const [periodoDesdeMes, setPeriodoDesdeMes] = useState<number>(1); // Enero
-  const [periodoHastaMes, setPeriodoHastaMes] = useState<number>(9); // Septiembre
+  const [periodoHastaMes, setPeriodoHastaMes] = useState<number>(new Date().getMonth() + 1); // Mes actual (Octubre)
   const tasaBcv = tcmmv || 0;
   const [cuotasData, setCuotasData] = useState<any[]>([]);
   const [serviciosEsp, setServiciosEsp] = useState<any[]>([]);
@@ -72,7 +72,7 @@ export default function EstadoCuentaPage() {
         if (fullDoc) {
           const idLimpio = fullDoc.replace(/-/g, '').toUpperCase();
           const idFmt = idLimpio.charAt(0) + '-' + idLimpio.slice(1);
-          const soloNum = fullDoc.replace(/D/g, '');
+          const soloNum = fullDoc.replace(/\D/g, '');
 
           // Convenios
           const { data: convenios } = await supabase.from('convenios').select('*')
@@ -116,7 +116,7 @@ export default function EstadoCuentaPage() {
   // Filtrar inmuebles del usuario
   const docNorm = portalDoc.replace(/-/g, '').toUpperCase();
   const docFmt = docNorm ? docNorm.charAt(0) + '-' + docNorm.slice(1) : '';
-  const soloNum = portalDoc.replace(/D/g, '');
+  const soloNum = portalDoc.replace(/\D/g, '');
 
   const misInmuebles = useMemo(() => inmuebles.filter((inm: any) => {
     const id = (inm.identidad || '').replace(/-/g, '').toUpperCase();
@@ -943,14 +943,14 @@ export default function EstadoCuentaPage() {
               <div className="flex flex-wrap gap-1.5">
                 <button
                   type="button"
-                  onClick={() => { setPeriodoModo('rango'); setPeriodoDesdeMes(1); setPeriodoHastaMes(9); setPeriodoAnio(2026); }}
+                  onClick={() => { setPeriodoModo('rango'); setPeriodoDesdeMes(1); setPeriodoHastaMes(new Date().getMonth() + 1); setPeriodoAnio(new Date().getFullYear()); }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                    periodoModo === 'rango' && periodoDesdeMes === 1 && periodoHastaMes === 9
+                    periodoModo === 'rango' && periodoDesdeMes === 1 && periodoHastaMes === (new Date().getMonth() + 1)
                       ? 'bg-red-600 text-white shadow-sm'
                       : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                   }`}
                 >
-                  ⭐ Enero a Septiembre
+                  ⭐ Al Mes Actual ({MESES_LISTA[new Date().getMonth()]})
                 </button>
                 <button
                   type="button"

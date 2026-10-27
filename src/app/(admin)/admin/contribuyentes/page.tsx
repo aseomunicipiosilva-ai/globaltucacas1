@@ -110,7 +110,7 @@ function ContribuyentesPageContent() {
   const [periodoModo, setPeriodoModo] = useState<'rango' | 'todos'>('rango');
   const [periodoAnio, setPeriodoAnio] = useState<number>(new Date().getFullYear());
   const [periodoDesdeMes, setPeriodoDesdeMes] = useState<number>(1); // Enero
-  const [periodoHastaMes, setPeriodoHastaMes] = useState<number>(9); // Septiembre
+  const [periodoHastaMes, setPeriodoHastaMes] = useState<number>(new Date().getMonth() + 1); // Mes actual (Octubre)
 
   const [debtModalOpen, setDebtModalOpen] = useState(false);
   const [selectedDebtRow, setSelectedDebtRow] = useState<any>(null);
@@ -1050,6 +1050,8 @@ function ContribuyentesPageContent() {
       isCondominio,
       cantidadInmuebles,
       locales,
+      clave: (row.clave_portal || misInmuebles[0]?.clave_portal || ''),
+      confirmarClave: (row.clave_portal || misInmuebles[0]?.clave_portal || ''),
       Nota: ''
     });
     setOriginalData({ ...row, Clasificacion: autoClasificacion, ActividadComercial, TipoResidencia });
@@ -1081,6 +1083,8 @@ function ContribuyentesPageContent() {
       cantidadInmuebles: 0,
       locales: [],
       coordenadas: null,
+      clave: '',
+      confirmarClave: '',
       Nota: ''
     };
     setFormData(defaultData);
@@ -1308,12 +1312,26 @@ function ContribuyentesPageContent() {
         Correo: finalCorreo
       };
 
+      if (formData.clave && formData.clave !== formData.confirmarClave) {
+        alert("Las contraseñas ingresadas en 'Datos de Seguridad' no coinciden.");
+        setIsSaving(false);
+        return;
+      }
+
       if (isNew) {
         await addContribuyente(dataToSave);
         setIsNew(false);
-        setEditingId(dataToSave.Identidad); // Switch to edit mode
+        setEditingId(dataToSave.Identidad);
       } else if (editingId) {
         await updateContribuyente(editingId, dataToSave);
+      }
+
+      if (formData.clave && formData.clave.trim()) {
+        const idClean = (dataToSave.Identidad || '').replace(/-/g, '').toUpperCase();
+        await supabase
+          .from('inmuebles')
+          .update({ clave_portal: formData.clave.trim() })
+          .or(`identidad.eq.${dataToSave.Identidad},identidad.eq.${idClean}`);
       }
       
       setShowSuccess(true);
@@ -1923,11 +1941,11 @@ function ContribuyentesPageContent() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mb-8">
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Clave</label>
-                <input type="password" placeholder="Clave" className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
+                <input type="password" placeholder="Clave" value={formData.clave || ''} onChange={e => setFormData({...formData, clave: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
               </div>
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Confirmar Clave</label>
-                <input type="password" placeholder="Confirmar Clave" className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
+                <input type="password" placeholder="Confirmar Clave" value={formData.confirmarClave || ''} onChange={e => setFormData({...formData, confirmarClave: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
               </div>
             </div>
 
