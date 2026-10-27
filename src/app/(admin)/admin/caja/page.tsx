@@ -559,29 +559,53 @@ export default function CajaPage() {
           : (totalBs / nCuotas).toFixed(2);
 
         let convCuotasPendientes = 0;
-        for (let i = 0; i < nCuotas; i++) {
-          const key1 = `${conv.id}_${i}`;
-          const key2 = `${conv.numero}_${i}`;
+        
+        // 1. Cuota Inicial (si es convenio fraccionado)
+        if (nCuotas > 1) {
+          const keyIni1 = `${conv.id}_0`;
+          const keyIni2 = `${conv.numero}_0`;
+          if (!cuotasPagadasSet.has(keyIni1) && !cuotasPagadasSet.has(keyIni2)) {
+            convCuotasPendientes++;
+            pendingCuotas.push({
+              convId: String(conv.id),
+              numeroConv: conv.numero,
+              cuotaId: 0,
+              cuotaNum: 0,
+              esInicial: true,
+              label: 'Cuota Inicial',
+              totalCuotas: nCuotas,
+              fecha: startDate.toISOString().slice(0, 10),
+              monto: montoInicial.toFixed(2),
+              rawConv: conv
+            });
+          }
+        }
+
+        // 2. Cuotas Mensuales restantes (numeradas Cuota 1 de N, Cuota 2 de N...)
+        const cuotasMensualesCount = (nCuotas > 1) ? (nCuotas - 1) : 1;
+        for (let m = 1; m <= cuotasMensualesCount; m++) {
+          const cuotaIndex = (nCuotas > 1) ? m : 0;
+          const key1 = `${conv.id}_${cuotaIndex}`;
+          const key2 = `${conv.numero}_${cuotaIndex}`;
           if (!cuotasPagadasSet.has(key1) && !cuotasPagadasSet.has(key2)) {
             convCuotasPendientes++;
             const dueDate = new Date(startDate);
-            dueDate.setMonth(dueDate.getMonth() + i);
+            dueDate.setMonth(dueDate.getMonth() + m);
 
-            // Si es la cuota 0 y es convenio fraccionado, es la Cuota Inicial
-            const esCuotaInicial = (i === 0 && nCuotas > 1);
-            const montoEstaCuota = esCuotaInicial ? montoInicial.toFixed(2) : montoCuotaRestante;
-            const labelCuota = esCuotaInicial ? 'Cuota Inicial' : `Cuota ${i + 1} de ${nCuotas}`;
+            const esSoloContado = (nCuotas === 1);
+            const montoEsta = esSoloContado ? totalBs.toFixed(2) : montoCuotaRestante;
+            const labelCuota = esSoloContado ? 'Pago Único de Contado' : `Cuota ${m} de ${cuotasMensualesCount}`;
 
             pendingCuotas.push({
               convId: String(conv.id),
               numeroConv: conv.numero,
-              cuotaId: i,
-              cuotaNum: i + 1,
-              esInicial: esCuotaInicial,
+              cuotaId: cuotaIndex,
+              cuotaNum: m,
+              esInicial: false,
               label: labelCuota,
-              totalCuotas: nCuotas,
+              totalCuotas: cuotasMensualesCount,
               fecha: dueDate.toISOString().slice(0, 10),
-              monto: montoEstaCuota,
+              monto: montoEsta,
               rawConv: conv
             });
           }
