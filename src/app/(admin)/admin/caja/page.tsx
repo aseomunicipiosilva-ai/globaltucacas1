@@ -618,6 +618,14 @@ export default function CajaPage() {
       });
       setCuotas(pendingCuotas);
 
+      // Si existe una Cuota Inicial de un decreto/convenio pendiente, seleccionarla por defecto
+      const iniciales = pendingCuotas.filter(c => c.esInicial);
+      if (iniciales.length > 0) {
+        setSelectedCuotas(iniciales.map(c => ({ convId: c.convId, cuotaId: c.cuotaId })));
+        // Desmarcar recibos ordinarios para priorizar el pago de la Cuota Inicial del Decreto
+        setSelectedRecibos([]);
+      }
+
       // Cargar servicios especiales pendientes
       const { data: servEsp } = await supabase
         .from('servicios_especiales')
@@ -852,7 +860,10 @@ export default function CajaPage() {
         for (let i = 0; i < transferenciasMultiples.length; i++) {
           const t = transferenciasMultiples[i];
           if (!t.banco) return alert(`Debe seleccionar el banco emisor en la transferencia #${i + 1}.`);
-          if (!t.referencia || t.referencia.trim().length < 4) return alert(`La referencia en la transferencia #${i + 1} debe tener al menos 4 caracteres.`);
+          const refClean = (t.referencia || '').trim();
+          if (refClean.length !== 8 || !/^\d{8}$/.test(refClean)) {
+            return alert(`La referencia en la transferencia #${i + 1} debe tener exactamente 8 dígitos numéricos (máximo y mínimo 8).`);
+          }
           if (!t.fecha) return alert(`La fecha de transacción es obligatoria en la transferencia #${i + 1}.`);
           const mMonto = parseFloat(t.monto);
           if (isNaN(mMonto) || mMonto <= 0) return alert(`Debe ingresar un monto válido mayor a 0 en la transferencia #${i + 1}.`);
@@ -886,7 +897,10 @@ export default function CajaPage() {
         }
       } else {
         if (!banco) return alert("Debe seleccionar el banco emisor.");
-        if (referencia.length < 4) return alert("Debe ingresar la referencia de la transacción.");
+        const refClean = referencia.trim();
+        if (refClean.length !== 8 || !/^\d{8}$/.test(refClean)) {
+          return alert("La referencia de transferencia debe tener exactamente 8 dígitos numéricos (máximo y mínimo 8).");
+        }
         if (!fechaTransaccion) return alert("La fecha de transacción es obligatoria.");
         
         // Verificar referencia duplicada
@@ -2224,13 +2238,16 @@ export default function CajaPage() {
                         <button
                           type="button"
                           onClick={() => {
+                            const currentSum = transferenciasMultiples.reduce((acc, x) => acc + (parseFloat(x.monto) || 0), 0);
+                            const req = Math.max(0, totalBs - (useSaldoFavor ? (foundUser?.SaldoFavor || 0) : 0));
+                            const remaining = Math.max(0, req - currentSum);
                             setTransferenciasMultiples(prev => [
                               ...prev,
                               {
                                 id: String(Date.now()),
                                 banco: 'Banesco',
                                 referencia: '',
-                                monto: '',
+                                monto: remaining > 0 ? remaining.toFixed(2) : '',
                                 fecha: new Date().toISOString().split('T')[0]
                               }
                             ]);
@@ -2291,23 +2308,26 @@ export default function CajaPage() {
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <div>
-                              <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Referencia (hasta 20 dígitos)</span>
+                              <div className="flex justify-between items-center mb-1">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase">Referencia (8 dígitos)</span>
+                                <span className={`text-[9px] font-bold ${(t.referencia || '').length === 8 ? 'text-emerald-600' : 'text-slate-400'}`}>{(t.referencia || '').length}/8 dígitos</span>
+                              </div>
                               <input
                                 type="text"
-                                placeholder="Ej: 62990484618"
+                                placeholder="Ej: 12345678"
                                 value={t.referencia}
                                 onChange={async (e) => {
-                                  const val = e.target.value.replace(/[^\w]/g, '').slice(0, 20);
+                                  const val = e.target.value.replace(/\D/g, '').slice(0, 8);
                                   setTransferenciasMultiples(prev => prev.map(x => x.id === t.id ? { ...x, referencia: val, dupWarning: '' } : x));
-                                  if (val.length >= 4) {
+                                  if (val.length === 8) {
                                     const { data } = await supabase.from('pagos_reportados').select('id').eq('referencia', val).limit(1);
                                     if (data && data.length > 0) {
                                       setTransferenciasMultiples(prev => prev.map(x => x.id === t.id ? { ...x, dupWarning: '⚠️ Referencia ya registrada en el sistema' } : x));
                                     }
                                   }
                                 }}
-                                maxLength={20}
-                                className={`w-full border rounded px-2.5 py-1.5 text-xs bg-white focus:ring-1 outline-none ${t.dupWarning ? 'border-red-400 bg-red-50' : 'border-slate-300 focus:ring-emerald-500'}`}
+                                maxLength={8}
+                                className={`w-full border rounded px-2.5 py-1.5 text-xs bg-white focus:ring-1 outline-none font-mono tracking-wider ${t.dupWarning ? 'border-red-400 bg-red-50' : 'border-slate-300 focus:ring-emerald-500'}`}
                               />
                               {t.dupWarning && <p className="text-[9px] text-red-600 font-bold mt-0.5">{t.dupWarning}</p>}
                             </div>
@@ -2329,27 +2349,68 @@ export default function CajaPage() {
                         </div>
                       ))}
 
-                      {/* Resumen de totales de múltiples transferencias */}
+                      {/* Resumen de totales de múltiples transferencias con cálculo dinámico */}
                       {(() => {
                         const sumT = transferenciasMultiples.reduce((acc, t) => acc + (parseFloat(t.monto) || 0), 0);
                         const reqT = Math.max(0, totalBs - (useSaldoFavor ? foundUser?.SaldoFavor || 0 : 0));
                         const diff = sumT - reqT;
+                        const restante = Math.max(0, reqT - sumT);
+
                         return (
-                          <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-xs space-y-1">
-                            <div className="flex justify-between font-bold text-indigo-950">
-                              <span>Total Transferencias ({transferenciasMultiples.length}):</span>
-                              <span>Bs. {formatBs(sumT)}</span>
+                          <div className="p-3.5 bg-gradient-to-br from-indigo-50 to-slate-50 border-2 border-indigo-200 rounded-xl text-xs space-y-2 shadow-sm">
+                            <div className="flex justify-between items-center text-slate-700 font-medium">
+                              <span>Total Requerido a Pagar:</span>
+                              <span className="font-extrabold text-sm text-slate-900">Bs. {formatBs(reqT)}</span>
                             </div>
-                            <div className="flex justify-between text-indigo-700">
-                              <span>Total Requerido:</span>
-                              <span>Bs. {formatBs(reqT)}</span>
+                            <div className="flex justify-between items-center font-bold text-indigo-900">
+                              <span>Total Transferencias Abonado ({transferenciasMultiples.length}):</span>
+                              <span className="text-sm text-indigo-700">Bs. {formatBs(sumT)}</span>
                             </div>
-                            <div className="flex justify-between font-bold pt-1 border-t border-indigo-200">
-                              <span>Diferencia:</span>
-                              <span className={diff > 0.01 ? 'text-emerald-700' : diff < -0.01 ? 'text-orange-700' : 'text-slate-700'}>
-                                {diff > 0.01 ? `+ Bs. ${formatBs(diff)} (Saldo a Favor)` : diff < -0.01 ? `- Bs. ${formatBs(Math.abs(diff))} (Abono Parcial)` : 'Bs. 0,00 (Exacto)'}
+
+                            {/* Alerta de Monto Restante por Cubrir */}
+                            {restante > 0.01 && (
+                              <div className="flex items-center justify-between p-2 bg-amber-50 border border-amber-300 rounded-lg text-amber-900 font-bold">
+                                <span>⚠️ Resta por Pagar:</span>
+                                <span className="text-sm font-black text-amber-700">Bs. {formatBs(restante)}</span>
+                              </div>
+                            )}
+
+                            {/* Saldo a Favor o Pago Completo */}
+                            {diff > 0.01 && (
+                              <div className="flex items-center justify-between p-2 bg-emerald-50 border border-emerald-300 rounded-lg text-emerald-900 font-bold">
+                                <span>✅ Excedente (Saldo a Favor):</span>
+                                <span className="text-sm font-black text-emerald-700">+ Bs. {formatBs(diff)}</span>
+                              </div>
+                            )}
+
+                            {Math.abs(diff) <= 0.01 && sumT > 0 && (
+                              <div className="p-2 bg-emerald-100/70 border border-emerald-400 rounded-lg text-center text-emerald-800 font-bold">
+                                ✅ Monto cubierto exactamente al 100% (Bs. 0,00 de diferencia)
+                              </div>
+                            )}
+
+                            <div className="flex justify-between font-bold pt-2 border-t border-indigo-200 text-slate-700">
+                              <span>Diferencia Neta:</span>
+                              <span className={diff > 0.01 ? 'text-emerald-700 font-black' : diff < -0.01 ? 'text-orange-700 font-black' : 'text-slate-700'}>
+                                {diff > 0.01 ? `+ Bs. ${formatBs(diff)} (A Favor)` : diff < -0.01 ? `- Bs. ${formatBs(Math.abs(diff))} (Faltante)` : 'Bs. 0,00 (Exacto)'}
                               </span>
                             </div>
+
+                            {/* Botón rápido para auto-completar el monto restante en la última transferencia si está vacía */}
+                            {restante > 0.01 && transferenciasMultiples.some(t => !t.monto || parseFloat(t.monto) <= 0) && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const emptyIdx = transferenciasMultiples.findIndex(t => !t.monto || parseFloat(t.monto) <= 0);
+                                  if (emptyIdx !== -1) {
+                                    setTransferenciasMultiples(prev => prev.map((x, idx) => idx === emptyIdx ? { ...x, monto: restante.toFixed(2) } : x));
+                                  }
+                                }}
+                                className="w-full mt-1 bg-amber-500 hover:bg-amber-600 text-white font-bold py-1.5 px-3 rounded-lg text-[11px] transition-colors shadow-sm"
+                              >
+                                ⚡ Colocar Bs. {formatBs(restante)} en la transferencia pendiente
+                              </button>
+                            )}
                           </div>
                         );
                       })()}
@@ -2390,25 +2451,27 @@ export default function CajaPage() {
                       )}
                       </label>
                       <label className="block">
-                        <span className="text-xs font-semibold text-slate-600 mb-1 block">Referencia de Transferencia (hasta 20 dígitos)</span>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs font-semibold text-slate-600">Referencia de Transferencia (8 dígitos)</span>
+                          <span className={`text-[10px] font-bold ${referencia.length === 8 ? 'text-emerald-600' : 'text-slate-400'}`}>{referencia.length}/8 dígitos</span>
+                        </div>
                         <input 
                           type="text" 
-                          placeholder="Ej: 62990484618"
+                          placeholder="Ej: 12345678"
                           value={referencia}
                           onChange={async (e) => {
-                            const val = e.target.value.replace(/[^\w]/g, '').slice(0, 20);
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 8);
                             setReferencia(val);
                             setDupRefWarning('');
-                            if (val.length >= 4) {
+                            if (val.length === 8) {
                               const { data } = await supabase.from('pagos_reportados').select('id').eq('referencia', val).limit(1);
                               if (data && data.length > 0) setDupRefWarning(`⚠️ Esta referencia "${val}" ya fue registrada antes.`);
                             }
                           }}
-                          maxLength={20}
-                          className={`w-full border rounded px-3 py-2 text-sm focus:ring-2 outline-none ${dupRefWarning ? 'border-red-400 focus:ring-red-400 bg-red-50' : 'border-slate-300 focus:ring-emerald-500'}`}
+                          maxLength={8}
+                          className={`w-full border rounded px-3 py-2 text-sm focus:ring-2 outline-none font-mono tracking-wider ${dupRefWarning ? 'border-red-400 focus:ring-red-400 bg-red-50' : 'border-slate-300 focus:ring-emerald-500'}`}
                         />
                         {dupRefWarning && <p className="text-[10px] text-red-600 font-bold mt-1">{dupRefWarning}</p>}
-                        <span className="text-[10px] text-slate-400">{referencia.length}/20 caracteres</span>
                       </label>
                       <label className="block">
                         <span className="text-xs font-semibold text-slate-600 mb-1 block">Monto Total Pagado (Bs)</span>
