@@ -44,9 +44,9 @@ export default function CajaPage() {
   const [fechaTransaccion, setFechaTransaccion] = useState<string>(new Date().toISOString().split('T')[0]);
   const [dupRefWarning, setDupRefWarning] = useState<string>('');
   const [transferenciasMultiples, setTransferenciasMultiples] = useState<
-    { id: string; banco: string; referencia: string; monto: string; fecha: string; dupWarning?: string }[]
+    { id: string; banco: string; referencia: string; monto: string; fecha: string; comprobante?: File | null; dupWarning?: string }[]
   >([
-    { id: '1', banco: 'Banesco', referencia: '', monto: '', fecha: new Date().toISOString().split('T')[0] }
+    { id: '1', banco: 'Banesco', referencia: '', monto: '', fecha: new Date().toISOString().split('T')[0], comprobante: null }
   ]);
   
   const [isProcessing, setIsProcessing] = useState(false);
@@ -867,6 +867,9 @@ export default function CajaPage() {
           if (!t.fecha) return alert(`La fecha de transacción es obligatoria en la transferencia #${i + 1}.`);
           const mMonto = parseFloat(t.monto);
           if (isNaN(mMonto) || mMonto <= 0) return alert(`Debe ingresar un monto válido mayor a 0 en la transferencia #${i + 1}.`);
+          if (!t.comprobante) {
+            return alert(`Debe adjuntar el comprobante de pago de la transferencia #${i + 1} (${refClean}).`);
+          }
         }
         // Verificar duplicados entre ellas
         const refList = transferenciasMultiples.map(t => t.referencia.trim());
@@ -913,6 +916,9 @@ export default function CajaPage() {
           return alert(`⚠️ ADVERTENCIA: El número de referencia "${referencia}" ya fue registrado previamente en el sistema. Verifique antes de continuar.`);
         }
 
+        if (!isPagoMultiple && !comprobante) {
+          return alert("Debe adjuntar el comprobante de pago de la transferencia.");
+        }
         const transferido = parseFloat(montoTransferido);
         if (isNaN(transferido) || transferido <= 0) return alert("Debe ingresar un monto transferido válido.");
         
@@ -1429,6 +1435,33 @@ export default function CajaPage() {
           const sumTransferido = transferenciasMultiples.reduce((acc, t) => acc + (parseFloat(t.monto) || 0), 0);
           for (let i = 0; i < transferenciasMultiples.length; i++) {
             const t = transferenciasMultiples[i];
+            // Subida individual de comprobante para cada transferencia
+            let tCompUrl = '';
+            let tCompB64 = '';
+            const tFile = t.comprobante || comprobante;
+            if (tFile) {
+              try {
+                const ext = tFile.name.split('.').pop() || 'jpg';
+                const fPath = `comprobantes/${(foundUser.Identidad || 'x').replace(/[^a-zA-Z0-9]/g,'_')}_${t.referencia.trim()}_${Date.now()}.${ext}`;
+                const { data: upD, error: upE } = await supabase.storage
+                  .from('comprobantes')
+                  .upload(fPath, tFile, { upsert: true, contentType: tFile.type });
+                if (!upE && upD) {
+                  const { data: pD } = supabase.storage.from('comprobantes').getPublicUrl(fPath);
+                  tCompUrl = pD?.publicUrl || '';
+                }
+              } catch(e) {}
+              if (!tCompUrl && tFile.size < 5 * 1024 * 1024) {
+                try {
+                  tCompB64 = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result as string);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(tFile);
+                  });
+                } catch(e) {}
+              }
+            }
             const { error: pErr } = await supabase.from('pagos_reportados').insert({
               identidad: foundUser.Identidad,
               monto: parseFloat(t.monto),
@@ -1460,9 +1493,9 @@ export default function CajaPage() {
                 saldo_usado: i === 0 ? descuentoSaldoFavor : 0,
                 tasa_bcv: currentBcvRate,
                 deuda_total_sistema: foundUser.DeudaTotal,
-                comprobante_nombre: comprobante?.name || '',
-                comprobante_url: comprobanteUrl,
-                comprobante_b64: comprobanteB64 || undefined,
+                comprobante_nombre: tFile?.name || '',
+                comprobante_url: tCompUrl,
+                comprobante_b64: tCompB64 || undefined,
                 fecha_transaccion: t.fecha,
                 tasa_bcv_aplicada: customBcvRate ? customBcvRate : undefined,
                 nota_cambio_tasa: justificacionBcv ? justificacionBcv : undefined
@@ -1605,6 +1638,9 @@ export default function CajaPage() {
         setMontoDebito('');
         setMontoTransferido('');
         setComprobante(null);
+        setTransferenciasMultiples([
+          { id: '1', banco: 'Banesco', referencia: '', monto: '', fecha: new Date().toISOString().split('T')[0], comprobante: null }
+        ]);
         setTotalBs(0);
         setConfirmPayload(null);
         await handleSearch();
@@ -2248,7 +2284,8 @@ export default function CajaPage() {
                                 banco: 'Banesco',
                                 referencia: '',
                                 monto: remaining > 0 ? remaining.toFixed(2) : '',
-                                fecha: new Date().toISOString().split('T')[0]
+                                fecha: new Date().toISOString().split('T')[0],
+                                comprobante: null
                               }
                             ]);
                           }}
@@ -2346,6 +2383,37 @@ export default function CajaPage() {
                               />
                             </div>
                           </div>
+
+                            {/* Comprobante Individual por Transferencia */}
+                            <div className="pt-2 border-t border-slate-200">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                                Comprobante de Pago #{idx + 1} <span className="text-red-500">*</span>
+                              </span>
+                              <div className="border border-dashed border-slate-300 bg-white rounded-lg p-2.5 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-50 transition-colors relative">
+                                <input
+                                  type="file"
+                                  accept="image/*,.pdf"
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                  onChange={(e) => {
+                                    if (e.target.files && e.target.files[0]) {
+                                      const file = e.target.files[0];
+                                      setTransferenciasMultiples(prev => prev.map(x => x.id === t.id ? { ...x, comprobante: file } : x));
+                                    }
+                                  }}
+                                />
+                                {t.comprobante ? (
+                                  <div className="flex items-center gap-2 text-emerald-700">
+                                    <span className="text-xs font-bold truncate max-w-[220px]">📎 {t.comprobante.name}</span>
+                                    <span className="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">Adjuntado</span>
+                                  </div>
+                                ) : (
+                                  <div className="text-center">
+                                    <span className="text-xs font-semibold text-slate-600 block">📁 Adjuntar comprobante para Transf. #{idx + 1}</span>
+                                    <span className="text-[9px] text-slate-400">JPG, PNG o PDF</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                         </div>
                       ))}
 
@@ -2497,7 +2565,8 @@ export default function CajaPage() {
                     </>
                   )}
 
-                  {/* Comprobante de Pago */}
+                  {/* Comprobante de Pago (solo si es transferencia individual) */}
+                  {!isPagoMultiple && (
                   <label className="block">
                     <span className="text-xs font-semibold text-slate-600 mb-1 block">Comprobante de Pago <span className="text-red-500">*</span></span>
                     <div className="border-2 border-dashed border-slate-300 bg-slate-50 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors relative">
@@ -2524,6 +2593,7 @@ export default function CajaPage() {
                       )}
                     </div>
                   </label>
+                  )}
                 </div>
               )}
             </div>
