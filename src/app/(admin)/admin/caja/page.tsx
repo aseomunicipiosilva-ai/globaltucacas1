@@ -1945,18 +1945,62 @@ export default function CajaPage() {
               </div>
             </div>
 
+            {/* 1. SECCIÓN EXCLUSIVA: CUOTA INICIAL DEL DECRETO / CONVENIO */}
+            {cuotas.some(c => c.esInicial) && (
+              <div className="bg-white rounded-lg shadow-sm border border-emerald-300 overflow-hidden">
+                <div className="bg-emerald-600 px-4 py-3 flex items-center justify-between text-white">
+                  <div className="flex items-center gap-2">
+                    <Handshake className="w-5 h-5" />
+                    <h3 className="font-bold text-sm tracking-wide uppercase">Cuota Inicial del Convenio / Decreto</h3>
+                  </div>
+                  <span className="text-[11px] bg-emerald-800 px-2 py-0.5 rounded font-semibold">Requerida para activar convenio</span>
+                </div>
+                <div className="p-4 bg-emerald-50/40">
+                  <div className="space-y-2">
+                    {cuotas.filter(c => c.esInicial).map((c, i) => (
+                      <label key={'ini-' + i} className={`flex items-center justify-between p-3.5 border-2 rounded-lg cursor-pointer transition-colors ${selectedCuotas.find(sc => sc.convId === c.convId && sc.cuotaId === c.cuotaId) ? 'bg-emerald-100/70 border-emerald-500' : 'bg-white hover:bg-emerald-50/50 border-emerald-200'}`}>
+                        <div className="flex items-center gap-3">
+                          <input 
+                            type="checkbox" 
+                            checked={!!selectedCuotas.find(sc => sc.convId === c.convId && sc.cuotaId === c.cuotaId)}
+                            onChange={() => toggleCuota(c.convId, c.cuotaId)}
+                            className="w-5 h-5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
+                          />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold uppercase bg-emerald-700 text-white px-2 py-0.5 rounded">CUOTA INICIAL</span>
+                              <p className="font-bold text-sm text-slate-800">{c.numeroConv}</p>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5">Fecha límite pactada: {c.fecha}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-extrabold text-base text-emerald-800">{c.monto} Bs</span>
+                          <span className="block text-[10px] text-emerald-600 font-semibold">Monto Inicial Acordado</span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 2. SECCIÓN: CUOTAS MENSUALES PENDIENTES */}
             <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
-              <div className="bg-orange-50 px-4 py-3 border-b border-orange-200 flex items-center gap-2">
-                <Handshake className="w-5 h-5 text-orange-600" />
-                <h3 className="font-bold text-orange-800">Cuotas de Convenio de Pago</h3>
+              <div className="bg-orange-50 px-4 py-3 border-b border-orange-200 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Handshake className="w-5 h-5 text-orange-600" />
+                  <h3 className="font-bold text-orange-800">Cuotas Mensuales por Pagar</h3>
+                </div>
+                <span className="text-xs text-orange-600 font-medium">({cuotas.filter(c => !c.esInicial).length} cuotas restantes)</span>
               </div>
               <div className="p-4">
-                {cuotas.length === 0 ? (
-                  <p className="text-sm text-slate-500">No hay cuotas pendientes.</p>
+                {cuotas.filter(c => !c.esInicial).length === 0 ? (
+                  <p className="text-sm text-slate-500">{cuotas.some(c => c.esInicial) ? 'Solo está pendiente la Cuota Inicial.' : 'No hay cuotas pendientes.'}</p>
                 ) : (
                   <div className="space-y-2">
-                    {cuotas.map((c, i) => (
-                      <label key={i} className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${selectedCuotas.find(sc => sc.convId === c.convId && sc.cuotaId === c.cuotaId) ? 'bg-orange-50 border-orange-200' : 'hover:bg-slate-50 border-slate-200'}`}>
+                    {cuotas.filter(c => !c.esInicial).map((c, i) => (
+                      <label key={'rest-' + i} className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${selectedCuotas.find(sc => sc.convId === c.convId && sc.cuotaId === c.cuotaId) ? 'bg-orange-50 border-orange-200' : 'hover:bg-slate-50 border-slate-200'}`}>
                         <div className="flex items-center gap-3">
                           <input 
                             type="checkbox" 
@@ -1965,8 +2009,8 @@ export default function CajaPage() {
                             className="w-4 h-4 text-orange-600 rounded border-slate-300 focus:ring-orange-500"
                           />
                           <div>
-                            <p className="font-semibold text-sm text-slate-800">{c.numeroConv} - {c.label || (c.esInicial ? 'Cuota Inicial' : `Cuota ${c.cuotaNum || (c.cuotaId + 1)} de ${c.totalCuotas || 1}`)}</p>
-                            <p className="text-xs text-slate-500">Fecha de Pago: {c.fecha}</p>
+                            <p className="font-semibold text-sm text-slate-800">{c.numeroConv} - {c.label || `Cuota ${c.cuotaNum || (c.cuotaId + 1)} de ${c.totalCuotas || 1}`}</p>
+                            <p className="text-xs text-slate-500">Fecha de Vencimiento: {c.fecha}</p>
                           </div>
                         </div>
                         <span className="font-bold text-orange-700">{c.monto} Bs</span>
