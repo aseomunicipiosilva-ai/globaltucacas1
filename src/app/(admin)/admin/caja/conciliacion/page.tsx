@@ -800,6 +800,46 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
               </div>
             </div>
 
+            {/* Si es Pago Múltiple, mostrar desglose de cada transferencia del grupo */}
+            {(() => {
+              const isMult = det.pago_multiple || (det.transferencias_grupo && det.transferencias_grupo.length > 1);
+              if (!isMult) return null;
+              const grupo = det.transferencias_grupo || [];
+              return (
+                <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-lg space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-indigo-900 uppercase tracking-wide">
+                      🔗 Pago Múltiple: {det.transferencia_num ? 'Esta es la Transferencia #' + det.transferencia_num + ' de ' + (det.total_transferencias || grupo.length) : 'Grupo de Transferencias'}
+                    </span>
+                    {det.monto_total_grupo && (
+                      <span className="text-xs font-black text-indigo-800 bg-indigo-100 px-2 py-0.5 rounded border border-indigo-300">
+                        Total Grupo: Bs. {fmt(parseFloat(det.monto_total_grupo))}
+                      </span>
+                    )}
+                  </div>
+                  {grupo.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      <p className="text-[11px] font-bold text-slate-600 uppercase">Transferencias asociadas en este pago:</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {grupo.map((tg: any, tIdx: number) => {
+                          const isCurrent = tg.referencia === pago.referencia;
+                          return (
+                            <div key={'tg-'+tIdx} className={'p-2 rounded border text-xs flex justify-between items-center ' + (isCurrent ? 'bg-emerald-50 border-emerald-400 font-bold text-emerald-950 shadow-sm' : 'bg-white border-slate-200 text-slate-700')}>
+                              <div>
+                                <span className="block font-mono text-[11px]">{tg.referencia || 'S/Ref'} • {tg.banco || 'Banco'}</span>
+                                <span className="text-[10px] text-slate-500">{tg.fecha || ''} {isCurrent ? '(Esta transferencia)' : ''}</span>
+                              </div>
+                              <span className="font-bold text-slate-900">Bs. {fmt(parseFloat(tg.monto || '0'))}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* DATOS DEL PAGO */}
             <div className="grid grid-cols-3 gap-4">
               <div><label className={lc}>Forma de Pago</label>
@@ -1093,13 +1133,24 @@ export default function ConciliacionPage() {
   const filas: React.ReactNode[] = [];
   pagos.forEach((pago, idx) => {
     const det = parseDetalles(pago.detalles);
+    const isMultiple = det.pago_multiple || (det.transferencias_grupo && det.transferencias_grupo.length > 1);
+    const numTransf = det.transferencia_num ? 'Transf. #' + det.transferencia_num + ' de ' + (det.total_transferencias || 'N') : (isMultiple ? 'Pago Múltiple' : null);
     const docInfo = 'id pago => ' + pago.id + ' Documento Nro. => ' + (det.doc_nro || '') + ' Responsable => ' + (det.responsable || '') + ' Analista => ' + (det.analista || '');
     const esPendiente = pago.estado === 'Por Verificar' || pago.estado === 'Pendiente';
     const esAprobado = pago.estado === 'Aprobado';
     const m = parseFloat(String(pago.monto||'0').replace(/[^0-9.]/g,''));
     filas.push(
       <tr key={'doc'+idx} className="bg-slate-100 border-t border-slate-200">
-        <td colSpan={10} className="px-3 py-1 text-xs text-slate-600 font-mono truncate">{docInfo}</td>
+        <td colSpan={10} className="px-3 py-1 text-xs text-slate-600 font-mono">
+          <div className="flex items-center justify-between gap-2">
+            <span className="truncate">{docInfo}</span>
+            {isMultiple && (
+              <span className="shrink-0 bg-indigo-100 text-indigo-800 border border-indigo-300 font-bold px-2 py-0.5 rounded text-[10px] tracking-wide uppercase">
+                🔗 {numTransf} {det.monto_total_grupo ? '• Grupo Total: Bs. ' + fmt(parseFloat(det.monto_total_grupo)) : ''}
+              </span>
+            )}
+          </div>
+        </td>
       </tr>,
       <tr key={'d'+idx} className="hover:bg-blue-50/30 transition-colors border-b border-slate-100">
         <td className="px-3 py-2 text-xs font-mono text-slate-700">
@@ -1111,7 +1162,14 @@ export default function ConciliacionPage() {
           <div className="text-[10px] text-slate-500">{pago.identidad}</div>
         </td>
         <td className="px-3 py-2 text-xs text-slate-600">{det.cod_inmueble || pago.cod_inmueble || '---'}</td>
-        <td className="px-3 py-2 text-xs font-mono text-slate-600">{pago.referencia || '---'}</td>
+        <td className="px-3 py-2 text-xs font-mono text-slate-600">
+          <div className="font-bold text-slate-800">{pago.referencia || '---'}</div>
+          {isMultiple && (
+            <div className="text-[10px] text-indigo-600 font-sans font-semibold mt-0.5">
+              {numTransf || 'Múltiple'}
+            </div>
+          )}
+        </td>
         <td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">{fmtFecha(pago.created_at)}</td>
         <td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">{det.fecha_transaccion || (pago.fecha_transaccion||'').split('T')[0] || '---'}</td>
         <td className="px-3 py-2 text-xs text-slate-600">{pago.tipo || '---'}</td>
@@ -1122,7 +1180,7 @@ export default function ConciliacionPage() {
           <div className="flex items-center justify-end gap-2">
             <span>{fmt(m)}</span>
             {esPendiente && !isCajero && <button onClick={()=>abrir(pago,'conciliar')} title="Conciliar pago" className="text-slate-500 hover:text-blue-700 transition-colors"><Landmark size={18}/></button>}
-            {det.comprobante_url && <button onClick={()=>abrir(pago,'comprobante')} title="Ver comprobante" className="text-blue-600 hover:text-blue-800 transition-colors"><Eye size={18}/></button>}
+            {(det.comprobante_url || det.comprobante_b64) && <button onClick={()=>abrir(pago,'comprobante')} title="Ver comprobante de esta transferencia" className="text-blue-600 hover:text-blue-800 transition-colors"><Eye size={18}/></button>}
             {esAprobado && !det.comprobante_url && !isCajero && <button onClick={()=>abrir(pago,'conciliar')} title="Editar" className="text-green-600 hover:text-green-800 transition-colors"><Pencil size={16}/></button>}
             {!isCajero && <button onClick={()=>eliminarPago(pago)} title="Eliminar" className="text-red-500 hover:text-red-700 transition-colors"><Trash2 size={16}/></button>}
           </div>

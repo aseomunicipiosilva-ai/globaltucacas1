@@ -32,6 +32,7 @@ export default function DecretosPage() {
       const { data: convs, error } = await supabase
         .from('convenios')
         .select('*')
+        .not('estado', 'in', '(Anulado,Eliminado)')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -385,6 +386,7 @@ export default function DecretosPage() {
       if (searchTerm) {
         searchInmuebles();
       }
+      await fetchDecretosActivos();
       fetchDecretosActivos();
     } catch (e: any) {
       setErrorMsg(e.message || 'Error desconocido al procesar el convenio');

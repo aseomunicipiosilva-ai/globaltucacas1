@@ -71,6 +71,34 @@ export async function POST(request: Request) {
         .ilike('numero', 'DEC-%')
         .select();
 
+      // 3.1 Anular inmediatamente cualquier pago_reportado asociado al decreto anulado
+      // para que no sume en reportes diarios, cortes, libro de ventas ni inicio
+      const convNums = (convDel || []).map((c: any) => c.numero).filter(Boolean);
+      for (const num of convNums) {
+        await supabase
+          .from('pagos_reportados')
+          .update({ estado: 'Anulado' })
+          .ilike('detalles->>convenio_numero', num);
+        await supabase
+          .from('pagos_reportados')
+          .update({ estado: 'Anulado' })
+          .eq('referencia', num);
+      }
+      // Anular pagos asociados a la identidad con concepto de Decreto
+      const { data: pagosDecreto } = await supabase
+        .from('pagos_reportados')
+        .select('id, detalles')
+        .eq('identidad', searchId)
+        .not('estado', 'in', '(Anulado,Reversado,Condonado,Rechazado)');
+
+      for (const p of pagosDecreto || []) {
+        let det: any = {};
+        try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+        if (det.decreto || (det.concepto && det.concepto.includes('Decreto')) || (det.convenio_numero && det.convenio_numero.startsWith('DEC-'))) {
+          await supabase.from('pagos_reportados').update({ estado: 'Anulado' }).eq('id', p.id);
+        }
+      }
+
       // 4. Registrar en auditoría
       await supabase.from('auditoria').insert({
         usuario: usuario || 'Administrador',

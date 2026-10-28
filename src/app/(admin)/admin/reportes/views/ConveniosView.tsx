@@ -17,6 +17,7 @@ export default function ConveniosView({ onBack }: { onBack: () => void }) {
       const { data, error } = await supabase
         .from('convenios')
         .select('*')
+        .not('estado', 'in', '(Anulado,Eliminado)')
         .order('id', { ascending: false });
       if (data) setConvenios(data);
     } catch (e) {
@@ -30,6 +31,7 @@ export default function ConveniosView({ onBack }: { onBack: () => void }) {
   }, []);
 
   const filtered = convenios.filter(c => {
+    if (c.estado === 'Anulado' || c.estado === 'Eliminado') return false;
     if (filtroEstado !== 'TODOS' && c.estado !== filtroEstado) return false;
     if (c.fecha_creacion) {
       const d = c.fecha_creacion.slice(0, 10);
