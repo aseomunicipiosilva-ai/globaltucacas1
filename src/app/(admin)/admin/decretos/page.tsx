@@ -187,26 +187,41 @@ export default function DecretosPage() {
         .or(`identidad.eq.${conv.identidad},identidad.eq.${cleanId}`)
         .order('created_at', { ascending: false });
 
-      const pagoMatch = (pagos || []).find((p: any) => {
+      const matchingPagos = (pagos || []).filter((p: any) => {
         let d: any = {};
         try { d = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
         return (
           d.convenio_numero === conv.numero ||
           (p.referencia && (p.referencia === conv.numero || p.referencia.includes(conv.numero))) ||
           (d.cuotas && d.cuotas.some((cq: any) => cq.numeroConv === conv.numero || String(cq.convId) === String(conv.id))) ||
-          (d.concepto && d.concepto.toLowerCase().includes('convenio'))
+          (d.concepto && d.concepto.toLowerCase().includes('convenio') && d.concepto.includes(conv.numero))
         );
       });
 
-      if (!pagoMatch) {
+      if (!matchingPagos || matchingPagos.length === 0) {
         alert(`No se encontró un pago registrado para el convenio ${conv.numero}. Si es fraccionado, las cuotas pendientes pueden cancelarse en el módulo de Caja.`);
         return;
       }
 
-      let det = typeof pagoMatch.detalles === 'string' ? JSON.parse(pagoMatch.detalles) : (pagoMatch.detalles || {});
+      const pagoPrincipal = matchingPagos[matchingPagos.length - 1];
+      let det = typeof pagoPrincipal.detalles === 'string' ? JSON.parse(pagoPrincipal.detalles) : (pagoPrincipal.detalles || {});
       const inm = conv.inmuebleInfo || {};
-      const refNum = (pagoMatch.referencia || String(pagoMatch.id || '1')).replace(/\D/g, '').slice(-7).padStart(7, '0') || '0000001';
-      const montoTotal = Number(pagoMatch.monto || 0);
+      const refNum = (pagoPrincipal.referencia || String(pagoPrincipal.id || '1')).replace(/\D/g, '').slice(-7).padStart(7, '0') || '0000001';
+
+      const montoTotal = matchingPagos.reduce((sum: number, p: any) => sum + (Number(p.monto) || 0), 0);
+
+      const historialPagos = matchingPagos.map((p: any) => {
+        let pDet: any = {};
+        try { pDet = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+        const fRaw = pDet.fecha_transaccion || (p.created_at ? p.created_at.split('T')[0] : '');
+        return {
+          fecha: fRaw,
+          formaPago: p.tipo === 'Debito' ? 'PUNTO DE VENTA' : (p.tipo || 'TRANSFERENCIA').toUpperCase(),
+          banco: p.banco || 'BANCO',
+          referencia: p.referencia || 'S/R',
+          monto: Number(p.monto) || 0
+        };
+      });
 
       const isInicial = det.cuota_pagada === 'Inicial' || (det.concepto && det.concepto.toLowerCase().includes('inicial'));
       const isContado = det.cuota_pagada === 'Total' || det.tipo_pago === 'contado' || (det.concepto && det.concepto.toLowerCase().includes('contado'));
@@ -240,24 +255,28 @@ export default function DecretosPage() {
         });
       }
 
+      const todasReferencias = matchingPagos.map((p: any) => p.referencia).filter(Boolean).join(', ');
+      const todosBancos = Array.from(new Set(matchingPagos.map((p: any) => p.banco).filter(Boolean))).join(' / ');
+
       setReciboModalData({
         reciboNo: refNum,
         controlWeb: `WEB-${refNum}`,
-        fechaEmision: pagoMatch.created_at ? pagoMatch.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+        fechaEmision: pagoPrincipal.created_at ? pagoPrincipal.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
         codContribuyente: inm.cod_cont || inm.inmueble || conv.identidad,
         razonSocial: conv.contribuyente,
         domicilioFiscal: (inm.direccion || 'TUCACAS, MUNICIPIO SILVA, FALCÓN').toUpperCase(),
         rifCi: conv.identidad,
-        caja: det.cajero || pagoMatch.cajero || 'ADMINISTRADOR',
+        caja: det.cajero || pagoPrincipal.cajero || 'ADMINISTRADOR',
         conceptos,
         subTotal: montoTotal,
         exento: montoTotal,
         iva: 0,
         total: montoTotal,
-        formaPago: pagoMatch.tipo === 'Debito' ? 'PUNTO DE VENTA' : (pagoMatch.tipo || 'TRANSFERENCIA').toUpperCase(),
-        banco: pagoMatch.banco || 'BANCO',
-        referencia: pagoMatch.referencia || 'S/R',
-        tasaBcv: det.tasa_bcv || undefined
+        formaPago: matchingPagos.some((p: any) => p.tipo === 'Debito') ? 'MIXTO / TRANSFERENCIA' : (pagoPrincipal.tipo || 'TRANSFERENCIA').toUpperCase(),
+        banco: todosBancos || 'BANCO',
+        referencia: todasReferencias || 'S/R',
+        tasaBcv: det.tasa_bcv || undefined,
+        historialPagos: historialPagos.length > 0 ? historialPagos : undefined
       });
     } catch (err: any) {
       alert('Error al cargar recibo del convenio: ' + err.message);
