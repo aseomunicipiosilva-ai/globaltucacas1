@@ -79,10 +79,11 @@ async function generarReporte(request?: Request) {
       .select('*', { count: 'exact', head: true })
       .eq('estado', 'Por Verificar');
 
-    // ── 3. Total usuarios (contribuyentes) ──────────────────────
+    // ── 3. Total usuarios (contribuyentes en inmuebles) ──────────
     const { count: totalUsuarios } = await supabase
-      .from('contribuyentes')
-      .select('*', { count: 'exact', head: true });
+      .from('inmuebles')
+      .select('*', { count: 'exact', head: true })
+      .not('estado', 'eq', 'Eliminado');
 
     // ── 4. Deuda total del sistema (recibos Pendiente) ─────────
     const { data: facturasPend } = await supabase
