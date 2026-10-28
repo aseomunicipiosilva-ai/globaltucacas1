@@ -596,6 +596,12 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
         }
       }
 
+      // Si incluye servicios especiales, marcarlos como Pagado
+      if ((estatus === 'Aprobado' || estatus === 'Con Diferencia') && det.servicios && det.servicios.length > 0) {
+        const servRefs = det.servicios.map((s: any) => typeof s === 'string' ? s : (s.referencia || s.id));
+        await supabase.from('servicios_especiales').update({ estado: 'Pagado' }).in('referencia', servRefs);
+      }
+
       if ((estatus === 'Aprobado' || estatus === 'Con Diferencia') && recibos.length > 0) {
         const { data: facs } = await supabase.from('facturas').select('*').in('referencia', recibos);
         if (facs && facs.length > 0) {
@@ -1074,19 +1080,33 @@ export default function ConciliacionPage() {
       }
       if (filtros.referencia) q = q.ilike('referencia', '%' + filtros.referencia + '%');
       if (filtros.nombre) {
-        const { data: inms } = await supabase.from('inmuebles').select('identidad').ilike('contribuyente', '%' + filtros.nombre + '%');
+        const term = filtros.nombre.trim();
+        const termClean = term.replace(/[-.\s]/g, '').toUpperCase();
+        const { data: inms } = await supabase
+          .from('inmuebles')
+          .select('identidad, cod_cont')
+          .or(`contribuyente.ilike.%${term}%,identidad.ilike.%${termClean}%,cod_cont.ilike.%${term}%`);
+        
+        const ids = new Set();
+        // Si el término parece directamente una cédula o RIF, incluirlo de inmediato
+        if (termClean.length >= 4) {
+          ids.add(term);
+          ids.add(termClean);
+          ids.add(termClean.replace(/^([JVEG])(\d)/i, '$1-$2'));
+        }
         if (inms && inms.length > 0) {
-          const ids = new Set();
           inms.forEach(i => {
             if (i.identidad) {
               ids.add(i.identidad);
-              ids.add(i.identidad.replace(/-/g, ''));
+              ids.add(i.identidad.replace(/[-.\s]/g, '').toUpperCase());
               ids.add(i.identidad.replace(/-/g, '').replace(/^([JVEG])(\d)/i, '$1-$2'));
             }
           });
+        }
+        if (ids.size > 0) {
           q = q.in('identidad', Array.from(ids));
         } else {
-          q = q.eq('identidad', 'NO_EXISTE_ESTE_CONTRIBUYENTE_123');
+          q = q.ilike('identidad', `%${termClean}%`);
         }
       }
       if (filtros.monto) q = q.eq('monto', filtros.monto);
