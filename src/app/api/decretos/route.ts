@@ -39,13 +39,21 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Falta identidad o inmueble para anular.' }, { status: 400 });
       }
 
-      // 1. Revertir facturas refinanciadas a 'Pendiente'
-      const { data: revFacs, error: revErr } = await supabase
+      // 1. Revertir facturas refinanciadas a 'Pendiente' (por inmueble específico si se proporciona)
+      let facQuery = supabase
         .from('facturas')
         .update({ estado: 'Pendiente' })
         .eq('identidad', searchId)
-        .eq('estado', 'Refinanciado')
-        .select('id, referencia');
+        .eq('estado', 'Refinanciado');
+
+      if (inmuebleData) {
+        const codRef = inmuebleData.inmueble || inmuebleData.cod_cont;
+        if (codRef) {
+          facQuery = facQuery.ilike('referencia', `%-${codRef}-%`);
+        }
+      }
+
+      const { data: revFacs, error: revErr } = await facQuery.select('id, referencia');
 
       if (revErr) {
         console.error('Error al revertir facturas:', revErr);
@@ -57,19 +65,38 @@ export async function POST(request: Request) {
           .from('inmuebles')
           .update({ convenio_activo: false, decreto_activo: false })
           .eq('id', inmueble_id);
+      } else {
+        await supabase
+          .from('inmuebles')
+          .update({ convenio_activo: false, decreto_activo: false })
+          .eq('identidad', searchId);
       }
-      await supabase
-        .from('inmuebles')
-        .update({ convenio_activo: false, decreto_activo: false })
-        .eq('identidad', searchId);
 
       // 3. Eliminar convenio(s) generados por decreto
-      const { data: convDel } = await supabase
+      let convDelQuery = supabase
         .from('convenios')
         .delete()
         .eq('identidad', searchId)
-        .ilike('numero', 'DEC-%')
-        .select();
+        .ilike('numero', 'DEC-%');
+
+      if (inmuebleData) {
+        const codRef = inmuebleData.inmueble || inmuebleData.cod_cont;
+        if (codRef) {
+          convDelQuery = convDelQuery.ilike('documento_url', `%"codigo_inmueble":"${codRef}"%`);
+        }
+      }
+
+      let { data: convDel } = await convDelQuery.select();
+      if (!convDel || convDel.length === 0) {
+        // Fallback: delete by identidad if no specific match
+        const { data: convFallback } = await supabase
+          .from('convenios')
+          .delete()
+          .eq('identidad', searchId)
+          .ilike('numero', 'DEC-%')
+          .select();
+        convDel = convFallback;
+      }
 
       // 3.1 Anular inmediatamente cualquier pago_reportado asociado al decreto anulado
       // para que no sume en reportes diarios, cortes, libro de ventas ni inicio
@@ -150,14 +177,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'El decreto para este sector ha expirado.', eligible: false }, { status: 400 });
     }
 
-    // 2. Obtener facturas impagas del contribuyente
-    const { data: facturas, error: facError } = await supabase
+    // 2. Obtener facturas impagas del contribuyente (filtrando por inmueble específico si aplica)
+    let facSelect = supabase
       .from('facturas')
       .select('id, referencia, emision, monto, estado')
       .eq('identidad', searchId)
       .neq('estado', 'Pagado')
       .neq('estado', 'Anulado')
       .neq('estado', 'Refinanciado');
+
+    if (inmuebleData) {
+      const codRef = inmuebleData.inmueble || inmuebleData.cod_cont;
+      if (codRef) {
+        facSelect = facSelect.ilike('referencia', `%-${codRef}-%`);
+      }
+    }
+
+    const { data: facturas, error: facError } = await facSelect;
 
     if (facError) {
       return NextResponse.json({ error: 'Error al consultar las facturas del contribuyente. ' + facError.message }, { status: 500 });
@@ -267,8 +303,13 @@ export async function POST(request: Request) {
         estadoConvenio = isAprobado ? 'Solvente' : 'Por Verificar';
       }
 
-      // Guardar metadata del convenio (pago inicial acordado, cuotas, etc.)
+      // Guardar metadata del convenio (pago inicial acordado, cuotas, e inmueble específico)
+      const codInmRef = inmuebleData?.inmueble || inmuebleData?.cod_cont || '';
       const convenioMeta = {
+        inmueble_id: inmuebleData?.id || inmueble_id || null,
+        codigo_inmueble: codInmRef,
+        direccion_inmueble: inmuebleData?.direccion || '',
+        clasificacion_inmueble: inmuebleData?.clasificacion || sector,
         pago_inicial: tipoPago === 'contado' ? montoTotalPagarBs : (parseFloat(String(pagoInicial)) || 0),
         cuotas: nCuotas,
         tipo_pago: tipoPago,
@@ -351,18 +392,18 @@ export async function POST(request: Request) {
           .in('id', facturasIds);
       }
 
-      // 4. Actualizar inmueble(s) con convenio_activo y decreto_activo
-      // Si se liquidó de contado de inmediato, convenio_activo queda en false (sin cuotas pendientes), pero decreto_activo = true
+      // 4. Actualizar inmueble con convenio_activo y decreto_activo de forma individual
+      // Solo el inmueble procesado se marca con decreto_activo, permitiendo que otros inmuebles del mismo RIF se procesen por separado
       const esLiquidadoContado = esContado && registrarPago && isAprobado;
-      await supabase
-        .from('inmuebles')
-        .update({
-          convenio_activo: !esLiquidadoContado,
-          decreto_activo: true
-        })
-        .eq('id', inmueble_id);
-
-      if (searchId) {
+      if (inmueble_id) {
+        await supabase
+          .from('inmuebles')
+          .update({
+            convenio_activo: !esLiquidadoContado,
+            decreto_activo: true
+          })
+          .eq('id', inmueble_id);
+      } else if (searchId) {
         await supabase
           .from('inmuebles')
           .update({

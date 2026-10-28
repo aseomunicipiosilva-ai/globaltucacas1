@@ -37,23 +37,53 @@ export default function DecretosPage() {
 
       if (error) throw error;
 
-      // Join with inmuebles for extra info
+      // Join with inmuebles for extra info (soportando múltiples inmuebles por RIF)
       const { data: inms } = await supabase
         .from('inmuebles')
-        .select('identidad, contribuyente, direccion, telefono, correo_electronico, clasificacion, inmueble, cod_cont');
+        .select('id, identidad, contribuyente, direccion, telefono, correo_electronico, clasificacion, inmueble, cod_cont');
 
-      const inmsMap = new Map();
+      // Indexar tanto por id como por código de inmueble y por RIF
+      const inmsById = new Map();
+      const inmsByCod = new Map();
+      const inmsByRif = new Map();
+
       (inms || []).forEach((i: any) => {
-        const clean = (i.identidad || '').replace(/[-.s]/g, '').toUpperCase();
-        if (clean && !inmsMap.has(clean)) inmsMap.set(clean, i);
+        if (i.id) inmsById.set(String(i.id), i);
+        const cod = (i.inmueble || i.cod_cont || '').trim().toUpperCase();
+        if (cod) inmsByCod.set(cod, i);
+        const clean = (i.identidad || '').replace(/[-.\s]/g, '').toUpperCase();
+        if (clean && !inmsByRif.has(clean)) inmsByRif.set(clean, i);
       });
 
       const enriched = (convs || []).map((c: any) => {
-        const clean = (c.identidad || '').replace(/[-.s]/g, '').toUpperCase();
-        const inm = inmsMap.get(clean) || {};
+        let meta: any = {};
+        if (c.documento_url && c.documento_url.startsWith('meta:')) {
+          try { meta = JSON.parse(c.documento_url.replace('meta:', '')); } catch(e){}
+        }
+
+        // Buscar el inmueble específico: primero por inmueble_id, luego por codigo_inmueble, luego por RIF
+        let inm: any = null;
+        if (meta.inmueble_id && inmsById.has(String(meta.inmueble_id))) {
+          inm = inmsById.get(String(meta.inmueble_id));
+        } else if (meta.codigo_inmueble && inmsByCod.has(String(meta.codigo_inmueble).toUpperCase())) {
+          inm = inmsByCod.get(String(meta.codigo_inmueble).toUpperCase());
+        } else {
+          const clean = (c.identidad || '').replace(/[-.\s]/g, '').toUpperCase();
+          inm = inmsByRif.get(clean) || {};
+        }
+
+        // Si en meta tenemos datos guardados del inmueble, combinarlos
+        const inmFinal = {
+          ...inm,
+          cod_cont: meta.codigo_inmueble || inm?.cod_cont || inm?.inmueble,
+          direccion: meta.direccion_inmueble || inm?.direccion,
+          clasificacion: meta.clasificacion_inmueble || inm?.clasificacion
+        };
+
         return {
           ...c,
-          inmuebleInfo: inm
+          convenioMeta: meta,
+          inmuebleInfo: inmFinal
         };
       });
 
@@ -286,24 +316,30 @@ export default function DecretosPage() {
   const handleDescargarPlanilla = (conv: any) => {
     const rawMonto = parseFloat(String(conv.monto_total || '0').replace(/[^\d.]/g, '')) || 0;
     const inm = conv.inmuebleInfo || {};
+    const meta = conv.convenioMeta || {};
+
+    const codInmuebleFinal = meta.codigo_inmueble || inm.cod_cont || inm.inmueble || 'N/A';
+    const direccionFinal = meta.direccion_inmueble || inm.direccion || 'Tucacas Municipio Silva, Falcón';
+    const sectorFinal = meta.clasificacion_inmueble || inm.clasificacion || (conv.numero?.startsWith('DEC-') ? 'CONDOMINIO / COMERCIAL' : 'GENERAL');
+
     generarPlanillaConvenioPDF({
       numero: conv.numero,
-      decreto: conv.numero?.startsWith('DEC-') ? 'Plan Especial "Borra tu Deuda" 2026' : 'Convenio de Pago Ordinario',
+      decreto: conv.numero?.startsWith('DEC-') ? (meta.decreto ? `Plan Especial "Borra tu Deuda" 2026 (Decreto N° ${meta.decreto})` : 'Plan Especial "Borra tu Deuda" 2026') : 'Convenio de Pago Ordinario',
       contribuyente: conv.contribuyente,
       identidad: conv.identidad,
-      direccion: inm.direccion || 'Tucacas Municipio Silva, Falcón',
+      direccion: direccionFinal,
       telefono: inm.telefono || 'N/A',
       correo: inm.correo_electronico || 'N/A',
-      sector: inm.clasificacion || (conv.numero?.startsWith('DEC-') ? 'CONDOMINIO / COMERCIAL' : 'GENERAL'),
-      codigoInmueble: inm.cod_cont || inm.inmueble || 'N/A',
-      capitalOriginal: rawMonto * 2,
-      rebajaCapital: rawMonto,
+      sector: sectorFinal,
+      codigoInmueble: codInmuebleFinal,
+      capitalOriginal: meta.capital_original || (rawMonto * 2),
+      rebajaCapital: meta.rebaja_capital || rawMonto,
       montoTotalBs: rawMonto,
       cuotas: conv.cuotas === 'N/A' ? 1 : (parseInt(String(conv.cuotas)) || 1),
-      frecuencia: conv.frecuencia || 'Mensual',
-      inicio: conv.inicio || new Date().toISOString().slice(0, 10),
+      frecuencia: conv.frecuencia || (conv.cuotas === '1' || conv.cuotas === 1 ? 'Única' : 'Mensual'),
+      inicio: conv.inicio || meta.inicio || new Date().toISOString().slice(0, 10),
       estado: conv.estado || 'Al Día',
-      tipoPago: conv.cuotas === '1' || conv.cuotas === 1 ? 'contado' : 'fraccionado',
+      tipoPago: (conv.cuotas === '1' || conv.cuotas === 1 || meta.tipo_pago === 'contado') ? 'contado' : 'fraccionado',
       operador: getLoggedUser()
     });
   };
@@ -504,56 +540,87 @@ export default function DecretosPage() {
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="bg-slate-50 text-slate-500 font-medium">
               <tr>
-                <th className="px-6 py-3 border-b">RIF / Cédula</th>
-                <th className="px-6 py-3 border-b">Contribuyente</th>
-                <th className="px-6 py-3 border-b">Clasificación / Estado</th>
-                <th className="px-6 py-3 border-b text-center">Acciones</th>
+                <th className="px-4 py-3 border-b">Inmueble / Cód.</th>
+                <th className="px-4 py-3 border-b">RIF / Cédula</th>
+                <th className="px-4 py-3 border-b">Contribuyente / Dirección</th>
+                <th className="px-4 py-3 border-b">Clasificación / Estado</th>
+                <th className="px-4 py-3 border-b text-center">Acciones por Inmueble</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {inmuebles.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-slate-500">
+                  <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
                     No se encontraron resultados. Ingrese un RIF o nombre para buscar.
                   </td>
                 </tr>
               ) : (
                 inmuebles.map(c => (
                   <tr key={c.id} className="hover:bg-slate-50">
-                    <td className="px-6 py-4 font-medium text-slate-800">{c.identidad}</td>
-                    <td className="px-6 py-4 font-semibold text-slate-700">{c.contribuyente}</td>
-                    <td className="px-6 py-4 capitalize">
-                      <div className="flex items-center gap-2">
-                        <span>{c.clasificacion || 'COMERCIAL'}</span>
+                    <td className="px-4 py-3 font-mono font-bold text-slate-900 whitespace-nowrap">
+                      <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs">
+                        {c.inmueble || c.cod_cont || `ID #${c.id}`}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">{c.identidad}</td>
+                    <td className="px-4 py-3">
+                      <div className="font-bold text-slate-800 text-xs">{c.contribuyente}</div>
+                      <div className="text-[11px] text-slate-500 truncate max-w-xs" title={c.direccion}>{c.direccion || 'Sin dirección fiscal registrada'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs text-slate-600 font-medium">{c.clasificacion || 'COMERCIAL'}</span>
                         {c.decreto_activo && (
-                          <span className="px-2 py-0.5 text-[10px] font-semibold bg-emerald-100 text-emerald-700 rounded-full">
+                          <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full">
                             Decreto Activo
                           </span>
                         )}
                         {!c.decreto_activo && c.convenio_activo && (
-                          <span className="px-2 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 rounded-full">
+                          <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300 rounded-full">
                             Convenio Activo
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => openEvaluador(c)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors border border-indigo-200"
                         >
                           <Calculator className="w-3.5 h-3.5" />
-                          Evaluar Decreto
+                          Evaluar Inmueble
                         </button>
                         {(c.decreto_activo || c.convenio_activo) && (
                           <button
                             onClick={() => {
-                              const match = decretosActivos.find((d: any) => 
+                              const codBuscado = (c.inmueble || c.cod_cont || '').trim().toUpperCase();
+                              // Buscar convenio que corresponda específicamente a este inmueble
+                              const match = decretosActivos.find((d: any) => {
+                                const dClean = (d.identidad || '').replace(/[-.\s]/g, '').toUpperCase();
+                                const cClean = (c.identidad || '').replace(/[-.\s]/g, '').toUpperCase();
+                                if (dClean !== cClean) return false;
+                                
+                                const meta = d.convenioMeta || {};
+                                if (meta.inmueble_id && String(meta.inmueble_id) === String(c.id)) return true;
+                                if (meta.codigo_inmueble && codBuscado && meta.codigo_inmueble.toUpperCase() === codBuscado) return true;
+                                if (d.inmuebleInfo && (d.inmuebleInfo.id === c.id || d.inmuebleInfo.cod_cont === codBuscado || d.inmuebleInfo.inmueble === codBuscado)) return true;
+                                return false;
+                              }) || decretosActivos.find((d: any) => 
                                 (d.identidad || '').replace(/[-.\s]/g, '').toUpperCase() === (c.identidad || '').replace(/[-.\s]/g, '').toUpperCase()
                               );
+
                               if (match) {
-                                handleDescargarPlanilla(match);
+                                handleDescargarPlanilla({
+                                  ...match,
+                                  inmuebleInfo: c,
+                                  convenioMeta: {
+                                    ...(match.convenioMeta || {}),
+                                    codigo_inmueble: c.inmueble || c.cod_cont,
+                                    direccion_inmueble: c.direccion,
+                                    clasificacion_inmueble: c.clasificacion
+                                  }
+                                });
                               } else {
                                 handleDescargarPlanilla({
                                   numero: 'DEC-ACTIVO',
@@ -565,18 +632,18 @@ export default function DecretosPage() {
                                 });
                               }
                             }}
-                            title="Descargar Planilla Oficial en PDF"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors border border-blue-200"
+                            title="Descargar Planilla Oficial de este Inmueble en PDF"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors border border-blue-200 shadow-xs"
                           >
                             <Download className="w-3.5 h-3.5" />
-                            Planilla PDF
+                            Planilla Inmueble
                           </button>
                         )}
                         {(c.decreto_activo || c.convenio_activo) && (
                           <button
                             onClick={() => handleAnularConvenio(c)}
-                            title="Anular decreto y restaurar facturas a estado Pendiente"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-red-50 text-red-700 hover:bg-red-100 transition-colors border border-red-200"
+                            title="Anular decreto de este inmueble y restaurar sus facturas a estado Pendiente"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium text-red-600 hover:bg-red-50 transition-colors border border-red-200"
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
                             Anular
@@ -663,6 +730,17 @@ export default function DecretosPage() {
                 </div>
               ) : evaluacionResult && evaluacionResult.detalles ? (
                 <div className="space-y-6">
+                  {/* Info Inmueble Evaluado */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs">
+                    <div className="flex items-center justify-between font-bold text-slate-800 pb-1 border-b border-slate-200">
+                      <span>Inmueble: {selectedInmueble?.inmueble || selectedInmueble?.cod_cont || 'N/A'}</span>
+                      <span className="text-indigo-600 uppercase">{selectedInmueble?.clasificacion || 'Comercial'}</span>
+                    </div>
+                    <div className="text-slate-600 mt-1">
+                      <strong>Dirección:</strong> {selectedInmueble?.direccion || 'Tucacas, Municipio Silva'}
+                    </div>
+                  </div>
+
                   {/* Info Aprobada */}
                   <div className="bg-emerald-50 text-emerald-800 p-4 rounded-lg border border-emerald-200">
                     <div className="flex items-center gap-2 font-semibold mb-1">
@@ -978,14 +1056,15 @@ export default function DecretosPage() {
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="bg-slate-50 text-slate-500 font-semibold text-xs border-b">
               <tr>
-                <th className="px-4 py-3">N° Convenio</th>
-                <th className="px-4 py-3">RIF / Cédula</th>
-                <th className="px-4 py-3">Contribuyente</th>
-                <th className="px-4 py-3">Monto Total</th>
-                <th className="px-4 py-3">Cuotas / Mod.</th>
-                <th className="px-4 py-3">Fecha Inicio</th>
-                <th className="px-4 py-3">Estado</th>
-                <th className="px-4 py-3 text-center">Planilla & Acciones</th>
+                <th className="px-3 py-3">N° Convenio</th>
+                <th className="px-3 py-3">Inmueble</th>
+                <th className="px-3 py-3">RIF / Cédula</th>
+                <th className="px-3 py-3">Contribuyente</th>
+                <th className="px-3 py-3">Monto Total</th>
+                <th className="px-3 py-3">Cuotas / Mod.</th>
+                <th className="px-3 py-3">Fecha Inicio</th>
+                <th className="px-3 py-3">Estado</th>
+                <th className="px-3 py-3 text-center">Planilla & Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs">
@@ -1014,12 +1093,15 @@ export default function DecretosPage() {
                   })
                   .map((conv: any) => (
                     <tr key={conv.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="px-4 py-3 font-bold text-slate-900">
+                      <td className="px-3 py-3 font-bold text-slate-900">
                         <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono text-[11px]">
                           {conv.numero}
                         </span>
                       </td>
-                      <td className="px-4 py-3 font-semibold text-slate-700">{conv.identidad}</td>
+                      <td className="px-3 py-3 font-mono font-semibold text-indigo-700 text-[11px]">
+                        {conv.convenioMeta?.codigo_inmueble || conv.inmuebleInfo?.cod_cont || conv.inmuebleInfo?.inmueble || 'General'}
+                      </td>
+                      <td className="px-3 py-3 font-semibold text-slate-700">{conv.identidad}</td>
                       <td className="px-4 py-3 font-medium text-slate-800">{conv.contribuyente}</td>
                       <td className="px-4 py-3 font-black text-emerald-700">
                         {conv.monto_total}
