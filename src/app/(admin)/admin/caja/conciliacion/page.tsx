@@ -566,10 +566,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
         }
       }
 
-      // Limpiar comprobante_b64 para evitar sobrecarga de la base de datos una vez procesado
-      if (estatus === 'Aprobado' || estatus === 'Rechazado') {
-        delete (updatedDet as any).comprobante_b64;
-      }
+      // Preservar comprobante_b64 para consultas y reimpresión posterior
 
       // Actualizar el pago
       const { error } = await supabase.from('pagos_reportados').update({
