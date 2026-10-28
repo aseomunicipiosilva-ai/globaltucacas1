@@ -15,7 +15,8 @@ export async function POST(request: Request) {
       cuotas = 1,
       usuario = 'Administrador',
       registrarPago = false,
-      datosPago = null
+      datosPago = null,
+      porcentaje_condonacion = 50
     } = body;
 
     // Obtener datos del inmueble
@@ -242,10 +243,11 @@ export async function POST(request: Request) {
       capitalTotal += montoOriginal;
     });
 
-    const rebajaCapital = capitalTotal * (parametros.porcentaje_condonacion_capital / 100);
+    const pctCapital = Number(porcentaje_condonacion) === 100 ? 100 : (parametros.porcentaje_condonacion_capital || 50);
+    const rebajaCapital = capitalTotal * (pctCapital / 100);
     const rebajaAccesorios = accesoriosTotal * (parametros.porcentaje_condonacion_accesorios / 100);
 
-    const nuevoCapitalPagar = capitalTotal - rebajaCapital;
+    const nuevoCapitalPagar = Math.max(0, capitalTotal - rebajaCapital);
     const nuevosAccesoriosPagar = accesoriosTotal - rebajaAccesorios;
     
     const { data: bcv } = await supabase.from('sistema_config').select('tasa_bcv').single();
@@ -266,6 +268,7 @@ export async function POST(request: Request) {
           facturasAfectadas: mesesMorosidad,
           capitalOriginal: capitalTotal,
           accesoriosOriginal: accesoriosTotal,
+          porcentaje_condonacion: pctCapital,
           rebajaCapital,
           rebajaAccesorios,
           nuevoCapitalPagar,
@@ -290,14 +293,16 @@ export async function POST(request: Request) {
       const frecuencia = tipoPago === 'contado' ? 'Única' : 'Mensual';
 
       // Determinar estado inicial del convenio:
+      // Si porcentaje es 100% -> 'Solvente' inmediatamente (exoneración total de capital y accesorios)
       // Si es pago de contado y se registra pago inmediato (Debito, Punto de Venta, Efectivo) -> 'Solvente'
       // Si es pago de contado y se registra transferencia -> 'Por Verificar'
       // Si es fraccionado o no se registró pago -> 'Al Día'
-      let estadoConvenio = 'Al Día';
-      const esContado = tipoPago === 'contado';
-      let isAprobado = false;
+      const esCondonacionTotal = pctCapital === 100;
+      let estadoConvenio = esCondonacionTotal ? 'Solvente' : 'Al Día';
+      const esContado = tipoPago === 'contado' || esCondonacionTotal;
+      let isAprobado = esCondonacionTotal ? true : false;
 
-      if (esContado && registrarPago && datosPago) {
+      if (esContado && registrarPago && datosPago && !esCondonacionTotal) {
         const metodo = datosPago.metodo || 'Punto de Venta / Débito';
         isAprobado = ['Debito', 'Punto de Venta', 'Punto de Venta / Débito', 'Efectivo'].includes(metodo);
         estadoConvenio = isAprobado ? 'Solvente' : 'Por Verificar';
@@ -315,6 +320,7 @@ export async function POST(request: Request) {
         tipo_pago: tipoPago,
         inicio: hoyStr,
         decreto: parametros.numero_decreto,
+        porcentaje_condonacion: pctCapital,
         capital_original: capitalTotal,
         rebaja_capital: rebajaCapital
       };
@@ -394,7 +400,7 @@ export async function POST(request: Request) {
 
       // 4. Actualizar inmueble con convenio_activo y decreto_activo de forma individual
       // Solo el inmueble procesado se marca con decreto_activo, permitiendo que otros inmuebles del mismo RIF se procesen por separado
-      const esLiquidadoContado = esContado && registrarPago && isAprobado;
+      const esLiquidadoContado = esCondonacionTotal || (esContado && registrarPago && isAprobado);
       if (inmueble_id) {
         await supabase
           .from('inmuebles')

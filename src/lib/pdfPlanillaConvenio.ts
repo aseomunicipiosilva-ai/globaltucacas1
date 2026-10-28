@@ -13,6 +13,7 @@ export interface PlanillaConvenioData {
   codigoInmueble?: string;
   capitalOriginal?: number;
   rebajaCapital?: number;
+  porcentajeCondonacion?: number;
   montoTotalBs: number;
   tasaBcv?: number;
   cuotas: number | string;
@@ -100,11 +101,11 @@ export function generarPlanillaConvenioPDF(data: PlanillaConvenioData) {
     head: [['CONCEPTO DE LIQUIDACIÓN Y CONDONACIÓN', 'DETALLE FINANCIERO']],
     body: [
       ['Deuda Total Original Calculada (Capital):', `Bs. ${capitalOrig.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
-      ['Porcentaje de Exoneración / Descuento (Decreto):', '50% sobre el capital acumulado'],
+      ['Porcentaje de Exoneración / Descuento (Decreto):', (data.porcentajeCondonacion === 100 || montoFinalBs === 0) ? '100% CONDONACIÓN TOTAL (Exoneración de Deuda)' : '50% sobre el capital acumulado'],
       ['Condonación de Accesorios, Multas e Intereses:', '100% Condonado'],
       ['Rebaja Total Aplicada al Contribuyente:', `- Bs. ${rebajaCap.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
-      ['MONTO TOTAL RELIQUIDADO A PAGAR:', `Bs. ${montoFinalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
-      ['Modalidad de Cancelación:', data.tipoPago === 'contado' || numCuotas === 1 ? 'PAGO ÚNICO DE CONTADO' : `FRACCIONADO EN ${numCuotas} CUOTAS (${data.frecuencia || 'Mensual'})`]
+      ['MONTO TOTAL RELIQUIDADO A PAGAR:', montoFinalBs === 0 ? 'Bs. 0,00 (SOLVENTE POR CONDONACIÓN TOTAL)' : `Bs. ${montoFinalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+      ['Modalidad de Cancelación:', montoFinalBs === 0 ? 'EXONERACIÓN TOTAL 100% (SIN SALDO PENDIENTE)' : (data.tipoPago === 'contado' || numCuotas === 1 ? 'PAGO ÚNICO DE CONTADO' : `FRACCIONADO EN ${numCuotas} CUOTAS (${data.frecuencia || 'Mensual'})`)]
     ],
     columnStyles: {
       0: { cellWidth: 80, fontStyle: 'bold', fillColor: [248, 250, 252] },

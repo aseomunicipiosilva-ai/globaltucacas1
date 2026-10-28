@@ -109,6 +109,9 @@ export default function DecretosPage() {
   const [evaluacionResult, setEvaluacionResult] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // Condonación State (50% o 100%)
+  const [porcentajeCondonacion, setPorcentajeCondonacion] = useState<50 | 100>(50);
+
   // Simulador State
   const [cuotas, setCuotas] = useState(1);
   const [pagoInicial, setPagoInicial] = useState(0);
@@ -156,8 +159,9 @@ export default function DecretosPage() {
     }
   };
 
-  const openEvaluador = async (inmueble: any) => {
+  const openEvaluador = async (inmueble: any, porcentaje: 50 | 100 = 50) => {
     setSelectedInmueble(inmueble);
+    setPorcentajeCondonacion(porcentaje);
     setModalOpen(true);
     setEvaluacionLoading(true);
     setEvaluacionResult(null);
@@ -171,6 +175,7 @@ export default function DecretosPage() {
         body: JSON.stringify({ 
           inmueble_id: inmueble.id, 
           identidad: inmueble.identidad,
+          porcentaje_condonacion: porcentaje,
           sector: (() => {
             const name = (inmueble.contribuyente || '').toUpperCase();
             const cls = (inmueble.clasificacion || '').toUpperCase();
@@ -191,12 +196,22 @@ export default function DecretosPage() {
       setEvaluacionResult(result);
 
       if (result.eligible && result.detalles) {
-        const minPorcentaje = result.detalles.porcentaje_inicial_minimo / 100;
-        const inicialMin = result.detalles.montoTotalPagarBs * minPorcentaje;
-        setPagoInicial(inicialMin);
-        setCuotas(1);
-        setTipoPago('fraccionado');
-        setMontoPago(inicialMin.toFixed(2));
+        const montoFinal = result.detalles.montoTotalPagarBs || 0;
+        if (porcentaje === 100 || montoFinal === 0) {
+          setPagoInicial(0);
+          setCuotas(1);
+          setTipoPago('contado');
+          setMontoPago('0');
+          setRegistrarPago(false);
+        } else {
+          const minPorcentaje = result.detalles.porcentaje_inicial_minimo / 100;
+          const inicialMin = montoFinal * minPorcentaje;
+          setPagoInicial(inicialMin);
+          setCuotas(1);
+          setTipoPago('fraccionado');
+          setMontoPago(inicialMin.toFixed(2));
+          setRegistrarPago(true);
+        }
       }
       
     } catch (e: any) {
@@ -370,13 +385,14 @@ export default function DecretosPage() {
           inmueble_id: selectedInmueble.id,
           identidad: selectedInmueble.identidad,
           sector: sectorCalculado,
-          tipoPago,
+          porcentaje_condonacion: porcentajeCondonacion,
+          tipoPago: porcentajeCondonacion === 100 ? 'contado' : tipoPago,
           pagoInicial,
           pago_inicial: pagoInicial,
           cuotas: tipoPago === 'contado' ? 1 : cuotas,
           usuario: currentUser,
-          registrarPago,
-          datosPago: registrarPago ? {
+          registrarPago: porcentajeCondonacion === 100 ? false : registrarPago,
+          datosPago: (porcentajeCondonacion !== 100 && registrarPago) ? {
             monto: montoPago || (tipoPago === 'contado' ? montoTotal : pagoInicial),
             metodo: metodoPago,
             banco: bancoPago,
@@ -419,6 +435,7 @@ export default function DecretosPage() {
         correo: selectedInmueble.correo_electronico,
         sector: selectedInmueble.clasificacion,
         codigoInmueble: selectedInmueble.cod_cont || selectedInmueble.inmueble,
+        porcentajeCondonacion: porcentajeCondonacion,
         capitalOriginal: evaluacionResult?.detalles?.capitalOriginal || (montoTotal * 2),
         rebajaCapital: evaluacionResult?.detalles?.rebajaCapital || montoTotal,
         montoTotalBs: montoTotal,
@@ -750,6 +767,48 @@ export default function DecretosPage() {
                     <p className="text-sm text-emerald-600">{evaluacionResult.mensaje}</p>
                   </div>
 
+                  {/* Selector de Porcentaje de Condonación */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <span className="text-xs font-bold text-slate-800 uppercase block tracking-wider">
+                          Porcentaje de Condonación:
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                          Seleccione si aplica el descuento regular (50%) o exoneración total (100%)
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
+                        <button
+                          type="button"
+                          onClick={() => openEvaluador(selectedInmueble, 50)}
+                          disabled={evaluacionLoading}
+                          className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+                            porcentajeCondonacion === 50
+                              ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-600'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                          }`}
+                        >
+                          <span>50% Descuento</span>
+                          <span className="text-[10px] opacity-80 font-normal">(Estándar)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openEvaluador(selectedInmueble, 100)}
+                          disabled={evaluacionLoading}
+                          className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
+                            porcentajeCondonacion === 100
+                              ? 'bg-purple-600 text-white shadow-sm ring-1 ring-purple-600'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                          }`}
+                        >
+                          <span>100% Condonación Total</span>
+                          <span className="text-[10px] opacity-80 font-normal">(Exoneración)</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Resumen Deuda Original vs Reliquidada */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="border rounded-lg p-4 bg-slate-50">
@@ -789,6 +848,24 @@ export default function DecretosPage() {
                     </div>
                   </div>
 
+                  {/* Mensaje especial si es Condonación Total 100% */}
+                  {porcentajeCondonacion === 100 ? (
+                    <div className="border border-purple-200 bg-purple-50/70 rounded-xl p-5 text-center space-y-3">
+                      <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-purple-100 text-purple-700 mx-auto">
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <h4 className="text-base font-bold text-purple-900">
+                        Condonación Total del 100% de la Deuda
+                      </h4>
+                      <p className="text-xs text-purple-700 max-w-md mx-auto leading-relaxed">
+                        Se exonera el 100% del capital y el 100% de multas y recargos. Al procesar, todas las facturas del período pasarán a estado Refinanciado y el inmueble quedará <strong>Solvente por Decreto</strong> sin requerir pagos ni cuotas.
+                      </p>
+                      <div className="inline-block px-4 py-1.5 bg-purple-100 text-purple-800 font-extrabold text-sm rounded-full border border-purple-300">
+                        Total a Cobrar: 0,00 Bs
+                      </div>
+                    </div>
+                  ) : (
+                    <>
                   {/* Simulador de Convenio */}
                   <div className="border rounded-lg p-4">
                     <div className="flex justify-between items-center mb-4">
@@ -978,6 +1055,9 @@ export default function DecretosPage() {
                       </div>
                     )}
                   </div>
+
+                  </>
+                  )}
 
                   {/* Operador responsable */}
                   <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-2.5 rounded-md border border-slate-200">
