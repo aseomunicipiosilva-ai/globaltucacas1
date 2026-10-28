@@ -51,26 +51,42 @@ async function generarReporte(request?: Request) {
     const turno = hora < 15 ? 'MEDIODÍA' : 'TARDE';
     const horaStr = `${pad(hora)}:${pad(vzNow.getUTCMinutes())}`;
 
-    const diaInicio = hoy + 'T04:00:00.000Z'; // 00:00 VE = 04:00 UTC
-    const diaFin    = hoy + 'T27:59:59.999Z'; // 23:59 VE = 03:59 UTC next day (safe upper bound)
-    const manana    = new Date(vzNow.getTime() + 24*60*60*1000);
-    const finDia    = `${manana.getUTCFullYear()}-${pad(manana.getUTCMonth()+1)}-${pad(manana.getUTCDate())}T04:00:00.000Z`;
+    const startVE = new Date(hoy + 'T00:00:00-04:00').getTime();
+    const endVE   = new Date(hoy + 'T23:59:59.999-04:00').getTime();
 
-    // ── 1. Pagos aprobados del día ──────────────────────────────
-    const { data: pagosHoy } = await supabase
+    // ── 1. Pagos aprobados del día (igual que en Cuadre de Caja) ───
+    // Considera created_at, fecha_registro en caja o fecha_conciliacion del día
+    const { data: todosPagos } = await supabase
       .from('pagos_reportados')
-      .select('monto, tipo, identidad')
-      .eq('estado', 'Aprobado')
-      .gte('created_at', diaInicio)
-      .lt('created_at', finDia);
+      .select('id, monto, tipo, estado, identidad, created_at, detalles')
+      .order('created_at', { ascending: false })
+      .limit(1000);
 
-    const pagos = pagosHoy || [];
+    const pagos = (todosPagos || []).filter(p => {
+      if (p.estado !== 'Aprobado') return false;
+      let d: any = {};
+      try { d = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+      
+      const tCreated = new Date(p.created_at).getTime();
+      const tRegistro = d.fecha_registro ? new Date(d.fecha_registro).getTime() : 0;
+      const tConciliacion = d.fecha_conciliacion ? new Date(d.fecha_conciliacion).getTime() : 0;
+
+      const inCreated = tCreated >= startVE && tCreated <= endVE;
+      const inRegistro = tRegistro >= startVE && tRegistro <= endVE;
+      const inConciliadoHoy = tConciliacion >= startVE && tConciliacion <= endVE;
+
+      return inCreated || inRegistro || inConciliadoHoy;
+    });
+
+    const isDebito = (t: string) => t === 'Debito' || t === 'Punto de Venta' || t === 'REC';
+    const isTransf = (t: string) => !isDebito(t) && t !== 'Saldo a Favor';
+
     const totalDia          = pagos.reduce((a, p) => a + parseMonto(p.monto), 0);
-    const totalDebito       = pagos.filter(p => p.tipo === 'Debito').reduce((a, p) => a + parseMonto(p.monto), 0);
-    const totalTransfer     = pagos.filter(p => p.tipo === 'Transferencia').reduce((a, p) => a + parseMonto(p.monto), 0);
+    const totalDebito       = pagos.filter(p => isDebito(p.tipo)).reduce((a, p) => a + parseMonto(p.monto), 0);
+    const totalTransfer     = pagos.filter(p => isTransf(p.tipo)).reduce((a, p) => a + parseMonto(p.monto), 0);
     const totalSaldoFavor   = pagos.filter(p => p.tipo === 'Saldo a Favor').reduce((a, p) => a + parseMonto(p.monto), 0);
-    const cantDebito        = pagos.filter(p => p.tipo === 'Debito').length;
-    const cantTransfer      = pagos.filter(p => p.tipo === 'Transferencia').length;
+    const cantDebito        = pagos.filter(p => isDebito(p.tipo)).length;
+    const cantTransfer      = pagos.filter(p => isTransf(p.tipo)).length;
     const usuariosPagaron   = new Set(pagos.map(p => p.identidad)).size;
 
     // ── 2. Conciliaciones pendientes (Por Verificar) ────────────
