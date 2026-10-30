@@ -529,6 +529,10 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
   const deudaTotalContrib = contribInfo?._deudaTotal ? parseFloat(String(contribInfo._deudaTotal).replace(/[^0-9.]/g,'')) : 0;
 
   const handleConciliar = async () => {
+    if (estatus === 'Rechazado' && !observaciones.trim()) {
+      alert('⚠️ Es OBLIGATORIO ingresar el motivo del rechazo para continuar.');
+      return;
+    }
     setIsProcessing(true);
     try {
       const tasaParaGuardar = parseFloat(tasaCustom) || tasaOriginal;
@@ -547,6 +551,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
         fecha_banco: fechaBanco,
         monto_conciliado: montoConciliado,
         observaciones,
+        motivo_rechazo: estatus === 'Rechazado' ? observaciones.trim() : (det.motivo_rechazo || ''),
         enviar_correo: enviarCorreo,
         cod_inmueble: det.cod_inmueble || pago.cod_inmueble || contribInfo?.codigo,
         cajero: det.cajero || undefined,
@@ -639,8 +644,7 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
               } else if (dineroDisponible > 1.00) {
                 // Abono parcial: actualizar monto restante
                 const montoRestante = parseFloat((montoFac - dineroDisponible).toFixed(2));
-                const m_ab = parseFloat(fac.monto_abonado || '0') + dineroDisponible;
-                await supabase.from('facturas').update({ monto: montoRestante, monto_abonado: m_ab, estado: 'Abonado' }).eq('referencia', fac.referencia);
+                await supabase.from('facturas').update({ monto: montoRestante, estado: 'Abonado' }).eq('referencia', fac.referencia);
                 dineroDisponible = 0;
               } else {
                 // Sin dinero: dejar pendiente, pero actualizamos el monto si hubo cambio de tasa
@@ -696,6 +700,18 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
           }
         }
       }
+      // Verificar si al contribuyente le quedan deudas pendientes; si no, actualizar deuda_mmv = 0 en inmuebles
+      try {
+        const { data: facturasRestantes } = await supabase
+          .from('facturas')
+          .select('id')
+          .eq('identidad', pago.identidad)
+          .in('estado', ['Pendiente', 'Por Verificar', 'Abonado']);
+        if (!facturasRestantes || facturasRestantes.length === 0) {
+          await supabase.from('inmuebles').update({ deuda_mmv: 0 }).eq('identidad', pago.identidad);
+        }
+      } catch (_e) {}
+
       alert('Conciliacion guardada exitosamente.');
       onSuccess();
     } catch (e: any) { alert('Error al conciliar: ' + e.message); }
@@ -949,10 +965,16 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                   <span className="text-sm font-medium text-slate-700">Enviar Correo</span>
                 </label>
               </div>
-              <div>
+              <div className="col-span-2">
+                <label className={`block text-xs font-bold mb-1 ${estatus === 'Rechazado' ? 'text-red-600' : 'text-slate-600'}`}>
+                  {estatus === 'Rechazado' ? '⚠️ Motivo del Rechazo (OBLIGATORIO) *' : 'Observaciones'}
+                </label>
                 <textarea value={observaciones} onChange={e=>setObservaciones(e.target.value)} rows={3}
-                  placeholder="Observaciones (se copian al correo del usuario)"
-                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"/>
+                  placeholder={estatus === 'Rechazado' ? 'Escriba obligatoriamente el motivo por el cual se rechaza este pago...' : 'Observaciones (se copian al correo del usuario)'}
+                  className={`w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none ${estatus === 'Rechazado' ? 'border-red-500 bg-red-50 focus:ring-red-500 text-red-900 placeholder-red-400 font-medium' : 'border-slate-300 focus:ring-blue-500'}`}/>
+                {estatus === 'Rechazado' && !observaciones.trim() && (
+                  <p className="text-[10px] text-red-600 font-bold mt-1">Debe indicar el motivo antes de guardar la conciliación.</p>
+                )}
               </div>
             </div>
 
@@ -1059,6 +1081,15 @@ export default function ConciliacionPage() {
       const data = JSON.parse(localStorage.getItem('admin_user_data') || '{}');
       if (data.rol === 'Cajero' || data.rol === 'Taquilla' || (data.rol && data.rol.includes('Taquilla')) || (data.rol && data.rol.includes('Cajero')) || (data.rol && data.rol.includes('Operador'))) setIsCajero(true);
     } catch(e){}
+
+    // Leer parámetro ?buscar= o ?identidad= de la URL para filtrar de inmediato
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      const b = sp.get('buscar') || sp.get('identidad') || sp.get('referencia');
+      if (b) {
+        setFiltros(prev => ({ ...prev, nombre: b, estatus: 'Por Verificar' }));
+      }
+    }
   }, []);
 
   const fetchPagos = useCallback(async () => {

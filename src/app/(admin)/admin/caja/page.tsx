@@ -24,6 +24,8 @@ export default function CajaPage() {
   const [recibos, setRecibos] = useState<any[]>([]);
   const [cuotas, setCuotas] = useState<any[]>([]);
   const [pagosPendientes, setPagosPendientes] = useState<any[]>([]); // Pagos multiples en verificacion
+  const [pagosAprobados, setPagosAprobados] = useState<any[]>([]);
+  const [facturasAjustes, setFacturasAjustes] = useState<Record<string, any>>({});
   const [serviciosEsp, setServiciosEsp] = useState<any[]>([]);
   const [talaPoda, setTalaPoda] = useState<any[]>([]);
   const [selectedTalaPoda, setSelectedTalaPoda] = useState<string[]>([]);
@@ -189,27 +191,10 @@ export default function CajaPage() {
   };
 
   const getReciboMonto = (r: any) => {
-    // Si no hay usuario encontrado o no tenemos tcmmv, fallback al monto original
     if (!foundUser) {
       return String(parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0);
     }
 
-    if (r.estado === 'Abonado' || r.estado === 'Pagado') {
-      let baseMonto = parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
-      let montoPend = 0;
-      pagosPendientes.forEach((p: any) => {
-        let det: any = {};
-        try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}
-        const refs: string[] = det.recibos || [];
-        if (refs.includes(r.referencia)) {
-          const montoPago = parseFloat(String(p.monto || '0').replace(/[^0-9.]/g, '')) || 0;
-          if (refs.length > 0) montoPend += (montoPago / refs.length);
-        }
-      });
-      return String(Math.max(0, baseMonto - montoPend).toFixed(2));
-    }
-
-    // SIEMPRE usar una tasaActual: la personalizada o la del BCV global
     const tasaActual = (customBcvRate && !isNaN(parseFloat(customBcvRate))) 
         ? parseFloat(customBcvRate) 
         : (tcmmv || 0);
@@ -219,18 +204,21 @@ export default function CajaPage() {
       i.estado !== 'Eliminado'
     );
 
-    // Monto base por defecto: el monto registrado en la factura (igual que en Estado de Cuenta / Detalles del Contribuyente)
     let baseMonto = parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
 
-    // CM- = exactamente 1 mes del inmueble específico referenciado en la factura, recalculado con la tasa actual
-    if (r.referencia?.startsWith('CM-') && r.estado !== 'Abonado' && tasaActual > 0) {
-      // Buscar el inmueble cuyo código está contenido en la referencia
+    // Verificar si tiene ajuste mensual específico (ej. Inmueble desocupado)
+    const ajuste = facturasAjustes[r.referencia];
+    if (ajuste) {
+      if (ajuste.mmv_mes && ajuste.mmv_mes > 0 && tasaActual > 0) {
+        baseMonto = parseFloat((ajuste.mmv_mes * tasaActual).toFixed(2));
+      } else if (ajuste.monto) {
+        baseMonto = parseFloat(ajuste.monto);
+      }
+    } else if (r.referencia?.startsWith('CM-') && r.estado !== 'Abonado' && tasaActual > 0) {
       let targetInms = userInms.filter((inm: any) =>
         (inm.inmueble && (r.referencia || '').includes(inm.inmueble)) ||
         (inm.cod_cont && (r.referencia || '').includes(inm.cod_cont))
       );
-
-      // Fallback: si no hay match (contribuyente con 1 solo inmueble o ref sin código), usar todos
       if (targetInms.length === 0) targetInms = userInms;
 
       let monthlyMMV = 0;
@@ -244,8 +232,26 @@ export default function CajaPage() {
       }
     }
 
+    // Descontar abonos ya aprobados para este recibo
+    let totalAbonado = 0;
+    pagosAprobados.forEach((p: any) => {
+      let det: any = {};
+      try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}
+      const refs: string[] = det.recibos || [];
+      if (refs.includes(r.referencia)) {
+        const montoPago = parseFloat(String(p.monto || '0').replace(/[^0-9.]/g, '')) || 0;
+        if (refs.length > 0) totalAbonado += (montoPago / refs.length);
+      }
+    });
+
+    if (totalAbonado > 0) {
+      baseMonto = Math.max(0, baseMonto - totalAbonado);
+    } else if (r.estado === 'Abonado') {
+      baseMonto = parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
+    }
+
+    // Descontar pagos pendientes de verificación
     let montoPendiente = 0;
-    let tasaPago = null;
     pagosPendientes.forEach((p: any) => {
       let det: any = {};
       try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}
@@ -253,28 +259,49 @@ export default function CajaPage() {
       if (refs.includes(r.referencia)) {
         const montoPago = parseFloat(String(p.monto || '0').replace(/[^0-9.]/g, '')) || 0;
         if (refs.length > 0) montoPendiente += (montoPago / refs.length);
-        if (det.tasa_bcv) tasaPago = parseFloat(det.tasa_bcv);
       }
     });
 
-    if (tasaPago && tasaPago > 0 && r.referencia?.startsWith('CM-')) {
-      let targetInms = userInms.filter((inm: any) =>
-        (inm.inmueble && (r.referencia || '').includes(inm.inmueble)) ||
-        (inm.cod_cont && (r.referencia || '').includes(inm.cod_cont))
-      );
+    return String(Math.max(0, baseMonto - montoPendiente).toFixed(2));
+  };
+
+  const getAbonoInfo = (r: any) => {
+    const tasaActual = (customBcvRate && !isNaN(parseFloat(customBcvRate))) ? parseFloat(customBcvRate) : (tcmmv || 0);
+    let originalMonto = parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0;
+    const ajuste = facturasAjustes[r.referencia];
+    if (ajuste?.mmv_mes && ajuste.mmv_mes > 0 && tasaActual > 0) {
+      originalMonto = ajuste.mmv_mes * tasaActual;
+    } else if (ajuste?.monto) {
+      originalMonto = parseFloat(ajuste.monto);
+    } else if (r.referencia?.startsWith('CM-') && tasaActual > 0) {
+      const userInms = inmuebles.filter((i: any) => (i.identidad || '').replace(/-/g,'').toUpperCase() === (foundUser?.Identidad || '').replace(/-/g,'').toUpperCase() && i.estado !== 'Eliminado');
+      let targetInms = userInms.filter((inm: any) => (inm.inmueble && r.referencia.includes(inm.inmueble)) || (inm.cod_cont && r.referencia.includes(inm.cod_cont)));
       if (targetInms.length === 0) targetInms = userInms;
       let monthlyMMV = 0;
       targetInms.forEach((inm: any) => {
         const cant = parseFloat(inm.cant_inmuebles || 1);
-        const mmv  = parseFloat(inm.mmv_mes || 0);
+        const mmv = parseFloat(inm.mmv_mes || 0);
         if (mmv > 0) monthlyMMV += cant * mmv;
       });
-      if (monthlyMMV > 0) {
-        baseMonto = monthlyMMV * tasaPago;
-      }
+      if (monthlyMMV > 0) originalMonto = monthlyMMV * tasaActual;
     }
 
-    return String(Math.max(0, baseMonto - montoPendiente).toFixed(2));
+    let totalAbonado = 0;
+    pagosAprobados.forEach((p: any) => {
+      let det: any = {};
+      try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}
+      const refs: string[] = det.recibos || [];
+      if (refs.includes(r.referencia)) {
+        const montoPago = parseFloat(String(p.monto || '0').replace(/[^0-9.]/g, '')) || 0;
+        if (refs.length > 0) totalAbonado += (montoPago / refs.length);
+      }
+    });
+
+    const esAbono = totalAbonado > 0 || r.estado === 'Abonado';
+    const montoAbonado = totalAbonado > 0 ? totalAbonado : Math.max(0, originalMonto - (parseFloat(String(r.monto || '0').replace(/[^\d.]/g, '')) || 0));
+    const restante = parseFloat(getReciboMonto(r));
+
+    return { esAbono, originalMonto, montoAbonado, restante };
   };
 
 
@@ -643,14 +670,22 @@ export default function CajaPage() {
         .eq('estado', 'Pendiente');
       setTalaPoda(talaData || []);
 
-      // Cargar pagos pendientes de verificar para bloquear seleccion
-      // Solo 'Por Verificar' bloquea — significa que ya hay una transferencia enviada esperando conciliación
-      const { data: pagosPendData } = await supabase
+      // Cargar ajustes de actividad/tarifa mensual de sistema_config
+      try {
+        const { data: cfgRow } = await supabase.from('sistema_config').select('valor').eq('id', 'facturas_ajustes_meses').maybeSingle();
+        if (cfgRow?.valor) setFacturasAjustes(cfgRow.valor);
+      } catch (_e) {}
+
+      // Cargar pagos pendientes de verificar y aprobados para abonos
+      const { data: allPagosData } = await supabase
         .from('pagos_reportados')
         .select('*')
-        .or('identidad.eq.' + user.Identidad + ',identidad.eq.' + cleanFullDoc)
-        .eq('estado', 'Por Verificar');
-      setPagosPendientes(pagosPendData || []);
+        .or('identidad.eq.' + user.Identidad + ',identidad.eq.' + cleanFullDoc);
+      
+      const pend = (allPagosData || []).filter((p: any) => p.estado === 'Por Verificar');
+      const aprob = (allPagosData || []).filter((p: any) => p.estado === 'Aprobado' || p.estado === 'Conciliado');
+      setPagosPendientes(pend);
+      setPagosAprobados(aprob);
 
     } else {
       alert("Contribuyente no encontrado. Puede intentar buscar por Código de Usuario.");
@@ -1283,28 +1318,44 @@ export default function CajaPage() {
             const recibosArray = grupos.map((grupo, idx) => {
               const inmGrupo = grupo.inm || primerInm;
               let conceptosGrupo: any[] = [];
+
+              // Calcular período de las facturas seleccionadas
+              const facsGrupo = grupo.refs.map((ref: string) => recibos.find((r: any) => r.referencia === ref)).filter(Boolean);
+              facsGrupo.sort((a: any, b: any) => new Date(a.emision || '1900-01-01').getTime() - new Date(b.emision || '1900-01-01').getTime());
+              
+              let periodoGrupo = '';
+              if (facsGrupo.length > 0) {
+                const mesIni = getMesRec(facsGrupo[0].emision);
+                const mesFin = getMesRec(facsGrupo[facsGrupo.length - 1].emision);
+                periodoGrupo = mesIni === mesFin ? mesIni : `${mesIni} A ${mesFin}`;
+              }
+
               grupo.refs.forEach((ref: string) => {
                 const f = recibos.find((r: any) => r.referencia === ref);
                 const montoF = f ? parseFloat(getReciboMonto(f) || '0') : 0;
                 const abonoPrevio = f && f.monto_abonado ? parseFloat(String(f.monto_abonado || '0').replace(/[^\d.]/g, '')) : 0;
+                const mesTxt = getMesRec(f?.emision || '');
+                const descPeriodo = facsGrupo.length > 1
+                  ? `Servicio Aseo Urbano - Período: ${periodoGrupo} (Mes: ${mesTxt})`
+                  : `Servicio Aseo Urbano - Período: ${mesTxt}`;
                 
                 if (abonoPrevio > 0) {
                   conceptosGrupo.push({
-                    descripcion: `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${getMesRec(f?.emision || '')}`,
+                    descripcion: descPeriodo,
                     precioUnit: montoF + abonoPrevio,
                     total: montoF + abonoPrevio
                   });
                   // Si no es abono (se esta completando), no mostramos el descuento de abonos anteriores para que la factura salga por el monto completo.
                   if (esAbono) {
                     conceptosGrupo.push({
-                      descripcion: `Abonos Anteriores (Mes: ${getMesRec(f?.emision || '')})`,
+                      descripcion: `Abonos Anteriores (Mes: ${mesTxt})`,
                       precioUnit: -abonoPrevio,
                       total: -abonoPrevio
                     });
                   }
                 } else {
                   conceptosGrupo.push({
-                    descripcion: `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${getMesRec(f?.emision || '')}`,
+                    descripcion: descPeriodo,
                     precioUnit: montoF,
                     total: montoF
                   });
@@ -1316,8 +1367,14 @@ export default function CajaPage() {
                   const cq = cuotas.find((q: any) => q.convId === sc.convId && q.cuotaId === sc.cuotaId);
                   if (cq) {
                     const montoCq = parseFloat(cq.monto || '0');
+                    let pDecreto = '';
+                    if (cq.rawConv?.documento_url && cq.rawConv.documento_url.startsWith('meta:')) {
+                      try { pDecreto = JSON.parse(cq.rawConv.documento_url.slice(5)).periodo_decreto || ''; } catch(e){}
+                    }
+                    const strPeriodo = pDecreto ? ` - Período: ${pDecreto}` : '';
+                    const labelCuota = cq.label || (cq.esInicial ? 'Cuota Inicial' : `Cuota ${cq.cuotaNum || cq.cuotaId + 1} de ${cq.totalCuotas || 1}`);
                     conceptosGrupo.push({
-                      descripcion: `Cuota ${cq.cuotaNum || cq.cuotaId + 1} de ${cq.totalCuotas || 1} - Convenio ${cq.numeroConv || ''}`,
+                      descripcion: `${labelCuota}${strPeriodo} - Convenio ${cq.numeroConv || ''}`,
                       precioUnit: montoCq,
                       total: montoCq
                     });
@@ -1972,7 +2029,10 @@ export default function CajaPage() {
                   <p className="text-sm text-slate-500">No hay recibos pendientes.</p>
                 ) : (
                   <div className="space-y-2">
-                    {recibos.map(r => (
+                    {recibos.map(r => {
+                      const abonoInfo = getAbonoInfo(r);
+                      const ajusteMes = facturasAjustes[r.referencia];
+                      return (
                       <label key={r.referencia} className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${selectedRecibos.includes(r.referencia) ? 'bg-emerald-50 border-emerald-200' : isItemPending(r.referencia) ? 'bg-slate-100 border-slate-300 opacity-75 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 border-slate-200'}`}>
                         <div className="flex items-center gap-3">
                           <input type="checkbox" checked={selectedRecibos.includes(r.referencia)} disabled={isItemPending(r.referencia)} onChange={() => toggleRecibo(r.referencia)}
@@ -1988,7 +2048,11 @@ export default function CajaPage() {
                                 return p.length >= 2 ? `${M[parseInt(p[1])-1] || p[1]} ${p[0]}` : r.emision;
                               })()}
                             </p>
-                            {(() => {
+                            {ajusteMes?.actividad ? (
+                              <span className="text-[10px] text-blue-700 font-bold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 inline-block mt-0.5">
+                                {ajusteMes.actividad}
+                              </span>
+                            ) : (() => {
                               const userInms = inmuebles.filter((i: any) => {
                                 if (!foundUser) return false;
                                 const id = (i.identidad || '').replace(/-/g,'').toUpperCase();
@@ -2008,12 +2072,25 @@ export default function CajaPage() {
                               <span className="text-[10px] text-orange-600 font-bold bg-orange-100 px-2 py-0.5 rounded uppercase mb-0.5">Transf. por conciliar</span>
                               <span className="font-bold text-orange-700">Bs. {formatBs(getPendingMontoForRecibo(r.referencia))}</span>
                             </>
+                          ) : abonoInfo.esAbono && abonoInfo.montoAbonado > 0 ? (
+                            <>
+                              <div className="flex items-center gap-1 mb-0.5">
+                                <span className="text-[9px] text-amber-800 font-bold bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded">
+                                  Abonado: Bs. {formatBs(abonoInfo.montoAbonado)}
+                                </span>
+                                <span className="text-[9px] text-emerald-800 font-bold bg-emerald-100 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                  Resta: Bs. {formatBs(abonoInfo.restante)}
+                                </span>
+                              </div>
+                              <span className="font-bold text-emerald-700 text-sm">Bs. {formatBs(abonoInfo.restante)}</span>
+                            </>
                           ) : (
                             <span className="font-bold text-emerald-700">Bs. {formatBs(getReciboMonto(r))}</span>
                           )}
                         </div>
                       </label>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

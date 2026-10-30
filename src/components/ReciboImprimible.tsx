@@ -228,9 +228,9 @@ function ReciboContenido({
         <tbody>
           {data.conceptos.map((c, i) => (
             <tr key={i}>
-              <td style={{ ...cell, textAlign:'left' }}>{c.descripcion}</td>
-              <td style={{ ...cell, textAlign:'right' }}>Bs. {formatBs(c.precioUnit)}</td>
-              <td style={{ padding:'2px 5px', textAlign:'right', borderBottom:'1px solid #eee', fontSize:8.5 }}>Bs. {formatBs(c.total)}</td>
+              <td style={{ ...cell, textAlign:'left', whiteSpace: 'pre-line' }}>{c.descripcion}</td>
+              <td style={{ ...cell, textAlign:'right' }}>{c.precioUnit > 0 ? `Bs. ${formatBs(c.precioUnit)}` : ''}</td>
+              <td style={{ padding:'2px 5px', textAlign:'right', borderBottom:'1px solid #eee', fontSize:8.5 }}>{c.total > 0 ? `Bs. ${formatBs(c.total)}` : ''}</td>
             </tr>
           ))}
           {data.saldoFavorGenerado !== undefined && data.saldoFavorGenerado > 0 && (

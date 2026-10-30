@@ -9,7 +9,7 @@ import tarifasData from '@/data/tarifas.json';
 import { ReciboImprimible } from '@/components/ReciboImprimible';
 
 export default function EstadoCuentaPage() {
-  const { inmuebles } = useAppContext();
+  const { inmuebles, convenios } = useAppContext();
   const [tcmmv, setTcmmv] = useState<number | null>(null);
   const [loadingTasa, setLoadingTasa] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -129,11 +129,20 @@ export default function EstadoCuentaPage() {
         const convNum = det.convenio_numero || 'DEC-337442';
         const decNum = det.decreto || '010-DA-09-2026';
 
+        let periodoDecreto = det.periodo_decreto || '';
+        if (!periodoDecreto) {
+          const convObj = convenios.find((c: any) => c.numero === convNum);
+          if (convObj?.documento_url && convObj.documento_url.startsWith('meta:')) {
+            try { periodoDecreto = JSON.parse(convObj.documento_url.slice(5)).periodo_decreto || ''; } catch(e){}
+          }
+        }
+        const strPeriodo = periodoDecreto ? ` - Período: ${periodoDecreto}` : '';
+
         const conceptoTitulo = isInicial
-          ? `Pago Inicial de Convenio (Decreto N° ${decNum}) - Convenio ${convNum}`
+          ? `Pago Inicial de Convenio (Decreto N° ${decNum})${strPeriodo} - Convenio ${convNum}`
           : isContado
-          ? `Pago Único de Contado (Decreto N° ${decNum}) - Convenio ${convNum}`
-          : (det.concepto || `Pago de Convenio ${convNum}`);
+          ? `Pago Único de Contado (Decreto N° ${decNum})${strPeriodo} - Convenio ${convNum}`
+          : (det.concepto ? `${det.concepto}${strPeriodo}` : `Pago de Convenio ${convNum}${strPeriodo}`);
 
         conceptos.push({
           descripcion: conceptoTitulo,
@@ -150,6 +159,26 @@ export default function EstadoCuentaPage() {
           });
         }
       } else if (refs.length > 0) {
+        const refFechas: string[] = [];
+        refs.forEach((ref: string) => {
+          const parts = ref.split('-');
+          if (parts.length >= 2) {
+            const mm = parseInt(parts[parts.length - 2]);
+            const yyyy = parts[parts.length - 1];
+            if (!isNaN(mm) && mm >= 1 && mm <= 12) {
+              refFechas.push(`${yyyy}-${String(mm).padStart(2,'0')}`);
+            }
+          }
+        });
+        refFechas.sort();
+        let periodoRefs = '';
+        if (refFechas.length > 0) {
+          const fmt = (s: string) => { const parts = s.split('-'); return `${MESES_FULL[parseInt(parts[1])-1]} ${parts[0]}`; };
+          const pIni = fmt(refFechas[0]);
+          const pFin = fmt(refFechas[refFechas.length - 1]);
+          periodoRefs = pIni === pFin ? pIni : `${pIni} A ${pFin}`;
+        }
+
         conceptos = refs.map((ref: string) => {
           const parts = ref.split('-');
           let mesLabel = ref;
@@ -161,8 +190,11 @@ export default function EstadoCuentaPage() {
             }
           }
           const precioUnit = montoTotal / refs.length;
+          const descRef = refs.length > 1
+            ? `Servicio Aseo Urbano - Período: ${periodoRefs} (Mes: ${mesLabel})`
+            : `Servicio Aseo Urbano - Período: ${mesLabel}`;
           return {
-            descripcion: `Servicio Aseo Urbano - Período: ${mesLabel} (Ref: ${ref})`,
+            descripcion: descRef,
             precioUnit,
             total: precioUnit
           };
@@ -730,9 +762,20 @@ export default function EstadoCuentaPage() {
           const userInmsForAll = (inmuebles as any[]).filter((inm: any) =>
             (inm.identidad || '').replace(/-/g,'').toUpperCase() === idClean
           );
+          const facFechas = todasFacturas.map((f: any) => f.emision).filter(Boolean).sort();
+          let periodoGlobal = '';
+          if (facFechas.length > 0) {
+            const fIni = getMesTxt(facFechas[0]);
+            const fFin = getMesTxt(facFechas[facFechas.length - 1]);
+            periodoGlobal = fIni === fFin ? fIni : `${fIni} A ${fFin}`;
+          }
+
           conceptos = todasFacturas.map((f: any) => {
             let mF = parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
-            let descripcionBase = `Servicio Aseo Residencial/Comercial. Correspondiente al mes de: ${getMesTxt(f.emision)}`;
+            const mesTxt = getMesTxt(f.emision);
+            let descripcionBase = todasFacturas.length > 1
+              ? `Servicio Aseo Urbano - Período: ${periodoGlobal} (Mes: ${mesTxt})`
+              : `Servicio Aseo Urbano - Período: ${mesTxt}`;
 
             if (tcmmv && tcmmv > 0 && userInmsForAll.length > 0 && f.estado !== 'Pagado' && f.estado !== 'Abonado') {
               if (f.referencia?.startsWith('CM-') && f.estado !== 'Abonado') {
@@ -1105,9 +1148,11 @@ if (p.estado === 'Rechazado' || p.estado === 'Eliminado') return false;
         )}
         {row.estado === 'Por Verificar' && (
           <button 
-            onClick={() => setActiveTab('PorVerificar')}
-            className="bg-orange-50 text-orange-600 hover:bg-orange-100 px-3 py-1.5 rounded text-xs transition-colors font-medium border border-orange-200 flex items-center gap-1"
-            title="Ir a verificar transferencias"
+            onClick={() => {
+              window.location.href = `/admin/caja/conciliacion?buscar=${encodeURIComponent(row.identidad || row.referencia || '')}`;
+            }}
+            className="bg-orange-50 text-orange-600 hover:bg-orange-100 px-3 py-1.5 rounded text-xs transition-colors font-medium border border-orange-200 flex items-center gap-1 shadow-sm"
+            title="Ir a conciliar transferencia en Caja"
           >
             <CheckCircle size={14} /> Verificar
           </button>

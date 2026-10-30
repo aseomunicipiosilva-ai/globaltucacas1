@@ -103,6 +103,7 @@ function ContribuyentesPageContent() {
   const [modalPeriodoOpen, setModalPeriodoOpen] = useState(false);
   const [tipoVistaDeuda, setTipoVistaDeuda] = useState<'agrupado' | 'detallada'>('detallada');
   const [modificandoMes, setModificandoMes] = useState<any>(null);
+  const [facturasAjustes, setFacturasAjustes] = useState<Record<string, any>>({});
   const [nuevaActividadMes, setNuevaActividadMes] = useState('');
   const [nuevoNivelMes, setNuevoNivelMes] = useState('0 - 50 m²');
   const [nuevoMontoMes, setNuevoMontoMes] = useState('');
@@ -468,12 +469,33 @@ function ContribuyentesPageContent() {
 
       if (fErr) throw fErr;
 
-      // Actualizar actividad principal del inmueble asociado si corresponde
-      if (nuevaActividadMes && viewData) {
-        await supabase
-          .from('inmuebles')
-          .update({ actividad_principal: nuevaActividadMes })
-          .or(`identidad.eq.${viewData.Identidad},contribuyente.eq.${viewData.Contribuyente}`);
+      // Calcular factor MMV según la actividad y nivel seleccionados
+      let factorMes = 0;
+      const actCom = todasLasActividades.find(a => a.label === nuevaActividadMes);
+      if (actCom) {
+        const nivelIdx = Math.max(0, ordenanzaData.nivelesMetraje.indexOf(nuevoNivelMes));
+        factorMes = actCom.factores[nivelIdx] || actCom.factores[0] || 0;
+      } else {
+        const tipoRes = ordenanzaData.tiposResidenciales.find(t => t.label === nuevaActividadMes);
+        if (tipoRes) factorMes = tipoRes.factor || 0;
+      }
+
+      // Guardar el ajuste específico del mes en sistema_config SIN alterar los otros meses del inmueble
+      const mesAjuste = {
+        actividad: nuevaActividadMes,
+        nivel: nuevoNivelMes,
+        mmv_mes: factorMes,
+        monto: nuevoMonto.toFixed(2)
+      };
+
+      try {
+        const { data: cfgRow } = await supabase.from('sistema_config').select('valor').eq('id', 'facturas_ajustes_meses').maybeSingle();
+        const ajustes = (cfgRow && cfgRow.valor) ? cfgRow.valor : {};
+        ajustes[modificandoMes.referencia] = mesAjuste;
+        await supabase.from('sistema_config').upsert({ id: 'facturas_ajustes_meses', valor: ajustes });
+        setFacturasAjustes(prev => ({ ...prev, [modificandoMes.referencia]: mesAjuste }));
+      } catch (err) {
+        console.error('Error guardando ajuste mensual:', err);
       }
 
       // Actualizar estado local de facturas
@@ -723,7 +745,14 @@ function ContribuyentesPageContent() {
       const calcMonto = (f: any): number => {
         if (f.estado === 'Abonado') return parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
         let baseMonto = parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
-        if (f.referencia?.startsWith('CM-') && tcmmv && tcmmv > 0) {
+        const ajuste = facturasAjustes[f.referencia];
+        if (ajuste) {
+          if (ajuste.mmv_mes && ajuste.mmv_mes > 0 && tcmmv > 0) {
+            baseMonto = parseFloat((ajuste.mmv_mes * tcmmv).toFixed(2));
+          } else if (ajuste.monto) {
+            baseMonto = parseFloat(ajuste.monto);
+          }
+        } else if (f.referencia?.startsWith('CM-') && tcmmv && tcmmv > 0) {
           const cant = parseFloat(inm.cant_inmuebles || 1);
           const mmv = parseFloat(inm.mmv_mes || 0);
           if (mmv > 0) baseMonto = parseFloat((cant * mmv * tcmmv).toFixed(2));
@@ -820,8 +849,10 @@ function ContribuyentesPageContent() {
       } else {
         detalleRows = inmRecibos.map((f: any) => {
           const monto = calcMonto(f);
-          const det = inm.actividad_principal
-            ? `Aseo ${inm.actividad_principal}`
+          const ajuste = facturasAjustes[f.referencia];
+          const actName = ajuste?.actividad || inm.actividad_principal;
+          const det = actName
+            ? `Aseo ${actName}`
             : 'Aseo residencial';
           return [
             f.emision || '—',
@@ -2627,7 +2658,14 @@ function ContribuyentesPageContent() {
                     const getMontoActual = (f: any): number => {
                       if (f.estado === 'Abonado') return parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
                       let base = parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
-                      if (f.referencia?.startsWith('CM-')) {
+                      const ajuste = facturasAjustes[f.referencia];
+                      if (ajuste) {
+                        if (ajuste.mmv_mes && ajuste.mmv_mes > 0 && tcmmv > 0) {
+                          base = parseFloat((ajuste.mmv_mes * tcmmv).toFixed(2));
+                        } else if (ajuste.monto) {
+                          base = parseFloat(ajuste.monto);
+                        }
+                      } else if (f.referencia?.startsWith('CM-')) {
                         const matchedInm = userInms.find((inm: any) =>
                           (inm.inmueble && f.referencia.includes(inm.inmueble)) ||
                           (inm.cod_cont && f.referencia.includes(inm.cod_cont))
@@ -2794,7 +2832,14 @@ function ContribuyentesPageContent() {
                                   return (
                                     <tr key={idx} className="border-b border-slate-100 last:border-0 bg-white group">
                                       <td className="px-4 py-2 font-medium text-slate-700 text-xs">{d.referencia}</td>
-                                      <td className="px-4 py-2 text-slate-700 font-semibold text-xs whitespace-nowrap">{mesLabel}</td>
+                                      <td className="px-4 py-2 text-slate-700 font-semibold text-xs whitespace-nowrap">
+                                        <div>{mesLabel}</div>
+                                        {facturasAjustes[d.referencia]?.actividad && (
+                                          <span className="text-[10px] text-blue-700 font-bold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 inline-block mt-0.5">
+                                            {facturasAjustes[d.referencia].actividad}
+                                          </span>
+                                        )}
+                                      </td>
                                       <td className="px-4 py-2">
                                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${d.estado === 'Por Verificar' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
                                           {d.estado || 'Pendiente'}

@@ -218,12 +218,12 @@ export async function POST(request: Request) {
       mensaje = inmuebleData?.decreto_activo
         ? 'El contribuyente ya tiene un decreto activo y sus facturas anteriores ya fueron refinanciadas.'
         : 'El contribuyente no posee facturas pendientes en el período del decreto (Ene 2024 - Sep 2026).';
-    } else if (sector.toUpperCase() === 'COMERCIAL' && mesesMorosidad <= 4) {
+    } else if (sector.toUpperCase() === 'COMERCIAL' && mesesMorosidad < 4) {
       eligible = false;
-      mensaje = 'Morosidad insuficiente (<= 4 meses). Derivar a convenio ordinario.';
-    } else if (sector.toUpperCase() === 'CONDOMINIO' && mesesMorosidad <= 3) {
+      mensaje = 'Morosidad insuficiente (< 4 meses). Derivar a convenio ordinario.';
+    } else if (sector.toUpperCase() === 'CONDOMINIO' && mesesMorosidad < 3) {
       eligible = false;
-      mensaje = 'Morosidad insuficiente (<= 3 meses). Derivar a convenio ordinario.';
+      mensaje = 'Morosidad insuficiente (< 3 meses). Derivar a convenio ordinario.';
     }
 
     if (!eligible && action === 'procesar') {
@@ -235,11 +235,29 @@ export async function POST(request: Request) {
     }
 
     // 3. Calcular deuda reliquidada
+    // Consultar tasa BCV y ajustes mensuales registrados
+    const { data: bcvData } = await supabase.from('sistema_config').select('tasa_bcv').single();
+    const currentRateBcv = bcvData ? parseFloat(bcvData.tasa_bcv) : 36.5;
+
+    const { data: cfgAjustes } = await supabase.from('sistema_config').select('valor').eq('id', 'facturas_ajustes_meses').maybeSingle();
+    const ajustesMeses = cfgAjustes?.valor || {};
+
     let capitalTotal = 0;
     let accesoriosTotal = 0;
 
     facturasValidas.forEach(f => {
-      const montoOriginal = parseFloat(f.monto || '0');
+      let montoOriginal = parseFloat(f.monto || '0');
+      // Si la factura tiene un ajuste mensual específico (ej. Inmueble desocupado)
+      if (ajustesMeses[f.referencia]?.monto) {
+        montoOriginal = parseFloat(ajustesMeses[f.referencia].monto);
+      } else if (inmuebleData?.mmv_mes && f.referencia?.startsWith('CM-') && currentRateBcv > 0) {
+        // Si el metraje / nivel del inmueble fue modificado, usar el mmv_mes actual del inmueble
+        const cantInm = parseFloat(inmuebleData.cant_inmuebles || 1);
+        const mmvInm = parseFloat(inmuebleData.mmv_mes || 0);
+        if (mmvInm > 0) {
+          montoOriginal = parseFloat((cantInm * mmvInm * currentRateBcv).toFixed(2));
+        }
+      }
       capitalTotal += montoOriginal;
     });
 
@@ -308,6 +326,20 @@ export async function POST(request: Request) {
         estadoConvenio = isAprobado ? 'Solvente' : 'Por Verificar';
       }
 
+      // Calcular período del decreto a partir de facturas refinanciadas
+      const MESES_ES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+      const emisionFechas = facturasValidas.map(f => f.emision).filter(Boolean).sort();
+      let periodoDecreto = 'ENERO 2024 A SEPTIEMBRE 2026';
+      if (emisionFechas.length > 0) {
+        const fmtM = (str: string) => {
+          const p = str.split('-');
+          return p.length >= 2 ? `${MESES_ES[parseInt(p[1]) - 1]} ${p[0]}` : str;
+        };
+        const fIni = fmtM(emisionFechas[0]);
+        const fFin = fmtM(emisionFechas[emisionFechas.length - 1]);
+        periodoDecreto = fIni === fFin ? fIni : `${fIni} A ${fFin}`;
+      }
+
       // Guardar metadata del convenio (pago inicial acordado, cuotas, e inmueble específico)
       const codInmRef = inmuebleData?.inmueble || inmuebleData?.cod_cont || '';
       const convenioMeta = {
@@ -322,7 +354,9 @@ export async function POST(request: Request) {
         decreto: parametros.numero_decreto,
         porcentaje_condonacion: pctCapital,
         capital_original: capitalTotal,
-        rebaja_capital: rebajaCapital
+        rebaja_capital: rebajaCapital,
+        periodo_decreto: periodoDecreto,
+        meses_amparados: facturasValidas.length
       };
 
       // 1. Crear registro en tabla convenios
@@ -369,7 +403,10 @@ export async function POST(request: Request) {
             detalles: {
               convenio_numero: numConvenio,
               decreto: parametros.numero_decreto,
-              concepto: tipoPago === 'contado' ? 'Pago Único de Contado (Decreto)' : 'Pago Inicial de Convenio (Decreto)',
+              periodo_decreto: periodoDecreto,
+              concepto: tipoPago === 'contado' 
+                ? `Pago Único de Contado (Decreto N° ${parametros.numero_decreto}) - Período: ${periodoDecreto} - Convenio ${numConvenio}`
+                : `Pago Inicial de Convenio (Decreto N° ${parametros.numero_decreto}) - Período: ${periodoDecreto} - Convenio ${numConvenio}`,
               tipo_pago: tipoPago,
               cuota_pagada: tipoPago === 'contado' ? 'Total' : 'Inicial',
               cajero: usuario || 'Administrador',

@@ -375,6 +375,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
             .eq('identidad', id);
           if (updErr) throw updErr;
         }
+
+        // Sincronizar monto en facturas pendientes con el nuevo metraje/actividad
+        if (mmvMes > 0 && tcmmv && tcmmv > 0) {
+          const nuevoMontoMes = (mmvMes * tcmmv).toFixed(2);
+          await supabase
+            .from('facturas')
+            .update({ monto: nuevoMontoMes })
+            .in('estado', ['Pendiente'])
+            .or(`identidad.eq.${id},identidad.eq.${cleanId},identidad.eq.${targetIdentidad}`);
+        }
       }
 
       // Re-cargar inmediatamente todo el estado para sincronizar la UI

@@ -268,14 +268,41 @@ export default function DecretosPage() {
         };
       });
 
+      const MESES_ES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+      const fmtM = (str: string) => {
+        if (!str) return '';
+        const p = str.split('-');
+        return p.length >= 2 ? `${MESES_ES[parseInt(p[1]) - 1]} ${p[0]}` : str;
+      };
+
+      let convMeta: any = {};
+      if (conv?.documento_url && conv.documento_url.startsWith('meta:')) {
+        try { convMeta = JSON.parse(conv.documento_url.slice(5)); } catch(e){}
+      }
+
+      let periodoDecreto = det.periodo_decreto || (convMeta ? convMeta.periodo_decreto : '') || '';
+      if (!periodoDecreto) {
+        try {
+          const { data: facs } = await supabase.from('facturas').select('emision, estado').eq('identidad', conv.identidad);
+          const refFacs = (facs || []).filter((f: any) => f.estado === 'Refinanciado' || (f.emision && f.emision >= '2024-01-01' && f.emision <= '2026-09-30'));
+          const fechas = refFacs.map((f: any) => f.emision).filter(Boolean).sort();
+          if (fechas.length > 0) {
+            const fIni = fmtM(fechas[0]);
+            const fFin = fmtM(fechas[fechas.length - 1]);
+            periodoDecreto = fIni === fFin ? fIni : `${fIni} A ${fFin}`;
+          }
+        } catch (_e) {}
+      }
+
+      const strPeriodo = periodoDecreto ? ` - Período: ${periodoDecreto}` : '';
       const isInicial = det.cuota_pagada === 'Inicial' || (det.concepto && det.concepto.toLowerCase().includes('inicial'));
       const isContado = det.cuota_pagada === 'Total' || det.tipo_pago === 'contado' || (det.concepto && det.concepto.toLowerCase().includes('contado'));
       
       const conceptoTitulo = isInicial 
-        ? `Pago Inicial de Convenio (Decreto N° ${det.decreto || '010-DA-09-2026'}) - Convenio ${conv.numero}`
+        ? `Pago Inicial de Convenio (Decreto N° ${det.decreto || '010-DA-09-2026'})${strPeriodo} - Convenio ${conv.numero}`
         : isContado 
-        ? `Pago Único de Contado (Decreto N° ${det.decreto || '010-DA-09-2026'}) - Convenio ${conv.numero}`
-        : (det.concepto || `Pago de Convenio ${conv.numero}`);
+        ? `Pago Único de Contado (Decreto N° ${det.decreto || '010-DA-09-2026'})${strPeriodo} - Convenio ${conv.numero}`
+        : (det.concepto ? `${det.concepto}${strPeriodo}` : `Pago de Convenio ${conv.numero}${strPeriodo}`);
 
       const conceptos = [
         {
