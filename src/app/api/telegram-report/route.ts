@@ -86,6 +86,61 @@ async function generarReporte(request?: Request) {
           });
         }
 
+        if (url.searchParams.get('test') === '1' || url.searchParams.get('prueba') === '1') {
+          let updates: any[] = [];
+          try {
+            const updRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates`);
+            const updData = await updRes.json();
+            updates = updData.result || [];
+          } catch(e) {}
+
+          const chatsToSend = new Set<string>();
+          if (TELEGRAM_CHAT_ID) chatsToSend.add(String(TELEGRAM_CHAT_ID));
+
+          updates.forEach((u: any) => {
+            const cId = u.message?.chat?.id || u.channel_post?.chat?.id || u.my_chat_member?.chat?.id;
+            if (cId) chatsToSend.add(String(cId));
+          });
+
+          const horaActualStr = `${pad(vzNow.getUTCHours())}:${pad(vzNow.getUTCMinutes())}`;
+          const fechaActualStr = new Date().toLocaleDateString('es-VE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+          const testMsg = [
+            `🏛️ <b>ISMA — Aseo Urbano Tucacas</b>`,
+            `🔔 <b>MENSAJE DE PRUEBA DE CONEXIÓN</b>`,
+            ``,
+            `¡Hola! 👋 Esta es una prueba de conexión en tiempo real del bot de recaudación de Aseo Urbano Tucacas.`,
+            ``,
+            `✅ <b>Estado del bot:</b> Operativo y conectado 100%`,
+            `⏰ <b>Hora:</b> ${horaActualStr} VE`,
+            `📅 <b>Fecha:</b> ${fechaActualStr}`,
+            ``,
+            `Si estás leyendo este mensaje, tu cuenta o grupo ya está enlazado correctamente para recibir los reportes diarios de las 12:00 m y 6:00 pm.`
+          ].join('\n');
+
+          const results: any[] = [];
+          for (const cId of Array.from(chatsToSend)) {
+            try {
+              const sendRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: cId, text: testMsg, parse_mode: 'HTML' }),
+              });
+              const sendData = await sendRes.json();
+              results.push({ chatId: cId, ok: sendData.ok, description: sendData.description || null });
+            } catch(err: any) {
+              results.push({ chatId: cId, ok: false, error: err.message });
+            }
+          }
+
+          return NextResponse.json({
+            success: true,
+            mensaje: 'Prueba enviada',
+            destinatarios: results,
+            totalEnviados: results.filter(r => r.ok).length
+          });
+        }
+
         const qFecha = url.searchParams.get('fecha');
         if (qFecha && /^\d{4}-\d{2}-\d{2}$/.test(qFecha)) hoy = qFecha;
         customTurno = url.searchParams.get('turno');
