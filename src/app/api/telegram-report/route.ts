@@ -76,13 +76,19 @@ async function generarReporte(request?: Request) {
               invite = await invRes2.json();
             } catch(e) {}
           }
+          const whRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getWebhookInfo`);
+          const wh = await whRes.json();
+          const updRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates`);
+          const upd = await updRes.json();
+
           return NextResponse.json({
             ok: true,
             bot: me?.result,
             botUrl: me?.result?.username ? `https://t.me/${me.result.username}` : null,
             chatId: TELEGRAM_CHAT_ID,
             inviteLink: invite?.result?.invite_link || (typeof invite?.result === 'string' ? invite.result : null),
-            inviteRaw: invite
+            webhook: wh,
+            updates: upd
           });
         }
 
