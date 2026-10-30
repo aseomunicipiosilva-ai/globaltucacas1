@@ -1,10 +1,7 @@
 // ============================================================
 // API Route: /api/telegram-report
 // Reportes automáticos a las 12:00 y 18:00 hora Venezuela
-// Variables requeridas en Vercel:
-//   TELEGRAM_BOT_TOKEN  — token del bot de Telegram
-//   TELEGRAM_CHAT_ID    — ID del grupo/canal destino
-//   SUPABASE_SERVICE_ROLE_KEY — para leer sin RLS
+// Multi-destinatario (envío al principal y a todos los chats/grupos suscritos)
 // ============================================================
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -21,26 +18,142 @@ const supabase = createClient(
 const fmt = (n: number) => n.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const parseMonto = (v: any) => parseFloat(String(v || 0).replace(/[^\d.]/g, '')) || 0;
 
-async function enviarTelegram(msg: string): Promise<boolean> {
-  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-    console.warn('[Telegram] Token o Chat ID no configurados.');
-    return false;
-  }
+async function obtenerTodosLosChats(): Promise<string[]> {
+  const chats = new Set<string>();
+  if (TELEGRAM_CHAT_ID) chats.add(String(TELEGRAM_CHAT_ID));
+  try {
+    const { data: cfg } = await supabase.from('sistema_config').select('valor').eq('id', 'telegram_subscriptores').maybeSingle();
+    if (Array.isArray(cfg?.valor)) {
+      cfg.valor.forEach((s: any) => {
+        if (s?.id) chats.add(String(s.id));
+      });
+    }
+  } catch(e) {}
+  return Array.from(chats);
+}
+
+async function enviarTelegramDirecto(chatId: string, msg: string): Promise<boolean> {
+  if (!TELEGRAM_BOT_TOKEN || !chatId) return false;
   try {
     const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: msg, parse_mode: 'HTML' }),
+      body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: 'HTML' }),
     });
     const d = await res.json();
     return d.ok === true;
-  } catch (e) { console.error('[Telegram] Error:', e); return false; }
+  } catch (e) {
+    console.error('[Telegram Directo] Error:', e);
+    return false;
+  }
 }
 
-export async function GET(request: Request) { return generarReporte(request); }
-export async function POST(request: Request) { return generarReporte(request); }
+async function enviarTelegramATodos(msg: string): Promise<{ total: number, enviados: number, fallidos: number, chats: any[] }> {
+  if (!TELEGRAM_BOT_TOKEN) return { total: 0, enviados: 0, fallidos: 0, chats: [] };
+  const chats = await obtenerTodosLosChats();
+  const results: any[] = [];
+  for (const cId of chats) {
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: cId, text: msg, parse_mode: 'HTML' }),
+      });
+      const d = await res.json();
+      results.push({ chatId: cId, ok: d.ok === true, description: d.description || null });
+    } catch(e: any) {
+      results.push({ chatId: cId, ok: false, error: e.message });
+    }
+  }
+  const okCount = results.filter(r => r.ok).length;
+  return {
+    total: chats.length,
+    enviados: okCount,
+    fallidos: chats.length - okCount,
+    chats: results
+  };
+}
 
-async function generarReporte(request?: Request) {
+// ── MANEJADOR DE WEBHOOK TELEGRAM ─────────────────────────────
+async function manejarWebhookTelegram(body: any) {
+  try {
+    const msg = body.message || body.channel_post || body.edited_message;
+    const chatMember = body.my_chat_member;
+    const chat = msg?.chat || chatMember?.chat;
+    
+    if (!chat || !chat.id) {
+      return NextResponse.json({ ok: true });
+    }
+
+    const chatId = String(chat.id);
+    const nombre = chat.title || [chat.first_name, chat.last_name].filter(Boolean).join(' ') || chat.username || 'Usuario';
+    const tipo = chat.type || 'private';
+
+    // Obtener subscriptores actuales
+    const { data: cfg } = await supabase.from('sistema_config').select('valor').eq('id', 'telegram_subscriptores').maybeSingle();
+    let subscriptores: any[] = Array.isArray(cfg?.valor) ? cfg.valor : [];
+
+    const index = subscriptores.findIndex((s: any) => String(s.id) === chatId);
+    if (index === -1) {
+      subscriptores.push({
+        id: chatId,
+        nombre,
+        tipo,
+        fecha: new Date().toISOString()
+      });
+    } else {
+      subscriptores[index] = {
+        ...subscriptores[index],
+        nombre,
+        tipo,
+        updated_at: new Date().toISOString()
+      };
+    }
+
+    // Guardar en Supabase
+    await supabase.from('sistema_config').upsert({
+      id: 'telegram_subscriptores',
+      valor: subscriptores,
+      updated_at: new Date().toISOString()
+    });
+
+    // Enviar bienvenida al chat que escribió
+    const bienvenida = [
+      `🏛️ <b>ISMA — Aseo Urbano Tucacas</b>`,
+      `✅ <b>¡Suscripción Activada con Éxito!</b>`,
+      ``,
+      `Hola <b>${nombre}</b> 👋`,
+      `Este chat ha quedado suscrito para recibir automáticamente los <b>Reportes Diarios de Recaudación</b>:`,
+      `🌤️ <b>Turno Mediodía:</b> 12:00 m`,
+      `🌆 <b>Turno Tarde / Cierre:</b> 6:00 pm`,
+      ``,
+      `<i>A partir de ahora, cada reporte emitido llegará automáticamente a este chat sin que tengas que solicitarlo.</i>`
+    ].join('\n');
+
+    await enviarTelegramDirecto(chatId, bienvenida);
+
+    return NextResponse.json({ ok: true, registrado: chatId, nombre });
+  } catch(e: any) {
+    console.error('[Webhook Telegram]', e);
+    return NextResponse.json({ ok: true });
+  }
+}
+
+export async function GET(request: Request) { return procesarReporte(request); }
+export async function POST(request: Request) {
+  try {
+    const contentType = request.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const body = await request.clone().json().catch(() => null);
+      if (body && (body.update_id || body.message || body.my_chat_member || body.channel_post)) {
+        return manejarWebhookTelegram(body);
+      }
+    }
+  } catch(e) {}
+  return procesarReporte(request);
+}
+
+async function procesarReporte(request?: Request) {
   try {
     // Fecha/hora Venezuela (UTC-4)
     const now   = new Date();
@@ -48,66 +161,51 @@ async function generarReporte(request?: Request) {
     const pad   = (n: number) => String(n).padStart(2, '0');
     let hoy     = `${vzNow.getUTCFullYear()}-${pad(vzNow.getUTCMonth()+1)}-${pad(vzNow.getUTCDate())}`;
     
-    // Soporte para parámetros opcionales ?fecha=YYYY-MM-DD &turno=TARDE &hora=18:00 &info=bot
     let customTurno: string | null = null;
     let customHora: string | null = null;
+
     if (request) {
       try {
         const url = new URL(request.url);
+
+        // 1. Configurar Webhook en Telegram
+        if (url.searchParams.get('action') === 'setWebhook') {
+          const webhookUrl = `https://globaltucacas1.vercel.app/api/telegram-report`;
+          const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook?url=${encodeURIComponent(webhookUrl)}`);
+          const data = await res.json();
+          return NextResponse.json({ webhookUrl, result: data });
+        }
+
+        // 2. Información del Bot
         if (url.searchParams.get('info') === 'bot') {
           const meRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe`);
           const me = await meRes.json();
-          let invite: any = null;
-          try {
-            const invRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/exportChatInviteLink`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID })
-            });
-            invite = await invRes.json();
-          } catch(e) {}
-          if (!invite || !invite.ok) {
-            try {
-              const invRes2 = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/createChatInviteLink`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, name: 'Canal Reportes ISMA' })
-              });
-              invite = await invRes2.json();
-            } catch(e) {}
-          }
-          const whRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getWebhookInfo`);
-          const wh = await whRes.json();
-          const updRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates`);
-          const upd = await updRes.json();
-
+          const { data: cfg } = await supabase.from('sistema_config').select('valor').eq('id', 'telegram_subscriptores').maybeSingle();
           return NextResponse.json({
             ok: true,
             bot: me?.result,
             botUrl: me?.result?.username ? `https://t.me/${me.result.username}` : null,
-            chatId: TELEGRAM_CHAT_ID,
-            inviteLink: invite?.result?.invite_link || (typeof invite?.result === 'string' ? invite.result : null),
-            webhook: wh,
-            updates: upd
+            chatPrincipal: TELEGRAM_CHAT_ID,
+            subscriptores: cfg?.valor || []
           });
         }
 
+        // 3. Agregar chat manualmente (?addChatId=123456&nombre=Grupo)
+        const addChatId = url.searchParams.get('addChatId');
+        if (addChatId) {
+          const nombreChat = url.searchParams.get('nombre') || 'Chat Registrado';
+          const { data: cfg } = await supabase.from('sistema_config').select('valor').eq('id', 'telegram_subscriptores').maybeSingle();
+          let subs: any[] = Array.isArray(cfg?.valor) ? cfg.valor : [];
+          if (!subs.some((s: any) => String(s.id) === String(addChatId))) {
+            subs.push({ id: String(addChatId), nombre: nombreChat, fecha: new Date().toISOString() });
+            await supabase.from('sistema_config').upsert({ id: 'telegram_subscriptores', valor: subs, updated_at: new Date().toISOString() });
+          }
+          await enviarTelegramDirecto(String(addChatId), `🏛️ <b>ISMA — Aseo Urbano Tucacas</b>\n\n✅ <b>¡Chat Registrado!</b>\nEste chat recibirá todos los reportes diarios de recaudación.`);
+          return NextResponse.json({ success: true, subscriptores: subs });
+        }
+
+        // 4. Mensaje de prueba (?test=1)
         if (url.searchParams.get('test') === '1' || url.searchParams.get('prueba') === '1') {
-          let updates: any[] = [];
-          try {
-            const updRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates`);
-            const updData = await updRes.json();
-            updates = updData.result || [];
-          } catch(e) {}
-
-          const chatsToSend = new Set<string>();
-          if (TELEGRAM_CHAT_ID) chatsToSend.add(String(TELEGRAM_CHAT_ID));
-
-          updates.forEach((u: any) => {
-            const cId = u.message?.chat?.id || u.channel_post?.chat?.id || u.my_chat_member?.chat?.id;
-            if (cId) chatsToSend.add(String(cId));
-          });
-
           const horaActualStr = `${pad(vzNow.getUTCHours())}:${pad(vzNow.getUTCMinutes())}`;
           const fechaActualStr = new Date().toLocaleDateString('es-VE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
@@ -124,27 +222,8 @@ async function generarReporte(request?: Request) {
             `Si estás leyendo este mensaje, tu cuenta o grupo ya está enlazado correctamente para recibir los reportes diarios de las 12:00 m y 6:00 pm.`
           ].join('\n');
 
-          const results: any[] = [];
-          for (const cId of Array.from(chatsToSend)) {
-            try {
-              const sendRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chat_id: cId, text: testMsg, parse_mode: 'HTML' }),
-              });
-              const sendData = await sendRes.json();
-              results.push({ chatId: cId, ok: sendData.ok, description: sendData.description || null });
-            } catch(err: any) {
-              results.push({ chatId: cId, ok: false, error: err.message });
-            }
-          }
-
-          return NextResponse.json({
-            success: true,
-            mensaje: 'Prueba enviada',
-            destinatarios: results,
-            totalEnviados: results.filter(r => r.ok).length
-          });
+          const envio = await enviarTelegramATodos(testMsg);
+          return NextResponse.json({ success: true, mensaje: 'Prueba enviada a todos los subscriptores', envio });
         }
 
         const qFecha = url.searchParams.get('fecha');
@@ -161,9 +240,7 @@ async function generarReporte(request?: Request) {
     const startVE = new Date(hoy + 'T00:00:00-04:00').getTime();
     const endVE   = new Date(hoy + 'T23:59:59.999-04:00').getTime();
 
-    // ── 1. Pagos del día (ALINEADO 100% CON REPORTE GENERAL DE INGRESOS / EXCEL) ───
-    // Considera todos los pagos registrados en el día (fecha_registro o created_at)
-    // Excluye anulados, reversados, condonados y rechazados
+    // ── 1. Pagos del día ─────────────────────────────────────────
     const { data: todosPagos } = await supabase
       .from('pagos_reportados')
       .select('id, monto, tipo, estado, identidad, created_at, detalles')
@@ -208,13 +285,13 @@ async function generarReporte(request?: Request) {
       .select('*', { count: 'exact', head: true })
       .eq('estado', 'Por Verificar');
 
-    // ── 3. Total usuarios (contribuyentes en inmuebles) ──────────
+    // ── 3. Total usuarios ────────────────────────────────────────
     const { count: totalUsuarios } = await supabase
       .from('inmuebles')
       .select('*', { count: 'exact', head: true })
       .not('estado', 'eq', 'Eliminado');
 
-    // ── 4. Deuda total del sistema (recibos Pendiente) ─────────
+    // ── 4. Deuda total del sistema ──────────────────────────────
     const { data: facturasPend } = await supabase
       .from('facturas')
       .select('monto')
@@ -226,16 +303,20 @@ async function generarReporte(request?: Request) {
     // ── 5. Tasa BCV actual ──────────────────────────────────────
     let tasaBcv = 0;
     try {
-      const r = await fetch('https://ve.dolarapi.com/v1/euros/oficial', { cache: 'no-store' });
-      const d = await r.json();
-      tasaBcv = d.promedio || 0;
+      const { data: bcvCfg } = await supabase.from('sistema_config').select('valor').eq('id', 'tasa_bcv_semanal').maybeSingle();
+      if (bcvCfg?.valor) tasaBcv = parseFloat(bcvCfg.valor) || 0;
     } catch(e) {}
 
     if (!tasaBcv || tasaBcv <= 0) {
       try {
-        const { data: cfgRow } = await supabase.from('sistema_config').select('tasa_bcv, tcmmv').limit(1).maybeSingle();
-        tasaBcv = parseFloat(cfgRow?.tasa_bcv || cfgRow?.tcmmv || '0') || 0;
-      } catch(_e) {}
+        const r = await fetch('https://ve.dolarapi.com/v1/euros/oficial', { cache: 'no-store' });
+        const d = await r.json();
+        tasaBcv = d.promedio || 0;
+      } catch(e) {}
+    }
+
+    if (!tasaBcv || tasaBcv <= 0) {
+      tasaBcv = 992.80;
     }
 
     const fechaFmt = new Date(hoy + 'T12:00:00').toLocaleDateString('es-VE', {
@@ -276,7 +357,7 @@ async function generarReporte(request?: Request) {
       `⏰ Generado automáticamente — ${horaStr} VE`,
     ].join('\n');
 
-    const enviado = await enviarTelegram(mensaje);
+    const envio = await enviarTelegramATodos(mensaje);
 
     return NextResponse.json({
       success: true,
@@ -293,10 +374,10 @@ async function generarReporte(request?: Request) {
       totalUsuarios,
       deudaTotal,
       tasaBcv,
-      telegramEnviado: enviado,
-      mensaje: enviado
-        ? `Reporte ${turno} enviado a Telegram`
-        : 'Telegram no configurado — agregar TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID en Vercel',
+      destinatariosTotal: envio.total,
+      destinatariosEnviados: envio.enviados,
+      envioDetalle: envio.chats,
+      mensaje: `Reporte ${turno} enviado a ${envio.enviados} destinatario(s)`
     });
 
   } catch (e: any) {
