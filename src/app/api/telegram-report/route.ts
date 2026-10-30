@@ -1,6 +1,6 @@
-﻿// ============================================================
+// ============================================================
 // API Route: /api/telegram-report
-// Reportes automaticos a las 12:00 y 18:00 hora Venezuela
+// Reportes automáticos a las 12:00 y 18:00 hora Venezuela
 // Variables requeridas en Vercel:
 //   TELEGRAM_BOT_TOKEN  — token del bot de Telegram
 //   TELEGRAM_CHAT_ID    — ID del grupo/canal destino
@@ -46,7 +46,17 @@ async function generarReporte(request?: Request) {
     const now   = new Date();
     const vzNow = new Date(now.getTime() - 4 * 60 * 60 * 1000);
     const pad   = (n: number) => String(n).padStart(2, '0');
-    const hoy   = `${vzNow.getUTCFullYear()}-${pad(vzNow.getUTCMonth()+1)}-${pad(vzNow.getUTCDate())}`;
+    let hoy     = `${vzNow.getUTCFullYear()}-${pad(vzNow.getUTCMonth()+1)}-${pad(vzNow.getUTCDate())}`;
+    
+    // Soporte para parámetro opcional ?fecha=YYYY-MM-DD
+    if (request) {
+      try {
+        const url = new URL(request.url);
+        const qFecha = url.searchParams.get('fecha');
+        if (qFecha && /^\d{4}-\d{2}-\d{2}$/.test(qFecha)) hoy = qFecha;
+      } catch (_e) {}
+    }
+
     const hora  = vzNow.getUTCHours();
     const turno = hora < 15 ? 'MEDIODÍA' : 'TARDE';
     const horaStr = `${pad(hora)}:${pad(vzNow.getUTCMinutes())}`;
@@ -54,40 +64,46 @@ async function generarReporte(request?: Request) {
     const startVE = new Date(hoy + 'T00:00:00-04:00').getTime();
     const endVE   = new Date(hoy + 'T23:59:59.999-04:00').getTime();
 
-    // ── 1. Pagos aprobados del día (igual que en Cuadre de Caja) ───
-    // Considera created_at, fecha_registro en caja o fecha_conciliacion del día
+    // ── 1. Pagos del día (ALINEADO 100% CON REPORTE GENERAL DE INGRESOS / EXCEL) ───
+    // Considera todos los pagos registrados en el día (fecha_registro o created_at)
+    // Excluye anulados, reversados, condonados y rechazados
     const { data: todosPagos } = await supabase
       .from('pagos_reportados')
       .select('id, monto, tipo, estado, identidad, created_at, detalles')
       .order('created_at', { ascending: false })
-      .limit(1000);
+      .limit(2000);
 
     const pagos = (todosPagos || []).filter(p => {
-      if (p.estado !== 'Aprobado') return false;
+      if (p.estado === 'Anulado' || p.estado === 'Reversado' || p.estado === 'Condonado' || p.estado === 'Rechazado') return false;
       let d: any = {};
       try { d = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
       
-      const tCreated = new Date(p.created_at).getTime();
-      const tRegistro = d.fecha_registro ? new Date(d.fecha_registro).getTime() : 0;
-      const tConciliacion = d.fecha_conciliacion ? new Date(d.fecha_conciliacion).getTime() : 0;
+      const fechaBase = d.fecha_registro || p.created_at;
+      const t = new Date(fechaBase).getTime();
 
-      const inCreated = tCreated >= startVE && tCreated <= endVE;
-      const inRegistro = tRegistro >= startVE && tRegistro <= endVE;
-      const inConciliadoHoy = tConciliacion >= startVE && tConciliacion <= endVE;
-
-      return inCreated || inRegistro || inConciliadoHoy;
+      return t >= startVE && t <= endVE;
     });
 
     const isDebito = (t: string) => t === 'Debito' || t === 'Punto de Venta' || t === 'REC';
-    const isTransf = (t: string) => !isDebito(t) && t !== 'Saldo a Favor';
+    const isSaldo  = (t: string) => t === 'Saldo a Favor';
+    const isTransf = (t: string) => !isDebito(t) && !isSaldo(t);
 
-    const totalDia          = pagos.reduce((a, p) => a + parseMonto(p.monto), 0);
-    const totalDebito       = pagos.filter(p => isDebito(p.tipo)).reduce((a, p) => a + parseMonto(p.monto), 0);
-    const totalTransfer     = pagos.filter(p => isTransf(p.tipo)).reduce((a, p) => a + parseMonto(p.monto), 0);
-    const totalSaldoFavor   = pagos.filter(p => p.tipo === 'Saldo a Favor').reduce((a, p) => a + parseMonto(p.monto), 0);
-    const cantDebito        = pagos.filter(p => isDebito(p.tipo)).length;
-    const cantTransfer      = pagos.filter(p => isTransf(p.tipo)).length;
-    const usuariosPagaron   = new Set(pagos.map(p => p.identidad)).size;
+    const debitos = pagos.filter(p => isDebito(p.tipo));
+    const transferencias = pagos.filter(p => isTransf(p.tipo));
+    const saldos = pagos.filter(p => isSaldo(p.tipo));
+
+    const totalDebito     = debitos.reduce((a, p) => a + parseMonto(p.monto), 0);
+    const totalTransfer   = transferencias.reduce((a, p) => {
+      let d: any = {};
+      try { d = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+      return a + parseMonto(d.monto_conciliado || p.monto);
+    }, 0);
+    const totalSaldoFavor = saldos.reduce((a, p) => a + parseMonto(p.monto), 0);
+    const totalDia        = totalDebito + totalTransfer + totalSaldoFavor;
+
+    const cantDebito      = debitos.length;
+    const cantTransfer    = transferencias.length;
+    const usuariosPagaron = new Set(pagos.map(p => p.identidad)).size;
 
     // ── 2. Conciliaciones pendientes (Por Verificar) ────────────
     const { count: porVerificar } = await supabase
@@ -117,6 +133,13 @@ async function generarReporte(request?: Request) {
       const d = await r.json();
       tasaBcv = d.promedio || 0;
     } catch(e) {}
+
+    if (!tasaBcv || tasaBcv <= 0) {
+      try {
+        const { data: cfgRow } = await supabase.from('sistema_config').select('tasa_bcv, tcmmv').limit(1).maybeSingle();
+        tasaBcv = parseFloat(cfgRow?.tasa_bcv || cfgRow?.tcmmv || '0') || 0;
+      } catch(_e) {}
+    }
 
     const fechaFmt = new Date(hoy + 'T12:00:00').toLocaleDateString('es-VE', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
@@ -165,6 +188,9 @@ async function generarReporte(request?: Request) {
       totalDia,
       totalDebito,
       totalTransfer,
+      totalSaldoFavor,
+      cantDebito,
+      cantTransfer,
       usuariosPagaron,
       porVerificar,
       totalUsuarios,
