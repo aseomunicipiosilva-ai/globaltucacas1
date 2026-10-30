@@ -48,12 +48,44 @@ async function generarReporte(request?: Request) {
     const pad   = (n: number) => String(n).padStart(2, '0');
     let hoy     = `${vzNow.getUTCFullYear()}-${pad(vzNow.getUTCMonth()+1)}-${pad(vzNow.getUTCDate())}`;
     
-    // Soporte para parámetros opcionales ?fecha=YYYY-MM-DD &turno=TARDE &hora=18:00
+    // Soporte para parámetros opcionales ?fecha=YYYY-MM-DD &turno=TARDE &hora=18:00 &info=bot
     let customTurno: string | null = null;
     let customHora: string | null = null;
     if (request) {
       try {
         const url = new URL(request.url);
+        if (url.searchParams.get('info') === 'bot') {
+          const meRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe`);
+          const me = await meRes.json();
+          let invite: any = null;
+          try {
+            const invRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/exportChatInviteLink`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID })
+            });
+            invite = await invRes.json();
+          } catch(e) {}
+          if (!invite || !invite.ok) {
+            try {
+              const invRes2 = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/createChatInviteLink`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, name: 'Canal Reportes ISMA' })
+              });
+              invite = await invRes2.json();
+            } catch(e) {}
+          }
+          return NextResponse.json({
+            ok: true,
+            bot: me?.result,
+            botUrl: me?.result?.username ? `https://t.me/${me.result.username}` : null,
+            chatId: TELEGRAM_CHAT_ID,
+            inviteLink: invite?.result?.invite_link || (typeof invite?.result === 'string' ? invite.result : null),
+            inviteRaw: invite
+          });
+        }
+
         const qFecha = url.searchParams.get('fecha');
         if (qFecha && /^\d{4}-\d{2}-\d{2}$/.test(qFecha)) hoy = qFecha;
         customTurno = url.searchParams.get('turno');

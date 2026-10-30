@@ -200,13 +200,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Error al consultar las facturas del contribuyente. ' + facError.message }, { status: 500 });
     }
 
-    // Filtramos facturas dentro de fecha del decreto (Enero 2024 - Septiembre 2026)
+    // Filtramos facturas dentro de fecha del decreto (Enero 2024 hasta el mes actual en curso, inclusive Octubre 2026)
+    const finDecreto = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0, 23, 59, 59);
     const facturasValidas = facturas?.filter(f => {
       if (!f.emision) return false;
       const fechaFact = new Date(f.emision);
       const inicio = new Date(2024, 0, 1);
-      const fin = new Date(2026, 8, 30);
-      return fechaFact >= inicio && fechaFact <= fin;
+      return fechaFact >= inicio && fechaFact <= finDecreto;
     }) || [];
 
     const mesesMorosidad = facturasValidas.length;
@@ -236,8 +236,21 @@ export async function POST(request: Request) {
 
     // 3. Calcular deuda reliquidada
     // Consultar tasa BCV y ajustes mensuales registrados
-    const { data: bcvData } = await supabase.from('sistema_config').select('tasa_bcv').single();
-    const currentRateBcv = bcvData ? parseFloat(bcvData.tasa_bcv) : 36.5;
+    let currentRateBcv = 0;
+    try {
+      const { data: bcvConfig } = await supabase.from('sistema_config').select('valor').eq('id', 'tasa_bcv_semanal').maybeSingle();
+      if (bcvConfig?.valor) currentRateBcv = parseFloat(bcvConfig.valor) || 0;
+    } catch(e) {}
+    if (!currentRateBcv || currentRateBcv <= 0) {
+      try {
+        const r = await fetch('https://ve.dolarapi.com/v1/euros/oficial', { cache: 'no-store' });
+        const d = await r.json();
+        if (d?.promedio > 0) currentRateBcv = d.promedio;
+      } catch(e) {}
+    }
+    if (!currentRateBcv || currentRateBcv <= 0) {
+      currentRateBcv = 992.80;
+    }
 
     const { data: cfgAjustes } = await supabase.from('sistema_config').select('valor').eq('id', 'facturas_ajustes_meses').maybeSingle();
     const ajustesMeses = cfgAjustes?.valor || {};
@@ -268,8 +281,7 @@ export async function POST(request: Request) {
     const nuevoCapitalPagar = Math.max(0, capitalTotal - rebajaCapital);
     const nuevosAccesoriosPagar = accesoriosTotal - rebajaAccesorios;
     
-    const { data: bcv } = await supabase.from('sistema_config').select('tasa_bcv').single();
-    const tasaBcv = bcv ? parseFloat(bcv.tasa_bcv) : 36.5;
+    const tasaBcv = currentRateBcv;
 
     const montoTotalPagarBs = nuevoCapitalPagar + nuevosAccesoriosPagar;
     const montoTotalTcmdvm = tasaBcv > 0 ? (montoTotalPagarBs / tasaBcv) : 0;
