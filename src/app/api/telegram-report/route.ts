@@ -48,18 +48,22 @@ async function generarReporte(request?: Request) {
     const pad   = (n: number) => String(n).padStart(2, '0');
     let hoy     = `${vzNow.getUTCFullYear()}-${pad(vzNow.getUTCMonth()+1)}-${pad(vzNow.getUTCDate())}`;
     
-    // Soporte para parámetro opcional ?fecha=YYYY-MM-DD
+    // Soporte para parámetros opcionales ?fecha=YYYY-MM-DD &turno=TARDE &hora=18:00
+    let customTurno: string | null = null;
+    let customHora: string | null = null;
     if (request) {
       try {
         const url = new URL(request.url);
         const qFecha = url.searchParams.get('fecha');
         if (qFecha && /^\d{4}-\d{2}-\d{2}$/.test(qFecha)) hoy = qFecha;
+        customTurno = url.searchParams.get('turno');
+        customHora = url.searchParams.get('hora');
       } catch (_e) {}
     }
 
     const hora  = vzNow.getUTCHours();
-    const turno = hora < 15 ? 'MEDIODÍA' : 'TARDE';
-    const horaStr = `${pad(hora)}:${pad(vzNow.getUTCMinutes())}`;
+    const turno = customTurno || (hora < 15 ? 'MEDIODÍA' : 'TARDE');
+    const horaStr = customHora || `${pad(hora)}:${pad(vzNow.getUTCMinutes())}`;
 
     const startVE = new Date(hoy + 'T00:00:00-04:00').getTime();
     const endVE   = new Date(hoy + 'T23:59:59.999-04:00').getTime();
