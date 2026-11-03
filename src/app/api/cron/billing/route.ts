@@ -24,14 +24,20 @@ export async function GET(request: Request) {
   }
 
   // ── Verificar si hoy es el día correcto para recibir ──
-  const hoy = simDateStr ? new Date(simDateStr + 'T12:00:00') : new Date();
+  // Considerar zona horaria de Venezuela (UTC-4) si corre en servidor UTC
+  const ahoraUtc = new Date();
+  const ahoraVET = new Date(ahoraUtc.getTime() - (4 * 60 * 60 * 1000));
+  const hoy = simDateStr ? new Date(simDateStr + 'T12:00:00') : ahoraVET;
   const lastDayOfMonth = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
   const diaFacturacion = Math.min(30, lastDayOfMonth);
 
-  if (!testMode && hoy.getDate() !== diaFacturacion) {
+  // Permitir correr en los últimos 2 días del mes o día 1 si no se ha emitido
+  const esFinDeMes = hoy.getDate() >= diaFacturacion || hoy.getDate() === 1;
+
+  if (!testMode && !esFinDeMes) {
     return NextResponse.json({
       skipped: true,
-      reason: `Hoy es día ${hoy.getDate()}, el día de emisión de recibos es el ${diaFacturacion}. No se procesó.`
+      reason: `Hoy es día ${hoy.getDate()}, el día de emisión de recibos es a fin de mes (${diaFacturacion}). No se procesó.`
     });
   }
 
@@ -168,9 +174,13 @@ export async function GET(request: Request) {
     // Audit log
     try {
       await supabase.from('audit_logs').insert({
-        usuario:  'Sistema (Cron)',
-        accion:   'FACTURACION_MENSUAL_AUTOMATICA',
-        detalles: `Período: ${mesFacturado}${modoTexto}. Procesados: ${facturasNuevas.length}. Omitidos: ${omitidos}. Monto total: Bs ${montoTotal.toFixed(2)}. Tasa TCMMV: ${tcmmv}`
+    usuario:  'Sistema (Cron)',
+    user_id:  'Sistema (Cron)',
+    accion:   'FACTURACION_MENSUAL_AUTOMATICA',
+    action:   'FACTURACION_MENSUAL_AUTOMATICA',
+    ip_address: '127.0.0.1',
+    detalles: `Período: ${mesFacturado}${modoTexto}. Procesados: ${facturasNuevas.length}. Omitidos: ${omitidos}. Monto total: Bs ${montoTotal.toFixed(2)}. Tasa TCMMV: ${tcmmv}`,
+    details:  `Período: ${mesFacturado}${modoTexto}. Procesados: ${facturasNuevas.length}. Omitidos: ${omitidos}. Monto total: Bs ${montoTotal.toFixed(2)}. Tasa TCMMV: ${tcmmv}`
       });
     } catch(e) {}
 
@@ -191,8 +201,12 @@ export async function GET(request: Request) {
     try {
       await supabase.from('audit_logs').insert({
         usuario:  'Sistema (Cron)',
+        user_id:  'Sistema (Cron)',
         accion:   'ERROR_FACTURACION_MENSUAL',
-        detalles: error.message || 'Error desconocido'
+        action:   'ERROR_FACTURACION_MENSUAL',
+        ip_address: '127.0.0.1',
+        detalles: error.message || 'Error desconocido',
+        details:  error.message || 'Error desconocido'
       });
     } catch(e) {}
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

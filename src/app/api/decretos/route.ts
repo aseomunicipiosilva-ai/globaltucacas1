@@ -16,7 +16,9 @@ export async function POST(request: Request) {
       usuario = 'Administrador',
       registrarPago = false,
       datosPago = null,
-      porcentaje_condonacion = 50
+      porcentaje_condonacion = 50,
+      tasa_personalizada = null,
+      fecha_decreto = null
     } = body;
 
     // Obtener datos del inmueble
@@ -200,13 +202,37 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Error al consultar las facturas del contribuyente. ' + facError.message }, { status: 500 });
     }
 
-    // Filtramos facturas dentro de fecha del decreto (Enero 2024 hasta el mes actual en curso, inclusive Octubre 2026)
-    const finDecreto = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0, 23, 59, 59);
+    // Filtramos facturas dentro de fecha del decreto (Enero 2024 hasta el mes anterior al mes del decreto)
+    // Regla de decretos: Si el decreto se crea en un mes M (ej: fecha 2026-10-XX), ese mes en curso NO entra en el decreto,
+    // solo entran los meses anteriores vencidos (ej: hasta Septiembre 2026).
+    // Si la fecha del decreto es en Noviembre 2026 (2026-11-XX), NO entra Noviembre 2026 (ampara hasta Octubre 2026).
+    let anioDecreto = hoy.getFullYear();
+    let mesDecreto = hoy.getMonth() + 1; // 1-12
+    if (fecha_decreto && typeof fecha_decreto === 'string') {
+      const parts = fecha_decreto.split('-');
+      if (parts.length >= 2) {
+        anioDecreto = parseInt(parts[0], 10) || anioDecreto;
+        mesDecreto = parseInt(parts[1], 10) || mesDecreto;
+      }
+    }
+    // El mes límite es el mes anterior a la fecha del decreto:
+    let cutoffYear = anioDecreto;
+    let cutoffMonth = mesDecreto - 1;
+    if (cutoffMonth === 0) {
+      cutoffMonth = 12;
+      cutoffYear -= 1;
+    }
+    
     const facturasValidas = facturas?.filter(f => {
       if (!f.emision) return false;
-      const fechaFact = new Date(f.emision);
-      const inicio = new Date(2024, 0, 1);
-      return fechaFact >= inicio && fechaFact <= finDecreto;
+      const fParts = f.emision.split('-');
+      if (fParts.length < 2) return false;
+      const fYear = parseInt(fParts[0], 10);
+      const fMonth = parseInt(fParts[1], 10);
+      if (fYear < 2024) return false;
+      if (fYear > cutoffYear) return false;
+      if (fYear === cutoffYear && fMonth > cutoffMonth) return false;
+      return true;
     }) || [];
 
     const mesesMorosidad = facturasValidas.length;
@@ -237,10 +263,17 @@ export async function POST(request: Request) {
     // 3. Calcular deuda reliquidada
     // Consultar tasa BCV y ajustes mensuales registrados
     let currentRateBcv = 0;
-    try {
-      const { data: bcvConfig } = await supabase.from('sistema_config').select('valor').eq('id', 'tasa_bcv_semanal').maybeSingle();
-      if (bcvConfig?.valor) currentRateBcv = parseFloat(bcvConfig.valor) || 0;
-    } catch(e) {}
+    const tasaCustomNum = parseFloat(String(tasa_personalizada || ''));
+    if (!isNaN(tasaCustomNum) && tasaCustomNum > 0) {
+      currentRateBcv = tasaCustomNum;
+    }
+
+    if (!currentRateBcv || currentRateBcv <= 0) {
+      try {
+        const { data: bcvConfig } = await supabase.from('sistema_config').select('valor').eq('id', 'tasa_bcv_semanal').maybeSingle();
+        if (bcvConfig?.valor) currentRateBcv = parseFloat(bcvConfig.valor) || 0;
+      } catch(e) {}
+    }
     if (!currentRateBcv || currentRateBcv <= 0) {
       try {
         const r = await fetch('https://ve.dolarapi.com/v1/euros/oficial', { cache: 'no-store' });
@@ -316,7 +349,7 @@ export async function POST(request: Request) {
     // ACCION: PROCESAR CONVENIO (+ PAGO OPCIONAL)
     // ==========================================
     if (action === 'procesar') {
-      const hoyStr = new Date().toISOString().split('T')[0];
+      const hoyStr = fecha_decreto || new Date().toISOString().split('T')[0];
       const numConvenio = 'DEC-' + Date.now().toString().slice(-6);
       const contribuyenteName = inmuebleData?.contribuyente || searchId;
       const nCuotas = tipoPago === 'contado' ? '1' : String(cuotas || 1);
@@ -367,6 +400,8 @@ export async function POST(request: Request) {
         porcentaje_condonacion: pctCapital,
         capital_original: capitalTotal,
         rebaja_capital: rebajaCapital,
+        tasa_aplicada: tasaBcv,
+        fecha_decreto: hoyStr,
         periodo_decreto: periodoDecreto,
         meses_amparados: facturasValidas.length
       };

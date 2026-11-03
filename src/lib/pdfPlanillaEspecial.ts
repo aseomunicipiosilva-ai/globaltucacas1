@@ -27,7 +27,7 @@ export interface PlanillaData {
   };
 }
 
-export function generarPlanillaEspecialPDF(servicio: PlanillaData) {
+export function generarPlanillaEspecialPDF(servicio: PlanillaData, options?: { previewOnly?: boolean }): string | void {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',

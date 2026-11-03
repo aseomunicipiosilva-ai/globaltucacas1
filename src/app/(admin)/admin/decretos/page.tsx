@@ -112,6 +112,10 @@ export default function DecretosPage() {
   // Condonación State (50% o 100%)
   const [porcentajeCondonacion, setPorcentajeCondonacion] = useState<50 | 100>(50);
 
+  // Fecha y Tasa personalizada para el decreto
+  const [fechaDecreto, setFechaDecreto] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [tasaPersonalizada, setTasaPersonalizada] = useState<string>('');
+
   // Simulador State
   const [cuotas, setCuotas] = useState(1);
   const [pagoInicial, setPagoInicial] = useState(0);
@@ -159,9 +163,19 @@ export default function DecretosPage() {
     }
   };
 
-  const openEvaluador = async (inmueble: any, porcentaje: 50 | 100 = 50) => {
+  const openEvaluador = async (
+    inmueble: any, 
+    porcentaje: 50 | 100 = 50,
+    customFecha?: string,
+    customTasa?: string
+  ) => {
     setSelectedInmueble(inmueble);
     setPorcentajeCondonacion(porcentaje);
+    const fDec = customFecha !== undefined ? customFecha : fechaDecreto;
+    const tDec = customTasa !== undefined ? customTasa : tasaPersonalizada;
+    if (customFecha !== undefined) setFechaDecreto(customFecha);
+    if (customTasa !== undefined) setTasaPersonalizada(customTasa);
+
     setModalOpen(true);
     setEvaluacionLoading(true);
     setEvaluacionResult(null);
@@ -176,6 +190,8 @@ export default function DecretosPage() {
           inmueble_id: inmueble.id, 
           identidad: inmueble.identidad,
           porcentaje_condonacion: porcentaje,
+          fecha_decreto: fDec || null,
+          tasa_personalizada: tDec ? parseFloat(tDec) : null,
           sector: (() => {
             const name = (inmueble.contribuyente || '').toUpperCase();
             const cls = (inmueble.clasificacion || '').toUpperCase();
@@ -194,6 +210,11 @@ export default function DecretosPage() {
       }
 
       setEvaluacionResult(result);
+
+      // Si no se habia ingresado tasa manual, sincronizar con la tasa aplicada devuelta
+      if (!tDec && result?.detalles?.tasaAplicada) {
+        setTasaPersonalizada(String(result.detalles.tasaAplicada));
+      }
 
       if (result.eligible && result.detalles) {
         const montoFinal = result.detalles.montoTotalPagarBs || 0;
@@ -413,6 +434,8 @@ export default function DecretosPage() {
           identidad: selectedInmueble.identidad,
           sector: sectorCalculado,
           porcentaje_condonacion: porcentajeCondonacion,
+          fecha_decreto: fechaDecreto || null,
+          tasa_personalizada: tasaPersonalizada ? parseFloat(tasaPersonalizada) : null,
           tipoPago: porcentajeCondonacion === 100 ? 'contado' : tipoPago,
           pagoInicial,
           pago_inicial: pagoInicial,
@@ -466,9 +489,10 @@ export default function DecretosPage() {
         capitalOriginal: evaluacionResult?.detalles?.capitalOriginal || (montoTotal * 2),
         rebajaCapital: evaluacionResult?.detalles?.rebajaCapital || montoTotal,
         montoTotalBs: montoTotal,
+        tasaBcv: evaluacionResult?.detalles?.tasaAplicada || (tasaPersonalizada ? parseFloat(tasaPersonalizada) : undefined),
         cuotas: tipoPago === 'contado' ? 1 : cuotas,
         frecuencia: tipoPago === 'contado' ? 'Única' : 'Mensual',
-        inicio: new Date().toISOString().slice(0, 10),
+        inicio: fechaDecreto || new Date().toISOString().slice(0, 10),
         estado: 'Al Día',
         tipoPago,
         operador: currentUser
@@ -559,22 +583,34 @@ export default function DecretosPage() {
 
       {/* Buscador */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-4 border-b border-slate-200 bg-slate-50 flex gap-4">
-          <div className="flex-1 relative">
+        <div className="p-4 border-b border-slate-200 bg-slate-50 flex flex-wrap items-center gap-4">
+          <div className="flex-1 min-w-[280px] relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input 
               type="text" 
               placeholder="Buscar por Nombre o RIF/Cédula..." 
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && searchInmuebles()}
             />
           </div>
+
+          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs">
+            <span className="text-xs font-bold text-slate-700 whitespace-nowrap">Fecha del Convenio:</span>
+            <input
+              type="date"
+              value={fechaDecreto}
+              onChange={(e) => setFechaDecreto(e.target.value)}
+              className="px-2 py-1 bg-slate-50 border border-slate-300 rounded text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              title="Fecha con la que se evaluarán y crearán los convenios"
+            />
+          </div>
+
           <button 
             onClick={searchInmuebles}
             disabled={loading}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 text-sm shadow-xs"
           >
             {loading ? 'Buscando...' : 'Buscar'}
           </button>
@@ -808,7 +844,7 @@ export default function DecretosPage() {
                       <div className="flex items-center gap-2 bg-white p-1 rounded-lg border border-slate-200 shadow-sm">
                         <button
                           type="button"
-                          onClick={() => openEvaluador(selectedInmueble, 50)}
+                          onClick={() => openEvaluador(selectedInmueble, 50, fechaDecreto, tasaPersonalizada)}
                           disabled={evaluacionLoading}
                           className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
                             porcentajeCondonacion === 50
@@ -821,7 +857,7 @@ export default function DecretosPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => openEvaluador(selectedInmueble, 100)}
+                          onClick={() => openEvaluador(selectedInmueble, 100, fechaDecreto, tasaPersonalizada)}
                           disabled={evaluacionLoading}
                           className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
                             porcentajeCondonacion === 100
@@ -832,6 +868,78 @@ export default function DecretosPage() {
                           <span>100% Condonación Total</span>
                           <span className="text-[10px] opacity-80 font-normal">(Exoneración)</span>
                         </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Configuración Avanzada: Fecha del Decreto y Tasa Personalizada */}
+                  <div className="bg-amber-50/60 border border-amber-200 rounded-lg p-3.5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                        <Calculator className="w-4 h-4 text-amber-700" />
+                        Ajuste de Fecha y Tasa de Cálculo
+                      </span>
+                      <span className="text-[11px] text-amber-700 font-medium">
+                        (Permite fijar tasa de un día previo y excluir meses posteriores)
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          Fecha de Creación del Decreto:
+                        </label>
+                        <input
+                          type="date"
+                          value={fechaDecreto}
+                          onChange={(e) => {
+                            const nuevaFecha = e.target.value;
+                            setFechaDecreto(nuevaFecha);
+                            if (selectedInmueble) {
+                              openEvaluador(selectedInmueble, porcentajeCondonacion, nuevaFecha, tasaPersonalizada);
+                            }
+                          }}
+                          className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                        />
+                        <p className="text-[10px] text-slate-500 mt-1">
+                          Solo ampara meses anteriores al mes de la fecha elegida (ej: si elige Octubre, NO se incluye Octubre, ampara hasta Septiembre; si elige Noviembre, ampara hasta Octubre).
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          Tasa BCV / MMV Personalizada (Bs.):
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="Ej: 989.38"
+                            value={tasaPersonalizada}
+                            onChange={(e) => setTasaPersonalizada(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && selectedInmueble) {
+                                openEvaluador(selectedInmueble, porcentajeCondonacion, fechaDecreto, tasaPersonalizada);
+                              }
+                            }}
+                            className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-md text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (selectedInmueble) {
+                                openEvaluador(selectedInmueble, porcentajeCondonacion, fechaDecreto, tasaPersonalizada);
+                              }
+                            }}
+                            className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-md text-xs font-bold whitespace-nowrap transition-colors"
+                            title="Recalcular con esta tasa"
+                          >
+                            Recalcular
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-1">
+                          Tasa activa en el cálculo: <strong>{evaluacionResult.detalles.tasaAplicada ? Number(evaluacionResult.detalles.tasaAplicada).toFixed(2) : '992.80'} Bs</strong>
+                        </p>
                       </div>
                     </div>
                   </div>

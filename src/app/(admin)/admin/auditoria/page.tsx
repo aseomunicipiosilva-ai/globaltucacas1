@@ -9,13 +9,14 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const CATEGORIAS = ['TODAS', 'SESION', 'COBRO', 'TRANSFERENCIA', 'TASA', 'CONTRIBUYENTE', 'RECIBO', 'REPORTE', 'CONFIGURACION', 'CONVENIO', 'SISTEMA'];
+const CATEGORIAS = ['TODAS', 'CENSO', 'SESION', 'COBRO', 'TRANSFERENCIA', 'TASA', 'CONTRIBUYENTE', 'RECIBO', 'REPORTE', 'CONFIGURACION', 'CONVENIO', 'SISTEMA'];
 
 const CAT_COLORS: Record<string, string> = {
   SESION:        'bg-blue-100 text-blue-800',
   COBRO:         'bg-emerald-100 text-emerald-800',
   TRANSFERENCIA: 'bg-purple-100 text-purple-800',
   TASA:          'bg-amber-100 text-amber-800',
+  CENSO:         'bg-teal-100 text-teal-800',
   CONTRIBUYENTE: 'bg-sky-100 text-sky-800',
   RECIBO:       'bg-orange-100 text-orange-800',
   REPORTE:       'bg-slate-100 text-slate-700',
@@ -53,16 +54,62 @@ export default function AuditoriaPage() {
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      let q = supabase
-        .from('auditoria')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(2000);
-      if (filterDateFrom) q = q.gte('created_at', filterDateFrom + 'T00:00:00');
-      if (filterDateTo)   q = q.lte('created_at', filterDateTo + 'T23:59:59');
-      if (filterUser)     q = q.eq('usuario', filterUser);
-      const { data } = await q;
-      setLogs(data || []);
+      // 1. Cargar registros de auditoria por bloques para superar el límite estricto de 1000
+      let q1 = supabase.from('auditoria').select('*').order('created_at', { ascending: false }).range(0, 999);
+      let q2 = supabase.from('auditoria').select('*').order('created_at', { ascending: false }).range(1000, 1999);
+      let q3 = supabase.from('auditoria').select('*').order('created_at', { ascending: false }).range(2000, 2999);
+      let q4 = supabase.from('auditoria').select('*').order('created_at', { ascending: false }).range(3000, 3999);
+
+      if (filterDateFrom) {
+        q1 = q1.gte('created_at', filterDateFrom + 'T00:00:00');
+        q2 = q2.gte('created_at', filterDateFrom + 'T00:00:00');
+        q3 = q3.gte('created_at', filterDateFrom + 'T00:00:00');
+        q4 = q4.gte('created_at', filterDateFrom + 'T00:00:00');
+      }
+      if (filterDateTo) {
+        q1 = q1.lte('created_at', filterDateTo + 'T23:59:59');
+        q2 = q2.lte('created_at', filterDateTo + 'T23:59:59');
+        q3 = q3.lte('created_at', filterDateTo + 'T23:59:59');
+        q4 = q4.lte('created_at', filterDateTo + 'T23:59:59');
+      }
+      if (filterUser) {
+        q1 = q1.eq('usuario', filterUser);
+        q2 = q2.eq('usuario', filterUser);
+        q3 = q3.eq('usuario', filterUser);
+        q4 = q4.eq('usuario', filterUser);
+      }
+
+      // 2. Cargar audit_logs (donde se registran los censos y censistas móviles)
+      let qAuditLogs = supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).range(0, 1999);
+      if (filterDateFrom) qAuditLogs = qAuditLogs.gte('created_at', filterDateFrom + 'T00:00:00');
+      if (filterDateTo)   qAuditLogs = qAuditLogs.lte('created_at', filterDateTo + 'T23:59:59');
+      if (filterUser)     qAuditLogs = qAuditLogs.or(`user_id.eq.${filterUser},usuario.eq.${filterUser}`);
+
+      const [res1, res2, res3, res4, resAuditLogs] = await Promise.all([q1, q2, q3, q4, qAuditLogs]);
+
+      const auditRows = [...(res1.data || []), ...(res2.data || []), ...(res3.data || []), ...(res4.data || [])];
+      
+      // Adaptar audit_logs al formato unificado de auditoría
+      const mappedAuditLogs = (resAuditLogs.data || []).map((a: any) => {
+        const isCenso = (a.action || '').toUpperCase().includes('CENSO');
+        return {
+          id: `audit_log_${a.id}`,
+          created_at: a.created_at,
+          usuario: a.user_id || a.usuario || 'Censista',
+          categoria: isCenso ? 'CENSO' : 'CONTRIBUYENTE',
+          modulo: isCenso ? 'Censo Móvil / Campo' : 'Gestión Contribuyente',
+          accion: a.action,
+          detalles: {
+            texto: a.details || '',
+            ip: a.ip_address || '',
+            _categoria: isCenso ? 'CENSO' : 'CONTRIBUYENTE'
+          }
+        };
+      });
+
+      const all = [...auditRows, ...mappedAuditLogs];
+      all.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setLogs(all);
     } finally { setLoading(false); }
   }, [filterDateFrom, filterDateTo, filterUser]);
 
@@ -130,7 +177,7 @@ export default function AuditoriaPage() {
 
       {/* Category Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {['COBRO','TRANSFERENCIA','SESION','TASA','RECIBO'].map(cat => {
+        {['CENSO','COBRO','TRANSFERENCIA','SESION','TASA'].map(cat => {
           const count = logs.filter(l => getCategoria(l) === cat).length;
           return (
             <button key={cat}

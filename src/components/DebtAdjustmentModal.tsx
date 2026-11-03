@@ -158,7 +158,8 @@ export function DebtAdjustmentModal({ row, inmuebles, tcmmv, recibos, setFactura
         (i.identidad || '').replace(/[-.\s]/g, '').toUpperCase() === (rowIdentidad || '').replace(/[-.\s]/g, '').toUpperCase()
       );
       const inm = misInmuebles[0] || {};
-      const codRef = inm.inmueble || inm.cod_cont || row.CodCont || row.cod_cont || (rowIdentidad || '001').replace(/[^a-zA-Z0-9]/g, '');
+      const rawCod = inm.cod_cont || row.CodCont || row.cod_cont || (rowIdentidad || '001');
+      const codRef = (rawCod.startsWith('N-') || rawCod.startsWith('I-')) ? rawCod.replace('-', '') : (rowIdentidad || '001').replace(/[^a-zA-Z0-9]/g, '');
 
       // 1. Si reemplazar está activo, eliminar facturas pendientes anteriores
       if (reemplazarExistentes) {

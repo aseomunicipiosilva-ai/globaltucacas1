@@ -381,7 +381,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const nuevoMontoMes = (mmvMes * tcmmv).toFixed(2);
           await supabase
             .from('facturas')
-            .update({ monto: nuevoMontoMes })
+            .update({ monto: nuevoMontoMes, identidad: targetIdentidad })
             .in('estado', ['Pendiente'])
             .or(`identidad.eq.${id},identidad.eq.${cleanId},identidad.eq.${targetIdentidad}`);
         }

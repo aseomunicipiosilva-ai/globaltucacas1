@@ -1337,8 +1337,16 @@ function ContribuyentesPageContent() {
       const finalTelefono = `${formData.telefonoPrefijo}${formData.telefonoNumero}`;
       const finalCorreo = `${formData.correoNombre}${formData.correoDominio === 'Otro' ? formData.correoDominioOtro : formData.correoDominio}`;
       
+      // Asegurar que la Identidad siempre tenga el prefijo (V-, J-, E-, G-)
+      const tipoId = formData.tipoIdentidad || (formData.Identidad || '').match(/^([VEJG])/i)?.[1]?.toUpperCase() || 'V';
+      const numId = (formData.identidadNumero || (formData.Identidad || '').replace(/^[VEJG]-?/i, '')).replace(/[^0-9]/g, '');
+      const finalIdentidad = numId ? `${tipoId}-${numId}` : formData.Identidad;
+
       const dataToSave = {
         ...formData,
+        tipoIdentidad: tipoId,
+        identidadNumero: numId,
+        Identidad: finalIdentidad,
         Telefono: finalTelefono,
         Correo: finalCorreo
       };
@@ -1412,7 +1420,20 @@ function ContribuyentesPageContent() {
               </div>
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Tipo Identidad</label>
-                <select className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500">
+                <select 
+                  value={formData.tipoIdentidad || 'V'} 
+                  onChange={e => {
+                    const newTipo = e.target.value;
+                    const num = formData.identidadNumero || (formData.Identidad || '').replace(/^[VEJG]-?/i, '');
+                    setFormData({
+                      ...formData,
+                      tipoIdentidad: newTipo,
+                      identidadNumero: num,
+                      Identidad: `${newTipo}-${num}`
+                    });
+                  }}
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 font-semibold"
+                >
                   <option value="V">Venezolano (V)</option>
                   <option value="E">Extranjero (E)</option>
                   <option value="J">Jurídico (J)</option>
@@ -1420,8 +1441,24 @@ function ContribuyentesPageContent() {
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-medium text-slate-500 mb-1">Nro Identidad</label>
-                <input type="text" maxLength={9} value={formData.Identidad} onChange={e => setFormData({...formData, Identidad: e.target.value.replace(/[^0-9]/g, '')})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" required />
+                <label className="block text-[10px] font-medium text-slate-500 mb-1">Nro Identidad (RIF / Cédula)</label>
+                <input 
+                  type="text" 
+                  maxLength={10} 
+                  value={formData.identidadNumero ?? (formData.Identidad || '').replace(/^[VEJG]-?/i, '')} 
+                  onChange={e => {
+                    const num = e.target.value.replace(/[^0-9]/g, '');
+                    const tipo = formData.tipoIdentidad || 'V';
+                    setFormData({
+                      ...formData,
+                      identidadNumero: num,
+                      Identidad: `${tipo}-${num}`
+                    });
+                  }} 
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 font-mono" 
+                  placeholder="Ej: 507338592"
+                  required 
+                />
               </div>
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Nombre o Razón Social</label>
