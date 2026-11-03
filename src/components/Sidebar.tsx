@@ -35,6 +35,7 @@ export default function Sidebar() {
     ...(isSuperAdmin ? [{ icon: PieChart, name: 'Administrativo', href: '/admin/administrativo' }] : []),
     { icon: FileText, name: 'Tarifas / Ordenanza', href: '/admin/tarifas' },
     { icon: ClipboardCheck, name: 'Censo de Contribuyentes', href: '/admin/censo' },
+    { icon: BarChart3, name: 'Control de Censos (Dptos)', href: '/admin/censo?tab=control' },
     { icon: User, name: 'Contribuyentes', href: '/admin/contribuyentes' },
     { icon: Users, name: 'Condominios COB', href: '/admin/condominios-cob' },
     { icon: FileText, name: 'Pre-registros WEB', href: '/admin/pre-registros' },

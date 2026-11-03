@@ -24,6 +24,16 @@ export default function CensoPage() {
   const [isSearchingContrib, setIsSearchingContrib] = useState(false);
   const [selectedInmuebleId, setSelectedInmuebleId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'formulario' | 'control'>('formulario');
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const sp = new URLSearchParams(window.location.search);
+      const t = sp.get('tab');
+      if (t === 'control') {
+        setActiveTab('control');
+      }
+    }
+  }, []);
   const [censoStats, setCensoStats] = useState<any[]>([]);
   const [censoLogsLoading, setCensoLogsLoading] = useState(false);
   const [selectedDeptFilter, setSelectedDeptFilter] = useState<'TODOS' | 'ISMA' | 'CATASTRO' | 'HACIENDA'>('TODOS');
