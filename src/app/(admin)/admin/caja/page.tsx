@@ -315,6 +315,24 @@ export default function CajaPage() {
     'BanFanb', 'Bancovi', 'Instituto Municipal de Crédito Popular (IMCP)',
     'Fondemi', 'Microfinanzas', 'Pagomovil BDV', 'Otro'].sort();
 
+  
+  const getServicioMonto = (s: any): number => {
+    const tasaActual = (customBcvRate && !isNaN(parseFloat(customBcvRate))) 
+      ? parseFloat(customBcvRate) 
+      : (tcmmv || 0);
+    const montoBase = parseFloat(String(s?.monto || '0').replace(/[^\d.]/g, '')) || 0;
+    if (!tasaActual || tasaActual <= 0 || montoBase <= 0) return montoBase;
+    
+    const tasaRegistro = parseFloat(String(s.tasa_bcv || s.tasa || '0')) || 0;
+    if (tasaRegistro > 0) {
+      return parseFloat(((montoBase / tasaRegistro) * tasaActual).toFixed(2));
+    }
+    if (tcmmv > 0) {
+      return parseFloat(((montoBase / tcmmv) * tasaActual).toFixed(2));
+    }
+    return montoBase;
+  };
+
   const handleAuthorizeRateChange = async (e: React.FormEvent) => {
     e.preventDefault();
     setRateAuthError('');
@@ -2196,7 +2214,7 @@ export default function CajaPage() {
                           <p className="text-xs text-slate-500">{s.referencia} • {s.fecha || 'Sin fecha'}</p>
                         </div>
                       </div>
-                      <span className="font-bold text-green-700">Bs. {formatBs(parseFloat(s.monto || '0'))}</span>
+                      <span className="font-bold text-green-700">Bs. {formatBs(getServicioMonto(s))}</span>
                     </label>
                   ))}
                 </div>
@@ -2230,7 +2248,7 @@ export default function CajaPage() {
                             <p className="text-xs text-slate-500">{s.referencia} • {s.fecha}</p>
                           </div>
                         </div>
-                        <span className="font-bold text-purple-700">Bs. {formatBs(parseFloat(s.monto || '0'))}</span>
+                        <span className="font-bold text-purple-700">Bs. {formatBs(getServicioMonto(s))}</span>
                       </label>
                     );
                   })}
