@@ -36,14 +36,12 @@ export default function CensoPage() {
   }, []);
   const [censoStats, setCensoStats] = useState<any[]>([]);
   const [censoLogsLoading, setCensoLogsLoading] = useState(false);
-  const [selectedDeptFilter, setSelectedDeptFilter] = useState<'TODOS' | 'ISMA' | 'CATASTRO' | 'HACIENDA'>('TODOS');
+  const [selectedDeptFilter, setSelectedDeptFilter] = useState<'TODOS' | 'CATASTRO' | 'HACIENDA'>('TODOS');
   const [censoSearch, setCensoSearch] = useState('');
   const [deptStats, setDeptStats] = useState<{
-    ISMA: { total: number; usuarios: Record<string, number> };
     CATASTRO: { total: number; usuarios: Record<string, number> };
     HACIENDA: { total: number; usuarios: Record<string, number> };
   }>({
-    ISMA: { total: 0, usuarios: {} },
     CATASTRO: { total: 0, usuarios: {} },
     HACIENDA: { total: 0, usuarios: {} }
   });
@@ -59,32 +57,36 @@ export default function CensoPage() {
         .limit(2000);
 
       const statsMap = {
-        ISMA: { total: 0, usuarios: {} as Record<string, number> },
         CATASTRO: { total: 0, usuarios: {} as Record<string, number> },
         HACIENDA: { total: 0, usuarios: {} as Record<string, number> }
       };
 
-      const parsedLogs = (logs || []).map((l: any) => {
+      const parsedLogs: any[] = [];
+      (logs || []).forEach((l: any) => {
         const u = (l.user_id || '').toUpperCase();
         const d = (l.details || '').toUpperCase();
-        let dept: 'ISMA' | 'CATASTRO' | 'HACIENDA' = 'ISMA';
-        if (u.includes('CATASTRO') || d.includes('CATASTRO')) {
+        let dept: 'CATASTRO' | 'HACIENDA' | null = null;
+        let usuario = l.user_id || 'Operador';
+
+        if (u.includes('CATASTRO') || d.includes('CATASTRO') || u.includes('EMDRONADOR') || u.includes('EMPADRONADOR') || d.includes('EMDRONADOR') || d.includes('EMPADRONADOR')) {
           dept = 'CATASTRO';
+          usuario = 'CATASTRO'; // Unificado estrictamente en un solo usuario
         } else if (u.includes('HACIENDA') || d.includes('HACIENDA')) {
           dept = 'HACIENDA';
-        } else {
-          dept = 'ISMA';
+          usuario = 'HACIENDA';
         }
 
-        const usuario = l.user_id || 'Operador';
-        statsMap[dept].total += 1;
-        statsMap[dept].usuarios[usuario] = (statsMap[dept].usuarios[usuario] || 0) + 1;
+        // Si pertenece a CATASTRO o HACIENDA, incluirlo en las estadisticas
+        if (dept) {
+          statsMap[dept].total += 1;
+          statsMap[dept].usuarios[usuario] = (statsMap[dept].usuarios[usuario] || 0) + 1;
 
-        return {
-          ...l,
-          departamento: dept,
-          usuarioDisplay: usuario
-        };
+          parsedLogs.push({
+            ...l,
+            departamento: dept,
+            usuarioDisplay: usuario
+          });
+        }
       });
 
       setCensoStats(parsedLogs);
@@ -111,7 +113,7 @@ export default function CensoPage() {
   const [calculoDetalle, setCalculoDetalle] = useState<any>(null);
   
   const [formData, setFormData] = useState<any>({
-    departamento: 'ISMA',
+    departamento: 'CATASTRO',
     IdentidadTipo: 'V',
     IdentidadNumero: '',
     Contribuyente: '',
@@ -453,22 +455,20 @@ export default function CensoPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            {(['ISMA', 'CATASTRO', 'HACIENDA'] as const).map(dep => (
+            {(['CATASTRO', 'HACIENDA'] as const).map(dep => (
               <button
                 key={dep}
                 type="button"
                 onClick={() => setFormData({ ...formData, departamento: dep })}
-                className={`px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 border ${
-                  (formData.departamento || 'ISMA') === dep
-                    ? dep === 'ISMA' 
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                      : dep === 'CATASTRO'
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                      : 'bg-amber-600 text-white border-amber-600 shadow-sm'
-                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                }`}
+                                  className={`px-4 py-2 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 border ${
+                    (formData.departamento || 'CATASTRO') === dep
+                      ? dep === 'CATASTRO'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                  }`}
               >
-                {dep === 'ISMA' && <Shield className="w-3.5 h-3.5" />}
+                
                 {dep === 'CATASTRO' && <Landmark className="w-3.5 h-3.5" />}
                 {dep === 'HACIENDA' && <Building2 className="w-3.5 h-3.5" />}
                 {dep}
@@ -1024,71 +1024,55 @@ export default function CensoPage() {
       {/* VISTA 2: CONTROL Y ESTADÍSTICAS POR DEPARTAMENTO */}
       {activeTab === 'control' && (
         <div className="space-y-6 animate-in fade-in duration-150">
-          {/* Tarjetas de Estadísticas Principales */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white border-2 border-slate-200 p-4 rounded-xl shadow-sm">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Total Censos Registrados</span>
-              <div className="text-3xl font-black text-slate-800">
-                {deptStats.ISMA.total + deptStats.CATASTRO.total + deptStats.HACIENDA.total}
+          {/* Tarjetas de Estadísticas Principales (Catastro y Hacienda) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white border-2 border-slate-200 p-4 rounded-xl shadow-sm">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Total Censos Registrados</span>
+                <div className="text-3xl font-black text-slate-800">
+                  {deptStats.CATASTRO.total + deptStats.HACIENDA.total}
+                </div>
+                <span className="text-[11px] text-slate-500 mt-1 block">Consolidado general (Catastro + Hacienda)</span>
               </div>
-              <span className="text-[11px] text-slate-500 mt-1 block">Consolidado general en el municipio</span>
+
+              <div 
+                onClick={() => setSelectedDeptFilter(selectedDeptFilter === 'CATASTRO' ? 'TODOS' : 'CATASTRO')}
+                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                  selectedDeptFilter === 'CATASTRO' ? 'border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200' : 'bg-white border-blue-100 hover:border-blue-300'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black uppercase text-blue-700 bg-blue-100 px-2 py-0.5 rounded">CATASTRO</span>
+                  <Landmark className="w-4 h-4 text-blue-600" />
+                </div>
+                <div className="text-3xl font-black text-blue-800 mt-2">{deptStats.CATASTRO.total}</div>
+                <span className="text-[11px] text-blue-600 font-semibold mt-1 block">
+                  {Object.keys(deptStats.CATASTRO.usuarios).length} operador / empadronador
+                </span>
+              </div>
+
+              <div 
+                onClick={() => setSelectedDeptFilter(selectedDeptFilter === 'HACIENDA' ? 'TODOS' : 'HACIENDA')}
+                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                  selectedDeptFilter === 'HACIENDA' ? 'border-amber-500 bg-amber-50 shadow-md ring-2 ring-amber-200' : 'bg-white border-amber-100 hover:border-amber-300'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black uppercase text-amber-700 bg-amber-100 px-2 py-0.5 rounded">HACIENDA</span>
+                  <Building2 className="w-4 h-4 text-amber-600" />
+                </div>
+                <div className="text-3xl font-black text-amber-800 mt-2">{deptStats.HACIENDA.total}</div>
+                <span className="text-[11px] text-amber-600 font-semibold mt-1 block">
+                  {Object.keys(deptStats.HACIENDA.usuarios).length} operador / fiscal
+                </span>
+              </div>
             </div>
 
-            <div 
-              onClick={() => setSelectedDeptFilter(selectedDeptFilter === 'ISMA' ? 'TODOS' : 'ISMA')}
-              className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                selectedDeptFilter === 'ISMA' ? 'border-emerald-500 bg-emerald-50 shadow-md ring-2 ring-emerald-200' : 'bg-white border-emerald-100 hover:border-emerald-300'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-black uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">ISMA</span>
-                <Shield className="w-4 h-4 text-emerald-600" />
-              </div>
-              <div className="text-3xl font-black text-emerald-800 mt-2">{deptStats.ISMA.total}</div>
-              <span className="text-[11px] text-emerald-600 font-semibold mt-1 block">
-                {Object.keys(deptStats.ISMA.usuarios).length} censistas / operadores
-              </span>
-            </div>
-
-            <div 
-              onClick={() => setSelectedDeptFilter(selectedDeptFilter === 'CATASTRO' ? 'TODOS' : 'CATASTRO')}
-              className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                selectedDeptFilter === 'CATASTRO' ? 'border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200' : 'bg-white border-blue-100 hover:border-blue-300'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-black uppercase text-blue-700 bg-blue-100 px-2 py-0.5 rounded">CATASTRO</span>
-                <Landmark className="w-4 h-4 text-blue-600" />
-              </div>
-              <div className="text-3xl font-black text-blue-800 mt-2">{deptStats.CATASTRO.total}</div>
-              <span className="text-[11px] text-blue-600 font-semibold mt-1 block">
-                {Object.keys(deptStats.CATASTRO.usuarios).length} censistas / empadronadores
-              </span>
-            </div>
-
-            <div 
-              onClick={() => setSelectedDeptFilter(selectedDeptFilter === 'HACIENDA' ? 'TODOS' : 'HACIENDA')}
-              className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                selectedDeptFilter === 'HACIENDA' ? 'border-amber-500 bg-amber-50 shadow-md ring-2 ring-amber-200' : 'bg-white border-amber-100 hover:border-amber-300'
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-black uppercase text-amber-700 bg-amber-100 px-2 py-0.5 rounded">HACIENDA</span>
-                <Building2 className="w-4 h-4 text-amber-600" />
-              </div>
-              <div className="text-3xl font-black text-amber-800 mt-2">{deptStats.HACIENDA.total}</div>
-              <span className="text-[11px] text-amber-600 font-semibold mt-1 block">
-                {Object.keys(deptStats.HACIENDA.usuarios).length} censistas / fiscales
-              </span>
-            </div>
-          </div>
-
-          {/* Rendimiento y Desglose de Usuarios por Departamento */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {(['ISMA', 'CATASTRO', 'HACIENDA'] as const).map(dep => {
+            {/* Rendimiento y Desglose de Usuarios por Departamento */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {(['CATASTRO', 'HACIENDA'] as const).map(dep => {
               const info = deptStats[dep];
               const users = Object.entries(info.usuarios).sort((a, b) => b[1] - a[1]);
-              const colorHead = dep === 'ISMA' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : dep === 'CATASTRO' ? 'bg-blue-50 border-blue-200 text-blue-800' : 'bg-amber-50 border-amber-200 text-amber-800';
+              const colorHead = dep === 'CATASTRO' ? 'bg-blue-50 border-blue-200 text-blue-800' : 'bg-amber-50 border-amber-200 text-amber-800';
               return (
                 <div key={dep} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex flex-col">
                   <div className={`px-4 py-3 border-b flex items-center justify-between ${colorHead}`}>
@@ -1138,7 +1122,7 @@ export default function CensoPage() {
                   />
                 </div>
                 <div className="flex items-center gap-1">
-                  {(['TODOS', 'ISMA', 'CATASTRO', 'HACIENDA'] as const).map(f => (
+                  {(['TODOS', 'CATASTRO', 'HACIENDA'] as const).map(f => (
                     <button
                       key={f}
                       type="button"

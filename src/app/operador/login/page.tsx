@@ -20,13 +20,14 @@ export default function OperadorLogin() {
     e.preventDefault();
     const userUpper = usuario.trim().toUpperCase();
 
-    // Mantener bypass para CATASTRO e HACIENDA temporalmente si es necesario
-    if (userUpper === 'CATASTRO' || userUpper === 'HACIENDA') {
+    // Unificación de operadores especiales Catastro y Hacienda
+    if (userUpper.includes('CATASTRO') || userUpper.includes('EMDRONADOR') || userUpper.includes('EMPADRONADOR') || userUpper === 'HACIENDA') {
+      const targetUser = userUpper === 'HACIENDA' ? 'HACIENDA' : 'CATASTRO';
       if (String(clave || '').trim() !== '1042700') {
         setError('Clave incorrecta para este usuario especial');
         return;
       }
-      localStorage.setItem('operador_censo_auth', userUpper);
+      localStorage.setItem('operador_censo_auth', targetUser);
       router.push('/operador');
       return;
     }
