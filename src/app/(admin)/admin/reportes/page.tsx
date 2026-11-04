@@ -1,8 +1,9 @@
 'use client';
+import { procesarEstadisticasCenso, generarReporteCensoEstadisticoPDF } from '@/lib/pdfCensoReport';
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useAppContext } from '@/store/AppContext';
-import { Download, RefreshCw } from 'lucide-react';
+import { Download, RefreshCw, BarChart3 } from 'lucide-react';
 import * as xlsx from 'xlsx';
 import { generarLibroVentas as generarLibroVentasExcel } from './generators/LibroVentas';
 import { generarSaldosFavorExcel } from './generators/SaldoAFavor';
@@ -22,7 +23,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-type ActiveView = null | 'ingresos' | 'corte' | 'libro-ventas' | 'fiscalizacion' | 'empleados' | 'saldos' | 'ingreso-bancario' | 'morosos' | 'transferencias' | 'inscritos' | 'convenios' | 'solventes' | 'bitacora';
+type ActiveView = null | 'ingresos' | 'corte' | 'libro-ventas' | 'fiscalizacion' | 'empleados' | 'saldos' | 'ingreso-bancario' | 'morosos' | 'transferencias' | 'inscritos' | 'convenios' | 'solventes' | 'bitacora' | 'censo';
 
 const CARDS = [
   { id: 'ingresos' as ActiveView,       label: 'Caja - Ingresos',         emoji: '🖨️',  desc: 'General de Ingresos, Corte, Libro de Ventas', adminOnly: false },
@@ -35,6 +36,7 @@ const CARDS = [
   { id: 'inscritos' as ActiveView,       label: 'Nuevos Inscritos',        emoji: '📋',  desc: 'Nuevos registros con filtros por fecha y sector', adminOnly: false },
   { id: 'convenios' as ActiveView,       label: 'Convenios de Pago',       emoji: '🤝',  desc: 'Convenios, cuotas pendientes y al día',         adminOnly: false },
   { id: 'solventes' as ActiveView,       label: 'Solventes',               emoji: '🎖️',  desc: 'Padrón de contribuyentes solventes por sector', adminOnly: false },
+  { id: 'censo' as ActiveView,           label: 'Censo Departamental',     emoji: '??',  desc: 'Reporte estad�stico mensual Catastro y Hacienda', adminOnly: false },
   { id: 'bitacora' as ActiveView,        label: 'Bitácora Auditoría',      emoji: '🛡️',  desc: 'Historial y trazabilidad de eventos del sistema', adminOnly: true  },
 ];
 
@@ -284,6 +286,47 @@ export default function ReportesPage() {
     const recibos = await cargarMorosos();
     if (recibos.length > 0) await generarMorososPDF(recibos, contribuyentes, tcmmv || 0);
   };
+
+
+  if (activeView === 'censo') {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setActiveView(null)} className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium">? Regresar</button>
+          <span className="text-slate-300">|</span>
+          <h1 className="text-lg font-bold text-slate-800">?? Reporte Estad�stico de Censo (Catastro y Hacienda)</h1>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm max-w-lg space-y-4">
+          <p className="text-sm text-slate-600">
+            Genera un reporte cuantitativo general en <strong>PDF</strong> con la consolidaci�n mensual de registros realizados por <strong>Catastro</strong> y <strong>Hacienda</strong> (sin incluir listados nominales individuales).
+          </p>
+          <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-indigo-900 block">Formato Oficial</span>
+              <span className="text-[11px] text-indigo-700">Tablas estad�sticas por mes, porcentajes de participaci�n y cuadro de operadores</span>
+            </div>
+            <BarChart3 className="w-8 h-8 text-indigo-500 opacity-60" />
+          </div>
+          <div className="space-y-3 pt-2">
+            <button
+              onClick={async () => {
+                const { data: logs } = await supabase
+                  .from('audit_logs')
+                  .select('*')
+                  .ilike('action', '%censo%');
+                const stats = procesarEstadisticasCenso(logs || []);
+                generarReporteCensoEstadisticoPDF(stats);
+              }}
+              className="w-full flex items-center justify-between px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold transition-all shadow-sm"
+            >
+              <span>Generar y Descargar Reporte PDF</span>
+              <Download className="w-4 h-4 text-white" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (activeView === 'morosos') return (
     <div className="space-y-4">

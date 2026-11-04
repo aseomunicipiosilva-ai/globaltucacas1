@@ -1,11 +1,12 @@
 'use client';
 import React, { useState } from 'react';
 import { useAppContext } from '@/store/AppContext';
-import { Save, AlertCircle, CheckCircle, Calendar, MapPin, Calculator, BarChart3, Users, Building2, Landmark, Shield, RefreshCw, Search, Filter } from 'lucide-react';
+import { Save, AlertCircle, FileText, Download, Eye, CheckCircle, Calendar, MapPin, Calculator, BarChart3, Users, Building2, Landmark, Shield, RefreshCw, Search, Filter } from 'lucide-react';
 import Select from 'react-select';
 import { createClient } from '@supabase/supabase-js';
 import dynamic from 'next/dynamic';
 
+import { procesarEstadisticasCenso, generarReporteCensoEstadisticoPDF } from '@/lib/pdfCensoReport';
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -24,6 +25,9 @@ export default function CensoPage() {
   const [isSearchingContrib, setIsSearchingContrib] = useState(false);
   const [selectedInmuebleId, setSelectedInmuebleId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'formulario' | 'control'>('formulario');
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -95,6 +99,23 @@ export default function CensoPage() {
       console.error('Error cargando control de censos:', e);
     } finally {
       setCensoLogsLoading(false);
+    }
+  };
+
+  
+  const handleExportarCensoPDF = async (preview: boolean = false) => {
+    setIsExportingPdf(true);
+    try {
+      const stats = procesarEstadisticasCenso(censoStats);
+      const res = generarReporteCensoEstadisticoPDF(stats, { previewOnly: preview });
+      if (preview && res) {
+        setPreviewPdfUrl(res);
+      }
+    } catch (err) {
+      console.error('Error generando reporte PDF:', err);
+      alert('Error al generar el reporte PDF.');
+    } finally {
+      setIsExportingPdf(false);
     }
   };
 
