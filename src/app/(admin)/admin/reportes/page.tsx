@@ -313,7 +313,9 @@ export default function ReportesPage() {
                 const { data: logs } = await supabase
                   .from('audit_logs')
                   .select('*')
-                  .ilike('action', '%censo%');
+                  .ilike('action', '%censo%')
+                  .order('created_at', { ascending: false })
+                  .limit(2000);
                 const stats = procesarEstadisticasCenso(logs || []);
                 generarReporteCensoEstadisticoPDF(stats);
               }}
