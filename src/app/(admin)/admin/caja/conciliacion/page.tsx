@@ -625,7 +625,10 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
             }
           }
 
-          const esAbonoParcial = det.es_abono || (montoConciliadoNum > 0 && montoConciliadoNum < deudaTotal - 1.00);
+          // Considerar abono parcial SOLO si fue marcado explícitamente como abono o si la diferencia supera la variación de tasa cambiaria (3% o más de 10 Bs)
+          const diffDeuda = deudaTotal - montoConciliadoNum;
+          const esDiferenciaCambiaria = diffDeuda > 0 && (diffDeuda <= 5.00 || (deudaTotal > 0 && (diffDeuda / deudaTotal) <= 0.03));
+          const esAbonoParcial = (det.es_abono === true) || (montoConciliadoNum > 0 && diffDeuda > 1.00 && !esDiferenciaCambiaria);
 
           if (esAbonoParcial && montoConciliadoNum > 0) {
             // Distribuir el monto entre recibos (mas antiguas primero)
