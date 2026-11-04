@@ -728,16 +728,16 @@ export default function CajaPage() {
 
     selectedServicios.forEach(ref => {
       const s = serviciosEsp.find(ss => ss.referencia === ref);
-      if (s) total += parseFloat(s.monto || '0');
+      if (s) total += getServicioMonto(s);
     });
 
     selectedTalaPoda.forEach(ref => {
       const s = talaPoda.find(ss => ss.referencia === ref);
-      if (s) total += parseFloat(s.monto || '0');
+      if (s) total += getServicioMonto(s);
     });
     
     setTotalBs(total);
-  }, [selectedRecibos, selectedCuotas, selectedServicios, selectedTalaPoda, recibos, cuotas, serviciosEsp, talaPoda]);
+  }, [selectedRecibos, selectedCuotas, selectedServicios, selectedTalaPoda, recibos, cuotas, serviciosEsp, talaPoda, customBcvRate, tcmmv]);
 
   const toggleRecibo = (ref: string) => {
     const sortedRecibos = [...recibos].sort((a: any, b: any) => {
@@ -1213,7 +1213,7 @@ export default function CajaPage() {
             for (const ref of selectedServicios) {
               const s = serviciosEsp.find(sv => sv.referencia === ref);
               if (!s) continue;
-              const montoS = parseFloat(s.monto || '0');
+              const montoS = getServicioMonto(s);
               if (dineroRestanteParaServicios >= montoS - 0.01) {
                 // Alcanza para cubrir el servicio completo
                 dineroRestanteParaServicios = Math.max(0, dineroRestanteParaServicios - montoS);
@@ -1402,12 +1402,27 @@ export default function CajaPage() {
 
               // Agregar servicios especiales si fueron seleccionados
               if (selectedServicios.length > 0 && idx === 0) {
-                selectedServicios.forEach((idServ: any) => {
-                  const sObj = (serviciosEsp as any[] || []).find((s: any) => s.id === idServ);
+                selectedServicios.forEach((refServ: any) => {
+                  const sObj = (serviciosEsp as any[] || []).find((s: any) => s.referencia === refServ || s.id === refServ);
                   if (sObj) {
-                    const montoS = parseFloat(sObj.monto || '0');
+                    const montoS = getServicioMonto(sObj);
                     conceptosGrupo.push({
-                      descripcion: `Servicio Especial: ${sObj.tipo_servicio || 'Servicio'} (${sObj.numero || ''})`,
+                      descripcion: `Servicio Especial / Extraordinario: ${sObj.descripcion || sObj.tipo || 'Servicio'} (${sObj.referencia || ''})`,
+                      precioUnit: montoS,
+                      total: montoS
+                    });
+                  }
+                });
+              }
+
+              // Agregar tala y poda si fue seleccionada
+              if (selectedTalaPoda.length > 0 && idx === 0) {
+                selectedTalaPoda.forEach((refTala: any) => {
+                  const sObj = (talaPoda as any[] || []).find((s: any) => s.referencia === refTala || s.id === refTala);
+                  if (sObj) {
+                    const montoS = getServicioMonto(sObj);
+                    conceptosGrupo.push({
+                      descripcion: `Servicio de Tala y Poda: ${sObj.descripcion || 'Tala y Poda'} (${sObj.referencia || ''})`,
                       precioUnit: montoS,
                       total: montoS
                     });
