@@ -323,7 +323,7 @@ export default function CajaPage() {
     const montoBase = parseFloat(String(s?.monto || '0').replace(/[^\d.]/g, '')) || 0;
     if (!tasaActual || tasaActual <= 0 || montoBase <= 0) return montoBase;
     
-    // Si el servicio es extraordinario (mes adicional), calcular exactamente como un mes de tarifa
+    // Si el servicio es extraordinario (mes adicional), calcular exactamente como un mes de tarifa * viajes
     if (s?.tipo === 'extraordinario' && foundUser) {
       const userInms = inmuebles.filter((i: any) =>
         (i.identidad || '').replace(/-/g,'').toUpperCase() === (foundUser.Identidad || '').replace(/-/g,'').toUpperCase() &&
@@ -336,7 +336,12 @@ export default function CajaPage() {
         if (mmv > 0) monthlyMMV += cant * mmv;
       });
       if (monthlyMMV > 0) {
-        return parseFloat((monthlyMMV * tasaActual).toFixed(2));
+        // Detectar si son multiples viajes extras
+        let trips = 1;
+        const text = (s.descripcion || '') + ' ' + (s.notas || '');
+        const m = text.match(/(\d+)\s*viaje/i);
+        if (m) trips = parseInt(m[1]) || 1;
+        return parseFloat((monthlyMMV * trips * tasaActual).toFixed(2));
       }
     }
 
@@ -2303,7 +2308,19 @@ export default function CajaPage() {
                           />
                           <Icon className="w-4 h-4 text-purple-500 flex-shrink-0" />
                           <div>
-                            <p className="font-semibold text-sm text-slate-800">{s.descripcion}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold text-sm text-slate-800">{s.descripcion}</p>
+                              {s.tipo === 'extraordinario' && (() => {
+                                const text = (s.descripcion || '') + ' ' + (s.notas || '');
+                                const m = text.match(/(\d+)\s*viaje/i);
+                                const trips = m ? parseInt(m[1]) || 1 : 1;
+                                return (
+                                  <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                                    {trips} {trips === 1 ? 'viaje extra' : 'viajes extras'}
+                                  </span>
+                                );
+                              })()}
+                            </div>
                             <p className="text-xs text-slate-500">{s.referencia} • {s.fecha}</p>
                           </div>
                         </div>

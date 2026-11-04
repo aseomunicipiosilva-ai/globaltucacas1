@@ -16,6 +16,7 @@ export interface PlanillaData {
   estado?: string;
   notas?: string;
   referencia?: string;
+  viajesExtras?: number | string;
   parametros?: {
     viajes?: number | string;
     area?: number | string;
@@ -98,12 +99,30 @@ export function generarPlanillaEspecialPDF(servicio: PlanillaData, options?: { p
     styles: { fontSize: 8, cellPadding: 2, textColor: [30, 41, 59] },
     headStyles: { fillColor: [243, 244, 246], textColor: [31, 41, 55], fontStyle: 'bold' },
     head: [['ESPECIFICACIONES TÉCNICAS DEL TRÁMITE', 'DETALLE OPERATIVO']],
-    body: [
-      ['Categoría del Servicio:', String(tipoLabel)],
-      ['Descripción Detallada:', String(servicio.descripcion || 'Sin descripción')],
-      ['Estatus Actual del Trámite:', String(servicio.estado || 'Liquidado / Registrado')],
-      ['Observaciones Técnicas:', String(servicio.notas || 'Cumple con los requisitos establecidos en la ordenanza municipal.')]
-    ],
+    body: (() => {
+      // Detección de viajes extras (desde parametros, propiedad directa o en la descripción/notas)
+      let numViajes = servicio.viajesExtras || servicio.parametros?.viajes || null;
+      if (!numViajes) {
+        const textToSearch = `${servicio.descripcion || ''} ${servicio.notas || ''}`;
+        const match = textToSearch.match(/(\d+)\s*viaje/i);
+        if (match) numViajes = match[1];
+        else if (servicio.tipo === 'extraordinario') numViajes = 1;
+      }
+
+      const rows: any[] = [
+        ['Categoría del Servicio:', String(tipoLabel)],
+      ];
+
+      if (numViajes) {
+        rows.push(['Cantidad de Viajes Extras:', `${numViajes} ${Number(numViajes) === 1 ? 'viaje extraordinario' : 'viajes extraordinarios'}`]);
+      }
+
+      rows.push(['Descripción Detallada:', String(servicio.descripcion || 'Sin descripción')]);
+      rows.push(['Estatus Actual del Trámite:', String(servicio.estado || 'Liquidado / Registrado')]);
+      rows.push(['Observaciones Técnicas:', String(servicio.notas || 'Cumple con los requisitos establecidos en la ordenanza municipal.')]);
+
+      return rows;
+    })(),
     columnStyles: {
       0: { cellWidth: 55, fontStyle: 'bold', fillColor: [248, 250, 252] },
       1: { cellWidth: 'auto' }
@@ -180,6 +199,9 @@ export function generarPlanillaEspecialPDF(servicio: PlanillaData, options?: { p
   doc.setFont('helvetica', 'normal');
   doc.text('ISMA - Municipio Silva', pageWidth - margin - 40, signY + 8, { align: 'center' });
 
-  // 8. GUARDAR / DESCARGAR
+  // 8. GUARDAR / DESCARGAR O PREVIEW
+  if (options?.previewOnly) {
+    return doc.output('datauristring');
+  }
   doc.save(`Planilla_${String(servicio.tipo)}_${String(numPlanilla)}.pdf`);
 }

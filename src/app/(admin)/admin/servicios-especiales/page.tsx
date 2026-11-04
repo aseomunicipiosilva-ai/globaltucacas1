@@ -173,10 +173,14 @@ export default function ServiciosEspecialesPage() {
           tipo: form.tipo,
           identidad: form.identidad,
           contribuyente: form.contribuyenteNombre,
-          descripcion: form.descripcion,
+          descripcion: form.tipo === 'extraordinario' && form.viajesExtras 
+            ? (form.descripcion.includes('viaje') ? form.descripcion : (form.descripcion + ' (' + form.viajesExtras + ' ' + (parseInt(form.viajesExtras) > 1 ? 'viajes extras' : 'viaje extra') + ')'))
+            : form.descripcion,
+          notas: form.tipo === 'extraordinario' && form.viajesExtras
+            ? ((form.notas || '') + ' [Viajes extras: ' + form.viajesExtras + ']').trim()
+            : form.notas,
           monto: parseFloat(form.monto),
           fecha: form.fecha,
-          notas: form.notas,
           estado: 'Pendiente',
           referencia: `SRV-${form.tipo.toUpperCase().slice(0,3)}-${Date.now()}`
         })
@@ -203,6 +207,17 @@ export default function ServiciosEspecialesPage() {
     if (!id || !confirm('¿Eliminar este registro?')) return;
     await fetch(`/api/admin/servicios-especiales?id=${id}`, { method: 'DELETE' });
     loadServicios();
+  };
+
+  
+  // Extrae la cantidad de viajes extras para servicios extraordinarios
+  const getViajesExtrasCount = (s: any): number => {
+    if (s.viajesExtras) return parseInt(String(s.viajesExtras)) || 1;
+    if (s.parametros && s.parametros.viajes) return parseInt(String(s.parametros.viajes)) || 1;
+    const text = (s.descripcion || '') + ' ' + (s.notas || '');
+    const m = text.match(/(\d+)\s*viaje/i);
+    if (m) return parseInt(m[1]) || 1;
+    return 1;
   };
 
   const serviciosFiltrados = servicios.filter(s =>
@@ -349,7 +364,8 @@ export default function ServiciosEspecialesPage() {
                           <span 
                             key={sIdx} 
                             onClick={() => {
-                              const uri = (generarPlanillaEspecialPDF as any)({ ...srv, tasaBcv: tcmmv }, { previewOnly: true });
+                              const viajes = getViajesExtrasCount(srv);
+                              const uri = (generarPlanillaEspecialPDF as any)({ ...srv, viajesExtras: viajes, tasaBcv: tcmmv }, { previewOnly: true });
                               if (uri) {
                                 setPreviewPdfUrl(uri);
                                 setPreviewTitulo(`Planilla ${srv.referencia || srv.id || ''} - ${srv.contribuyente}`);
@@ -435,7 +451,16 @@ export default function ServiciosEspecialesPage() {
                         <p className="font-semibold text-slate-800">{s.contribuyente}</p>
                         <p className="text-xs text-slate-400">{s.identidad}</p>
                       </td>
-                      <td className="px-4 py-3 text-slate-600 max-w-xs truncate">{s.descripcion}</td>
+                      <td className="px-4 py-3 text-slate-600 max-w-xs">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="truncate font-medium">{s.descripcion}</span>
+                          {s.tipo === 'extraordinario' && (
+                            <span className="inline-flex items-center gap-1 w-fit px-2 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                              🚚 {getViajesExtrasCount(s)} {getViajesExtrasCount(s) === 1 ? 'viaje extra' : 'viajes extras'}
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{s.fecha}</td>
                       <td className="px-4 py-3 text-right font-bold text-slate-800">
                         Bs. {Number(s.monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}
@@ -459,7 +484,8 @@ export default function ServiciosEspecialesPage() {
                           <button 
                             type="button"
                             onClick={() => {
-                              const uri = (generarPlanillaEspecialPDF as any)({ ...s, tasaBcv: tcmmv }, { previewOnly: true });
+                              const viajes = getViajesExtrasCount(s);
+                              const uri = (generarPlanillaEspecialPDF as any)({ ...s, viajesExtras: viajes, tasaBcv: tcmmv }, { previewOnly: true });
                               if (uri) {
                                 setPreviewPdfUrl(uri);
                                 setPreviewTitulo(`Planilla ${s.referencia || s.id || ''} - ${s.contribuyente}`);
@@ -472,7 +498,7 @@ export default function ServiciosEspecialesPage() {
                           </button>
                           <button 
                             type="button"
-                            onClick={() => generarPlanillaEspecialPDF({ ...s, tasaBcv: tcmmv })} 
+                            onClick={() => generarPlanillaEspecialPDF({ ...s, viajesExtras: getViajesExtrasCount(s), tasaBcv: tcmmv })} 
                             className="bg-slate-100 hover:bg-slate-200 text-slate-600 p-1 rounded transition-all hover:text-slate-900"
                             title="Descargar Planilla PDF directamente"
                           >
