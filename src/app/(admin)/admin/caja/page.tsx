@@ -323,6 +323,23 @@ export default function CajaPage() {
     const montoBase = parseFloat(String(s?.monto || '0').replace(/[^\d.]/g, '')) || 0;
     if (!tasaActual || tasaActual <= 0 || montoBase <= 0) return montoBase;
     
+    // Si el servicio es extraordinario (mes adicional), calcular exactamente como un mes de tarifa
+    if (s?.tipo === 'extraordinario' && foundUser) {
+      const userInms = inmuebles.filter((i: any) =>
+        (i.identidad || '').replace(/-/g,'').toUpperCase() === (foundUser.Identidad || '').replace(/-/g,'').toUpperCase() &&
+        i.estado !== 'Eliminado'
+      );
+      let monthlyMMV = 0;
+      userInms.forEach((inm: any) => {
+        const cant = parseFloat(inm.cant_inmuebles || 1);
+        const mmv  = parseFloat(inm.mmv_mes || 0);
+        if (mmv > 0) monthlyMMV += cant * mmv;
+      });
+      if (monthlyMMV > 0) {
+        return parseFloat((monthlyMMV * tasaActual).toFixed(2));
+      }
+    }
+
     const tasaRegistro = parseFloat(String(s.tasa_bcv || s.tasa || '0')) || 0;
     if (tasaRegistro > 0) {
       return parseFloat(((montoBase / tasaRegistro) * tasaActual).toFixed(2));
