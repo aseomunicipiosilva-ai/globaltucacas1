@@ -350,6 +350,33 @@ export default function CajaPage() {
     return montoBase;
   };
 
+  const getCuotaMonto = (c: any): number => {
+    const tasaActual = (customBcvRate && !isNaN(parseFloat(customBcvRate)))
+      ? parseFloat(customBcvRate)
+      : (tcmmv || 0);
+    const montoBase = parseFloat(String(c?.monto || '0').replace(/[^\d.]/g, '')) || 0;
+    if (!tasaActual || tasaActual <= 0 || montoBase <= 0) return montoBase;
+
+    let tasaPactada = 0;
+    if (c?.rawConv?.documento_url && typeof c.rawConv.documento_url === 'string' && c.rawConv.documento_url.startsWith('meta:')) {
+      try {
+        const meta = JSON.parse(c.rawConv.documento_url.slice(5));
+        tasaPactada = parseFloat(meta.tasa_aplicada || '0');
+      } catch (e) {}
+    }
+    if (!tasaPactada && c?.rawConv?.tasa_bcv) {
+      tasaPactada = parseFloat(c.rawConv.tasa_bcv);
+    }
+    if (!tasaPactada && c?.rawConv?.tasa) {
+      tasaPactada = parseFloat(c.rawConv.tasa);
+    }
+
+    if (tasaPactada > 0) {
+      return parseFloat(((montoBase / tasaPactada) * tasaActual).toFixed(2));
+    }
+    return montoBase;
+  };
+
   const handleAuthorizeRateChange = async (e: React.FormEvent) => {
     e.preventDefault();
     setRateAuthError('');
@@ -740,7 +767,7 @@ export default function CajaPage() {
     
     selectedCuotas.forEach(sc => {
       const c = cuotas.find(cq => cq.convId === sc.convId && cq.cuotaId === sc.cuotaId);
-      if (c) total += parseFloat(c.monto || '0');
+      if (c) total += getCuotaMonto(c);
     });
 
     selectedServicios.forEach(ref => {
@@ -1401,7 +1428,7 @@ export default function CajaPage() {
                 selectedCuotas.forEach((sc: any) => {
                   const cq = cuotas.find((q: any) => q.convId === sc.convId && q.cuotaId === sc.cuotaId);
                   if (cq) {
-                    const montoCq = parseFloat(cq.monto || '0');
+                    const montoCq = getCuotaMonto(cq);
                     let pDecreto = '';
                     if (cq.rawConv?.documento_url && cq.rawConv.documento_url.startsWith('meta:')) {
                       try { pDecreto = JSON.parse(cq.rawConv.documento_url.slice(5)).periodo_decreto || ''; } catch(e){}
@@ -2176,7 +2203,7 @@ export default function CajaPage() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <span className="font-extrabold text-base text-emerald-800">{c.monto} Bs</span>
+                          <span className="font-extrabold text-base text-emerald-800">{formatBs(getCuotaMonto(c))} Bs</span>
                           <span className="block text-[10px] text-emerald-600 font-semibold">Monto Inicial Acordado</span>
                         </div>
                       </label>
@@ -2214,7 +2241,7 @@ export default function CajaPage() {
                             <p className="text-xs text-slate-500">Fecha de Vencimiento: {c.fecha}</p>
                           </div>
                         </div>
-                        <span className="font-bold text-orange-700">{c.monto} Bs</span>
+                        <span className="font-bold text-orange-700">{formatBs(getCuotaMonto(c))} Bs</span>
                       </label>
                     ))}
                   </div>
