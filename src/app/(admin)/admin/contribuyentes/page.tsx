@@ -635,16 +635,31 @@ function ContribuyentesPageContent() {
     // Función que filtra las recibos para cada inmueble por código en la referencia
     const getFacturasParaInmueble = (inm: any, allDeudas: any[], totalInms: number): any[] => {
       if (totalInms <= 1) return allDeudas;
+      const inmCod = String(inm.inmueble || (inm as any).Inmueble || '').trim().toLowerCase();
+      const contCod = String(inm.cod_cont || (inm as any).CodCont || '').trim().toLowerCase();
+
       return allDeudas.filter(f => {
         if (!f.referencia) return true;
-        if (f.referencia.startsWith('CM-')) {
-          const match = f.referencia.match(/(I-\d+|C-\d+)/);
-          if (match) {
-            const refId = match[0];
-            return inm.inmueble === refId || inm.cod_cont === refId || (inm as any).Inmueble === refId;
-          }
+        const ref = String(f.referencia).toLowerCase();
+
+        // Si la referencia contiene el código de inmueble exacto (ej: 'inmueble 1', 'inmueble 2', 'i-000294')
+        if (inmCod && (ref.includes(inmCod) || ref.replace(/\s+/g, '').includes(inmCod.replace(/\s+/g, '')))) {
+          return true;
         }
-        return true;
+
+        // Si la referencia contiene el código del contribuyente (ej: 'c-000227')
+        if (contCod && ref.includes(contCod)) {
+          return true;
+        }
+
+        // Búsqueda por regex de I-xxx o C-xxx
+        const match = ref.match(/(i-\d+|c-\d+)/);
+        if (match) {
+          const refId = match[0];
+          return inmCod === refId || contCod === refId;
+        }
+
+        return false;
       });
     };
 
@@ -801,7 +816,6 @@ function ContribuyentesPageContent() {
         ['Total Exento Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
         ['Base Imponible Bs.', 'Bs. 0,00'],
         ['IVA (16.00%) Bs.', 'Bs. 0,00'],
-        ['Saldo a Favor Bs.', `Bs. ${parseFloat(inm.saldo_favor_bs || viewData.SaldoFavor || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
         ['Saldo a Favor Bs.', `Bs. ${parseFloat(inm.saldo_favor_bs || viewData.SaldoFavor || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
         ['Total estado de cuenta Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`]
       );
