@@ -48,7 +48,8 @@ export default function DondePagarPage() {
     const docFmt = docNorm ? docNorm.charAt(0) + '-' + docNorm.slice(1) : '';
     const soloNum = portalDoc.replace(/\D/g, '');
 
-    const facturasPendientes = recibos
+    const facturasPendientes = [...recibos]
+      .sort((a: any, b: any) => (a.emision || '').localeCompare(b.emision || ''))
       .filter((f: any) => {
         if (f.estado !== 'Pendiente' && f.estado !== 'Abonado') return false;
         const fIdent = (f.identidad || '').replace(/-/g, '').toUpperCase();
