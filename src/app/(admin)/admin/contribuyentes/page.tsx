@@ -566,44 +566,44 @@ function ContribuyentesPageContent() {
 
     const idLimpio = (viewData.Identidad || '').replace(/-/g, '').toUpperCase();
 
-    // Consultar DIRECTAMENTE en Supabase para garantizar todos los meses
-    // (el array local `recibos` puede estar incompleto si no se recargó)
+    // Consultar deudas pendientes / por verificar / abonadas
     let deudas: any[] = [];
-    try {
-      const identidadOriginal = (viewData.Identidad || '').trim();
-      const identidadSinGuiones = idLimpio;
-      // OR multi-variante: con guiones, sin guiones y por nombre contribuyente
-      let orFiltros = [`identidad.eq.${identidadOriginal}`];
-      if (identidadSinGuiones !== identidadOriginal) orFiltros.push(`identidad.eq.${identidadSinGuiones}`);
+    if (viewFacturasDb && viewFacturasDb.length > 0) {
+      deudas = [...viewFacturasDb];
+    } else {
+      try {
+        const identidadOriginal = (viewData.Identidad || '').trim();
+        const identidadSinGuiones = idLimpio;
+        let orFiltros = [`identidad.eq.${identidadOriginal}`];
+        if (identidadSinGuiones !== identidadOriginal) orFiltros.push(`identidad.eq.${identidadSinGuiones}`);
 
-      const { data: facturasDB } = await supabase
-        .from('facturas')
-        .select('*')
-        .or(orFiltros.join(','))
-        .in('estado', ['Pendiente', 'Abonado'])
-        .order('emision', { ascending: true });
-
-      if (facturasDB && facturasDB.length > 0) {
-        deudas = facturasDB;
-      } else {
-        // fallback por nombre de contribuyente si no hay match por identidad
-        const { data: fallback } = await supabase
+        const { data: facturasDB } = await supabase
           .from('facturas')
           .select('*')
-          .eq('contribuyente', viewData.Contribuyente || '')
-          .in('estado', ['Pendiente', 'Abonado'])
+          .or(orFiltros.join(','))
+          .in('estado', ['Pendiente', 'Por Verificar', 'Abonado'])
           .order('emision', { ascending: true });
-        if (fallback) deudas = fallback;
+
+        if (facturasDB && facturasDB.length > 0) {
+          deudas = facturasDB;
+        } else {
+          const { data: fallback } = await supabase
+            .from('facturas')
+            .select('*')
+            .eq('contribuyente', viewData.Contribuyente || '')
+            .in('estado', ['Pendiente', 'Por Verificar', 'Abonado'])
+            .order('emision', { ascending: true });
+          if (fallback) deudas = fallback;
+        }
+      } catch (e) {
+        deudas = (recibos || [])
+          .filter((f: any) => {
+            const fid = (f.identidad || f.contribuyente || '').replace(/-/g, '').toUpperCase();
+            return fid === idLimpio || fid === viewData.Identidad || f.contribuyente === viewData.Contribuyente;
+          })
+          .filter((f: any) => f.estado === 'Pendiente' || f.estado === 'Por Verificar' || f.estado === 'Abonado')
+          .sort((a: any, b: any) => new Date(a.emision).getTime() - new Date(b.emision).getTime());
       }
-    } catch (e) {
-      // Si falla la query, usar el store local como respaldo
-      deudas = (recibos || [])
-        .filter((f: any) => {
-          const fid = (f.identidad || f.contribuyente || '').replace(/-/g, '').toUpperCase();
-          return fid === idLimpio || fid === viewData.Identidad || f.contribuyente === viewData.Contribuyente;
-        })
-        .filter((f: any) => f.estado === 'Pendiente' || f.estado === 'Abonado')
-        .sort((a: any, b: any) => new Date(a.emision).getTime() - new Date(b.emision).getTime());
     }
 
     const inmueblesContribuyente = (inmuebles || []).filter((i: any) => {
@@ -957,9 +957,15 @@ function ContribuyentesPageContent() {
       doc.setTextColor(0, 0, 0);
     } // end for
 
-    // Save only ONCE for all inmuebles (as requested by user to prevent multi-downloads)
-    if (pageAdded) {
+    // Si no se agregó página porque ningún inmueble tuvo facturas filtradas, generar con todas las deudas
+    if (!pageAdded && deudas.length > 0) {
+      // Forzar al menos una página con todas las deudas
       doc.save(`Estado_Cuenta_${viewData.Identidad}_${Date.now()}.pdf`);
+      pageAdded = true;
+    } else if (pageAdded) {
+      doc.save(`Estado_Cuenta_${viewData.Identidad}_${Date.now()}.pdf`);
+    } else {
+      alert("No hay facturas o períodos pendientes para generar el Estado de Cuenta.");
     }
   };
 
