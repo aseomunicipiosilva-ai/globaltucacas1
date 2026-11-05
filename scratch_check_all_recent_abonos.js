@@ -23,7 +23,7 @@ async function run() {
   for (const p of pagos) {
     let det = p.detalles;
     if (typeof det === 'string') {
-      try { det = JSON.parse(det); } catch(e) {}
+      try { det = JSON.parse(det); } catch (e) { }
     }
     const refs = det?.recibos || [];
     if (refs.length === 0) continue;

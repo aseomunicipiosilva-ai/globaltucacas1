@@ -150,6 +150,9 @@ export function generarPlanillaEspecialPDF(servicio: PlanillaData, options?: { p
     if (m) tasaBcv = parseFloat(m[1]);
   }
   const equivalenteDivisa = tasaBcv > 0 ? (montoBs / tasaBcv).toFixed(2) : '—';
+  const baseCalculoStr = servicio.parametros?.tcmv 
+    ? `${String(servicio.parametros.tcmv)} TCMV / UMMV`
+    : (tasaBcv > 0 ? `${equivalenteDivisa} TCMV / UMMV` : 'Tarifa Plana según Ordenanza');
 
   autoTable(doc, {
     startY: currentY,
@@ -160,7 +163,7 @@ export function generarPlanillaEspecialPDF(servicio: PlanillaData, options?: { p
     body: [
       [
         String(tipoLabel),
-        servicio.parametros?.tcmv ? `${String(servicio.parametros.tcmv)} TCMV / UMMV` : 'Tarifa Plana según Ordenanza',
+        baseCalculoStr,
         tasaBcv > 0 ? `Bs. ${String(tasaBcv.toFixed(2))}` : 'Oficial BCV',
         `Bs. ${montoBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
       ],
