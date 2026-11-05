@@ -17,6 +17,7 @@ type Servicio = {
   monto: number;
   estado: string;
   fecha: string;
+  notas?: string;
   creado_por?: string;
   referencia?: string;
 };
@@ -176,9 +177,16 @@ export default function ServiciosEspecialesPage() {
           descripcion: form.tipo === 'extraordinario' && form.viajesExtras 
             ? (form.descripcion.includes('viaje') ? form.descripcion : (form.descripcion + ' (' + form.viajesExtras + ' ' + (parseInt(form.viajesExtras) > 1 ? 'viajes extras' : 'viaje extra') + ')'))
             : form.descripcion,
-          notas: form.tipo === 'extraordinario' && form.viajesExtras
-            ? ((form.notas || '') + ' [Viajes extras: ' + form.viajesExtras + ']').trim()
-            : form.notas,
+          notas: (() => {
+            let n = form.notas || '';
+            if (form.tipo === 'extraordinario' && form.viajesExtras) {
+              n = (n + ' [Viajes extras: ' + form.viajesExtras + ']').trim();
+            }
+            if (tcmmv > 0) {
+              n = (n + ' [Tasa BCV: ' + tcmmv.toFixed(2) + ']').trim();
+            }
+            return n;
+          })(),
           monto: parseFloat(form.monto),
           fecha: form.fecha,
           estado: 'Pendiente',
@@ -211,6 +219,14 @@ export default function ServiciosEspecialesPage() {
 
   
   // Extrae la cantidad de viajes extras para servicios extraordinarios
+    const getTasaMomento = (s: any): number => {
+    if (s.tasaBcv && Number(s.tasaBcv) > 0) return Number(s.tasaBcv);
+    const notasStr = String(s.notas || '');
+    const m = notasStr.match(/Tasa\s*BCV\s*:\s*([\d.]+)/i);
+    if (m) return parseFloat(m[1]);
+    return tcmmv || 0;
+  };
+
   const getViajesExtrasCount = (s: any): number => {
     if (s.viajesExtras) return parseInt(String(s.viajesExtras)) || 1;
     if (s.parametros && s.parametros.viajes) return parseInt(String(s.parametros.viajes)) || 1;
@@ -365,7 +381,8 @@ export default function ServiciosEspecialesPage() {
                             key={sIdx} 
                             onClick={() => {
                               const viajes = getViajesExtrasCount(srv);
-                              const uri = (generarPlanillaEspecialPDF as any)({ ...srv, viajesExtras: viajes, tasaBcv: tcmmv }, { previewOnly: true });
+                              const tasaAplicar = getTasaMomento(srv);
+                              const uri = (generarPlanillaEspecialPDF as any)({ ...srv, viajesExtras: viajes, tasaBcv: tasaAplicar }, { previewOnly: true });
                               if (uri) {
                                 setPreviewPdfUrl(uri);
                                 setPreviewTitulo(`Planilla ${srv.referencia || srv.id || ''} - ${srv.contribuyente}`);
@@ -485,7 +502,8 @@ export default function ServiciosEspecialesPage() {
                             type="button"
                             onClick={() => {
                               const viajes = getViajesExtrasCount(s);
-                              const uri = (generarPlanillaEspecialPDF as any)({ ...s, viajesExtras: viajes, tasaBcv: tcmmv }, { previewOnly: true });
+                              const tasaAplicar = getTasaMomento(s);
+                              const uri = (generarPlanillaEspecialPDF as any)({ ...s, viajesExtras: viajes, tasaBcv: tasaAplicar }, { previewOnly: true });
                               if (uri) {
                                 setPreviewPdfUrl(uri);
                                 setPreviewTitulo(`Planilla ${s.referencia || s.id || ''} - ${s.contribuyente}`);
@@ -498,7 +516,7 @@ export default function ServiciosEspecialesPage() {
                           </button>
                           <button 
                             type="button"
-                            onClick={() => generarPlanillaEspecialPDF({ ...s, viajesExtras: getViajesExtrasCount(s), tasaBcv: tcmmv })} 
+                            onClick={() => generarPlanillaEspecialPDF({ ...s, viajesExtras: getViajesExtrasCount(s), tasaBcv: getTasaMomento(s) })} 
                             className="bg-slate-100 hover:bg-slate-200 text-slate-600 p-1 rounded transition-all hover:text-slate-900"
                             title="Descargar Planilla PDF directamente"
                           >

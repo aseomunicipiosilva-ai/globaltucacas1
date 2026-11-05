@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { logos } from '@/lib/logosBase64';
 
 export interface PlanillaData {
   id?: number | string;
@@ -38,20 +39,28 @@ export function generarPlanillaEspecialPDF(servicio: PlanillaData, options?: { p
   const pageWidth = doc.internal.pageSize.width; // 215.9 mm
   const margin = 14;
 
-  // 1. BANNER INSTITUCIONAL
+  // 1. BANNER INSTITUCIONAL CON LOGOS
   doc.setFillColor(10, 74, 42); // Verde ISMA #0a4a2a
-  doc.rect(margin, 12, pageWidth - margin * 2, 22, 'F');
+  doc.rect(margin, 10, pageWidth - margin * 2, 24, 'F');
+
+  try {
+    if (logos.alcaldia) doc.addImage(logos.alcaldia, 'PNG', margin + 3, 11, 21, 21);
+    if (logos.isma) doc.addImage(logos.isma, 'PNG', margin + 26, 11, 24, 21);
+    if (logos.global_rec) doc.addImage(logos.global_rec, 'PNG', pageWidth - margin - 26, 11, 23, 21);
+  } catch (e) {
+    console.warn('Error dibujando logos en planilla especial', e);
+  }
 
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text('REPÚBLICA BOLIVARIANA DE VENEZUELA - ESTADO FALCÓN', pageWidth / 2, 17, { align: 'center' });
-  doc.setFontSize(8);
+  doc.setFontSize(9.5);
+  doc.text('REPÚBLICA BOLIVARIANA DE VENEZUELA - ESTADO FALCÓN', pageWidth / 2, 16, { align: 'center' });
+  doc.setFontSize(7.5);
   doc.setFont('helvetica', 'normal');
-  doc.text('ALCALDÍA DEL MUNICIPIO SILVA - INSTITUTO AUTÓNOMO MUNICIPAL DE GESTIÓN AMBIENTAL (ISMA)', pageWidth / 2, 22, { align: 'center' });
+  doc.text('ALCALDÍA DEL MUNICIPIO SILVA - INSTITUTO AUTÓNOMO MUNICIPAL DE GESTIÓN AMBIENTAL (ISMA)', pageWidth / 2, 21, { align: 'center' });
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.text('PLANILLA OFICIAL DE LIQUIDACIÓN Y SOLICITUD DE SERVICIOS ESPECIALES', pageWidth / 2, 28, { align: 'center' });
+  doc.setFontSize(8.5);
+  doc.text('PLANILLA OFICIAL DE LIQUIDACIÓN Y CONTROL DE SERVICIOS ESPECIALES', pageWidth / 2, 27, { align: 'center' });
 
   // 2. METADATOS DE LA PLANILLA
   const numPlanilla = servicio.referencia || `ESP-${String(servicio.id || '001').padStart(6, '0')}`;
@@ -59,12 +68,12 @@ export function generarPlanillaEspecialPDF(servicio: PlanillaData, options?: { p
   doc.setTextColor(30, 41, 59);
   doc.setFontSize(8.5);
   doc.setFont('helvetica', 'bold');
-  doc.text(`N° DE CONTROL / PLANILLA: ${String(numPlanilla)}`, margin, 40);
-  doc.text(`FECHA DE EMISIÓN: ${String(servicio.fecha || new Date().toISOString().slice(0, 10))}`, pageWidth - margin, 40, { align: 'right' });
+  doc.text(`N° DE CONTROL / PLANILLA: ${String(numPlanilla)}`, margin, 39);
+  doc.text(`FECHA DE EMISIÓN: ${String(servicio.fecha || new Date().toISOString().slice(0, 10))}`, pageWidth - margin, 39, { align: 'right' });
 
   // 3. DATOS DEL CONTRIBUYENTE (Tabla)
   autoTable(doc, {
-    startY: 44,
+    startY: 43,
     theme: 'grid',
     styles: { fontSize: 8, cellPadding: 2, textColor: [30, 41, 59] },
     headStyles: { fillColor: [240, 253, 244], textColor: [21, 128, 61], fontStyle: 'bold' },
@@ -134,7 +143,12 @@ export function generarPlanillaEspecialPDF(servicio: PlanillaData, options?: { p
   currentY = (doc as any).lastAutoTable.finalY + 4;
 
   const montoBs = Number(servicio.monto || 0);
-  const tasaBcv = Number(servicio.tasaBcv || 0);
+  let tasaBcv = Number(servicio.tasaBcv || 0);
+  if (!tasaBcv || tasaBcv <= 0) {
+    const notasStr = String(servicio.notas || '');
+    const m = notasStr.match(/Tasa\s*BCV\s*:\s*([\d.]+)/i);
+    if (m) tasaBcv = parseFloat(m[1]);
+  }
   const equivalenteDivisa = tasaBcv > 0 ? (montoBs / tasaBcv).toFixed(2) : '—';
 
   autoTable(doc, {
