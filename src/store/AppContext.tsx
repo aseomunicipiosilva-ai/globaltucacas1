@@ -148,7 +148,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       const bcvData = apiBcv as any;
-      let currentTcmmv = sanitizeTcmmvRate(manualTcmmv > 0 ? manualTcmmv : (bcvData?.tcmmv > 0 ? bcvData.tcmmv : semanalTcmmv));
+      let currentTcmmv = sanitizeTcmmvRate(
+        manualTcmmv > 0 
+          ? manualTcmmv 
+          : (semanalTcmmv > 0 ? semanalTcmmv : (bcvData?.tcmmv > 0 ? bcvData.tcmmv : 1006.03))
+      );
 
       // Si aAon es 0 (por ejemplo si el API de Nextjs estA! caA-do en Amplify), intentamos directo desde el cliente
       if (currentTcmmv <= 0) {
