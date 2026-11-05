@@ -139,7 +139,7 @@ export async function GET(request: Request) {
     }
 
 
-    const tcmmv = euroVal; // Se usa estrictamente la tasa del Euro por ordenanza
+    const tcmmv = parseFloat(euroVal.toFixed(2)); // Exacto a 2 decimales oficiales (ej. 1006.03)
 
     // Guardar como tasa guardada (se actualiza de lunes a viernes)
     try {
@@ -190,7 +190,7 @@ export async function GET(request: Request) {
 
  
 
-      const tcmmv = euroVal; // Estrictamente tasa Euro
+      const tcmmv = parseFloat(euroVal.toFixed(2));
 
       try {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';

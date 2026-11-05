@@ -45,7 +45,7 @@ function sanitizeTcmmvRate(rate: any): number {
   if (n > 0 && n < 10) {
     n = n * 1000;
   }
-  return n;
+  return parseFloat(n.toFixed(2));
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
