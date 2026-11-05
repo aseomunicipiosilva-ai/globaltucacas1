@@ -3,6 +3,30 @@ import { revalidateTag } from 'next/cache';
 import * as cheerio from 'cheerio';
 import https from 'https';
 
+function parseVenezuelanRate(raw: any): number {
+  if (!raw) return 0;
+  let str = String(raw).trim();
+  // Formato venezolano oficial: 1.006,03263992 -> eliminar puntos de miles, cambiar coma decimal por punto
+  if (str.includes('.') && str.includes(',')) {
+    str = str.replace(/\./g, '').replace(',', '.');
+  } else if (str.includes(',')) {
+    str = str.replace(',', '.');
+  } else {
+    // Si viene de una API con formato float ej: 1.006 o 1.01
+    const n = parseFloat(str);
+    if (!isNaN(n) && n > 0 && n < 10) {
+      return parseFloat((n * 1000).toFixed(6));
+    }
+    return isNaN(n) ? 0 : n;
+  }
+  const res = parseFloat(str);
+  if (!isNaN(res) && res > 0 && res < 10) {
+    return parseFloat((res * 1000).toFixed(6));
+  }
+  return isNaN(res) ? 0 : res;
+}
+
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const sync = searchParams.get('sync') === 'true';
@@ -27,7 +51,7 @@ export async function GET(request: Request) {
       if (dbRes.ok) {
         const rows = await dbRes.json();
         if (rows && rows.length > 0 && rows[0].valor) {
-          const manualRate = parseFloat(rows[0].valor);
+          const manualRate = parseVenezuelanRate(rows[0].valor);
           if (!isNaN(manualRate) && manualRate > 0) {
             return NextResponse.json({
               success: true,
@@ -63,7 +87,7 @@ export async function GET(request: Request) {
       if (dbRes.ok) {
         const rows = await dbRes.json();
         if (rows && rows.length > 0 && rows[0].valor) {
-          tasaSemanalGuardada = parseFloat(rows[0].valor);
+          tasaSemanalGuardada = parseVenezuelanRate(rows[0].valor);
           fechaSemanalGuardada = rows[0].updated_at;
         }
       }

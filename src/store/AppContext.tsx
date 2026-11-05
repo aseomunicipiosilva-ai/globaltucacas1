@@ -31,6 +31,23 @@ type AppState = {
 
 const AppContext = createContext<AppState | undefined>(undefined);
 
+
+function sanitizeTcmmvRate(rate: any): number {
+  if (!rate) return 0;
+  let str = String(rate).trim();
+  if (str.includes('.') && str.includes(',')) {
+    str = str.replace(/\./g, '').replace(',', '.');
+  } else if (str.includes(',')) {
+    str = str.replace(',', '.');
+  }
+  let n = parseFloat(str);
+  if (isNaN(n)) return 0;
+  if (n > 0 && n < 10) {
+    n = n * 1000;
+  }
+  return n;
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [inmuebles, setInmuebles] = useState<any[]>([]);
   const [contribuyentes, setContribuyentes] = useState<any[]>([]);
@@ -124,14 +141,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         
         const manual = dbConfig.find(c => c.id === 'tasa_bcv_manual');
-        if (manual && manual.valor) manualTcmmv = parseFloat(manual.valor);
+        if (manual && manual.valor) manualTcmmv = sanitizeTcmmvRate(manual.valor);
         
         const semanal = dbConfig.find(c => c.id === 'tasa_bcv_semanal');
-        if (semanal && semanal.valor) semanalTcmmv = parseFloat(semanal.valor);
+        if (semanal && semanal.valor) semanalTcmmv = sanitizeTcmmvRate(semanal.valor);
       }
 
       const bcvData = apiBcv as any;
-      let currentTcmmv = manualTcmmv > 0 ? manualTcmmv : (bcvData?.tcmmv > 0 ? bcvData.tcmmv : semanalTcmmv);
+      let currentTcmmv = sanitizeTcmmvRate(manualTcmmv > 0 ? manualTcmmv : (bcvData?.tcmmv > 0 ? bcvData.tcmmv : semanalTcmmv));
 
       // Si aAon es 0 (por ejemplo si el API de Nextjs estA! caA-do en Amplify), intentamos directo desde el cliente
       if (currentTcmmv <= 0) {

@@ -27,8 +27,10 @@ export async function GET(request: Request) {
     if (!usdRes.ok || !eurRes.ok) throw new Error("Error obteniendo tasas");
     const eurData = await eurRes.json();
     const usdData = await usdRes.json();
-    const tcmmv = parseFloat(eurData?.promedio) || 0;
-    const tasa_usd = parseFloat(usdData?.promedio) || 0;
+    let tcmmv = parseFloat(eurData?.promedio) || 0;
+    let tasa_usd = parseFloat(usdData?.promedio) || 0;
+    if (tcmmv > 0 && tcmmv < 10) tcmmv = tcmmv * 1000;
+    if (tasa_usd > 0 && tasa_usd < 10) tasa_usd = tasa_usd * 1000;
     if (tcmmv <= 0) return NextResponse.json({ error: "Tasa invalida", tcmmv }, { status: 422 });
 
     const ahora = new Date();

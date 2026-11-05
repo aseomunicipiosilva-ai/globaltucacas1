@@ -408,7 +408,17 @@ export default function CajaPage() {
       return;
     }
 
-    setCustomBcvRate(tempBcvRate);
+    let rateVal = tempBcvRate.trim();
+    if (rateVal.includes('.') && rateVal.includes(',')) {
+      rateVal = rateVal.replace(/\./g, '').replace(',', '.');
+    } else if (rateVal.includes(',')) {
+      rateVal = rateVal.replace(',', '.');
+    }
+    let numRate = parseFloat(rateVal);
+    if (!isNaN(numRate) && numRate > 0 && numRate < 10) {
+      numRate = numRate * 1000;
+    }
+    setCustomBcvRate(isNaN(numRate) ? tempBcvRate : numRate.toFixed(2));
     setJustificacionBcv(rateNote);
     setShowRateModal(false);
     setAdminPassword('');

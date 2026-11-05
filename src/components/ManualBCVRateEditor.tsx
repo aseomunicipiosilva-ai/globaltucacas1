@@ -19,7 +19,16 @@ export default function ManualBCVRateEditor({ currentRate }: { currentRate: numb
       return;
     }
 
-    const numericRate = parseFloat(manualRate.replace(',', '.'));
+    let clean = manualRate.trim();
+    if (clean.includes('.') && clean.includes(',')) {
+      clean = clean.replace(/\./g, '').replace(',', '.');
+    } else if (clean.includes(',')) {
+      clean = clean.replace(',', '.');
+    }
+    let numericRate = parseFloat(clean);
+    if (!isNaN(numericRate) && numericRate > 0 && numericRate < 10) {
+      numericRate = numericRate * 1000;
+    }
     setIsSaving(true);
 
     try {
