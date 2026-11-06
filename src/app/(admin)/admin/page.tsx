@@ -8,14 +8,13 @@ export const dynamic = 'force-dynamic';
 
 async function getExchangeRates() {
   try {
-    // Prioridad 1: Base de datos (manual o semanal fijada)
+    // Prioridad 1: Tasa fijada manualmente por el usuario en sistema_config
     const { data: dbConfig } = await supabase
       .from('sistema_config')
       .select('id, valor')
-      .in('id', ['tasa_bcv_manual', 'tasa_bcv_semanal']);
+      .eq('id', 'tasa_bcv_manual');
 
     const manual = dbConfig?.find((c: any) => c.id === 'tasa_bcv_manual');
-    const semanal = dbConfig?.find((c: any) => c.id === 'tasa_bcv_semanal');
 
     const parseRate = (val: any) => {
       if (!val) return 0;
@@ -27,12 +26,12 @@ async function getExchangeRates() {
       return isNaN(n) ? 0 : n;
     };
 
-    const rateVal = parseRate(manual?.valor) || parseRate(semanal?.valor);
-    if (rateVal > 0) {
+    const manualVal = parseRate(manual?.valor);
+    if (manualVal > 0) {
       return {
-        usd: rateVal,
-        eur: rateVal,
-        tcmmv: rateVal,
+        usd: manualVal,
+        eur: manualVal,
+        tcmmv: manualVal,
         fecha: new Date().toLocaleDateString('es-VE', {
           weekday: 'long',
           year: 'numeric',
