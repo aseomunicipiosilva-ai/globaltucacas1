@@ -310,14 +310,36 @@ export default function EstadoCuentaPage() {
   }, [activeTab]);
 
   const procesarPago = async (pago: any, accion: 'Aprobar' | 'Rechazar') => {
-    if (!confirm(`┬┐Est├ís seguro de ${accion.toUpperCase()} este pago por Bs. ${pago.monto}?`)) return;
+    let motivoRechazo = '';
+    if (accion === 'Rechazar') {
+      const input = prompt(`⚠️ Para RECHAZAR este pago (Ref: ${pago.referencia || 'S/R'}, Bs. ${pago.monto}), es OBLIGATORIO ingresar el motivo:`);
+      if (input === null) return; // canceló
+      if (!input.trim()) {
+        alert('⚠️ No se puede rechazar el pago sin especificar el motivo.');
+        return;
+      }
+      motivoRechazo = input.trim();
+    } else {
+      if (!confirm(`¿Estás seguro de APROBAR este pago por Bs. ${pago.monto}?`)) return;
+    }
 
     try {
-      // 1. Update the pago record
-      await supabase.from('pagos_reportados').update({ estado: accion === 'Aprobar' ? 'Aprobado' : 'Rechazado' }).eq('id', pago.id);
+      // 1. Update the pago record (incluyendo motivo_rechazo en detalles si aplica)
+      const prevDetalles = parseDetalles(pago.detalles);
+      const updateData: any = { estado: accion === 'Aprobar' ? 'Aprobado' : 'Rechazado' };
+      if (accion === 'Rechazar') {
+        const nuevosDetalles = {
+          ...prevDetalles,
+          motivo_rechazo: motivoRechazo,
+          observaciones: motivoRechazo,
+          fecha_rechazo: new Date().toISOString()
+        };
+        updateData.detalles = nuevosDetalles;
+      }
+      await supabase.from('pagos_reportados').update(updateData).eq('id', pago.id);
 
       // 2. Parse details
-      const detalles = { ...{ recibos: [] as string[], cuotas: [] as any[] }, ...parseDetalles(pago.detalles) };
+      const detalles = { ...{ recibos: [] as string[], cuotas: [] as any[] }, ...prevDetalles };
 
       // 3. Update related items
       if (accion === 'Rechazar') {
@@ -496,7 +518,19 @@ export default function EstadoCuentaPage() {
         }
       }
 
-      logAudit(`Pago ${accion} (Estado Cuenta)`, { id: pago.id, monto: pago.monto, referencia: pago.referencia, banco: pago.banco, tipo: pago.tipo, identidad: pago.identidad }, 'TRANSFERENCIA');
+      logAudit(
+        `Pago ${accion} (Estado Cuenta)`,
+        {
+          id: pago.id,
+          monto: pago.monto,
+          referencia: pago.referencia,
+          banco: pago.banco,
+          tipo: pago.tipo,
+          identidad: pago.identidad,
+          motivo: accion === 'Rechazar' ? motivoRechazo : undefined
+        },
+        'TRANSFERENCIA'
+      );
       alert(`Pago ${accion.toLowerCase()}o exitosamente.`);
       window.location.reload();
     } catch (e: any) {
@@ -1588,6 +1622,7 @@ if (p.estado === 'Rechazado' || p.estado === 'Eliminado') return false;
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 rounded text-[11px] font-bold ${
                             pago.estado === 'Aprobado' ? 'bg-emerald-100 text-emerald-800' :
+                            pago.estado === 'Con Diferencia' ? 'bg-amber-100 text-amber-800' :
                             pago.estado === 'Por Verificar' ? 'bg-yellow-100 text-yellow-800' :
                             'bg-red-100 text-red-800'
                           }`}>{pago.estado}</span>

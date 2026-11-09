@@ -45,7 +45,7 @@ const BANCOS_DESTINO = [
 ];
 
 const FORMAS_PAGO = ['Todos', 'Transferencia', 'Transferencia (Web)', 'Punto de Venta', 'Debito', 'Efectivo'];
-const ESTATUS_LIST = ['Todos', 'Pendiente', 'Por Verificar', 'Aprobado', 'Rechazado'];
+const ESTATUS_LIST = ['Todos', 'Pendiente', 'Por Verificar', 'Aprobado', 'Con Diferencia', 'Rechazado'];
 const ESTATUS_CONCILIAR = ['Aprobado', 'Rechazado', 'Con Diferencia'];
 
 function fmt(val: string | number | undefined) {
@@ -1176,6 +1176,7 @@ export default function ConciliacionPage() {
 
   const estatusCls = (e: string) => {
     if (e === 'Aprobado') return 'text-green-600 font-bold';
+    if (e === 'Con Diferencia') return 'text-amber-600 font-bold';
     if (e === 'Por Verificar' || e === 'Pendiente') return 'text-yellow-600 font-bold';
     if (e === 'Rechazado') return 'text-red-600 font-bold';
     return 'text-slate-600';
@@ -1232,7 +1233,7 @@ export default function ConciliacionPage() {
             <span>{fmt(m)}</span>
             {esPendiente && !isCajero && <button onClick={()=>abrir(pago,'conciliar')} title="Conciliar pago" className="text-slate-500 hover:text-blue-700 transition-colors"><Landmark size={18}/></button>}
             {(det.comprobante_url || det.comprobante_b64) && <button onClick={()=>abrir(pago,'comprobante')} title="Ver comprobante de esta transferencia" className="text-blue-600 hover:text-blue-800 transition-colors"><Eye size={18}/></button>}
-            {esAprobado && !det.comprobante_url && !isCajero && <button onClick={()=>abrir(pago,'conciliar')} title="Editar" className="text-green-600 hover:text-green-800 transition-colors"><Pencil size={16}/></button>}
+            {(esAprobado || pago.estado === 'Con Diferencia') && !isCajero && <button onClick={()=>abrir(pago,'conciliar')} title="Ver / Editar Conciliación" className="text-emerald-600 hover:text-emerald-800 transition-colors"><Pencil size={16}/></button>}
             {!isCajero && <button onClick={()=>eliminarPago(pago)} title="Eliminar" className="text-red-500 hover:text-red-700 transition-colors"><Trash2 size={16}/></button>}
           </div>
         </td>

@@ -61,6 +61,7 @@ export default function EstadoCuentaPage() {
   const [cuotasData, setCuotasData] = useState<any[]>([]);
   const [serviciosEsp, setServiciosEsp] = useState<any[]>([]);
   const [pagosPorVerificar, setPagosPorVerificar] = useState<any[]>([]);
+  const [facturasPagadasDirect, setFacturasPagadasDirect] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -73,6 +74,15 @@ export default function EstadoCuentaPage() {
           const idLimpio = fullDoc.replace(/-/g, '').toUpperCase();
           const idFmt = idLimpio.charAt(0) + '-' + idLimpio.slice(1);
           const soloNum = fullDoc.replace(/\D/g, '');
+
+          // Facturas Pagadas (Historial completo de pagos)
+          const { data: factPag } = await supabase.from('facturas')
+            .select('*')
+            .or('identidad.eq.' + idFmt + ',identidad.eq.' + idLimpio + ',identidad.eq.' + fullDoc.toUpperCase() + ',identidad.eq.' + soloNum + ',contribuyente.ilike.%' + idLimpio + '%')
+            .in('estado', ['Pagado', 'Pagada'])
+            .order('emision', { ascending: false })
+            .limit(30);
+          setFacturasPagadasDirect(factPag || []);
 
           // Convenios
           const { data: convenios } = await supabase.from('convenios').select('*')
@@ -176,7 +186,10 @@ export default function EstadoCuentaPage() {
   }), [recibos, portalDoc, docNorm, soloNum]);
 
   const pendientes = misFact.filter((f: any) => f.estado === 'Pendiente' || f.estado === 'Abonado' || f.estado === 'Por Verificar').sort((a,b) => (a.emision || '').localeCompare(b.emision || ''));
-  const pagadas = misFact.filter((f: any) => f.estado === 'Pagada' || f.estado === 'Pagado').sort((a,b) => (b.emision || '').localeCompare(a.emision || '')).slice(0, 10);
+  const pagadas = useMemo(() => {
+    if (facturasPagadasDirect.length > 0) return facturasPagadasDirect;
+    return misFact.filter((f: any) => f.estado === 'Pagada' || f.estado === 'Pagado').sort((a,b) => (b.emision || '').localeCompare(a.emision || '')).slice(0, 15);
+  }, [facturasPagadasDirect, misFact]);
 
   // Calculos
   const totalMensual = misInmuebles.reduce((acc: number, inm: any) => {
