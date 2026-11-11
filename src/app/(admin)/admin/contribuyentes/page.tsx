@@ -635,35 +635,26 @@ function ContribuyentesPageContent() {
     // Función que filtra las recibos para cada inmueble por código en la referencia
     const getFacturasParaInmueble = (inm: any, allDeudas: any[], totalInms: number): any[] => {
       if (totalInms <= 1) return allDeudas;
-      const inmCod = String(inm.inmueble || (inm as any).Inmueble || '').trim().toLowerCase();
-      const contCod = String(inm.cod_cont || (inm as any).CodCont || '').trim().toLowerCase();
+      const inmCod = String(inm.inmueble || (inm as any).Inmueble || " ).trim().toLowerCase();
+ const contCod = String(inm.cod_cont || (inm as any).CodCont || \).trim().toLowerCase();
 
-      return allDeudas.filter(f => {
-        if (!f.referencia) return true;
-        const ref = String(f.referencia).toLowerCase();
+ return allDeudas.filter(f => {
+ if (!f.referencia) return true;
+ const ref = String(f.referencia).toLowerCase();
 
-        // Si la referencia contiene el código de inmueble exacto (ej: 'inmueble 1', 'inmueble 2', 'i-000294')
-        if (inmCod && (ref.includes(inmCod) || ref.replace(/\s+/g, '').includes(inmCod.replace(/\s+/g, '')))) {
-          return true;
-        }
+ if (inmCod && (ref.includes(inmCod) || ref.replace(/\s+/g, \).includes(inmCod.replace(/\s+/g, \)))) return true;
+ if (contCod && ref.includes(contCod)) return true;
 
-        // Si la referencia contiene el código del contribuyente (ej: 'c-000227')
-        if (contCod && ref.includes(contCod)) {
-          return true;
-        }
+ const match = ref.match(/(i-\d+|c-\d+)/);
+ if (match) {
+ const refId = match[0];
+ return inmCod === refId || contCod === refId;
+ }
+ return false;
+ });
+ };
 
-        // Búsqueda por regex de I-xxx o C-xxx
-        const match = ref.match(/(i-\d+|c-\d+)/);
-        if (match) {
-          const refId = match[0];
-          return inmCod === refId || contCod === refId;
-        }
-
-        return false;
-      });
-    };
-
-    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+ const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     let pageAdded = false;
 
     for (let idx = 0; idx < inmsToProcess.length; idx++) {
@@ -671,7 +662,14 @@ function ContribuyentesPageContent() {
       // Obtener recibos de este inmueble
       const inmDeudas = getFacturasParaInmueble(inm, deudas, inmsToProcess.length);
       // Si hay múltiples inmuebles y este no tiene recibos, skip
-      if (inmsToProcess.length > 1 && inmDeudas.length === 0) continue;
+      if (inmsToProcess.length > 1 && inmDeudas.length === 0) {
+ const anyInmMatched = inmsToProcess.some(otherInm => getFacturasParaInmueble(otherInm, deudas, inmsToProcess.length).length > 0);
+ if (!anyInmMatched && idx === 0) {
+ inmDeudas.push(...deudas);
+ } else {
+ continue;
+ }
+ }
 
       if (pageAdded) doc.addPage();
       pageAdded = true;
@@ -758,37 +756,30 @@ function ContribuyentesPageContent() {
 
       // Monto usando tcmmv para recibos CM- y descontando Por Verificar
       const calcMonto = (f: any): number => {
-        if (f.estado === 'Abonado') return parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
-        let baseMonto = parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
-        const ajuste = facturasAjustes[f.referencia];
-        if (ajuste) {
-          if (ajuste.mmv_mes && ajuste.mmv_mes > 0 && tcmmv > 0) {
-            baseMonto = parseFloat((ajuste.mmv_mes * tcmmv).toFixed(2));
-          } else if (ajuste.monto) {
-            baseMonto = parseFloat(ajuste.monto);
-          }
-        } else if (f.referencia?.startsWith('CM-') && tcmmv && tcmmv > 0) {
-          const cant = parseFloat(inm.cant_inmuebles || 1);
-          const mmv = parseFloat(inm.mmv_mes || 0);
-          if (mmv > 0) baseMonto = parseFloat((cant * mmv * tcmmv).toFixed(2));
-        }
-        
-        // Descontar pagos Por Verificar
-        let montoPendiente = 0;
-        viewPagos.filter((p: any) => p.estado === 'Por Verificar').forEach((p: any) => {
-          let det: any = {};
-          try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
-          const refs: string[] = det.recibos || [];
-          if (refs.includes(f.referencia)) {
-            const montoPago = parseFloat(String(p.monto || '0').replace(/[^\d.]/g, '')) || 0;
-            if (refs.length > 0) montoPendiente += (montoPago / refs.length);
-          }
-        });
-        
-        return Math.max(0, baseMonto - montoPendiente);
-      };
+ if (f.estado === Abonado) return parseFloat(String(f.monto ||  ).replace(/[^\d.]/g, \)) || 0;
+ let baseMonto = parseFloat(String(f.monto ||  ).replace(/[^\d.]/g, \)) || 0;
+ const ajuste = facturasAjustes[f.referencia];
+ if (ajuste) {
+ if (ajuste.mmv_mes && ajuste.mmv_mes > 0 && tcmmv > 0) {
+ baseMonto = parseFloat((ajuste.mmv_mes * tcmmv).toFixed(2));
+ } else if (ajuste.monto) {
+ baseMonto = parseFloat(ajuste.monto);
+ }
+ }
+ let montoPendiente = 0;
+ viewPagos.filter((p: any) => p.estado === Por Verificar).forEach((p: any) => {
+ let det: any = {};
+ try { det = typeof p.detalles === string ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+ const refs: string[] = det.recibos || [];
+ if (refs.includes(f.referencia)) {
+ const montoPago = parseFloat(String(p.monto ||  ).replace(/[^\d.]/g, \)) || 0;
+ if (refs.length > 0) montoPendiente += (montoPago / refs.length);
+ }
+ });
+ return Math.max(0, baseMonto - montoPendiente);
+ };
 
-      let totalInm = inmRecibos.reduce((s: number, f: any) => s + calcMonto(f), 0);
+ let totalInm = inmRecibos.reduce((s: number, f: any) => s + calcMonto(f), 0);
       
       const serviciosPendientes = viewServiciosEsp.filter((s: any) => s.estado !== 'Pagado');
       const totalServiciosBs = serviciosPendientes.reduce((a: number, s: any) => a + (parseFloat(s.monto) || 0), 0);
@@ -2713,58 +2704,30 @@ function ContribuyentesPageContent() {
                       (i.identidad || '').replace(/-/g,'').toUpperCase() === (viewData?.Identidad || '').replace(/-/g,'').toUpperCase()
                     );
                     const getMontoActual = (f: any): number => {
-                      if (f.estado === 'Abonado') return parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
-                      let base = parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
-                      const ajuste = facturasAjustes[f.referencia];
-                      if (ajuste) {
-                        if (ajuste.mmv_mes && ajuste.mmv_mes > 0 && tcmmv > 0) {
-                          base = parseFloat((ajuste.mmv_mes * tcmmv).toFixed(2));
-                        } else if (ajuste.monto) {
-                          base = parseFloat(ajuste.monto);
-                        }
-                      } else if (f.referencia?.startsWith('CM-')) {
-                        const matchedInm = userInms.find((inm: any) =>
-                          (inm.inmueble && f.referencia.includes(inm.inmueble)) ||
-                          (inm.cod_cont && f.referencia.includes(inm.cod_cont))
-                        );
-                        const targetInm = matchedInm || (userInms.length === 1 ? userInms[0] : null);
-                        if (targetInm && tcmmv > 0) {
-                          const cant = parseFloat(targetInm.cant_inmuebles || 1);
-                          const mmv = parseFloat(targetInm.mmv_mes || 0);
-                          if (mmv > 0) base = parseFloat((cant * mmv * tcmmv).toFixed(2));
-                        }
-                      }
-                      
-                      let montoPendiente = 0;
-                      let tasaPago = null;
-                      viewPagos.filter((p: any) => p.estado === 'Por Verificar').forEach((p: any) => {
-                        let det: any = {};
-                        try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
-                        const refs: string[] = det.recibos || [];
-                        if (refs.includes(f.referencia)) {
-                          const montoPago = parseFloat(String(p.monto || '0').replace(/[^\d.]/g, '')) || 0;
-                          if (refs.length > 0) montoPendiente += (montoPago / refs.length);
-                          if (det.tasa_bcv) tasaPago = parseFloat(det.tasa_bcv);
-                        }
-                      });
+ if (f.estado === Abonado) return parseFloat(String(f.monto ||  ).replace(/[^\d.]/g, \)) || 0;
+ let base = parseFloat(String(f.monto ||  ).replace(/[^\d.]/g, \)) || 0;
+ const ajuste = facturasAjustes[f.referencia];
+ if (ajuste) {
+ if (ajuste.mmv_mes && ajuste.mmv_mes > 0 && tcmmv > 0) {
+ base = parseFloat((ajuste.mmv_mes * tcmmv).toFixed(2));
+ } else if (ajuste.monto) {
+ base = parseFloat(ajuste.monto);
+ }
+ }
+ let montoPendiente = 0;
+ viewPagos.filter((p: any) => p.estado === Por Verificar).forEach((p: any) => {
+ let det: any = {};
+ try { det = typeof p.detalles === string ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+ const refs: string[] = det.recibos || [];
+ if (refs.includes(f.referencia)) {
+ const montoPago = parseFloat(String(p.monto ||  ).replace(/[^\d.]/g, \)) || 0;
+ if (refs.length > 0) montoPendiente += (montoPago / refs.length);
+ }
+ });
+ return Math.max(0, base - montoPendiente);
+ };
 
-                      if (tasaPago && tasaPago > 0 && f.referencia?.startsWith('CM-')) {
-                         const matchedInm = userInms.find((inm: any) =>
-                           (inm.inmueble && f.referencia.includes(inm.inmueble)) ||
-                           (inm.cod_cont && f.referencia.includes(inm.cod_cont))
-                         );
-                         const targetInm = matchedInm || (userInms.length === 1 ? userInms[0] : null);
-                         if (targetInm) {
-                            const cant = parseFloat(targetInm.cant_inmuebles || 1);
-                            const mmv = parseFloat(targetInm.mmv_mes || 0);
-                            if (mmv > 0) base = parseFloat((cant * mmv * tasaPago).toFixed(2));
-                         }
-                      }
-
-                      return Math.max(0, base - montoPendiente);
-                    };
-
-                    const totalBs = deudas.reduce((acc: number, f: any) => acc + getMontoActual(f), 0);
+ const totalBs = deudas.reduce((acc: number, f: any) => acc + getMontoActual(f), 0);
 
                     if (deudas.length === 0) {
                       return (
