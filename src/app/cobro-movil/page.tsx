@@ -218,7 +218,8 @@ export default function CobroMovilPage() {
         ['Total Exento Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
         ['Base Imponible Bs.', 'Bs. 0,00'],
         ['IVA (16.00%) Bs.', 'Bs. 0,00'],
-        ['Total estado de cuenta Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
+        ['Saldo a Favor Bs.', `Bs. -${parseFloat(inmueble.saldo_favor_bs || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
+        ['Total estado de cuenta Bs.', `Bs. ${Math.max(0, totalInm - parseFloat(inmueble.saldo_favor_bs || 0)).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
       ].forEach(([label, value]) => {
         doc.setFont('helvetica', 'normal'); doc.text(label, 14, y);
         doc.setFont('helvetica', 'bold'); doc.text(value, 196, y, { align: 'right' });
@@ -227,7 +228,8 @@ export default function CobroMovilPage() {
       doc.line(14, y, 196, y); y += 6;
       doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
       doc.text('TOTAL A PAGAR', 14, y);
-      doc.text(`Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`, 196, y, { align: 'right' });
+      const totalNetoCobro = Math.max(0, totalInm - parseFloat(inmueble.saldo_favor_bs || 0));
+      doc.text(`Bs. ${totalNetoCobro.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`, 196, y, { align: 'right' });
       y += 2; doc.line(14, y, 196, y); y += 8;
       doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
       doc.text('ESTADO DE CUENTA DETALLADO', 105, y, { align: 'center' });
