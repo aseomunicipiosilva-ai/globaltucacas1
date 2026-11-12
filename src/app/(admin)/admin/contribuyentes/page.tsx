@@ -671,7 +671,14 @@ function ContribuyentesPageContent() {
       // Obtener recibos de este inmueble
       const inmDeudas = getFacturasParaInmueble(inm, deudas, inmsToProcess.length);
       // Si hay múltiples inmuebles y este no tiene recibos, skip
-      if (inmsToProcess.length > 1 && inmDeudas.length === 0) continue;
+      if (inmsToProcess.length > 1 && inmDeudas.length === 0) {
+        const anyInmMatched = inmsToProcess.some(otherInm => getFacturasParaInmueble(otherInm, deudas, inmsToProcess.length).length > 0);
+        if (!anyInmMatched && idx === 0) {
+          inmDeudas.push(...deudas);
+        } else {
+          continue;
+        }
+      }
 
       if (pageAdded) doc.addPage();
       pageAdded = true;
@@ -816,8 +823,8 @@ function ContribuyentesPageContent() {
         ['Total Exento Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
         ['Base Imponible Bs.', 'Bs. 0,00'],
         ['IVA (16.00%) Bs.', 'Bs. 0,00'],
-        ['Saldo a Favor Bs.', `Bs. ${parseFloat(inm.saldo_favor_bs || viewData.SaldoFavor || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
-        ['Total estado de cuenta Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`]
+        ['Saldo a Favor Bs.', `Bs. -${parseFloat(inm.saldo_favor_bs || viewData.SaldoFavor || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
+        ['Total estado de cuenta Bs.', `Bs. ${Math.max(0, totalInm - parseFloat(inm.saldo_favor_bs || viewData.SaldoFavor || 0)).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`]
       );
 
       resumenRows.forEach(([label, value]) => {
@@ -836,7 +843,8 @@ function ContribuyentesPageContent() {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
       doc.text('TOTAL A PAGAR', 14, y);
-      doc.text(`Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`, 196, y, { align: 'right' });
+      const totalNetoInm = Math.max(0, totalInm - parseFloat(inm.saldo_favor_bs || viewData.SaldoFavor || 0));
+      doc.text(`Bs. ${totalNetoInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`, 196, y, { align: 'right' });
       y += 2;
       doc.line(14, y, 196, y);
       y += 8;

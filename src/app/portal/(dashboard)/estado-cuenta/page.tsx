@@ -391,9 +391,8 @@ export default function EstadoCuentaPage() {
         ['Total Exento Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
         ['Base Imponible Bs.', 'Bs. 0,00'],
         ['IVA (16.00%) Bs.', 'Bs. 0,00'],
-        ['Saldo a Favor Bs.', `Bs. ${parseFloat(inm.saldo_favor_bs || myContribuyente?.SaldoFavor || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
-        ['Saldo a Favor Bs.', `Bs. ${parseFloat(inm.saldo_favor_bs || myContribuyente?.SaldoFavor || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
-        ['Total estado de cuenta Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]
+        ['Saldo a Favor Bs.', `Bs. -${parseFloat(inm.saldo_favor_bs || myContribuyente?.SaldoFavor || 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
+        ['Total estado de cuenta Bs.', `Bs. ${Math.max(0, totalInm - parseFloat(inm.saldo_favor_bs || myContribuyente?.SaldoFavor || 0)).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`]
       );
 
       resumenRows.forEach(([label, value]) => {
@@ -412,7 +411,8 @@ export default function EstadoCuentaPage() {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
       doc.text('TOTAL A PAGAR', 14, y);
-      doc.text(`Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 196, y, { align: 'right' });
+      const totalNetoInm = Math.max(0, totalInm - parseFloat(inm.saldo_favor_bs || myContribuyente?.SaldoFavor || 0));
+      doc.text(`Bs. ${totalNetoInm.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 196, y, { align: 'right' });
       y += 2;
       doc.line(14, y, 196, y);
       y += 8;
