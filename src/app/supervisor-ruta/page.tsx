@@ -26,7 +26,7 @@ export default function SupervisorRutaPage() {
 
   // Form states
   const [tipoVehiculo, setTipoVehiculo] = useState<'Compactadora' | 'Trimoto' | 'Volteo'>('Compactadora');
-  const [unidad, setUnidad] = useState('');
+  const [unidad, setUnidad] = useState('Compactadora #01');
   const [chofer, setChofer] = useState('');
   const [ruta, setRuta] = useState('');
   const [toneladas, setToneladas] = useState('');
@@ -46,6 +46,25 @@ export default function SupervisorRutaPage() {
   const [historialHoy, setHistorialHoy] = useState<any[]>([]);
   const [viajeDiaActual, setViajeDiaActual] = useState<number>(1);
   const [totalToneladasHoy, setTotalToneladasHoy] = useState<number>(0);
+
+  // Ping satelital cada vez que cambia unidad, ruta o se tienen coordenadas
+  useEffect(() => {
+    if (coords && coords.lat && coords.lng) {
+      const u = unidad || 'Compactadora #01';
+      fetch('/api/supervisor-rutas/gps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          unidad: u,
+          supervisor: supervisor || 'Supervisor de Ruta',
+          ruta: ruta || '',
+          chofer: chofer || '',
+          lat: coords.lat,
+          lng: coords.lng
+        })
+      }).catch(() => {});
+    }
+  }, [unidad, ruta, chofer, coords, supervisor]);
 
   // Unidades típicas para selección rápida
   const UNIDADES_PREDEFINIDAS = [
@@ -113,6 +132,21 @@ export default function SupervisorRutaPage() {
         setGpsLoading(false);
         setTrackingActive(true);
 
+        // Enviar ubicación de inmediato a la sala situacional
+        const currentUnidad = unidad || 'Compactadora #01';
+        fetch('/api/supervisor-rutas/gps', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            unidad: currentUnidad,
+            supervisor: supervisor || 'Supervisor de Ruta',
+            ruta: ruta || '',
+            chofer: chofer || '',
+            lat: c.lat,
+            lng: c.lng
+          })
+        }).catch(() => {});
+
         // Iniciar seguimiento en tiempo real continuo
         iniciarWatchPosition();
       },
@@ -137,21 +171,20 @@ export default function SupervisorRutaPage() {
         const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setCoords(c);
 
-        // Si ya hay unidad seleccionada, enviar ping silencioso de GPS a la sala situacional
-        if (unidad) {
-          fetch('/api/supervisor-rutas/gps', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              unidad,
-              supervisor,
-              ruta,
-              chofer,
-              lat: c.lat,
-              lng: c.lng
-            })
-          }).catch(() => {});
-        }
+        // Enviar ping silencioso a la sala situacional
+        const uActual = unidad || 'Compactadora #01';
+        fetch('/api/supervisor-rutas/gps', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            unidad: uActual,
+            supervisor: supervisor || 'Supervisor de Ruta',
+            ruta: ruta || '',
+            chofer: chofer || '',
+            lat: c.lat,
+            lng: c.lng
+          })
+        }).catch(() => {});
       },
       () => {},
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }

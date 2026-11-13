@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { 
   Radio, 
   Truck, 
@@ -9,15 +10,25 @@ import {
   Lock, 
   ShieldCheck, 
   AlertCircle, 
-  ExternalLink, 
   Calendar, 
   User, 
   Route, 
   Scale, 
   Clock,
   Eye,
-  EyeOff
+  EyeOff,
+  Navigation
 } from 'lucide-react';
+
+// Carga dinámica del mapa Leaflet para evitar problemas de SSR en Next.js
+const SalaMapaInteractivo = dynamic(() => import('@/components/SalaMapaInteractivo'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[520px] rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400">
+      <RefreshCw className="w-6 h-6 animate-spin text-emerald-400 mr-2" /> Cargando mapa satelital...
+    </div>
+  )
+});
 
 export default function SalaSituacionalPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -30,7 +41,6 @@ export default function SalaSituacionalPage() {
   const [loadingGps, setLoadingGps] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  // Verificar si ya desbloqueó la sala en esta sesión
   useEffect(() => {
     const ses = sessionStorage.getItem('sala_situacional_unlocked');
     if (ses === 'true') {
@@ -68,14 +78,13 @@ export default function SalaSituacionalPage() {
   useEffect(() => {
     if (!isAuthenticated) return;
     loadGpsUnits();
-    // Actualización automática en tiempo real cada 12 segundos
+    // Actualización automática en tiempo real cada 10 segundos
     const timer = setInterval(() => {
       loadGpsUnits();
-    }, 12000);
+    }, 10000);
     return () => clearInterval(timer);
   }, [isAuthenticated]);
 
-  // Si no está autenticado, mostrar formulario de acceso con clave Omar..
   if (!isAuthenticated) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
@@ -134,7 +143,6 @@ export default function SalaSituacionalPage() {
     );
   }
 
-  // Vista de la Sala Situacional
   return (
     <div className="space-y-6">
       {/* Top Banner */}
@@ -154,7 +162,7 @@ export default function SalaSituacionalPage() {
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Rastreo continuo de unidades, rutas y descargas hacia el vertedero
+                Rastreo interactivo satelital de unidades y recorridos sin salir del sistema
               </p>
             </div>
           </div>
@@ -182,22 +190,28 @@ export default function SalaSituacionalPage() {
 
         {lastUpdated && (
           <div className="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-            <span>Último pulso satelital recibido: {lastUpdated.toLocaleTimeString('es-VE')}</span>
-            <span className="text-emerald-400 font-semibold">{gpsUnits.length} camiones registrados</span>
+            <span>Última sincronización: {lastUpdated.toLocaleTimeString('es-VE')}</span>
+            <span className="text-emerald-400 font-semibold">{gpsUnits.length} camiones transmitiendo señal</span>
           </div>
         )}
       </div>
 
-      {/* Grid de Camiones / Unidades */}
-      {gpsUnits.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center text-slate-400">
-          <Truck className="w-16 h-16 mx-auto text-slate-700 mb-3" />
-          <h3 className="text-base font-bold text-slate-200">No hay camiones emitiendo señal GPS activa</h3>
-          <p className="text-xs text-slate-400 max-w-md mx-auto mt-1">
-            Tan pronto el supervisor de ruta active su módulo en su teléfono móvil con el GPS encendido, la unidad aparecerá aquí automáticamente con su ruta y ubicación en vivo.
-          </p>
+      {/* MAPA INTERACTIVO INTEGRADO DIRECTAMENTE */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+            <Navigation className="w-4 h-4 text-emerald-400" /> Mapa Satelital en Tiempo Real
+          </h2>
+          <span className="text-xs text-slate-400">
+            Haz clic en cualquier camión para ver su ficha
+          </span>
         </div>
-      ) : (
+
+        <SalaMapaInteractivo units={gpsUnits} />
+      </div>
+
+      {/* Grid de Fichas de Unidades */}
+      {gpsUnits.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {gpsUnits.map((u: any, idx: number) => {
             const minutosDesdeUpdate = u.updated_at 
@@ -211,7 +225,6 @@ export default function SalaSituacionalPage() {
                 className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg flex flex-col justify-between hover:border-slate-700 transition-colors"
               >
                 <div>
-                  {/* Encabezado tarjeta */}
                   <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                     <div className="flex items-center gap-2.5">
                       <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-black">
@@ -235,11 +248,10 @@ export default function SalaSituacionalPage() {
                     </span>
                   </div>
 
-                  {/* Detalles de la unidad */}
                   <div className="py-4 space-y-2.5 text-xs text-slate-300">
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400 flex items-center gap-1.5">
-                        <Route size={14} className="text-blue-400" /> Ruta Asignada:
+                        <Route size={14} className="text-blue-400" /> Ruta:
                       </span>
                       <span className="font-bold text-white text-right truncate max-w-[160px]">
                         {u.ruta || 'Sin Ruta Asignada'}
@@ -257,25 +269,13 @@ export default function SalaSituacionalPage() {
 
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400 flex items-center gap-1.5">
-                        <MapPin size={14} className="text-red-400" /> Coordenadas:
+                        <MapPin size={14} className="text-red-400" /> Ubicación GPS:
                       </span>
                       <span className="font-mono text-[11px] text-emerald-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                        {u.lat?.toFixed(5)}, {u.lng?.toFixed(5)}
+                        {Number(u.lat)?.toFixed(5)}, {Number(u.lng)?.toFixed(5)}
                       </span>
                     </div>
                   </div>
-                </div>
-
-                {/* Botón ver en mapa */}
-                <div className="pt-3 border-t border-slate-800">
-                  <a
-                    href={`https://www.google.com/maps?q=${u.lat},${u.lng}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95"
-                  >
-                    <ExternalLink size={14} /> Abrir Ubicación en Google Maps
-                  </a>
                 </div>
               </div>
             );
