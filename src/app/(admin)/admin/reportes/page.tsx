@@ -19,12 +19,13 @@ import ConveniosView from './views/ConveniosView';
 import SolventesView from './views/SolventesView';
 import BitacoraView from './views/BitacoraView';
 import ServiciosEspecialesReportView from './views/ServiciosEspecialesReportView';
+import SupervisorRutaReportView from './views/SupervisorRutaReportView';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-type ActiveView = null | 'ingresos' | 'corte' | 'libro-ventas' | 'fiscalizacion' | 'empleados' | 'saldos' | 'ingreso-bancario' | 'morosos' | 'transferencias' | 'inscritos' | 'convenios' | 'solventes' | 'bitacora' | 'censo' | 'servicios-especiales';
+type ActiveView = null | 'ingresos' | 'corte' | 'libro-ventas' | 'fiscalizacion' | 'empleados' | 'saldos' | 'ingreso-bancario' | 'morosos' | 'transferencias' | 'inscritos' | 'convenios' | 'solventes' | 'bitacora' | 'censo' | 'servicios-especiales' | 'supervisor-ruta';
 
 const CARDS = [
   { id: 'ingresos' as ActiveView,       label: 'Caja - Ingresos',         emoji: '🖨️',  desc: 'General de Ingresos, Corte, Libro de Ventas', adminOnly: false },
@@ -505,6 +506,7 @@ export default function ReportesPage() {
   if (activeView === 'solventes') return <SolventesView onBack={() => setActiveView(null)} />;
   if (activeView === 'bitacora')  return <BitacoraView onBack={() => setActiveView(null)} />;
   if (activeView === 'servicios-especiales') return <ServiciosEspecialesReportView onBack={() => setActiveView(null)} />;
+  if (activeView === 'supervisor-ruta') return <SupervisorRutaReportView onBack={() => setActiveView(null)} />;
 
   // --- Main landing: Cards ---
   const visibleCards = CARDS.filter(c => isAdmin || !c.adminOnly);
