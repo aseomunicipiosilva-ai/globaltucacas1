@@ -10,22 +10,25 @@ import {
   Lock, 
   ShieldCheck, 
   AlertCircle, 
-  Calendar, 
   User, 
   Route, 
   Scale, 
-  Clock,
-  Eye,
-  EyeOff,
-  Navigation
+  Eye, 
+  EyeOff, 
+  Navigation,
+  Trash2,
+  CheckSquare,
+  Square,
+  Crosshair,
+  Layers,
+  Clock
 } from 'lucide-react';
 
-// Carga dinámica del mapa Leaflet para evitar problemas de SSR en Next.js
 const SalaMapaInteractivo = dynamic(() => import('@/components/SalaMapaInteractivo'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-[520px] rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400">
-      <RefreshCw className="w-6 h-6 animate-spin text-emerald-400 mr-2" /> Cargando mapa satelital...
+    <div className="w-full h-[580px] rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400">
+      <RefreshCw className="w-6 h-6 animate-spin text-emerald-400 mr-2" /> Cargando mapa interactivo en vivo...
     </div>
   )
 });
@@ -40,6 +43,13 @@ export default function SalaSituacionalPage() {
   const [gpsUnits, setGpsUnits] = useState<any[]>([]);
   const [loadingGps, setLoadingGps] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  // Filtros de visualización
+  const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
+  const [focusedUnit, setFocusedUnit] = useState<any | null>(null);
+
+  // Estado de eliminación
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     const ses = sessionStorage.getItem('sala_situacional_unlocked');
@@ -65,8 +75,15 @@ export default function SalaSituacionalPage() {
       const res = await fetch('/api/supervisor-rutas/gps');
       if (res.ok) {
         const data = await res.json();
-        setGpsUnits(data || []);
+        const units = data || [];
+        setGpsUnits(units);
         setLastUpdated(new Date());
+
+        // Si la unidad enfocada sigue existiendo, actualizar su referencia
+        if (focusedUnit) {
+          const updated = units.find((u: any) => u.unidad === focusedUnit.unidad);
+          if (updated) setFocusedUnit(updated);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -75,15 +92,69 @@ export default function SalaSituacionalPage() {
     }
   };
 
+  // Polling automático continuo cada 8 segundos (en vivo sin recargar)
   useEffect(() => {
     if (!isAuthenticated) return;
     loadGpsUnits();
-    // Actualización automática en tiempo real cada 10 segundos
     const timer = setInterval(() => {
       loadGpsUnits();
-    }, 10000);
+    }, 8000);
     return () => clearInterval(timer);
   }, [isAuthenticated]);
+
+  // Selección individual o múltiple
+  const toggleUnitSelection = (unidad: string) => {
+    if (selectedUnits.includes(unidad)) {
+      setSelectedUnits(selectedUnits.filter(u => u !== unidad));
+    } else {
+      setSelectedUnits([...selectedUnits, unidad]);
+    }
+  };
+
+  const selectAll = () => {
+    setSelectedUnits(gpsUnits.map(u => u.unidad));
+    setFocusedUnit(null);
+  };
+
+  const deselectAll = () => {
+    setSelectedUnits([]);
+    setFocusedUnit(null);
+  };
+
+  const focusSingleUnit = (unit: any) => {
+    if (focusedUnit?.unidad === unit.unidad) {
+      setFocusedUnit(null);
+    } else {
+      setFocusedUnit(unit);
+      if (!selectedUnits.includes(unit.unidad)) {
+        setSelectedUnits([unit.unidad]);
+      }
+    }
+  };
+
+  // Eliminar camión / unidad de la sala
+  const handleDeleteUnit = async (unit: any) => {
+    const confirmDelete = window.confirm(`¿Estás seguro de eliminar el camión ${unit.unidad} de la Sala Situacional?`);
+    if (!confirmDelete) return;
+
+    setDeletingId(unit.unidad);
+    try {
+      const res = await fetch(`/api/supervisor-rutas/gps?unidad=${encodeURIComponent(unit.unidad)}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setGpsUnits(prev => prev.filter(u => u.unidad !== unit.unidad));
+        setSelectedUnits(prev => prev.filter(u => u !== unit.unidad));
+        if (focusedUnit?.unidad === unit.unidad) setFocusedUnit(null);
+      } else {
+        alert('Error al eliminar la unidad');
+      }
+    } catch(err: any) {
+      alert('Error: ' + err.message);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   if (!isAuthenticated) {
     return (
@@ -162,7 +233,7 @@ export default function SalaSituacionalPage() {
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Rastreo interactivo satelital de unidades y recorridos sin salir del sistema
+                Seguimiento satelital en tiempo real con trazado de recorrido, vista individual y múltiple
               </p>
             </div>
           </div>
@@ -174,7 +245,7 @@ export default function SalaSituacionalPage() {
               className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 flex items-center gap-1.5 transition-colors disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loadingGps ? 'animate-spin text-blue-400' : ''}`} />
-              Actualizar
+              Sincronizar
             </button>
             <button
               onClick={() => {
@@ -189,28 +260,100 @@ export default function SalaSituacionalPage() {
         </div>
 
         {lastUpdated && (
-          <div className="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-            <span>Última sincronización: {lastUpdated.toLocaleTimeString('es-VE')}</span>
-            <span className="text-emerald-400 font-semibold">{gpsUnits.length} camiones transmitiendo señal</span>
+          <div className="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex flex-wrap items-center justify-between gap-2">
+            <span>Último pulso recibido: {lastUpdated.toLocaleTimeString('es-VE')}</span>
+            <div className="flex items-center gap-3">
+              <span className="text-emerald-400 font-semibold">{gpsUnits.length} camiones en sistema</span>
+              {focusedUnit && (
+                <span className="bg-blue-900/60 text-blue-300 px-2.5 py-0.5 rounded-full border border-blue-700 text-[10px] font-bold flex items-center gap-1">
+                  <Crosshair size={12} /> Enfocando: {focusedUnit.unidad}
+                </span>
+              )}
+            </div>
           </div>
         )}
       </div>
 
-      {/* MAPA INTERACTIVO INTEGRADO DIRECTAMENTE */}
+      {/* CONTROLES DE SELECCIÓN Y MULTI-SELECCIÓN */}
+      {gpsUnits.length > 0 && (
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-400 uppercase flex items-center gap-1.5">
+              <Layers size={14} className="text-emerald-400" /> Filtrar en Pantalla:
+            </span>
+            <button
+              onClick={selectAll}
+              className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1 rounded-lg border border-slate-700 font-semibold"
+            >
+              Ver Todos ({gpsUnits.length})
+            </button>
+            <button
+              onClick={deselectAll}
+              className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-400 px-2.5 py-1 rounded-lg border border-slate-700 font-semibold"
+            >
+              Desmarcar
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {gpsUnits.map((u) => {
+              const isChecked = selectedUnits.length === 0 || selectedUnits.includes(u.unidad);
+              const isFocused = focusedUnit?.unidad === u.unidad;
+              return (
+                <div
+                  key={u.unidad}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs transition-colors ${
+                    isFocused
+                      ? 'bg-blue-600 text-white border-blue-400 font-black'
+                      : isChecked
+                      ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800 font-semibold'
+                      : 'bg-slate-950 text-slate-500 border-slate-800'
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleUnitSelection(u.unidad)}
+                    className="hover:text-white"
+                    title="Activar/desactivar en mapa"
+                  >
+                    {isChecked ? <CheckSquare size={13} className="text-emerald-400" /> : <Square size={13} />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => focusSingleUnit(u)}
+                    className="hover:underline flex items-center gap-1 truncate max-w-[140px]"
+                    title="Enfocar individualmente"
+                  >
+                    <Crosshair size={11} className={isFocused ? 'text-white' : 'text-slate-400'} />
+                    {u.unidad}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* MAPA INTERACTIVO CON TRAZADO DE RUTA CONTINUO */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-            <Navigation className="w-4 h-4 text-emerald-400" /> Mapa Satelital en Tiempo Real
+            <Navigation className="w-4 h-4 text-emerald-400" /> Pantalla Satelital con Trazado de Recorrido
           </h2>
           <span className="text-xs text-slate-400">
-            Haz clic en cualquier camión para ver su ficha
+            {focusedUnit ? `Siguiendo a ${focusedUnit.unidad}` : 'Mostrando movimiento en vivo'}
           </span>
         </div>
 
-        <SalaMapaInteractivo units={gpsUnits} />
+        <SalaMapaInteractivo 
+          units={gpsUnits} 
+          selectedUnitNames={selectedUnits} 
+          focusedUnit={focusedUnit}
+          onSelectUnit={(unit) => setFocusedUnit(unit)}
+        />
       </div>
 
-      {/* Grid de Fichas de Unidades */}
+      {/* Grid de Fichas de Unidades con Botón de Eliminar */}
       {gpsUnits.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {gpsUnits.map((u: any, idx: number) => {
@@ -218,11 +361,15 @@ export default function SalaSituacionalPage() {
               ? Math.round((Date.now() - new Date(u.updated_at).getTime()) / 60000)
               : null;
             const estaEnLinea = minutosDesdeUpdate !== null && minutosDesdeUpdate < 10;
+            const isFocused = focusedUnit?.unidad === u.unidad;
+            const trailCount = Array.isArray(u.trail) ? u.trail.length : 1;
 
             return (
               <div
                 key={idx}
-                className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg flex flex-col justify-between hover:border-slate-700 transition-colors"
+                className={`bg-slate-900 border rounded-2xl p-5 shadow-lg flex flex-col justify-between transition-all ${
+                  isFocused ? 'border-blue-500 shadow-blue-500/20 ring-1 ring-blue-500' : 'border-slate-800 hover:border-slate-700'
+                }`}
               >
                 <div>
                   <div className="flex items-center justify-between pb-3 border-b border-slate-800">
@@ -269,13 +416,47 @@ export default function SalaSituacionalPage() {
 
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400 flex items-center gap-1.5">
-                        <MapPin size={14} className="text-red-400" /> Ubicación GPS:
+                        <MapPin size={14} className="text-red-400" /> Coordenadas:
                       </span>
                       <span className="font-mono text-[11px] text-emerald-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
                         {Number(u.lat)?.toFixed(5)}, {Number(u.lng)?.toFixed(5)}
                       </span>
                     </div>
+
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-800/60">
+                      <span className="text-slate-500 flex items-center gap-1.5">
+                        <Clock size={13} /> Puntos de Trazado:
+                      </span>
+                      <span className="font-semibold text-emerald-400">
+                        {trailCount} posiciones registradas
+                      </span>
+                    </div>
                   </div>
+                </div>
+
+                {/* Acciones de la unidad: Enfocar / Eliminar */}
+                <div className="pt-3 border-t border-slate-800 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => focusSingleUnit(u)}
+                    className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors ${
+                      isFocused 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                    }`}
+                  >
+                    <Crosshair size={14} /> {isFocused ? 'Enfocado' : 'Enfocar en Mapa'}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={deletingId === u.unidad}
+                    onClick={() => handleDeleteUnit(u)}
+                    className="p-2 rounded-xl bg-red-950/60 hover:bg-red-900 text-red-400 border border-red-800/80 transition-colors disabled:opacity-50"
+                    title="Eliminar este camión de la Sala Situacional"
+                  >
+                    <Trash2 size={15} />
+                  </button>
                 </div>
               </div>
             );
