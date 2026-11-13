@@ -34,6 +34,9 @@ export default function SupervisorRutaReportView({ onBack }: { onBack: () => voi
 
   // Pestaña actual: Listado de descargas / Sala Situacional en vivo
   const [activeTab, setActiveTab] = useState<'descargas' | 'sala_situacional'>('descargas');
+  const [salaUnlocked, setSalaUnlocked] = useState(false);
+  const [claveSala, setClaveSala] = useState('');
+  const [errorClave, setErrorClave] = useState('');
 
   const loadData = async () => {
     setLoading(true);
@@ -235,7 +238,22 @@ export default function SupervisorRutaReportView({ onBack }: { onBack: () => voi
           <Scale className="w-4 h-4" /> Registro de Descargas y Viajes ({viajesFiltrados.length})
         </button>
         <button
-          onClick={() => setActiveTab('sala_situacional')}
+          onClick={() => {
+            const unlocked = sessionStorage.getItem('sala_situacional_unlocked') === 'true';
+            if (unlocked || salaUnlocked) {
+              setSalaUnlocked(true);
+              setActiveTab('sala_situacional');
+            } else {
+              const pass = window.prompt('ACCESO RESTRINGIDO - SALA SITUACIONAL\n\nIngrese la clave de seguridad para visualizar el monitoreo satelital GPS en vivo:');
+              if (pass === 'Omar..') {
+                sessionStorage.setItem('sala_situacional_unlocked', 'true');
+                setSalaUnlocked(true);
+                setActiveTab('sala_situacional');
+              } else if (pass !== null) {
+                alert('Contraseña incorrecta. Acceso denegado a la Sala Situacional.');
+              }
+            }
+          }}
           className={`px-4 py-2 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
             activeTab === 'sala_situacional'
               ? 'border-blue-600 text-blue-700 bg-blue-50/50'

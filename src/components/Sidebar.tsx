@@ -1,5 +1,5 @@
 'use client';
-import { Home, Search, FileText, FlaskConical, Wrench, UserPlus, Users, FileSpreadsheet, History, Award, Clock, Building2, AlertTriangle, Handshake, LayoutDashboard, Mail, User, PieChart, Truck, Inbox, Calculator, Briefcase, Landmark, BookOpen, Car, Map, Bus, TreePine, ShieldAlert, DollarSign, Wallet, FileCheck, Package, ShoppingCart, Target, BarChart3, ClipboardCheck, Smartphone, Compass } from 'lucide-react';
+import { Home, Radio, Search, FileText, FlaskConical, Wrench, UserPlus, Users, FileSpreadsheet, History, Award, Clock, Building2, AlertTriangle, Handshake, LayoutDashboard, Mail, User, PieChart, Truck, Inbox, Calculator, Briefcase, Landmark, BookOpen, Car, Map, Bus, TreePine, ShieldAlert, DollarSign, Wallet, FileCheck, Package, ShoppingCart, Target, BarChart3, ClipboardCheck, Smartphone, Compass } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
@@ -54,6 +54,7 @@ export default function Sidebar() {
     { icon: AlertTriangle, name: 'Denuncias Ciudadanas', href: '/admin/denuncias' },
     { icon: Truck, name: 'Rutas Camiones', href: '/admin/rutas' },
     { icon: Compass, name: 'Supervisor de Ruta', href: '/supervisor-ruta' },
+    { icon: Radio, name: 'Sala Situacional GPS', href: '/admin/sala-situacional' },
     { icon: Wrench, name: 'Servicios Especiales', href: '/admin/servicios-especiales?tab=especial' },
     { icon: FlaskConical, name: 'Serv. Extraordinarios', href: '/admin/servicios-especiales?tab=extraordinario' },
     { icon: PieChart, name: 'Reportes Generales', href: '/admin/reportes' },
