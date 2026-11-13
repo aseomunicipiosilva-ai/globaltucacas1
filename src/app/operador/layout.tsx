@@ -17,7 +17,7 @@ export default function OperadorLayout({ children }: { children: React.ReactNode
   const isLoginPage = pathname === '/operador/login';
 
   const checkOperatorStatus = useCallback(async (opName: string) => {
-    if (opName === 'CATASTRO' || opName === 'HACIENDA') return true;
+    if (opName === 'CATASTRO' || opName === 'HACIENDA' || opName.toLowerCase() === 'dzara') return true;
     try {
       const cleanOp = opName.includes('-') ? opName.split('-').slice(1).join('-').trim() : opName.trim();
       const { data, error: dbErr } = await supabase

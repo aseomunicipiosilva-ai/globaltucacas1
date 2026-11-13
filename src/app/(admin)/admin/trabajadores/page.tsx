@@ -23,6 +23,7 @@ const defaultPermissions = {
   ver_reportes: false,
   gestionar_usuarios: false,
   precindencia: false,
+  supervisor_ruta: false,
 };
 
 export default function TrabajadoresPage() {
@@ -248,6 +249,10 @@ export default function TrabajadoresPage() {
       Object.keys(newPerms).forEach(k => newPerms[k as keyof typeof newPerms] = false);
       newPerms.crear_contribuyente = true;
       newPerms.gestionar_pagos = true;
+        } else if (role === 'Supervisor de Ruta') {
+      Object.keys(newPerms).forEach(k => newPerms[k as keyof typeof newPerms] = false);
+      newPerms.supervisor_ruta = true;
+      newPerms.ver_reportes = true;
     } else if (role === 'Supervisor') {
       Object.keys(newPerms).forEach(k => newPerms[k as keyof typeof newPerms] = true);
       newPerms.borrar_contribuyente = false;
@@ -340,6 +345,7 @@ export default function TrabajadoresPage() {
     { key: 'ver_reportes', label: 'Ver Reportes', desc: 'Acceso a los reportes financieros e informes.' },
     { key: 'gestionar_usuarios', label: 'Gestionar Trabajadores', desc: 'Permite crear o editar accesos al sistema.' },
     { key: 'precindencia', label: 'Módulo de Precindencia', desc: 'Permite acceder al módulo de precindencia.' },
+    { key: 'supervisor_ruta', label: 'Supervisor de Ruta', desc: 'Permite registrar descargas en vertedero y emitir GPS.' },
   ];
 
   if (isEditing) {
@@ -440,6 +446,7 @@ export default function TrabajadoresPage() {
                   <select value={formData.rol} onChange={e => handleRoleChange(e.target.value)} className="w-full border-2 border-blue-200 bg-blue-50 rounded px-3 py-1.5 text-sm font-semibold text-blue-800 outline-none focus:border-blue-500">
                     <option value="Administrador">Administrador</option>
                     <option value="Supervisor">Supervisor</option>
+                    <option value="Supervisor de Ruta">Supervisor de Ruta</option>
                     <option value="Taquilla / Operador">Taquilla / Operador</option>
                     <option value="Operador de Censo">Operador de Censo</option>
                     <option value="Auditor">Auditor</option>

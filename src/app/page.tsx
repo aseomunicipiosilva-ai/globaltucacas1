@@ -113,7 +113,8 @@ export default function Home() {
           gap: 28px;
           width: 100%; max-width: 1080px; justify-content: center;
         }
-        .cards-grid-4 { grid-template-columns: repeat(4, minmax(200px, 280px)); }
+        .cards-grid-5 { grid-template-columns: repeat(auto-fit, minmax(220px, 280px)); max-width: 1200px; }
+        .cards-grid-4 { grid-template-columns: repeat(auto-fit, minmax(220px, 280px)); }
         .cards-grid-3 { grid-template-columns: repeat(3, minmax(240px, 340px)); }
         .cards-grid-2 { grid-template-columns: repeat(2, minmax(260px, 380px)); }
         .cards-grid-1 { grid-template-columns: minmax(300px, 420px); }
@@ -186,6 +187,7 @@ export default function Home() {
           .center { padding: 36px 20px 44px; }
           .section-title { margin-bottom: 40px; }
 
+          .cards-grid-5,
           .cards-grid-4,
           .cards-grid-3,
           .cards-grid-2 { grid-template-columns: 1fr; max-width: 420px; }
@@ -239,7 +241,7 @@ export default function Home() {
             <div className="title-line" />
           </div>
 
-          <div className={`cards-grid ${showContribuyente && showWorkers ? 'cards-grid-4' : showWorkers ? 'cards-grid-3' : 'cards-grid-1'}`}>
+          <div className={`cards-grid ${showWorkers ? 'cards-grid-5' : 'cards-grid-1'}`}>
 
             {showContribuyente && (
               <Link href="/portal" className="card">
@@ -289,6 +291,19 @@ export default function Home() {
                 </div>
                 <h3 className="card-title"><b style={{ fontWeight:800 }}>Operador</b>{' '}<span style={{ fontWeight:400 }}>de Censo</span></h3>
                 <p className="card-desc">Módulo móvil exclusivo para trabajadores en jornada de empadronamiento de calle.</p>
+                <DotRow label="Ingresar Móvil" />
+              </Link>
+            )}
+
+            {showWorkers && (
+              <Link href="/operador/supervisor-ruta" className="card">
+                <div className="icon-bubble">
+                  <svg width="34" height="34" fill="none" viewBox="0 0 24 24" stroke="#B8CD29" strokeWidth="1.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.25V4.5a1.5 1.5 0 00-1.5-1.5h-7.5a1.5 1.5 0 00-1.5 1.5v12.75" />
+                  </svg>
+                </div>
+                <h3 className="card-title"><b style={{ fontWeight:800 }}>Supervisor</b>{' '}<span style={{ fontWeight:400 }}>de Ruta</span></h3>
+                <p className="card-desc">Control de viajes por día, pesaje de toneladas en vertedero y monitoreo GPS en vivo.</p>
                 <DotRow label="Ingresar Móvil" />
               </Link>
             )}

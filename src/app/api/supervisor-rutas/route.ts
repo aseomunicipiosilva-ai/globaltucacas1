@@ -53,6 +53,7 @@ export async function GET(request: Request) {
         referencia: item.referencia, // ej. 'VJ-20261114-001'
         estado: item.estado,
         viaje_dia: meta.viaje_dia || 1,
+        tipo_vehiculo: meta.tipo_vehiculo || 'Compactadora',
         lat: meta.lat || null,
         lng: meta.lng || null,
         observaciones: meta.observaciones || '',
@@ -69,7 +70,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { supervisor, unidad, chofer, ruta, toneladas, fecha, lat, lng, observaciones } = body;
+    const { supervisor, unidad, tipo_vehiculo, chofer, ruta, toneladas, fecha, lat, lng, observaciones } = body;
 
     if (!unidad || !ruta || toneladas === undefined || toneladas === null) {
       return NextResponse.json({ error: 'Unidad, ruta y toneladas son requeridos.' }, { status: 400 });
@@ -91,6 +92,7 @@ export async function POST(request: Request) {
 
     const metadata = {
       viaje_dia: proximoNumeroViaje,
+      tipo_vehiculo: tipo_vehiculo || 'Compactadora',
       lat: lat || null,
       lng: lng || null,
       observaciones: observaciones || '',
@@ -125,6 +127,7 @@ export async function POST(request: Request) {
       try {
         const gpsPayload = {
           unidad: unidad.trim(),
+          tipo_vehiculo: tipo_vehiculo || 'Compactadora',
           supervisor: supervisor || 'Supervisor',
           ruta: ruta.trim(),
           chofer: chofer || '',
@@ -181,3 +184,4 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+

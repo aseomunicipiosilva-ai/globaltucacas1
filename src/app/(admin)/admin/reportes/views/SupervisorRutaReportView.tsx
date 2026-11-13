@@ -553,3 +553,4 @@ export default function SupervisorRutaReportView({ onBack }: { onBack: () => voi
     </div>
   );
 }
+

@@ -25,6 +25,7 @@ export default function SupervisorRutaPage() {
   const [rutasDisponibles, setRutasDisponibles] = useState<any[]>([]);
 
   // Form states
+  const [tipoVehiculo, setTipoVehiculo] = useState<'Compactadora' | 'Trimoto' | 'Volteo'>('Compactadora');
   const [unidad, setUnidad] = useState('');
   const [chofer, setChofer] = useState('');
   const [ruta, setRuta] = useState('');
@@ -204,6 +205,7 @@ export default function SupervisorRutaPage() {
       const payload = {
         supervisor,
         unidad: unidad.trim(),
+        tipo_vehiculo: tipoVehiculo,
         chofer: chofer.trim(),
         ruta: ruta.trim(),
         toneladas: tonNum,
@@ -346,6 +348,39 @@ export default function SupervisorRutaPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* TIPO DE VEHÍCULO */}
+            <div>
+              <label className="block text-xs font-bold text-slate-300 uppercase mb-1.5">
+                Tipo de Vehículo <span className="text-red-400">*</span>
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'Compactadora', label: 'Compactadora', icon: '🚛' },
+                  { id: 'Trimoto', label: 'Trimoto', icon: '🛺' },
+                  { id: 'Volteo', label: 'Volteo', icon: '🚚' }
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      setTipoVehiculo(item.id as any);
+                      if (!unidad || unidad.includes('Compactador') || unidad.includes('Trimoto') || unidad.includes('Volteo')) {
+                        setUnidad(`${item.label} #01`);
+                      }
+                    }}
+                    className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all flex flex-col items-center gap-1 ${
+                      tipoVehiculo === item.id
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500 shadow-sm shadow-emerald-500/20'
+                        : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    <span className="text-lg">{item.icon}</span>
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* UNIDAD / CAMIÓN */}
             <div>
               <label className="block text-xs font-bold text-slate-300 uppercase mb-1.5">
@@ -362,7 +397,12 @@ export default function SupervisorRutaPage() {
                 />
                 {/* Botones de selección rápida de unidad */}
                 <div className="flex flex-wrap gap-1.5">
-                  {UNIDADES_PREDEFINIDAS.map((u) => (
+                  {[
+                    `${tipoVehiculo} #01`,
+                    `${tipoVehiculo} #02`,
+                    `${tipoVehiculo} #03`,
+                    `${tipoVehiculo} #04`
+                  ].map((u) => (
                     <button
                       key={u}
                       type="button"
@@ -505,7 +545,10 @@ export default function SupervisorRutaPage() {
                 >
                   <div className="space-y-0.5 flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-white truncate">{item.unidad}</span>
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="text-xs">{item.tipo_vehiculo === 'Trimoto' ? '🛺' : item.tipo_vehiculo === 'Volteo' ? '🚚' : '🚛'}</span>
+                        <span className="font-bold text-white truncate">{item.unidad}</span>
+                      </div>
                       <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-black px-1.5 py-0.5 rounded border border-emerald-500/30">
                         Viaje #{item.viaje_dia}
                       </span>
@@ -537,3 +580,4 @@ export default function SupervisorRutaPage() {
     </div>
   );
 }
+
