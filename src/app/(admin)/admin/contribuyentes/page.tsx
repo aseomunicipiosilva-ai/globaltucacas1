@@ -511,6 +511,51 @@ function ContribuyentesPageContent() {
     }
   };
 
+  
+  const handleEliminarSaldoFavorContribuyente = async (row: any) => {
+    const saldoActual = parseFloat(row.SaldoFavor || '0') || 0;
+    if (saldoActual <= 0) return alert("El contribuyente no posee saldo a favor.");
+
+    const password = window.prompt(
+      `¿Estás seguro de ELIMINAR/ANULAR el Saldo a Favor de Bs. ${saldoActual.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})} del contribuyente ${row.Contribuyente} (${row.Identidad})?\n\nEsta acción pondrá su saldo a favor en Bs. 0,00.\n\nIngrese la contraseña maestra para confirmar:`
+    );
+    if (password !== 'Omar..') {
+      if (password !== null) alert("Contraseña incorrecta. Acción cancelada.");
+      return;
+    }
+
+    try {
+      // 1. Resetear saldo_favor_bs a 0 en la base de datos para los inmuebles de este contribuyente
+      const { data: userInms } = await supabase
+        .from('inmuebles')
+        .select('id, saldo_favor_bs')
+        .eq('identidad', row.Identidad);
+
+      if (userInms && userInms.length > 0) {
+        for (const inm of userInms) {
+          await supabase.from('inmuebles').update({ saldo_favor_bs: 0 }).eq('id', inm.id);
+        }
+      }
+
+      // 2. Anular notas de crédito vigentes
+      await supabase
+        .from('documentos')
+        .update({ estado: 'Anulada' })
+        .eq('identidad', row.Identidad)
+        .eq('tipo', 'Nota de Credito')
+        .eq('estado', 'Vigente');
+
+      await addAuditLog('ELIMINAR_SALDO_FAVOR', `Eliminó saldo a favor de Bs. ${saldoActual} para ${row.Identidad}`);
+
+      // 3. Actualizar estado local
+      setViewData((prev: any) => prev ? { ...prev, SaldoFavor: 0 } : null);
+      alert("Saldo a favor / Nota de crédito eliminado exitosamente.");
+      if (typeof window !== 'undefined') window.location.reload();
+    } catch (e: any) {
+      alert("Error eliminando saldo a favor: " + e.message);
+    }
+  };
+
   const handleDeleteFactura = async (recibo: any) => {
     const password = window.prompt(`¿Estás seguro de eliminar la deuda ${recibo.referencia}?\n\nIngrese la contraseña maestra para confirmar:`);
     if (password !== 'Omar..') {

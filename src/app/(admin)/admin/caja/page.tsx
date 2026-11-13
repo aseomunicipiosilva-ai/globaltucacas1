@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { exportToExcelWithLogos } from '@/lib/excelExport';
-import { TreePine, Search, CreditCard, Landmark, CheckCircle, XCircle, FileText, Handshake, Calendar as CalendarIcon, Wrench, ShieldCheck, ClipboardCheck, FlaskConical, Printer, X, RefreshCw } from 'lucide-react';
+import { TreePine, Search, CreditCard, Landmark, CheckCircle, XCircle, FileText, Handshake, Calendar as CalendarIcon, Wrench, ShieldCheck, ClipboardCheck, FlaskConical, Printer, X, RefreshCw, Trash2 } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
 import { formatBs } from '@/lib/formatCurrency';
@@ -1838,6 +1838,108 @@ export default function CajaPage() {
     }
   };
 
+  
+  const handleDeleteNotaCredito = async (nota: any) => {
+    let montoNum = 0;
+    try {
+      const details = typeof nota.detalles === 'string' ? JSON.parse(nota.detalles) : (nota.detalles || {});
+      montoNum = parseFloat(details.monto || '0') || 0;
+    } catch(e){}
+    if (montoNum === 0 && nota.documento) {
+      const match = String(nota.documento).match(/Bs\.?\s*([\d.,]+)/i);
+      if (match) {
+        montoNum = parseFloat(match[1].replace(/\./g, '').replace(',', '.')) || 0;
+      }
+    }
+
+    const password = window.prompt(
+      `¿Estás seguro de eliminar la Nota de Crédito ${nota.documento || ('#' + nota.id)} por Bs. ${montoNum > 0 ? formatBs(montoNum) : '0,00'}?\n\nIngrese la contraseña maestra para confirmar:`
+    );
+    if (password !== 'Omar..') {
+      if (password !== null) alert("Contraseña incorrecta. Acción cancelada.");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('documentos').delete().eq('id', nota.id);
+      if (error) throw error;
+
+      // Si tiene identidad y monto, deducir de saldo_favor_bs en inmuebles
+      if (nota.identidad && montoNum > 0) {
+        const { data: userInms } = await supabase
+          .from('inmuebles')
+          .select('id, saldo_favor_bs')
+          .eq('identidad', nota.identidad);
+        if (userInms && userInms.length > 0) {
+          const currentSaldo = parseFloat(userInms[0].saldo_favor_bs || '0') || 0;
+          const newSaldo = Math.max(0, currentSaldo - montoNum);
+          await supabase.from('inmuebles').update({ saldo_favor_bs: newSaldo }).eq('id', userInms[0].id);
+        }
+      }
+
+      await logAudit('Eliminación de Nota de Crédito', {
+        nota_id: nota.id,
+        identidad: nota.identidad,
+        contribuyente: nota.contribuyente,
+        monto_bs: montoNum,
+        documento: nota.documento
+      });
+
+      alert("Nota de crédito eliminada exitosamente.");
+      fetchNotasCredito();
+      if (foundUser) handleSearch();
+    } catch (e: any) {
+      alert("Error eliminando nota de crédito: " + e.message);
+    }
+  };
+
+  const handleEliminarSaldoFavor = async (user: any) => {
+    const saldoActual = parseFloat(user.SaldoFavor || '0') || 0;
+    if (saldoActual <= 0) return alert("El contribuyente no posee saldo a favor.");
+
+    const password = window.prompt(
+      `¿Estás seguro de ELIMINAR/ANULAR el Saldo a Favor de Bs. ${formatBs(saldoActual)} del contribuyente ${user.Contribuyente} (${user.Identidad})?\n\nEsta acción pondrá su saldo a favor en Bs. 0,00.\n\nIngrese la contraseña maestra para confirmar:`
+    );
+    if (password !== 'Omar..') {
+      if (password !== null) alert("Contraseña incorrecta. Acción cancelada.");
+      return;
+    }
+
+    try {
+      // 1. Resetear saldo_favor_bs a 0 en todos los inmuebles de este contribuyente
+      const { data: userInms } = await supabase
+        .from('inmuebles')
+        .select('id, saldo_favor_bs')
+        .eq('identidad', user.Identidad);
+
+      if (userInms && userInms.length > 0) {
+        for (const inm of userInms) {
+          await supabase.from('inmuebles').update({ saldo_favor_bs: 0 }).eq('id', inm.id);
+        }
+      }
+
+      // 2. Anular o marcar notas de crédito vigentes asociadas
+      await supabase
+        .from('documentos')
+        .update({ estado: 'Anulada' })
+        .eq('identidad', user.Identidad)
+        .eq('tipo', 'Nota de Credito')
+        .eq('estado', 'Vigente');
+
+      await logAudit('Eliminación Total de Saldo a Favor', {
+        identidad: user.Identidad,
+        contribuyente: user.Contribuyente,
+        monto_eliminado_bs: saldoActual
+      });
+
+      alert("Saldo a favor eliminado exitosamente.");
+      handleSearch();
+      fetchNotasCredito();
+    } catch (e: any) {
+      alert("Error eliminando saldo a favor: " + e.message);
+    }
+  };
+
   const generarExcelNotasCredito = async () => {
     try {
       const notas = (documentos || []).filter(d => d.tipo === 'Nota de Credito');
@@ -1948,9 +2050,9 @@ export default function CajaPage() {
               </thead>
               <tbody>
                 {isLoadingNotas ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500"><div className="flex items-center justify-center gap-2"><div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>Cargando notas de crédito...</div></td></tr>
+                  <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-500"><div className="flex items-center justify-center gap-2"><div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>Cargando notas de crédito...</div></td></tr>
                 ) : notasCredito.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">No hay notas de crédito registradas en el sistema.</td></tr>
+                  <tr><td colSpan={7} className="px-4 py-8 text-center text-slate-500">No hay notas de crédito registradas en el sistema.</td></tr>
                 ) : notasCredito.map(n => {
                   let details: any = {};
                   try { details = JSON.parse(n.detalles); } catch(e){}
