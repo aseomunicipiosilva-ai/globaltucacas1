@@ -121,6 +121,13 @@ export default function SupervisorRutaPage() {
         setSupervisor(uData.nombre || storedAuth);
         setSupervisorData(uData);
         setIsAuth(true);
+
+        const lastU = localStorage.getItem('supervisor_last_unidad');
+        const lastR = localStorage.getItem('supervisor_last_ruta');
+        const lastCh = localStorage.getItem('supervisor_last_chofer');
+        if (lastU) setUnidad(lastU);
+        if (lastR) setRuta(lastR);
+        if (lastCh) setChofer(lastCh);
       }
     } catch (e) {
       console.error(e);
@@ -188,6 +195,7 @@ export default function SupervisorRutaPage() {
 
       // Sesión exitosa
       localStorage.setItem('supervisor_ruta_auth', data.usuario);
+      localStorage.setItem('supervisor_activa_jornada', 'true');
       localStorage.setItem('supervisor_ruta_user_data', JSON.stringify(data));
       setSupervisor(data.nombre || data.usuario);
       setSupervisorData(data);
@@ -208,11 +216,16 @@ export default function SupervisorRutaPage() {
     }
     localStorage.removeItem('supervisor_ruta_auth');
     localStorage.removeItem('supervisor_ruta_user_data');
+    localStorage.removeItem('supervisor_activa_jornada');
+    localStorage.removeItem('supervisor_last_unidad');
+    localStorage.removeItem('supervisor_last_ruta');
+    localStorage.removeItem('supervisor_last_chofer');
     setIsAuth(false);
     setSupervisor('');
     setSupervisorData(null);
     setCoords(null);
     setUnidad('');
+    alert('Sesión finalizada. El envío de ubicación satelital ha sido detenido.');
   };
 
   // 4. Efecto al autenticarse: Cargar rutas, historial y GPS
@@ -233,6 +246,37 @@ export default function SupervisorRutaPage() {
 
     // Iniciar obtención de GPS
     solicitarGPS();
+
+    // Registrar Service Worker de fondo para persistencia en segundo plano
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw-gps.js').catch(() => {});
+    }
+
+    // Ping por latido continuo cada 15 segundos incluso con pantalla bloqueada
+    const heartbeatTimer = setInterval(() => {
+      const u = localStorage.getItem('supervisor_last_unidad') || unidad;
+      if (u && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((pos) => {
+          const payloadGps = {
+            unidad: u.trim(),
+            supervisor: supervisor || 'Supervisor',
+            ruta: localStorage.getItem('supervisor_last_ruta') || ruta || '',
+            chofer: localStorage.getItem('supervisor_last_chofer') || chofer || '',
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude
+          };
+          fetch('/api/supervisor-rutas/gps', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payloadGps)
+          }).then(res => {
+            if (!res.ok) guardarPuntoEnColaOffline(payloadGps);
+          }).catch(() => {
+            guardarPuntoEnColaOffline(payloadGps);
+          });
+        }, () => {}, { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 });
+      }
+    }, 15000);
 
     // Activar WakeLock para evitar bloqueo de pantalla
     requestWakeLock();
@@ -686,7 +730,7 @@ export default function SupervisorRutaPage() {
                   type="text"
                   placeholder="Ej. Compactadora #01"
                   value={unidad}
-                  onChange={(e) => setUnidad(e.target.value)}
+                  onChange={(e) => { setUnidad(e.target.value); localStorage.setItem('supervisor_last_unidad', e.target.value); }}
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 font-semibold"
                   required
                 />
@@ -724,7 +768,7 @@ export default function SupervisorRutaPage() {
                 type="text"
                 placeholder="Ej. Casco Central y Av. Silva"
                 value={ruta}
-                onChange={(e) => setRuta(e.target.value)}
+                onChange={(e) => { setRuta(e.target.value); localStorage.setItem('supervisor_last_ruta', e.target.value); }}
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500"
                 required
               />
@@ -754,7 +798,7 @@ export default function SupervisorRutaPage() {
                   type="text"
                   placeholder="Nombre del chofer"
                   value={chofer}
-                  onChange={(e) => setChofer(e.target.value)}
+                  onChange={(e) => { setChofer(e.target.value); localStorage.setItem('supervisor_last_chofer', e.target.value); }}
                   className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500"
                 />
               </div>
