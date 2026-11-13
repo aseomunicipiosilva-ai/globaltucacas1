@@ -29,6 +29,38 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function SupervisorRutaPage() {
+  // ── SISTEMA DE COLA OFFLINE (RESISTENTE A PÉRDIDA DE SEÑAL) ──
+  const guardarPuntoEnColaOffline = (punto: any) => {
+    try {
+      const colaStr = localStorage.getItem('gps_offline_queue') || '[]';
+      const cola = JSON.parse(colaStr);
+      cola.push(punto);
+      if (cola.length > 200) cola.shift(); // mantener máximo 200 puntos
+      localStorage.setItem('gps_offline_queue', JSON.stringify(cola));
+    } catch(e) {}
+  };
+
+  const reintentarColaOffline = async () => {
+    try {
+      const colaStr = localStorage.getItem('gps_offline_queue');
+      if (!colaStr) return;
+      const cola = JSON.parse(colaStr);
+      if (!Array.isArray(cola) || cola.length === 0) return;
+
+      // Intentar enviar el punto más reciente acumulado
+      const ultimo = cola[cola.length - 1];
+      const res = await fetch('/api/supervisor-rutas/gps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ultimo)
+      });
+      if (res.ok) {
+        // Conexión recuperada exitosamente: limpiar cola
+        localStorage.removeItem('gps_offline_queue');
+      }
+    } catch(e) {}
+  };
+
   const router = useRouter();
 
   // Estados de Autenticación del Supervisor
@@ -60,6 +92,17 @@ export default function SupervisorRutaPage() {
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [trackingActive, setTrackingActive] = useState<boolean>(false);
   const watchIdRef = useRef<number | null>(null);
+
+  // WakeLock: Mantener pantalla activa para evitar suspensión del navegador en ruta
+  const wakeLockRef = useRef<any>(null);
+  const requestWakeLock = async () => {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+      }
+    } catch (e) {}
+  };
+
 
   // Status & history
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -191,6 +234,20 @@ export default function SupervisorRutaPage() {
     // Iniciar obtención de GPS
     solicitarGPS();
 
+    // Activar WakeLock para evitar bloqueo de pantalla
+    requestWakeLock();
+
+    // Reintentar cuando vuelva la señal de internet
+    const handleOnline = () => {
+      reintentarColaOffline();
+    };
+    window.addEventListener('online', handleOnline);
+
+    // Intentar sincronizar cola offline cada 20 segundos
+    const syncTimer = setInterval(() => {
+      reintentarColaOffline();
+    }, 20000);
+
     return () => {
       if (watchIdRef.current !== null && navigator.geolocation) {
         navigator.geolocation.clearWatch(watchIdRef.current);
@@ -256,18 +313,24 @@ export default function SupervisorRutaPage() {
 
         // SOLO enviar ping a la sala situacional si hay unidad asignada
         if (unidad && unidad.trim().length > 0) {
+          const payloadGps = {
+            unidad: unidad.trim(),
+            supervisor,
+            ruta: ruta.trim(),
+            chofer: chofer.trim(),
+            lat: c.lat,
+            lng: c.lng
+          };
           fetch('/api/supervisor-rutas/gps', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              unidad: unidad.trim(),
-              supervisor,
-              ruta: ruta.trim(),
-              chofer: chofer.trim(),
-              lat: c.lat,
-              lng: c.lng
-            })
-          }).catch(() => {});
+            body: JSON.stringify(payloadGps)
+          }).then(res => {
+            if (!res.ok) guardarPuntoEnColaOffline(payloadGps);
+          }).catch(() => {
+            // Sin señal: Guardar en almacenamiento interno del teléfono para enviar al recuperar cobertura
+            guardarPuntoEnColaOffline(payloadGps);
+          });
         }
       },
       () => {},
