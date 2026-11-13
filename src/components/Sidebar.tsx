@@ -53,7 +53,7 @@ export default function Sidebar() {
     { icon: Inbox, name: 'Buzón de Solicitudes', href: '/admin/buzon' },
     { icon: AlertTriangle, name: 'Denuncias Ciudadanas', href: '/admin/denuncias' },
     { icon: Truck, name: 'Rutas Camiones', href: '/admin/rutas' },
-    { icon: Compass, name: 'Supervisor de Ruta', href: '/operador/supervisor-ruta' },
+    { icon: Compass, name: 'Supervisor de Ruta', href: '/supervisor-ruta' },
     { icon: Wrench, name: 'Servicios Especiales', href: '/admin/servicios-especiales?tab=especial' },
     { icon: FlaskConical, name: 'Serv. Extraordinarios', href: '/admin/servicios-especiales?tab=extraordinario' },
     { icon: PieChart, name: 'Reportes Generales', href: '/admin/reportes' },

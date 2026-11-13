@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { logos } from '@/lib/logosBase64';
@@ -296,7 +296,7 @@ export default function Home() {
             )}
 
             {showWorkers && (
-              <Link href="/operador/supervisor-ruta" className="card">
+              <Link href="/supervisor-ruta" className="card">
                 <div className="icon-bubble">
                   <svg width="34" height="34" fill="none" viewBox="0 0 24 24" stroke="#B8CD29" strokeWidth="1.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.25V4.5a1.5 1.5 0 00-1.5-1.5h-7.5a1.5 1.5 0 00-1.5 1.5v12.75" />
