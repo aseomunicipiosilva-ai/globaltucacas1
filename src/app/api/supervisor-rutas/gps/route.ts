@@ -39,7 +39,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { unidad, supervisor, ruta, chofer, lat, lng, force_point } = body;
+    const { unidad, supervisor, ruta, chofer, lat, lng, force_point, batch_trail } = body;
 
     if (!unidad || !lat || !lng) {
       return NextResponse.json({ error: 'Unidad, latitud y longitud son requeridos.' }, { status: 400 });
@@ -72,23 +72,40 @@ export async function POST(request: Request) {
     const nowMs = now.getTime();
     const horaLegible = new Intl.DateTimeFormat('es-VE', { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }).format(now);
 
-    // 1. Trazado fino de recorrido (para dibujar la línea en el mapa)
-    const lastPoint = previousTrail[previousTrail.length - 1];
-    if (!lastPoint || Math.abs(lastPoint.lat - lat) > 0.00005 || Math.abs(lastPoint.lng - lng) > 0.00005) {
-      previousTrail.push({ lat, lng, time: nowIso });
+    // 1. Trazado fino de recorrido (para dibujar la línea continua en el mapa)
+    // Si viene un lote de puntos guardados en modo offline durante desconexión:
+    if (Array.isArray(batch_trail) && batch_trail.length > 0) {
+      for (const p of batch_trail) {
+        if (p.lat && p.lng) {
+          const lP = previousTrail[previousTrail.length - 1];
+          if (!lP || Math.abs(lP.lat - p.lat) > 0.00003 || Math.abs(lP.lng - p.lng) > 0.00003) {
+            previousTrail.push({
+              lat: Number(p.lat),
+              lng: Number(p.lng),
+              time: p.time || nowIso
+            });
+          }
+        }
+      }
     }
-    if (previousTrail.length > 500) previousTrail = previousTrail.slice(-500);
 
-    // 2. MODO BITÁCORA: Guardar el primer hito de inmediato y los siguientes cada 3 minutos o si el camión se desplaza más de 30 metros
+    // Agregar el punto actual al trazado si se movió al menos ~3 metros o si no había puntos previos
+    const lastPoint = previousTrail[previousTrail.length - 1];
+    if (!lastPoint || Math.abs(lastPoint.lat - lat) > 0.00003 || Math.abs(lastPoint.lng - lng) > 0.00003) {
+      previousTrail.push({ lat: Number(lat), lng: Number(lng), time: nowIso });
+    }
+    if (previousTrail.length > 1000) previousTrail = previousTrail.slice(-1000);
+
+    // 2. MODO BITÁCORA: Guardar el primer hito de inmediato y los siguientes cada 3 minutos o si el camión se desplaza más de 25 metros
     let newBitacoraTs = lastBitacoraTime;
     const lastB = bitacora[bitacora.length - 1];
     const distancia = lastB ? Math.hypot(lastB.lat - lat, lastB.lng - lng) : 999;
     const tiempoTranscurrido = nowMs - lastBitacoraTime;
 
-    if (Boolean(force_point) || bitacora.length === 0 || tiempoTranscurrido >= 180000 || distancia > 0.0003) {
+    if (Boolean(force_point) || bitacora.length === 0 || tiempoTranscurrido >= 180000 || distancia > 0.00025) {
       bitacora.push({
-        lat,
-        lng,
+        lat: Number(lat),
+        lng: Number(lng),
         time: nowIso,
         hora: horaLegible,
         ruta: ruta || 'En patrullaje/recolección',
@@ -96,15 +113,15 @@ export async function POST(request: Request) {
       });
       newBitacoraTs = nowMs;
     }
-    if (bitacora.length > 300) bitacora = bitacora.slice(-300);
+    if (bitacora.length > 500) bitacora = bitacora.slice(-500);
 
     const payload = {
       unidad: unidad.trim(),
       supervisor: supervisor || 'Supervisor',
       ruta: ruta || '',
       chofer: chofer || '',
-      lat,
-      lng,
+      lat: Number(lat),
+      lng: Number(lng),
       trail: previousTrail,
       bitacora,
       last_bitacora_ts: newBitacoraTs,

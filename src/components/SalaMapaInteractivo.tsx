@@ -146,9 +146,26 @@ export default function SalaMapaInteractivo({
           const color = TRAIL_COLORS[i % TRAIL_COLORS.length];
           const icon = createTruckIcon(isFocused, color);
 
+          // Construir trazado combinando el trail continuo y los puntos de bitácora para asegurar la línea
           const rawTrail = Array.isArray(u.trail) && u.trail.length > 0
-            ? u.trail
-            : [{ lat: u.lat, lng: u.lng, time: u.updated_at }];
+            ? [...u.trail]
+            : [];
+
+          // Si el trail solo tiene 1 punto pero la bitácora tiene más de un punto, agregamos la bitácora al trazado
+          if (Array.isArray(u.bitacora) && u.bitacora.length > 0) {
+            for (const b of u.bitacora) {
+              if (b.lat && b.lng) {
+                const existe = rawTrail.some((t: any) => Math.abs(t.lat - b.lat) < 0.00003 && Math.abs(t.lng - b.lng) < 0.00003);
+                if (!existe) {
+                  rawTrail.push({ lat: b.lat, lng: b.lng, time: b.time });
+                }
+              }
+            }
+          }
+
+          if (rawTrail.length === 0 && u.lat && u.lng) {
+            rawTrail.push({ lat: u.lat, lng: u.lng, time: u.updated_at });
+          }
 
           const trailCoords: [number, number][] = rawTrail.map((pt: any) => [pt.lat, pt.lng]);
           const bitacoraPoints = Array.isArray(u.bitacora) ? u.bitacora : [];
@@ -162,8 +179,8 @@ export default function SalaMapaInteractivo({
                   pathOptions={{
                     color,
                     weight: isFocused ? 6 : 4,
-                    opacity: 0.85,
-                    dashArray: '5, 8'
+                    opacity: 0.9,
+                    dashArray: isFocused ? undefined : '6, 6'
                   }}
                 />
               )}

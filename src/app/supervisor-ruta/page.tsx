@@ -29,13 +29,21 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function SupervisorRutaPage() {
-  // ── SISTEMA DE COLA OFFLINE (RESISTENTE A PÉRDIDA DE SEÑAL) ──
+  // ── SISTEMA DE COLA OFFLINE (RESISTENTE A PÉRDIDA DE SEÑAL Y RECONEXIÓN) ──
   const guardarPuntoEnColaOffline = (punto: any) => {
     try {
       const colaStr = localStorage.getItem('gps_offline_queue') || '[]';
       const cola = JSON.parse(colaStr);
-      cola.push(punto);
-      if (cola.length > 200) cola.shift(); // mantener máximo 200 puntos
+      // Evitar guardar puntos idénticos si no se ha movido
+      const ultimo = cola[cola.length - 1];
+      if (!ultimo || Math.abs(ultimo.lat - punto.lat) > 0.00003 || Math.abs(ultimo.lng - punto.lng) > 0.00003) {
+        cola.push({
+          lat: punto.lat,
+          lng: punto.lng,
+          time: new Date().toISOString()
+        });
+      }
+      if (cola.length > 500) cola.shift(); // retener hasta 500 posiciones
       localStorage.setItem('gps_offline_queue', JSON.stringify(cola));
     } catch(e) {}
   };
@@ -47,15 +55,28 @@ export default function SupervisorRutaPage() {
       const cola = JSON.parse(colaStr);
       if (!Array.isArray(cola) || cola.length === 0) return;
 
-      // Intentar enviar el punto más reciente acumulado
+      const currentUnidad = localStorage.getItem('supervisor_last_unidad') || unidad;
+      if (!currentUnidad) return;
+
       const ultimo = cola[cola.length - 1];
+      // Enviar todo el lote acumulado durante la desconexión para reconstruir la línea
+      const payloadBatch = {
+        unidad: currentUnidad.trim(),
+        supervisor: supervisor || 'Supervisor',
+        ruta: localStorage.getItem('supervisor_last_ruta') || ruta || '',
+        chofer: localStorage.getItem('supervisor_last_chofer') || chofer || '',
+        lat: ultimo.lat,
+        lng: ultimo.lng,
+        batch_trail: cola
+      };
+
       const res = await fetch('/api/supervisor-rutas/gps', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ultimo)
+        body: JSON.stringify(payloadBatch)
       });
       if (res.ok) {
-        // Conexión recuperada exitosamente: limpiar cola
+        // Conexión restablecida y lote sincronizado
         localStorage.removeItem('gps_offline_queue');
       }
     } catch(e) {}
@@ -252,7 +273,7 @@ export default function SupervisorRutaPage() {
       navigator.serviceWorker.register('/sw-gps.js').catch(() => {});
     }
 
-    // Ping por latido continuo cada 15 segundos incluso con pantalla bloqueada
+    // Ping por latido continuo cada 12 segundos incluso con pantalla bloqueada
     const heartbeatTimer = setInterval(() => {
       const u = localStorage.getItem('supervisor_last_unidad') || unidad;
       if (u && navigator.geolocation) {
@@ -270,13 +291,18 @@ export default function SupervisorRutaPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payloadGps)
           }).then(res => {
-            if (!res.ok) guardarPuntoEnColaOffline(payloadGps);
+            if (!res.ok) {
+              guardarPuntoEnColaOffline(payloadGps);
+            } else {
+              // Si la transmisión tuvo éxito, verificar si había puntos pendientes en cola para enviarlos
+              reintentarColaOffline();
+            }
           }).catch(() => {
             guardarPuntoEnColaOffline(payloadGps);
           });
-        }, () => {}, { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 });
+        }, () => {}, { enableHighAccuracy: true, maximumAge: 5000, timeout: 12000 });
       }
-    }, 15000);
+    }, 12000);
 
     // Activar WakeLock para evitar bloqueo de pantalla
     requestWakeLock();
@@ -355,30 +381,34 @@ export default function SupervisorRutaPage() {
         const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
         setCoords(c);
 
-        // SOLO enviar ping a la sala situacional si hay unidad asignada
-        if (unidad && unidad.trim().length > 0) {
+        const currentUnidad = localStorage.getItem('supervisor_last_unidad') || unidad;
+        if (currentUnidad && currentUnidad.trim().length > 0) {
           const payloadGps = {
-            unidad: unidad.trim(),
-            supervisor,
-            ruta: ruta.trim(),
-            chofer: chofer.trim(),
+            unidad: currentUnidad.trim(),
+            supervisor: supervisor || 'Supervisor',
+            ruta: (localStorage.getItem('supervisor_last_ruta') || ruta || '').trim(),
+            chofer: (localStorage.getItem('supervisor_last_chofer') || chofer || '').trim(),
             lat: c.lat,
             lng: c.lng
           };
+
+          // Intentar transmitir en vivo
           fetch('/api/supervisor-rutas/gps', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payloadGps)
           }).then(res => {
-            if (!res.ok) guardarPuntoEnColaOffline(payloadGps);
+            if (!res.ok) {
+              guardarPuntoEnColaOffline(payloadGps);
+            }
           }).catch(() => {
-            // Sin señal: Guardar en almacenamiento interno del teléfono para enviar al recuperar cobertura
+            // Sin cobertura/datos: acumular en la memoria del teléfono
             guardarPuntoEnColaOffline(payloadGps);
           });
         }
       },
       () => {},
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 15000 }
     );
   };
 
@@ -745,7 +775,10 @@ export default function SupervisorRutaPage() {
                     <button
                       key={u}
                       type="button"
-                      onClick={() => setUnidad(u)}
+                      onClick={() => {
+                        setUnidad(u);
+                        localStorage.setItem('supervisor_last_unidad', u);
+                      }}
                       className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-colors ${
                         unidad === u 
                           ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50' 
