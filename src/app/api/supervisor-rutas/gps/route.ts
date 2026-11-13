@@ -39,7 +39,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { unidad, supervisor, ruta, chofer, lat, lng } = body;
+    const { unidad, supervisor, ruta, chofer, lat, lng, force_point } = body;
 
     if (!unidad || !lat || !lng) {
       return NextResponse.json({ error: 'Unidad, latitud y longitud son requeridos.' }, { status: 400 });
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     const now = new Date();
     const nowIso = now.toISOString();
     const nowMs = now.getTime();
-    const horaLegible = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const horaLegible = new Intl.DateTimeFormat('es-VE', { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }).format(now);
 
     // 1. Trazado fino de recorrido (para dibujar la línea en el mapa)
     const lastPoint = previousTrail[previousTrail.length - 1];
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
     const distancia = lastB ? Math.hypot(lastB.lat - lat, lastB.lng - lng) : 999;
     const tiempoTranscurrido = nowMs - lastBitacoraTime;
 
-    if (bitacora.length === 0 || tiempoTranscurrido >= 180000 || distancia > 0.0003) {
+    if (Boolean(force_point) || bitacora.length === 0 || tiempoTranscurrido >= 180000 || distancia > 0.0003) {
       bitacora.push({
         lat,
         lng,

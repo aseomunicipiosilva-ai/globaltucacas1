@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -30,6 +30,7 @@ function createTruckIcon(selected: boolean, color: string = '#10b981') {
         border: 3px solid #ffffff;
         font-size: ${selected ? '22px' : '18px'};
         color: white;
+        cursor: pointer;
         transition: transform 0.2s ease;
       ">
         🚛
@@ -66,6 +67,7 @@ interface SalaMapaProps {
   focusedUnit: any | null;
   showTracePoints?: boolean;
   onSelectUnit?: (unit: any) => void;
+  onForcePointAdded?: () => void;
 }
 
 export default function SalaMapaInteractivo({ 
@@ -73,8 +75,12 @@ export default function SalaMapaInteractivo({
   selectedUnitNames, 
   focusedUnit,
   showTracePoints = true,
-  onSelectUnit 
+  onSelectUnit,
+  onForcePointAdded
 }: SalaMapaProps) {
+  const [savingPointUnit, setSavingPointUnit] = useState<string | null>(null);
+  const [pointSuccessMsg, setPointSuccessMsg] = useState<string | null>(null);
+
   const visibleUnits = units.filter(u => 
     selectedUnitNames.length === 0 || selectedUnitNames.includes(u.unidad)
   );
@@ -83,6 +89,37 @@ export default function SalaMapaInteractivo({
   const centerPos: [number, number] = visibleUnits.length > 0 && visibleUnits[0]?.lat && visibleUnits[0]?.lng 
     ? [visibleUnits[0].lat, visibleUnits[0].lng] 
     : defaultPos;
+
+  // Función para forzar guardar punto de ubicación al tocar el camión
+  const handleGuardarPuntoManual = async (u: any) => {
+    setSavingPointUnit(u.unidad);
+    setPointSuccessMsg(null);
+    try {
+      const res = await fetch('/api/supervisor-rutas/gps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          unidad: u.unidad,
+          supervisor: u.supervisor || 'Supervisor',
+          ruta: u.ruta || '',
+          chofer: u.chofer || '',
+          lat: u.lat,
+          lng: u.lng,
+          force_point: true
+        })
+      });
+
+      if (res.ok) {
+        setPointSuccessMsg(`¡Punto guardado en bitácora!`);
+        if (onForcePointAdded) onForcePointAdded();
+        setTimeout(() => setPointSuccessMsg(null), 3500);
+      }
+    } catch(err) {
+      console.error(err);
+    } finally {
+      setSavingPointUnit(null);
+    }
+  };
 
   return (
     <div className="w-full h-[580px] rounded-2xl overflow-hidden border border-slate-700 shadow-2xl relative z-0">
@@ -95,7 +132,6 @@ export default function SalaMapaInteractivo({
         scrollWheelZoom={true}
         zoomControl={true}
       >
-        {/* OpenStreetMap estándar: 100% libre, público y sin ninguna API Key */}
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -132,34 +168,37 @@ export default function SalaMapaInteractivo({
                 />
               )}
 
-              {/* PUNTOS DE TRAZABILIDAD CRONOLÓGICA (CADA 3 MINUTOS) */}
-              {showTracePoints && bitacoraPoints.map((bPt: any, bIdx: number) => (
-                <CircleMarker
-                  key={`b-${bIdx}`}
-                  center={[bPt.lat, bPt.lng]}
-                  radius={isFocused ? 6 : 5}
-                  pathOptions={{
-                    color: '#ffffff',
-                    fillColor: color,
-                    fillOpacity: 0.9,
-                    weight: 2
-                  }}
-                >
-                  <Popup>
-                    <div style={{ minWidth: '160px', padding: '3px' }}>
-                      <div style={{ fontWeight: 800, fontSize: '11px', color: '#0f172a' }}>
-                        📍 Hito #{bIdx + 1} de Trazabilidad
+              {/* PUNTOS DE TRAZABILIDAD CRONOLÓGICA */}
+              {showTracePoints && bitacoraPoints.map((bPt: any, bIdx: number) => {
+                const horaPunto = bPt.hora || (bPt.time ? new Intl.DateTimeFormat('es-VE', { timeZone: 'America/Caracas', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }).format(new Date(bPt.time)) : 'N/A');
+                return (
+                  <CircleMarker
+                    key={`b-${bIdx}`}
+                    center={[bPt.lat, bPt.lng]}
+                    radius={isFocused ? 6 : 5}
+                    pathOptions={{
+                      color: '#ffffff',
+                      fillColor: color,
+                      fillOpacity: 0.95,
+                      weight: 2
+                    }}
+                  >
+                    <Popup>
+                      <div style={{ minWidth: '160px', padding: '3px' }}>
+                        <div style={{ fontWeight: 800, fontSize: '11px', color: '#0f172a' }}>
+                          📍 Hito #{bIdx + 1} de Trazabilidad
+                        </div>
+                        <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px', lineHeight: '1.4' }}>
+                          <strong>Unidad:</strong> {u.unidad}<br />
+                          <strong>Hora (Venezuela):</strong> {horaPunto}<br />
+                          <strong>Ruta:</strong> {bPt.ruta || 'En ruta'}<br />
+                          <strong>Coord:</strong> {Number(bPt.lat).toFixed(5)}, {Number(bPt.lng).toFixed(5)}
+                        </div>
                       </div>
-                      <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>
-                        <strong>Unidad:</strong> {u.unidad}<br />
-                        <strong>Hora:</strong> {bPt.hora || new Date(bPt.time).toLocaleTimeString('es-VE')}<br />
-                        <strong>Ruta:</strong> {bPt.ruta || 'En ruta'}<br />
-                        <strong>Coord:</strong> {Number(bPt.lat).toFixed(5)}, {Number(bPt.lng).toFixed(5)}
-                      </div>
-                    </div>
-                  </Popup>
-                </CircleMarker>
-              ))}
+                    </Popup>
+                  </CircleMarker>
+                );
+              })}
 
               {/* PIN ACTUAL DEL CAMIÓN EN VIVO */}
               <Marker 
@@ -172,7 +211,7 @@ export default function SalaMapaInteractivo({
                 }}
               >
                 <Popup>
-                  <div style={{ minWidth: '190px', padding: '6px' }}>
+                  <div style={{ minWidth: '210px', padding: '6px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', paddingBottom: '4px' }}>
                       <span style={{ fontWeight: 900, fontSize: '13px', color: '#0f172a', textTransform: 'uppercase' }}>
                         {u.unidad}
@@ -191,8 +230,40 @@ export default function SalaMapaInteractivo({
                         🛣️ {trailCoords.length} posiciones en trazado
                       </div>
                       <div style={{ color: '#3b82f6', fontWeight: 700 }}>
-                        📍 {bitacoraPoints.length} hitos de bitácora (3 min)
+                        📍 {bitacoraPoints.length} hitos registrados
                       </div>
+                    </div>
+
+                    {/* BOTÓN AL TOCAR EL CAMIÓN: GUARDAR HITO MANUALMENTE */}
+                    <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px solid #e2e8f0' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleGuardarPuntoManual(u)}
+                        disabled={savingPointUnit === u.unidad}
+                        style={{
+                          width: '100%',
+                          background: '#059669',
+                          color: '#ffffff',
+                          fontWeight: 800,
+                          fontSize: '11px',
+                          padding: '6px 8px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        {savingPointUnit === u.unidad ? 'Guardando...' : '📍 Guardar Punto de Ubicación Ahora'}
+                      </button>
+
+                      {pointSuccessMsg && (
+                        <div style={{ color: '#059669', fontSize: '10px', fontWeight: 800, textAlign: 'center', marginTop: '4px' }}>
+                          ✓ {pointSuccessMsg}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </Popup>
