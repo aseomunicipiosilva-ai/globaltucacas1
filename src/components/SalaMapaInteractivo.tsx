@@ -16,67 +16,53 @@ const TRAIL_COLORS = [
   '#ef4444'  // red
 ];
 
-// Helper para crear icono con color y emoji según selección
 function createTruckIcon(selected: boolean, color: string = '#10b981') {
   return L.divIcon({
     html: `
       <div style="
         background: ${color};
-        width: ${selected ? '44px' : '36px'};
-        height: ${selected ? '44px' : '36px'};
+        width: ${selected ? '46px' : '38px'};
+        height: ${selected ? '46px' : '38px'};
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 0 ${selected ? '22px' : '12px'} ${color};
+        box-shadow: 0 0 ${selected ? '25px' : '12px'} ${color};
         border: 3px solid #ffffff;
-        font-size: ${selected ? '20px' : '16px'};
+        font-size: ${selected ? '22px' : '18px'};
         color: white;
-        transition: all 0.3s ease;
+        transition: transform 0.2s ease;
       ">
         🚛
       </div>
     `,
     className: 'custom-truck-pin',
-    iconSize: selected ? [44, 44] : [36, 36],
-    iconAnchor: selected ? [22, 22] : [18, 18],
-    popupAnchor: [0, -22]
+    iconSize: selected ? [46, 46] : [38, 38],
+    iconAnchor: selected ? [23, 23] : [19, 19],
+    popupAnchor: [0, -24]
   });
 }
 
-// Auto recentrado inteligente
+// Recentrado inteligente: SOLO ajusta cuando el usuario explícitamente selecciona o enfoca una unidad,
+// no en cada pulso periódico de GPS para no interrumpir el zoom del usuario.
 function MapAutoRecenter({ 
-  units, 
   focusedUnit 
 }: { 
-  units: any[]; 
   focusedUnit: any | null;
 }) {
   const map = useMap();
-  const prevFocusedRef = useRef<string | null>(null);
+  const lastFocusedRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // Si hay una unidad enfocada individualmente
     if (focusedUnit && focusedUnit.lat && focusedUnit.lng) {
-      map.setView([focusedUnit.lat, focusedUnit.lng], 16, { animate: true });
-      prevFocusedRef.current = focusedUnit.unidad;
-      return;
-    }
-
-    // Si cambió a ver todas las unidades seleccionadas
-    if (units.length > 0) {
-      const validPoints = units
-        .filter(u => u.lat && u.lng)
-        .map(u => [u.lat, u.lng] as [number, number]);
-
-      if (validPoints.length === 1) {
-        map.setView(validPoints[0], 15, { animate: true });
-      } else if (validPoints.length > 1) {
-        const bounds = L.latLngBounds(validPoints);
-        map.fitBounds(bounds, { padding: [50, 50], animate: true });
+      if (lastFocusedRef.current !== focusedUnit.unidad) {
+        lastFocusedRef.current = focusedUnit.unidad;
+        map.flyTo([focusedUnit.lat, focusedUnit.lng], 17, { duration: 1.2 });
       }
+    } else {
+      lastFocusedRef.current = null;
     }
-  }, [units, focusedUnit, map]);
+  }, [focusedUnit, map]);
 
   return null;
 }
@@ -94,12 +80,10 @@ export default function SalaMapaInteractivo({
   focusedUnit,
   onSelectUnit 
 }: SalaMapaProps) {
-  // Filtrar unidades que están seleccionadas para mostrar en el mapa
   const visibleUnits = units.filter(u => 
     selectedUnitNames.length === 0 || selectedUnitNames.includes(u.unidad)
   );
 
-  // Centro por defecto: Tucacas, Falcón
   const defaultPos: [number, number] = [10.795, -68.318];
   const centerPos: [number, number] = visibleUnits.length > 0 && visibleUnits[0]?.lat && visibleUnits[0]?.lng 
     ? [visibleUnits[0].lat, visibleUnits[0].lng] 
@@ -110,15 +94,20 @@ export default function SalaMapaInteractivo({
       <MapContainer
         center={centerPos}
         zoom={14}
+        maxZoom={19}
+        minZoom={5}
         style={{ height: '100%', width: '100%' }}
         scrollWheelZoom={true}
+        zoomControl={true}
       >
+        {/* Capa de satélite híbrido / calles de CartoDB Voyager de alta resolución */}
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          maxZoom={19}
         />
 
-        <MapAutoRecenter units={visibleUnits} focusedUnit={focusedUnit} />
+        <MapAutoRecenter focusedUnit={focusedUnit} />
 
         {visibleUnits.map((u, i) => {
           if (!u.lat || !u.lng) return null;
@@ -126,27 +115,24 @@ export default function SalaMapaInteractivo({
           const color = TRAIL_COLORS[i % TRAIL_COLORS.length];
           const icon = createTruckIcon(isFocused, color);
 
-          // Puntos del trazado / recorrido histórico
           const trailPoints: [number, number][] = Array.isArray(u.trail) && u.trail.length > 0
             ? u.trail.map((pt: any) => [pt.lat, pt.lng] as [number, number])
             : [[u.lat, u.lng]];
 
           return (
             <div key={u.config_id || u.unidad || i}>
-              {/* Trazado del camino recorrido en tiempo real */}
               {trailPoints.length > 1 && (
                 <Polyline
                   positions={trailPoints}
                   pathOptions={{
                     color,
-                    weight: isFocused ? 5 : 4,
-                    opacity: 0.85,
-                    dashArray: '4, 8'
+                    weight: isFocused ? 6 : 4,
+                    opacity: 0.9,
+                    dashArray: '6, 8'
                   }}
                 />
               )}
 
-              {/* Pin del Camión en su posición actual */}
               <Marker 
                 position={[u.lat, u.lng]} 
                 icon={icon}

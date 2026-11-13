@@ -21,14 +21,18 @@ import {
   Square,
   Crosshair,
   Layers,
-  Clock
+  Clock,
+  BookOpen,
+  Calendar,
+  X,
+  Compass
 } from 'lucide-react';
 
 const SalaMapaInteractivo = dynamic(() => import('@/components/SalaMapaInteractivo'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-[580px] rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400">
-      <RefreshCw className="w-6 h-6 animate-spin text-emerald-400 mr-2" /> Cargando mapa interactivo en vivo...
+      <RefreshCw className="w-6 h-6 animate-spin text-emerald-400 mr-2" /> Cargando mapa de alta resolución...
     </div>
   )
 });
@@ -47,6 +51,9 @@ export default function SalaSituacionalPage() {
   // Filtros de visualización
   const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
   const [focusedUnit, setFocusedUnit] = useState<any | null>(null);
+
+  // Modo Bitácora Modal
+  const [bitacoraModalUnit, setBitacoraModalUnit] = useState<any | null>(null);
 
   // Estado de eliminación
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -79,10 +86,16 @@ export default function SalaSituacionalPage() {
         setGpsUnits(units);
         setLastUpdated(new Date());
 
-        // Si la unidad enfocada sigue existiendo, actualizar su referencia
+        // Actualizar referencia de unidad enfocada si existe
         if (focusedUnit) {
           const updated = units.find((u: any) => u.unidad === focusedUnit.unidad);
           if (updated) setFocusedUnit(updated);
+        }
+
+        // Actualizar modal de bitácora si está abierto
+        if (bitacoraModalUnit) {
+          const updatedBit = units.find((u: any) => u.unidad === bitacoraModalUnit.unidad);
+          if (updatedBit) setBitacoraModalUnit(updatedBit);
         }
       }
     } catch (e) {
@@ -92,7 +105,7 @@ export default function SalaSituacionalPage() {
     }
   };
 
-  // Polling automático continuo cada 8 segundos (en vivo sin recargar)
+  // Polling automático cada 8 segundos
   useEffect(() => {
     if (!isAuthenticated) return;
     loadGpsUnits();
@@ -102,7 +115,6 @@ export default function SalaSituacionalPage() {
     return () => clearInterval(timer);
   }, [isAuthenticated]);
 
-  // Selección individual o múltiple
   const toggleUnitSelection = (unidad: string) => {
     if (selectedUnits.includes(unidad)) {
       setSelectedUnits(selectedUnits.filter(u => u !== unidad));
@@ -132,7 +144,6 @@ export default function SalaSituacionalPage() {
     }
   };
 
-  // Eliminar camión / unidad de la sala
   const handleDeleteUnit = async (unit: any) => {
     const confirmDelete = window.confirm(`¿Estás seguro de eliminar el camión ${unit.unidad} de la Sala Situacional?`);
     if (!confirmDelete) return;
@@ -146,6 +157,7 @@ export default function SalaSituacionalPage() {
         setGpsUnits(prev => prev.filter(u => u.unidad !== unit.unidad));
         setSelectedUnits(prev => prev.filter(u => u !== unit.unidad));
         if (focusedUnit?.unidad === unit.unidad) setFocusedUnit(null);
+        if (bitacoraModalUnit?.unidad === unit.unidad) setBitacoraModalUnit(null);
       } else {
         alert('Error al eliminar la unidad');
       }
@@ -233,7 +245,7 @@ export default function SalaSituacionalPage() {
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Seguimiento satelital en tiempo real con trazado de recorrido, vista individual y múltiple
+                Seguimiento satelital en tiempo real con trazado de recorrido, vista individual, múltiple y modo bitácora
               </p>
             </div>
           </div>
@@ -261,7 +273,7 @@ export default function SalaSituacionalPage() {
 
         {lastUpdated && (
           <div className="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex flex-wrap items-center justify-between gap-2">
-            <span>Último pulso recibido: {lastUpdated.toLocaleTimeString('es-VE')}</span>
+            <span>Último pulso satelital: {lastUpdated.toLocaleTimeString('es-VE')}</span>
             <div className="flex items-center gap-3">
               <span className="text-emerald-400 font-semibold">{gpsUnits.length} camiones en sistema</span>
               {focusedUnit && (
@@ -334,14 +346,14 @@ export default function SalaSituacionalPage() {
         </div>
       )}
 
-      {/* MAPA INTERACTIVO CON TRAZADO DE RUTA CONTINUO */}
+      {/* MAPA INTERACTIVO DE ALTA RESOLUCIÓN */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-            <Navigation className="w-4 h-4 text-emerald-400" /> Pantalla Satelital con Trazado de Recorrido
+            <Navigation className="w-4 h-4 text-emerald-400" /> Pantalla Satelital de Alta Definición
           </h2>
           <span className="text-xs text-slate-400">
-            {focusedUnit ? `Siguiendo a ${focusedUnit.unidad}` : 'Mostrando movimiento en vivo'}
+            {focusedUnit ? `Siguiendo a ${focusedUnit.unidad}` : 'Trazados y movimiento en vivo'}
           </span>
         </div>
 
@@ -353,7 +365,7 @@ export default function SalaSituacionalPage() {
         />
       </div>
 
-      {/* Grid de Fichas de Unidades con Botón de Eliminar */}
+      {/* Grid de Fichas de Unidades con Bitácora y Eliminar */}
       {gpsUnits.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {gpsUnits.map((u: any, idx: number) => {
@@ -362,7 +374,7 @@ export default function SalaSituacionalPage() {
               : null;
             const estaEnLinea = minutosDesdeUpdate !== null && minutosDesdeUpdate < 10;
             const isFocused = focusedUnit?.unidad === u.unidad;
-            const trailCount = Array.isArray(u.trail) ? u.trail.length : 1;
+            const bitacoraCount = Array.isArray(u.bitacora) ? u.bitacora.length : 1;
 
             return (
               <div
@@ -424,28 +436,37 @@ export default function SalaSituacionalPage() {
                     </div>
 
                     <div className="flex items-center justify-between pt-1 border-t border-slate-800/60">
-                      <span className="text-slate-500 flex items-center gap-1.5">
-                        <Clock size={13} /> Puntos de Trazado:
+                      <span className="text-slate-400 flex items-center gap-1.5">
+                        <BookOpen size={13} className="text-emerald-400" /> Registros Bitácora:
                       </span>
-                      <span className="font-semibold text-emerald-400">
-                        {trailCount} posiciones registradas
+                      <span className="font-bold text-emerald-400">
+                        {bitacoraCount} puntos (cada 3 min)
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Acciones de la unidad: Enfocar / Eliminar */}
+                {/* Acciones: Enfocar / Modo Bitácora / Eliminar */}
                 <div className="pt-3 border-t border-slate-800 flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => focusSingleUnit(u)}
-                    className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors ${
+                    className={`flex-1 py-2 px-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1 transition-colors ${
                       isFocused 
                         ? 'bg-blue-600 text-white' 
                         : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
                     }`}
                   >
-                    <Crosshair size={14} /> {isFocused ? 'Enfocado' : 'Enfocar en Mapa'}
+                    <Crosshair size={13} /> {isFocused ? 'Enfocado' : 'Enfocar'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setBitacoraModalUnit(u)}
+                    className="py-2 px-3 rounded-xl bg-emerald-950/60 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/80 font-bold text-xs flex items-center gap-1 transition-colors"
+                    title="Ver Bitácora de Recorrido detallada"
+                  >
+                    <BookOpen size={13} /> Bitácora
                   </button>
 
                   <button
@@ -453,7 +474,7 @@ export default function SalaSituacionalPage() {
                     disabled={deletingId === u.unidad}
                     onClick={() => handleDeleteUnit(u)}
                     className="p-2 rounded-xl bg-red-950/60 hover:bg-red-900 text-red-400 border border-red-800/80 transition-colors disabled:opacity-50"
-                    title="Eliminar este camión de la Sala Situacional"
+                    title="Eliminar este camión"
                   >
                     <Trash2 size={15} />
                   </button>
@@ -461,6 +482,103 @@ export default function SalaSituacionalPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ── MODAL MODO BITÁCORA DETALLADA POR VEHÍCULO ── */}
+      {bitacoraModalUnit && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden animate-fadeIn">
+            {/* Header Modal */}
+            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white uppercase tracking-tight">
+                    Bitácora de Recorrido: {bitacoraModalUnit.unidad}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Historial de posiciones guardadas automáticamente cada 3 minutos
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setBitacoraModalUnit(null)}
+                className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Resumen Superior */}
+            <div className="grid grid-cols-3 gap-3 p-4 bg-slate-900/60 border-b border-slate-800 text-xs">
+              <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                <span className="text-[10px] text-slate-500 block uppercase font-bold">Supervisor</span>
+                <span className="text-white font-semibold">{bitacoraModalUnit.supervisor || 'N/A'}</span>
+              </div>
+              <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                <span className="text-[10px] text-slate-500 block uppercase font-bold">Chofer</span>
+                <span className="text-white font-semibold">{bitacoraModalUnit.chofer || 'Sin chofer'}</span>
+              </div>
+              <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                <span className="text-[10px] text-slate-500 block uppercase font-bold">Ruta Actual</span>
+                <span className="text-emerald-400 font-semibold truncate block">{bitacoraModalUnit.ruta || 'En ruta'}</span>
+              </div>
+            </div>
+
+            {/* Lista Cronológica de Puntos de la Bitácora */}
+            <div className="p-5 overflow-y-auto space-y-3 flex-1">
+              {(!bitacoraModalUnit.bitacora || bitacoraModalUnit.bitacora.length === 0) ? (
+                <div className="text-center py-10 text-slate-500 text-sm">
+                  <Clock className="w-8 h-8 mx-auto mb-2 text-slate-600" />
+                  <p>Iniciando registro de bitácora...</p>
+                  <p className="text-xs text-slate-600 mt-1">El primer hito de ubicación se guardará automáticamente a los 3 minutos.</p>
+                </div>
+              ) : (
+                <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-800">
+                  {bitacoraModalUnit.bitacora.slice().reverse().map((entry: any, i: number) => (
+                    <div key={i} className="relative group">
+                      {/* Punto en la línea de tiempo */}
+                      <div className="absolute -left-6 top-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-slate-900 shadow-sm shadow-emerald-500/50" />
+                      
+                      <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 hover:border-slate-700 transition-colors">
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="font-bold text-white flex items-center gap-1.5">
+                            <Clock size={13} className="text-emerald-400" /> {entry.hora || new Date(entry.time).toLocaleTimeString('es-VE')}
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-mono">
+                            {new Date(entry.time).toLocaleDateString('es-VE')}
+                          </span>
+                        </div>
+
+                        <div className="text-xs text-slate-300 flex items-center justify-between mt-1.5">
+                          <span className="text-slate-400 truncate max-w-[280px]">
+                            📍 {entry.ruta || 'Punto de recolección'}
+                          </span>
+                          <span className="font-mono text-[11px] text-emerald-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                            {Number(entry.lat).toFixed(5)}, {Number(entry.lng).toFixed(5)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer Modal */}
+            <div className="p-4 border-t border-slate-800 bg-slate-950 text-right">
+              <button
+                type="button"
+                onClick={() => setBitacoraModalUnit(null)}
+                className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition-colors"
+              >
+                Cerrar Bitácora
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

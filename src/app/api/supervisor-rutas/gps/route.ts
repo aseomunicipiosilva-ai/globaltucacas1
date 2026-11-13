@@ -47,8 +47,11 @@ export async function POST(request: Request) {
 
     const configId = `gps_unidad_${unidad.trim().toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
 
-    // Obtener historial previo de recorrido para guardar el trazado (trail)
+    // Obtener historial previo de recorrido para guardar el trazado (trail) y la bitácora
     let previousTrail: Array<{ lat: number; lng: number; time: string }> = [];
+    let bitacora: Array<{ lat: number; lng: number; time: string; ruta?: string; chofer?: string; hora: string }> = [];
+    let lastBitacoraTime = 0;
+
     try {
       const { data: existing } = await supabase
         .from('sistema_config')
@@ -58,25 +61,38 @@ export async function POST(request: Request) {
 
       if (existing && existing.valor) {
         const prevObj = typeof existing.valor === 'string' ? JSON.parse(existing.valor) : existing.valor;
-        if (Array.isArray(prevObj.trail)) {
-          previousTrail = prevObj.trail;
-        } else if (prevObj.lat && prevObj.lng) {
-          previousTrail = [{ lat: prevObj.lat, lng: prevObj.lng, time: prevObj.updated_at || new Date().toISOString() }];
-        }
+        if (Array.isArray(prevObj.trail)) previousTrail = prevObj.trail;
+        if (Array.isArray(prevObj.bitacora)) bitacora = prevObj.bitacora;
+        if (prevObj.last_bitacora_ts) lastBitacoraTime = Number(prevObj.last_bitacora_ts) || 0;
       }
     } catch(e) {}
 
-    // Agregar nuevo punto si está a más de 10 metros o no es idéntico
-    const nowIso = new Date().toISOString();
+    const now = new Date();
+    const nowIso = now.toISOString();
+    const nowMs = now.getTime();
+    const horaLegible = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    // 1. Trazado fino de recorrido (para dibujar la línea en el mapa)
     const lastPoint = previousTrail[previousTrail.length - 1];
     if (!lastPoint || Math.abs(lastPoint.lat - lat) > 0.00005 || Math.abs(lastPoint.lng - lng) > 0.00005) {
       previousTrail.push({ lat, lng, time: nowIso });
     }
+    if (previousTrail.length > 500) previousTrail = previousTrail.slice(-500);
 
-    // Mantener los últimos 300 puntos de ruta para optimizar memoria
-    if (previousTrail.length > 300) {
-      previousTrail = previousTrail.slice(-300);
+    // 2. MODO BITÁCORA PERIÓDICA: Guardar hito cada 3 minutos (180,000 ms)
+    let newBitacoraTs = lastBitacoraTime;
+    if (bitacora.length === 0 || (nowMs - lastBitacoraTime) >= 180000) {
+      bitacora.push({
+        lat,
+        lng,
+        time: nowIso,
+        hora: horaLegible,
+        ruta: ruta || 'En patrullaje/recolección',
+        chofer: chofer || ''
+      });
+      newBitacoraTs = nowMs;
     }
+    if (bitacora.length > 300) bitacora = bitacora.slice(-300);
 
     const payload = {
       unidad: unidad.trim(),
@@ -86,6 +102,8 @@ export async function POST(request: Request) {
       lat,
       lng,
       trail: previousTrail,
+      bitacora,
+      last_bitacora_ts: newBitacoraTs,
       updated_at: nowIso
     };
 
