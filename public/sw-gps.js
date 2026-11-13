@@ -13,3 +13,4 @@ self.addEventListener('message', (event) => {
     // Mantener hilo vivo
   }
 });
+

@@ -79,9 +79,13 @@ export async function POST(request: Request) {
     }
     if (previousTrail.length > 500) previousTrail = previousTrail.slice(-500);
 
-    // 2. MODO BITÁCORA PERIÓDICA: Guardar hito cada 3 minutos (180,000 ms)
+    // 2. MODO BITÁCORA: Guardar el primer hito de inmediato y los siguientes cada 3 minutos o si el camión se desplaza más de 30 metros
     let newBitacoraTs = lastBitacoraTime;
-    if (bitacora.length === 0 || (nowMs - lastBitacoraTime) >= 180000) {
+    const lastB = bitacora[bitacora.length - 1];
+    const distancia = lastB ? Math.hypot(lastB.lat - lat, lastB.lng - lng) : 999;
+    const tiempoTranscurrido = nowMs - lastBitacoraTime;
+
+    if (bitacora.length === 0 || tiempoTranscurrido >= 180000 || distancia > 0.0003) {
       bitacora.push({
         lat,
         lng,
