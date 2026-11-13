@@ -1,11 +1,10 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
-// Paleta de colores para trazados de múltiples camiones
 const TRAIL_COLORS = [
   '#10b981', // emerald
   '#3b82f6', // blue
@@ -43,13 +42,7 @@ function createTruckIcon(selected: boolean, color: string = '#10b981') {
   });
 }
 
-// Recentrado inteligente: SOLO ajusta cuando el usuario explícitamente selecciona o enfoca una unidad,
-// no en cada pulso periódico de GPS para no interrumpir el zoom del usuario.
-function MapAutoRecenter({ 
-  focusedUnit 
-}: { 
-  focusedUnit: any | null;
-}) {
+function MapAutoRecenter({ focusedUnit }: { focusedUnit: any | null }) {
   const map = useMap();
   const lastFocusedRef = useRef<string | null>(null);
 
@@ -71,6 +64,7 @@ interface SalaMapaProps {
   units: any[];
   selectedUnitNames: string[];
   focusedUnit: any | null;
+  showTracePoints?: boolean;
   onSelectUnit?: (unit: any) => void;
 }
 
@@ -78,6 +72,7 @@ export default function SalaMapaInteractivo({
   units, 
   selectedUnitNames, 
   focusedUnit,
+  showTracePoints = true,
   onSelectUnit 
 }: SalaMapaProps) {
   const visibleUnits = units.filter(u => 
@@ -100,7 +95,6 @@ export default function SalaMapaInteractivo({
         scrollWheelZoom={true}
         zoomControl={true}
       >
-        {/* Capa de satélite híbrido / calles de CartoDB Voyager de alta resolución */}
         <TileLayer
           attribution='&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
@@ -115,24 +109,58 @@ export default function SalaMapaInteractivo({
           const color = TRAIL_COLORS[i % TRAIL_COLORS.length];
           const icon = createTruckIcon(isFocused, color);
 
-          const trailPoints: [number, number][] = Array.isArray(u.trail) && u.trail.length > 0
-            ? u.trail.map((pt: any) => [pt.lat, pt.lng] as [number, number])
-            : [[u.lat, u.lng]];
+          const rawTrail = Array.isArray(u.trail) && u.trail.length > 0
+            ? u.trail
+            : [{ lat: u.lat, lng: u.lng, time: u.updated_at }];
+
+          const trailCoords: [number, number][] = rawTrail.map((pt: any) => [pt.lat, pt.lng]);
+          const bitacoraPoints = Array.isArray(u.bitacora) ? u.bitacora : [];
 
           return (
             <div key={u.config_id || u.unidad || i}>
-              {trailPoints.length > 1 && (
+              {/* LÍNEA DE TRAZABILIDAD CONTINUA */}
+              {trailCoords.length > 1 && (
                 <Polyline
-                  positions={trailPoints}
+                  positions={trailCoords}
                   pathOptions={{
                     color,
                     weight: isFocused ? 6 : 4,
-                    opacity: 0.9,
-                    dashArray: '6, 8'
+                    opacity: 0.85,
+                    dashArray: '5, 8'
                   }}
                 />
               )}
 
+              {/* PUNTOS DE TRAZABILIDAD CRONOLÓGICA (CADA 3 MINUTOS) */}
+              {showTracePoints && bitacoraPoints.map((bPt: any, bIdx: number) => (
+                <CircleMarker
+                  key={`b-${bIdx}`}
+                  center={[bPt.lat, bPt.lng]}
+                  radius={isFocused ? 6 : 5}
+                  pathOptions={{
+                    color: '#ffffff',
+                    fillColor: color,
+                    fillOpacity: 0.9,
+                    weight: 2
+                  }}
+                >
+                  <Popup>
+                    <div style={{ minWidth: '160px', padding: '3px' }}>
+                      <div style={{ fontWeight: 800, fontSize: '11px', color: '#0f172a' }}>
+                        📍 Hito #{bIdx + 1} de Trazabilidad
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#475569', marginTop: '2px' }}>
+                        <strong>Unidad:</strong> {u.unidad}<br />
+                        <strong>Hora:</strong> {bPt.hora || new Date(bPt.time).toLocaleTimeString('es-VE')}<br />
+                        <strong>Ruta:</strong> {bPt.ruta || 'En ruta'}<br />
+                        <strong>Coord:</strong> {Number(bPt.lat).toFixed(5)}, {Number(bPt.lng).toFixed(5)}
+                      </div>
+                    </div>
+                  </Popup>
+                </CircleMarker>
+              ))}
+
+              {/* PIN ACTUAL DEL CAMIÓN EN VIVO */}
               <Marker 
                 position={[u.lat, u.lng]} 
                 icon={icon}
@@ -149,7 +177,7 @@ export default function SalaMapaInteractivo({
                         {u.unidad}
                       </span>
                       <span style={{ fontSize: '10px', background: `${color}20`, color, fontWeight: 800, padding: '2px 6px', borderRadius: '4px' }}>
-                        GPS En Vivo
+                        En Vivo
                       </span>
                     </div>
 
@@ -157,12 +185,13 @@ export default function SalaMapaInteractivo({
                       <div><strong>Supervisor:</strong> {u.supervisor || 'N/A'}</div>
                       <div><strong>Chofer:</strong> {u.chofer || 'Sin chofer'}</div>
                       <div><strong>Ruta:</strong> {u.ruta || 'Sin ruta asignada'}</div>
-                      <div><strong>Coordenadas:</strong> {Number(u.lat).toFixed(5)}, {Number(u.lng).toFixed(5)}</div>
-                      {trailPoints.length > 1 && (
-                        <div style={{ color: '#059669', fontWeight: 700, marginTop: '2px' }}>
-                          🛣️ Trazado: {trailPoints.length} puntos registrados
-                        </div>
-                      )}
+                      <div><strong>Posición:</strong> {Number(u.lat).toFixed(5)}, {Number(u.lng).toFixed(5)}</div>
+                      <div style={{ color: '#059669', fontWeight: 700, marginTop: '3px' }}>
+                        🛣️ {trailCoords.length} posiciones en trazado
+                      </div>
+                      <div style={{ color: '#3b82f6', fontWeight: 700 }}>
+                        📍 {bitacoraPoints.length} hitos de bitácora (3 min)
+                      </div>
                     </div>
                   </div>
                 </Popup>
