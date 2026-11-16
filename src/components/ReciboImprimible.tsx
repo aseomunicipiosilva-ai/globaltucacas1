@@ -68,25 +68,30 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
             size: Letter portrait;
             margin: 5mm;
           }
-          body * { visibility: hidden; }
-          .recibo-print-area, .recibo-print-area * { visibility: visible; }
+          body * { visibility: hidden !important; }
+          .recibo-print-area, .recibo-print-area * { visibility: visible !important; }
           .recibo-print-area {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: ${HALF_WIDTH};
-            max-height: ${HALF_HEIGHT};
-            overflow: hidden;
+            display: block !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100% !important;
+            max-width: 206mm !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+          }
+          .recibo-preview-wrapper {
+            display: none !important;
           }
         }
 
-        /* Vista previa en pantalla: media hoja vertical (portrait) */
+        /* Vista previa en pantalla */
         .recibo-preview-wrapper {
           width: 100%;
           overflow-x: auto;
         }
         .recibo-sheet-preview {
-          /* Simulamos la media hoja portrait: 206mm x 134mm aprox */
           width: 560px;
           border: 2px dashed #94a3b8;
           background: #f8fafc;
@@ -112,14 +117,6 @@ export function ReciboImprimible({ data }: { data: ReciboProps }) {
         /* Ocultar el area de impresion duplicada en pantalla */
         .recibo-print-area {
           display: none;
-        }
-        @media print {
-          .recibo-print-area {
-            display: block;
-          }
-          .recibo-preview-wrapper {
-            display: none;
-          }
         }
       `}</style>
 

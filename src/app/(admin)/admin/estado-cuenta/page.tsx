@@ -1741,14 +1741,14 @@ if (p.estado === 'Rechazado' || p.estado === 'Eliminado') return false;
             </div>
             
             {/* Contenedor imprimible */}
-            <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 140px)' }}>
+            <div className="p-6 overflow-y-auto print:p-0 print:overflow-visible" style={{ maxHeight: 'calc(100vh - 140px)' }}>
               
               <div id="recibo-print-area">
                 <style dangerouslySetInnerHTML={{__html: `
                   @media print {
-                    body * { visibility: hidden; }
-                    #recibo-print-area, #recibo-print-area * { visibility: visible; }
-                    #recibo-print-area { position: absolute; left: 0; top: 0; width: 100%; }
+                    body * { visibility: hidden !important; }
+                    .recibo-print-area, .recibo-print-area * { visibility: visible !important; }
+                    .recibo-preview-wrapper { display: none !important; }
                   }
                 `}} />
                 {Array.isArray(selectedRecibo) ? (
