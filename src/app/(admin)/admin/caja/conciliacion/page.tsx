@@ -46,7 +46,7 @@ const BANCOS_DESTINO = [
 
 const FORMAS_PAGO = ['Todos', 'Transferencia', 'Transferencia (Web)', 'Punto de Venta', 'Debito', 'Efectivo'];
 const ESTATUS_LIST = ['Todos', 'Pendiente', 'Por Verificar', 'Aprobado', 'Con Diferencia', 'Rechazado'];
-const ESTATUS_CONCILIAR = ['Aprobado', 'Rechazado', 'Con Diferencia'];
+const ESTATUS_CONCILIAR = ['Aprobado', 'Rechazado'];
 
 function fmt(val: string | number | undefined) {
   const n = parseFloat(String(val || '0').replace(/[^0-9.]/g, ''));
@@ -916,32 +916,28 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                 </div>
                 {tasaOriginal > 0 && <p className="text-[10px] text-slate-400 mt-0.5">Original: Bs. {tasaOriginal.toFixed(2)}</p>}
               </div>
-              <div>
-                <label className={lc}>Estatus de Conciliaci�n</label>
+                            <div>
+                <label className={lc}>Estatus de Conciliación</label>
                 <select
                   value={estatus}
                   onChange={e => handleEstatusChange(e.target.value)}
-                  className={`${ic} font-semibold ${estatus === 'Aprobado' ? 'text-green-700 bg-green-50 border-green-400' : estatus === 'Rechazado' ? 'text-red-700 bg-red-50 border-red-400' : 'text-amber-700 bg-amber-50 border-amber-400'}`}
+                  className={`${ic} font-bold text-sm ${estatus === 'Aprobado' ? 'text-green-700 bg-green-50 border-green-500' : 'text-red-700 bg-red-50 border-red-500'}`}
                 >
                   {ESTATUS_CONCILIAR.map(s=><option key={s}>{s}</option>)}
                 </select>
-                {estatus === 'Con Diferencia' && (
-                  <p className="text-[10px] text-amber-600 mt-1 font-medium">
-                    ℹ️ Si el monto en banco supera la deuda, el excedente exacto se acreditará como saldo a favor.
-                  </p>
-                )}
+                <p className="text-[10px] text-slate-500 mt-1">
+                  {estatus === 'Aprobado' ? '✓ Conciliación directa con el monto transferido.' : '⚠️ Requiere ingresar obligatoriamente el motivo del rechazo abajo.'}
+                </p>
               </div>
               <div>
-                <label className={lc}>Monto Conciliado (en Banco)</label>
+                <label className={lc}>Monto Conciliado en Banco (Automático)</label>
                 <input
                   value={montoConciliado}
-                  onChange={e => setMontoConciliado(e.target.value)}
-                  readOnly={estatus === 'Aprobado'}
-                  className={`${estatus === 'Aprobado' ? icRO + ' font-bold text-green-800' : ic} ${estatus === 'Con Diferencia' ? 'border-amber-400 bg-amber-50' : ''}`}
-                  type="number"
-                  step="0.01"
-                  min="0"
+                  readOnly
+                  className={`${icRO} font-bold text-sm ${estatus === 'Aprobado' ? 'text-green-800 bg-green-50/50' : 'text-red-700 bg-red-50/50'}`}
+                  type="text"
                 />
+                <p className="text-[10px] text-slate-400 mt-1">🔒 Monto bloqueado (auditoría automática sin manipulación manual)</p>
               </div>
             </div>
 
@@ -1227,7 +1223,14 @@ export default function ConciliacionPage() {
         <td className="px-3 py-2 text-xs text-slate-600">{pago.tipo || '---'}</td>
         <td className="px-3 py-2 text-xs text-slate-600">{pago.banco || '---'}</td>
         <td className="px-3 py-2 text-xs text-slate-600">{pago.banco_destino || det.banco_destino || 'BANESCO - 0134 - 1715'}</td>
-        <td className={'px-3 py-2 text-xs '+estatusCls(pago.estado||'')}>{pago.estado || '---'}</td>
+        <td className={'px-3 py-2 text-xs '+estatusCls(pago.estado||'')}>
+            <div className="font-bold">{pago.estado || '---'}</div>
+            {pago.estado === 'Rechazado' && (det.motivo_rechazo || det.observaciones) && (
+              <div className="text-[10px] text-red-700 font-sans font-normal mt-0.5 bg-red-50 p-1.5 rounded border border-red-200 max-w-[220px] shadow-sm" title={det.motivo_rechazo || det.observaciones}>
+                <span className="font-bold">Motivo:</span> {det.motivo_rechazo || det.observaciones}
+              </div>
+            )}
+          </td>
         <td className="px-3 py-2 text-sm font-bold text-right text-slate-800">
           <div className="flex items-center justify-end gap-2">
             <span>{fmt(m)}</span>
