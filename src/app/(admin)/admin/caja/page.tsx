@@ -164,6 +164,8 @@ export default function CajaPage() {
   const [isAuthorizing, setIsAuthorizing] = useState(false);
   const [notaManualMonto, setNotaManualMonto] = useState('');
   const [notaManualRef, setNotaManualRef] = useState('');
+  const [notaManualPassword, setNotaManualPassword] = useState('');
+  const [notaAuthError, setNotaAuthError] = useState('');
   
   const currentBcvRate = customBcvRate && !isNaN(parseFloat(customBcvRate)) ? parseFloat(customBcvRate) : tcmmv;
 
@@ -1803,12 +1805,30 @@ export default function CajaPage() {
   };
 
   const handleCrearNotaManual = async () => {
+    setNotaAuthError('');
     if (!notaManualMonto || parseFloat(notaManualMonto) <= 0) return alert('Ingrese un monto válido');
-    if (!notaManualRef) return alert('Ingrese la referencia origen');
+    if (!notaManualRef.trim()) return alert('Ingrese la referencia o motivo origen');
+    if (!notaManualPassword) {
+      setNotaAuthError('Debe ingresar la clave master para autorizar');
+      return;
+    }
+    if (notaManualPassword !== 'Omar..') {
+      setNotaAuthError('Clave master incorrecta. No autorizado.');
+      return;
+    }
     if (!foundUser) return;
     
     try {
-      await supabase.from('documentos').insert([{
+      const cajeroUser = (typeof window !== 'undefined' ? localStorage.getItem('adminUser') : null) || 'Caja';
+      await logAudit('Creación de Nota de Crédito Manual', {
+        identidad: foundUser.Identidad,
+        contribuyente: foundUser.Contribuyente,
+        monto: parseFloat(notaManualMonto),
+        motivo: notaManualRef.trim(),
+        autorizado_por: 'Clave Master Omar..',
+        cajero: cajeroUser
+      });
+await supabase.from('documentos').insert([{
         identidad: foundUser.Identidad,
         contribuyente: foundUser.Contribuyente,
         tipo: 'Nota de Credito',
@@ -3031,23 +3051,38 @@ export default function CajaPage() {
               <button onClick={() => setIsNotaModalOpen(false)} className="text-slate-500 hover:text-slate-700 font-bold">&times;</button>
             </div>
             <div className="p-6 space-y-4">
+              {notaAuthError && (
+                <div className="p-2.5 bg-red-50 text-red-700 text-xs font-bold rounded border border-red-200 text-center">
+                  ⚠️ {notaAuthError}
+                </div>
+              )}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Monto (Bs)</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Monto (Bs) *</label>
                 <input 
                   type="number" step="0.01" 
                   value={notaManualMonto} onChange={e => setNotaManualMonto(e.target.value)}
-                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-slate-800"
                   placeholder="Ej. 1000.00"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Motivo / Referencia Origen</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Motivo / Referencia Origen *</label>
                 <input 
                   type="text" 
                   value={notaManualRef} onChange={e => setNotaManualRef(e.target.value)}
                   className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                   placeholder="Ej. Transferencia no facturada #12345678"
                 />
+              </div>
+              <div className="bg-amber-50 p-3 rounded-lg border border-amber-200">
+                <label className="block text-xs font-bold text-amber-900 mb-1">🔒 Clave Master de Autorización (Omar..) *</label>
+                <input 
+                  type="password" 
+                  value={notaManualPassword} onChange={e => { setNotaManualPassword(e.target.value); setNotaAuthError(''); }}
+                  className="w-full border border-amber-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500 outline-none bg-white font-mono"
+                  placeholder="Ingrese la clave master"
+                />
+                <p className="text-[10px] text-amber-700 mt-1">Se requiere la clave master para asentar cualquier nota de crédito o saldo a favor manual.</p>
               </div>
             </div>
             <div className="p-4 border-t border-slate-200 bg-slate-50 rounded-b-lg flex justify-end gap-3">
