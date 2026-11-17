@@ -2780,11 +2780,18 @@ function ContribuyentesPageContent() {
                           (inm.inmueble && f.referencia.includes(inm.inmueble)) ||
                           (inm.cod_cont && f.referencia.includes(inm.cod_cont))
                         );
-                        const targetInm = matchedInm || (userInms.length === 1 ? userInms[0] : null);
-                        if (targetInm && tcmmv > 0) {
-                          const cant = parseFloat(targetInm.cant_inmuebles || 1);
-                          const mmv = parseFloat(targetInm.mmv_mes || 0);
+                        if (matchedInm && tcmmv > 0) {
+                          const cant = parseFloat(matchedInm.cant_inmuebles || 1);
+                          const mmv = parseFloat(matchedInm.mmv_mes || 0);
                           if (mmv > 0) base = parseFloat((cant * mmv * tcmmv).toFixed(2));
+                        } else if (userInms.length > 0 && tcmmv > 0) {
+                          let sumMMV = 0;
+                          userInms.forEach((inm: any) => {
+                            const cant = parseFloat(inm.cant_inmuebles || 1);
+                            const mmv = parseFloat(inm.mmv_mes || 0);
+                            if (mmv > 0) sumMMV += cant * mmv;
+                          });
+                          if (sumMMV > 0) base = parseFloat((sumMMV * tcmmv).toFixed(2));
                         }
                       }
                       
@@ -2806,11 +2813,18 @@ function ContribuyentesPageContent() {
                            (inm.inmueble && f.referencia.includes(inm.inmueble)) ||
                            (inm.cod_cont && f.referencia.includes(inm.cod_cont))
                          );
-                         const targetInm = matchedInm || (userInms.length === 1 ? userInms[0] : null);
-                         if (targetInm) {
-                            const cant = parseFloat(targetInm.cant_inmuebles || 1);
-                            const mmv = parseFloat(targetInm.mmv_mes || 0);
+                         if (matchedInm) {
+                            const cant = parseFloat(matchedInm.cant_inmuebles || 1);
+                            const mmv = parseFloat(matchedInm.mmv_mes || 0);
                             if (mmv > 0) base = parseFloat((cant * mmv * tasaPago).toFixed(2));
+                         } else if (userInms.length > 0) {
+                            let sumMMV = 0;
+                            userInms.forEach((inm: any) => {
+                              const cant = parseFloat(inm.cant_inmuebles || 1);
+                              const mmv = parseFloat(inm.mmv_mes || 0);
+                              if (mmv > 0) sumMMV += cant * mmv;
+                            });
+                            if (sumMMV > 0) base = parseFloat((sumMMV * tasaPago).toFixed(2));
                          }
                       }
 
