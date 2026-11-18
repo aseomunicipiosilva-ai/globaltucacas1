@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { FileText, Search, ShieldCheck, CheckCircle2, AlertTriangle, Printer, QrCode } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { esContribuyenteHacienda, deduplicarContribuyentes } from '@/lib/filtroHacienda';
 
 export default function LicenciasHaciendaPage() {
   const [inmuebles, setInmuebles] = useState<any[]>([]);
@@ -15,8 +16,11 @@ export default function LicenciasHaciendaPage() {
           .from('inmuebles')
           .select('*')
           .not('patente', 'is', null)
-          .limit(100);
-        if (data) setInmuebles(data);
+          .limit(300);
+        if (data) {
+          const validos = deduplicarContribuyentes(data.filter(i => esContribuyenteHacienda(i)));
+          setInmuebles(validos);
+        }
       } catch (e) {
         console.error(e);
       } finally {

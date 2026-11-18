@@ -16,6 +16,7 @@ import {
   FileCheck,
   ShieldCheck
 } from 'lucide-react';
+import { esCondominioResidencial, deduplicarContribuyentes } from '@/lib/filtroHacienda';
 
 interface DocItem {
   id: string | number;
@@ -165,7 +166,9 @@ export default function DocumentosHaciendaPage() {
         });
       }
 
-      setDocumentos(items);
+      // Excluir condominios residenciales de documentos de Hacienda
+      const soloComercial = items.filter(it => !esCondominioResidencial(it));
+      setDocumentos(soloComercial);
     } catch (e) {
       console.error('Error cargando documentos:', e);
     } finally {

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { verificarSolvenciaAseo, SolvenciaStatus } from '@/lib/solvenciaAseo';
 import { tarifasHaciendaCatastro } from '@/data/ordenanza';
+import { esContribuyenteHacienda, deduplicarContribuyentes } from '@/lib/filtroHacienda';
 import { 
   Search, 
   CreditCard, 
@@ -155,7 +156,7 @@ export default function HaciendaCajaPage() {
   const buscarContribuyentes = async () => {
     setLoading(true);
     try {
-      let query = supabase.from('inmuebles').select('*').limit(60);
+      let query = supabase.from('inmuebles').select('*').limit(200);
 
       if (searchTerm.trim()) {
         const term = searchTerm.trim();
@@ -165,17 +166,19 @@ export default function HaciendaCajaPage() {
       const { data, error } = await query;
       if (error) throw error;
 
-      let filtrados = data || [];
+      // 1. Excluir condominios y filtrar solo comercios e industrias
+      let filtrados = (data || []).filter(i => esContribuyenteHacienda(i));
+
       if (tipoFiltro === 'Comercial') {
-        filtrados = filtrados.filter(i => {
-          const cls = (i.clasificacion || '').toUpperCase();
-          return cls.includes('COMERCIAL') || cls.includes('TIPO D') || cls.includes('TIPO B') || cls.includes('TIPO C');
-        });
+        filtrados = filtrados.filter(i => !(i.clasificacion || '').toUpperCase().includes('INDUSTRIAL'));
       } else if (tipoFiltro === 'Industrial') {
         filtrados = filtrados.filter(i => (i.clasificacion || '').toUpperCase().includes('INDUSTRIAL'));
       }
 
-      setContribuyentes(filtrados);
+      // 2. Deduplicar por RIF único
+      const unicos = deduplicarContribuyentes(filtrados);
+
+      setContribuyentes(unicos);
     } catch (e: any) {
       console.error(e);
     } finally {

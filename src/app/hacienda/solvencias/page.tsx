@@ -4,6 +4,7 @@ import { Search, Building2, ShieldCheck, CheckCircle2, AlertTriangle, ArrowRight
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { verificarSolvenciaAseo } from '@/lib/solvenciaAseo';
+import { esContribuyenteHacienda, deduplicarContribuyentes } from '@/lib/filtroHacienda';
 
 export default function SolvenciasHaciendaPage() {
   const [identidad, setIdentidad] = useState('');
@@ -23,12 +24,18 @@ export default function SolvenciasHaciendaPage() {
         .or(`identidad.ilike.%${q}%,contribuyente.ilike.%${q}%,cod_cont.ilike.%${q}%`);
 
       if (inms && inms.length > 0) {
-        setInmuebles(inms);
-        const solv = await verificarSolvenciaAseo(inms[0].identidad);
-        setResultado({
-          inmueble: inms[0],
-          solvencia: solv
-        });
+        const soloComercial = deduplicarContribuyentes(inms.filter(i => esContribuyenteHacienda(i)));
+        if (soloComercial.length > 0) {
+          setInmuebles(soloComercial);
+          const solv = await verificarSolvenciaAseo(soloComercial[0].identidad);
+          setResultado({
+            inmueble: soloComercial[0],
+            solvencia: solv
+          });
+        } else {
+          setInmuebles([]);
+          setResultado({ error: 'El inmueble consultado corresponde a un condominio o parcela residencial, no aplica para Hacienda.' });
+        }
       } else {
         setInmuebles([]);
         setResultado({ error: 'No se encontraron contribuyentes con los datos ingresados.' });

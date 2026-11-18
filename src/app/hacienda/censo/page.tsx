@@ -21,6 +21,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { ordenanzaData } from '@/data/ordenanza';
 import { tarifasHaciendaCatastro } from '@/data/ordenanza';
+import { esContribuyenteHacienda, deduplicarContribuyentes } from '@/lib/filtroHacienda';
 
 export default function CensoHaciendaPage() {
   const [activeTab, setActiveTab] = useState<'censo' | 'nuevo'>('censo');
@@ -144,25 +145,27 @@ export default function CensoHaciendaPage() {
     }
   };
 
-  const inmueblesFiltrados = inmuebles.filter(i => {
-    const cls = (i.clasificacion || '').toUpperCase();
-    const esComercial = cls.includes('COMERCIAL') || cls.includes('TIPO D') || cls.includes('TIPO B') || cls.includes('TIPO C');
-    const esIndustrial = cls.includes('INDUSTRIAL');
+  const inmueblesFiltrados = deduplicarContribuyentes(
+    inmuebles
+      .filter(i => esContribuyenteHacienda(i))
+      .filter(i => {
+        const cls = (i.clasificacion || '').toUpperCase();
+        const esIndustrial = cls.includes('INDUSTRIAL');
 
-    if (clasificacion === 'Comercial' && !esComercial) return false;
-    if (clasificacion === 'Industrial' && !esIndustrial) return false;
-    if (clasificacion === 'Todos' && !esComercial && !esIndustrial) return false;
+        if (clasificacion === 'Comercial' && esIndustrial) return false;
+        if (clasificacion === 'Industrial' && !esIndustrial) return false;
 
-    if (!filtro) return true;
-    const q = filtro.toLowerCase();
-    return (
-      (i.contribuyente || '').toLowerCase().includes(q) ||
-      (i.identidad || '').toLowerCase().includes(q) ||
-      (i.sector || '').toLowerCase().includes(q) ||
-      (i.actividad_principal || '').toLowerCase().includes(q) ||
-      (i.patente || '').toLowerCase().includes(q)
-    );
-  });
+        if (!filtro) return true;
+        const q = filtro.toLowerCase();
+        return (
+          (i.contribuyente || '').toLowerCase().includes(q) ||
+          (i.identidad || '').toLowerCase().includes(q) ||
+          (i.sector || '').toLowerCase().includes(q) ||
+          (i.actividad_principal || '').toLowerCase().includes(q) ||
+          (i.patente || '').toLowerCase().includes(q)
+        );
+      })
+  );
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -301,16 +304,28 @@ export default function CensoHaciendaPage() {
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
-                  Actividad Económica Principal
+                  Actividad Económica Principal (Clasificador Oficial Silva)
                 </label>
                 <select
                   value={formData.actividadEconomica}
                   onChange={e => setFormData({ ...formData, actividadEconomica: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"
                 >
-                  {tarifasHaciendaCatastro.hacienda.alicuotasISAE.map(a => (
-                    <option key={a.sector} value={a.sector}>{a.sector} ({a.alicuota}%)</option>
-                  ))}
+                  <optgroup label="Sectores con Alícuota ISAE Especificada">
+                    {tarifasHaciendaCatastro.hacienda.alicuotasISAE.map(a => (
+                      <option key={a.sector} value={a.sector}>{a.sector} ({a.alicuota}%)</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Actividades Comerciales (Ordenanza Municipal)">
+                    {ordenanzaData.actividadesComerciales.map(a => (
+                      <option key={`com-${a.label}`} value={a.label}>{a.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Actividades Industriales (Ordenanza Municipal)">
+                    {ordenanzaData.actividadesIndustriales.map(a => (
+                      <option key={`ind-${a.label}`} value={a.label}>{a.label}</option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
 

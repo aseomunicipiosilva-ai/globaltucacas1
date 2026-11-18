@@ -17,7 +17,7 @@ import {
   BadgePercent
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { tarifasHaciendaCatastro } from '@/data/ordenanza';
+import { tarifasHaciendaCatastro, ordenanzaData } from '@/data/ordenanza';
 
 export default function CensoCatastroPage() {
   const [activeTab, setActiveTab] = useState<'censo' | 'nuevo'>('censo');
@@ -287,19 +287,28 @@ export default function CensoCatastroPage() {
 
               <div>
                 <label className="block text-[11px] font-bold text-stone-400 uppercase mb-1">
-                  Tipología Constructiva
+                  Tipología Constructiva / Actividad
                 </label>
                 <select
                   value={formData.tipoInmueble}
                   onChange={e => setFormData({ ...formData, tipoInmueble: e.target.value })}
                   className="w-full px-3 py-2 bg-stone-900 border border-stone-700 rounded-xl text-xs text-white"
                 >
-                  <option value="Tipo I: Viviendas en zonas populares">Tipo I: Popular</option>
-                  <option value="Tipo II: Apartamentos">Tipo II: Apartamentos</option>
-                  <option value="Tipo III: Casas">Tipo III: Casas</option>
-                  <option value="Tipo IV: Penthouse, Town House, Quintas, Villas">Tipo IV: Quintas / Town House</option>
-                  <option value="Local Comercial">Local Comercial</option>
-                  <option value="Galpón / Edificación Industrial">Galpón Industrial</option>
+                  <optgroup label="Tipologías Residenciales">
+                    {ordenanzaData.tiposResidenciales.map(t => (
+                      <option key={t.label} value={t.label}>{t.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Actividades Comerciales">
+                    {ordenanzaData.actividadesComerciales.map(a => (
+                      <option key={`cat-com-${a.label}`} value={a.label}>{a.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Actividades Industriales">
+                    {ordenanzaData.actividadesIndustriales.map(a => (
+                      <option key={`cat-ind-${a.label}`} value={a.label}>{a.label}</option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
 
