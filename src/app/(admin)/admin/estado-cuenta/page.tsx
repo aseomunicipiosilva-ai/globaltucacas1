@@ -824,6 +824,9 @@ export default function EstadoCuentaPage() {
                     matchedInmuebles = specificInm;
                     descripcionBase += ` (Local/Inmueble: ${possibleInmId})`;
                   }
+                } else {
+                  // Si no especifica un inmueble o local particular (ej. CM-N14117 de condominio completo), toma todos los inmuebles
+                  matchedInmuebles = userInmsForAll;
                 }
 
                 let mmv = 0;

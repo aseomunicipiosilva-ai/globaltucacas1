@@ -72,19 +72,24 @@ function parseDetalles(raw: any): any {
 // ─── MODAL COMPROBANTE ──────────────────────────────────
 function ModalComprobante({ pago, onClose }: { pago: Pago; onClose: () => void }) {
   const det = parseDetalles(pago.detalles);
-  const [archivos, setArchivos] = useState<{ name: string; url: string }[]>([]);
+  const [archivos, setArchivos] = useState<{ name: string; url: string; isB64?: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const urls: { name: string; url: string }[] = [];
+      const urls: { name: string; url: string; isB64?: boolean }[] = [];
       if (det.comprobante_url) {
-        urls.push({ name: det.comprobante_nombre || 'comprobante.jpg', url: det.comprobante_url });
+        urls.push({ name: det.comprobante_nombre || 'comprobante.jpg', url: det.comprobante_url, isB64: false });
       }
       // 2. Fallback: comprobante_b64 (base64 guardado cuando Storage no disponible)
-      if (urls.length === 0 && det.comprobante_b64) {
-        urls.push({ name: det.comprobante_nombre || 'comprobante', url: det.comprobante_b64 });
+      if (det.comprobante_b64) {
+        // Aseguramos formato data URL si no lo tiene
+        let b64Str = String(det.comprobante_b64).trim();
+        if (!b64Str.startsWith('data:')) {
+          b64Str = `data:image/jpeg;base64,${b64Str}`;
+        }
+        urls.push({ name: det.comprobante_nombre || `comprobante_${pago.referencia || 'pago'}.jpg`, url: b64Str, isB64: true });
       }
       try {
         const { data: files } = await supabase.storage
@@ -93,76 +98,132 @@ function ModalComprobante({ pago, onClose }: { pago: Pago; onClose: () => void }
           for (const f of files) {
             const { data: sd } = await supabase.storage.from('comprobantes')
               .createSignedUrl('pagos/' + pago.id + '/' + f.name, 3600);
-            if (sd?.signedUrl) urls.push({ name: f.name, url: sd.signedUrl });
+            if (sd?.signedUrl) urls.push({ name: f.name, url: sd.signedUrl, isB64: false });
           }
         }
       } catch { /* sin storage */ }
       setArchivos(urls);
       setLoading(false);
     })();
-  }, [pago.id]);
+  }, [pago.id, pago.referencia, det.comprobante_b64, det.comprobante_url]);
 
   const label = (det.cod_inmueble || pago.cod_inmueble || '') + '-' + (pago.contribuyente || pago.identidad || '');
 
   const isImg = (url: string) => url.startsWith('data:image') || /\.(jpg|jpeg|png|gif|webp|bmp)(\?|$)/i.test(url);
 
+  const handleDescargar = (arch: { name: string; url: string; isB64?: boolean }) => {
+    try {
+      if (arch.isB64 || arch.url.startsWith('data:')) {
+        const a = document.createElement('a');
+        a.href = arch.url;
+        a.download = arch.name || `comprobante_${pago.referencia || 'pago'}.jpg`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        window.open(arch.url, '_blank');
+      }
+    } catch (e) {
+      console.error('Error al descargar comprobante:', e);
+    }
+  };
+
+  const handleNuevaPestana = (arch: { name: string; url: string; isB64?: boolean }) => {
+    try {
+      if (arch.isB64 || arch.url.startsWith('data:')) {
+        const win = window.open('');
+        if (win) {
+          win.document.write(`<html><head><title>${arch.name}</title></head><body style="margin:0;background:#0f172a;display:flex;align-items:center;justify-content:center;min-height:100vh;"><img src="${arch.url}" style="max-width:100%;max-height:100vh;object-contain:contain;box-shadow:0 10px 25px rgba(0,0,0,0.5);border-radius:8px;"/></body></html>`);
+        }
+      } else {
+        window.open(arch.url, '_blank');
+      }
+    } catch(e) {
+      console.error('Error abriendo en nueva pestaña:', e);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
-          <h2 className="text-lg font-bold text-slate-800 uppercase tracking-wide">Detalles de la Conciliaci�n</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0 bg-slate-50 rounded-t-xl">
+          <div className="flex items-center gap-2">
+            <Eye className="w-5 h-5 text-blue-600" />
+            <h2 className="text-base font-bold text-slate-800 uppercase tracking-wide">Comprobante de Pago — Ref: {pago.referencia || 'S/N'}</h2>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-200/60 transition-colors"><X size={20} /></button>
         </div>
         <div className="overflow-y-auto flex-1 p-6">
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-              <p className="text-xs font-bold text-slate-500 uppercase mb-1">Monto Reportado</p>
-              <p className="text-lg font-black text-slate-800">
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+              <p className="text-[10px] font-bold text-slate-500 uppercase mb-0.5">Monto Reportado</p>
+              <p className="text-base font-black text-slate-800">
                 Bs. {parseFloat(String(pago.monto || '0').replace(/[^0-9.]/g, '')).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}
               </p>
             </div>
-            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-              <p className="text-xs font-bold text-slate-500 uppercase mb-1">Tasa Utilizada</p>
-              <p className="text-lg font-black text-slate-800">
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+              <p className="text-[10px] font-bold text-slate-500 uppercase mb-0.5">Banco / Origen</p>
+              <p className="text-sm font-bold text-slate-800 truncate">{pago.banco || 'Bancarizado'}</p>
+            </div>
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+              <p className="text-[10px] font-bold text-slate-500 uppercase mb-0.5">Tasa Utilizada</p>
+              <p className="text-base font-black text-slate-800">
                 {det.tasa_bcv ? 'Bs. ' + Number(det.tasa_bcv).toFixed(2) : '---'}
               </p>
             </div>
           </div>
-          <h3 className="text-sm font-bold text-slate-800 uppercase mb-3">Archivos Adjuntos ({label})</h3>
+          
+          <h3 className="text-xs font-bold text-slate-700 uppercase mb-3 flex items-center gap-1.5">
+            <span>📎 Documentos Adjuntos ({label})</span>
+          </h3>
+
           {loading ? (
-            <div className="text-center py-8 text-slate-400">Cargando comprobantes...</div>
+            <div className="text-center py-12 text-slate-400 animate-pulse">Cargando comprobantes...</div>
           ) : archivos.length === 0 ? (
-            <div className="text-center py-10 text-slate-400 border-2 border-dashed border-slate-200 rounded-lg">
-              <p className="mt-2">No hay comprobante adjunto para este pago.</p>
+            <div className="text-center py-12 text-slate-400 border-2 border-dashed border-slate-200 rounded-lg">
+              <p className="mt-2 font-medium">No hay comprobante adjunto para este pago.</p>
             </div>
           ) : (
             <div className="space-y-4">
               {archivos.map((arch, i) => (
-                <div key={i} className="border border-slate-200 rounded-xl overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-2 bg-slate-50 border-b border-slate-200">
-                    <span className="text-xs font-mono text-slate-600 truncate max-w-[260px]">{arch.name}</span>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <a href={arch.url} download target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs font-semibold">
-                        <Download size={14} /> Descargar
-                      </a>
-                      <a href={arch.url} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-slate-500 hover:text-slate-700 text-xs font-semibold">
-                        <Eye size={14} /> Nueva pesta�a
-                      </a>
+                <div key={i} className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-slate-100 border-b border-slate-200">
+                    <span className="text-xs font-mono font-semibold text-slate-700 truncate max-w-[280px]" title={arch.name}>{arch.name}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleDescargar(arch)}
+                        className="flex items-center gap-1 text-blue-700 hover:text-blue-900 bg-white hover:bg-blue-50 border border-blue-200 px-2.5 py-1 rounded text-xs font-bold shadow-sm transition-colors"
+                      >
+                        <Download size={13} /> Descargar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleNuevaPestana(arch)}
+                        className="flex items-center gap-1 text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-300 px-2.5 py-1 rounded text-xs font-semibold shadow-sm transition-colors"
+                      >
+                        <Eye size={13} /> Nueva pestaña
+                      </button>
                     </div>
                   </div>
                   {isImg(arch.url) ? (
-                    <div className="bg-slate-900 flex items-center justify-center p-4 min-h-[200px]">
-                      <img src={arch.url} alt="Comprobante" className="max-w-full max-h-[500px] object-contain rounded shadow-lg" />
+                    <div className="bg-slate-950 flex items-center justify-center p-3 min-h-[300px] overflow-auto">
+                      <img
+                        src={arch.url}
+                        alt="Comprobante"
+                        className="max-w-full max-h-[600px] object-contain rounded shadow-2xl border border-slate-800"
+                      />
                     </div>
                   ) : (
-                    <div className="p-6 text-center text-slate-500">
-                      <p className="text-sm mb-3">Archivo PDF u otro formato.</p>
-                      <a href={arch.url} target="_blank" rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold hover:bg-blue-700">
-                        <Eye size={14} /> Ver documento
-                      </a>
+                    <div className="p-8 text-center text-slate-600 bg-slate-50">
+                      <p className="text-sm font-medium mb-3">Archivo PDF o documento adjunto.</p>
+                      <button
+                        type="button"
+                        onClick={() => handleNuevaPestana(arch)}
+                        className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 shadow-md transition-all"
+                      >
+                        <Eye size={15} /> Ver documento
+                      </button>
                     </div>
                   )}
                 </div>
@@ -170,9 +231,9 @@ function ModalComprobante({ pago, onClose }: { pago: Pago; onClose: () => void }
             </div>
           )}
         </div>
-        <div className="flex justify-end px-6 py-3 border-t border-slate-200 shrink-0">
-          <button onClick={onClose} className="px-5 py-2 border border-red-400 text-red-600 hover:bg-red-50 rounded font-semibold text-sm flex items-center gap-2">
-            <X size={14} /> Cerrar
+        <div className="flex justify-end px-6 py-3.5 border-t border-slate-200 shrink-0 bg-slate-50 rounded-b-xl">
+          <button onClick={onClose} className="px-5 py-2 border border-slate-300 text-slate-700 hover:bg-white rounded-lg font-bold text-sm flex items-center gap-2 shadow-sm transition-colors">
+            <X size={15} /> Cerrar
           </button>
         </div>
       </div>
@@ -413,6 +474,35 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
   const tasaOriginal = det.tasa_bcv ? Number(det.tasa_bcv) : 0;
   const [tasaCustom, setTasaCustom] = useState<string>(tasaOriginal ? tasaOriginal.toFixed(2) : '');
   const [facturasParaConciliar, setFacturasParaConciliar] = useState<any[]>([]);
+  const [pagosCoincidentes, setPagosCoincidentes] = useState<any[]>([]);
+  const [buscandoCoincidencias, setBuscandoCoincidencias] = useState(false);
+
+  // Verificar coincidencias de referencia en el sistema
+  useEffect(() => {
+    const refVerif = (referenciaOrigen || pago.referencia || '').trim();
+    if (!refVerif) {
+      setPagosCoincidentes([]);
+      return;
+    }
+    let cancel = false;
+    (async () => {
+      setBuscandoCoincidencias(true);
+      try {
+        const { data: dups } = await supabase
+          .from('pagos_reportados')
+          .select('id, referencia, identidad, monto, estado, created_at, banco, tipo')
+          .eq('referencia', refVerif)
+          .neq('id', pago.id);
+        if (!cancel) {
+          setPagosCoincidentes(dups || []);
+        }
+      } catch (e) {
+        console.error('Error buscando coincidencias de referencia:', e);
+      }
+      if (!cancel) setBuscandoCoincidencias(false);
+    })();
+    return () => { cancel = true; };
+  }, [referenciaOrigen, pago.id, pago.referencia]);
 
   const bancosVenezuela = [
     '100% Banco','Bancamiga','Bancaribe','Banco Activo','Banco Agricola de Venezuela',
@@ -529,6 +619,16 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
   const deudaTotalContrib = contribInfo?._deudaTotal ? parseFloat(String(contribInfo._deudaTotal).replace(/[^0-9.]/g,'')) : 0;
 
   const handleConciliar = async () => {
+    if (estatus === 'Aprobado' && pagosCoincidentes.length > 0) {
+      const confirmDup = window.confirm(
+        `⚠️ ALERTA DE COINCIDENCIA CRÍTICA:\n\nLa referencia "${referenciaOrigen || pago.referencia}" ya existe en otro pago en el sistema (${pagosCoincidentes.length} coincidencia(s)).\n\n¿Está ABSOLUTAMENTE SEGURO de conciliar este pago como APROBADO?`
+      );
+      if (!confirmDup) {
+        setIsProcessing(false);
+        return;
+      }
+    }
+
     if (estatus === 'Rechazado' && !observaciones.trim()) {
       alert('⚠️ Es OBLIGATORIO ingresar el motivo del rechazo para continuar.');
       return;
@@ -861,6 +961,39 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
                 </div>
               );
             })()}
+
+            {/* ALERTA DE COINCIDENCIA DE REFERENCIA EN OTROS PAGOS */}
+            {pagosCoincidentes.length > 0 && (
+              <div className="bg-red-50 border-2 border-red-500 rounded-xl p-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">⚠️</span>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-black text-red-800 uppercase tracking-wide">
+                      ¡Alerta de Coincidencia de Referencia Detectada!
+                    </h4>
+                    <p className="text-xs text-red-700 mt-0.5 font-medium">
+                      La referencia <strong className="font-mono bg-red-100 px-1 py-0.5 rounded border border-red-300">{referenciaOrigen || pago.referencia}</strong> ya fue registrada en {pagosCoincidentes.length} otro(s) pago(s) en el sistema:
+                    </p>
+                    <div className="mt-2 space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                      {pagosCoincidentes.map((dp: any, dpIdx: number) => (
+                        <div key={dpIdx} className="bg-white border border-red-200 rounded p-2 text-xs flex items-center justify-between shadow-xs">
+                          <div>
+                            <span className="font-bold text-slate-800">{dp.identidad}</span> • <span className="text-slate-500">{dp.banco || dp.tipo}</span>
+                            <span className="block text-[10px] text-slate-400">Fecha: {new Date(dp.created_at).toLocaleDateString('es-VE')}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-black text-slate-800 block">Bs. {fmt(parseFloat(dp.monto || '0'))}</span>
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${dp.estado === 'Aprobado' ? 'bg-emerald-100 text-emerald-800' : dp.estado === 'Rechazado' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>
+                              {dp.estado}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* DATOS DEL PAGO */}
             <div className="grid grid-cols-3 gap-4">

@@ -217,10 +217,14 @@ export default function CajaPage() {
         baseMonto = parseFloat(ajuste.monto);
       }
     } else if (r.referencia?.startsWith('CM-') && r.estado !== 'Abonado' && tasaActual > 0) {
-      let targetInms = userInms.filter((inm: any) =>
-        (inm.inmueble && (r.referencia || '').includes(inm.inmueble)) ||
-        (inm.cod_cont && (r.referencia || '').includes(inm.cod_cont))
-      );
+      let targetInms = userInms.filter((inm: any) => {
+        const inmName = (inm.inmueble || '').toLowerCase();
+        const isGeneric = inmName.startsWith('inmueble') || inmName.startsWith('local');
+        return !isGeneric && (
+          (inm.inmueble && (r.referencia || '').includes(inm.inmueble)) ||
+          (inm.cod_cont && (r.referencia || '').includes(inm.cod_cont))
+        );
+      });
       if (targetInms.length === 0) targetInms = userInms;
 
       let monthlyMMV = 0;
@@ -277,7 +281,14 @@ export default function CajaPage() {
       originalMonto = parseFloat(ajuste.monto);
     } else if (r.referencia?.startsWith('CM-') && tasaActual > 0) {
       const userInms = inmuebles.filter((i: any) => (i.identidad || '').replace(/-/g,'').toUpperCase() === (foundUser?.Identidad || '').replace(/-/g,'').toUpperCase() && i.estado !== 'Eliminado');
-      let targetInms = userInms.filter((inm: any) => (inm.inmueble && r.referencia.includes(inm.inmueble)) || (inm.cod_cont && r.referencia.includes(inm.cod_cont)));
+      let targetInms = userInms.filter((inm: any) => {
+        const inmName = (inm.inmueble || '').toLowerCase();
+        const isGeneric = inmName.startsWith('inmueble') || inmName.startsWith('local');
+        return !isGeneric && (
+          (inm.inmueble && r.referencia.includes(inm.inmueble)) ||
+          (inm.cod_cont && r.referencia.includes(inm.cod_cont))
+        );
+      });
       if (targetInms.length === 0) targetInms = userInms;
       let monthlyMMV = 0;
       targetInms.forEach((inm: any) => {

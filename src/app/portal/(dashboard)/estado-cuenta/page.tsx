@@ -144,7 +144,11 @@ export default function EstadoCuentaPage() {
     // CM-
     if (r.referencia?.startsWith('CM-')) {
       let monthlyMMV = 0;
-      const matchedInmueble = misInmuebles.find((inm: any) => inm.inmueble && r.referencia.includes(inm.inmueble));
+      const matchedInmueble = misInmuebles.find((inm: any) => {
+        const inmName = (inm.inmueble || '').toLowerCase();
+        const isGeneric = inmName.startsWith('inmueble') || inmName.startsWith('local');
+        return !isGeneric && inm.inmueble && r.referencia.includes(inm.inmueble);
+      });
       
       if (matchedInmueble) {
         const cant = parseFloat(matchedInmueble.cant_inmuebles || 1);

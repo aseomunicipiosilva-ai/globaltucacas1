@@ -2780,7 +2780,8 @@ function ContribuyentesPageContent() {
                         const refClean = cleanCode(f.referencia);
                         const specificInms = userInms.filter((inm: any) => {
                           const inmClean = cleanCode(inm.inmueble || inm.Inmueble);
-                          return inmClean && inmClean.length > 2 && refClean.includes(inmClean);
+                          const isGenericInm = inmClean.startsWith('inmueble') || inmClean.startsWith('local');
+                          return !isGenericInm && inmClean && inmClean.length > 2 && refClean.includes(inmClean);
                         });
                         const targetInms = specificInms.length > 0 ? specificInms : userInms;
 
@@ -2812,7 +2813,8 @@ function ContribuyentesPageContent() {
                         const refClean = cleanCode(f.referencia);
                         const specificInms = userInms.filter((inm: any) => {
                           const inmClean = cleanCode(inm.inmueble || inm.Inmueble);
-                          return inmClean && inmClean.length > 2 && refClean.includes(inmClean);
+                          const isGenericInm = inmClean.startsWith('inmueble') || inmClean.startsWith('local');
+                          return !isGenericInm && inmClean && inmClean.length > 2 && refClean.includes(inmClean);
                         });
                         const targetInms = specificInms.length > 0 ? specificInms : userInms;
 
@@ -3152,7 +3154,8 @@ function ContribuyentesPageContent() {
                                );
                                const specificInms = userInmsHist.filter((inm: any) => {
                                  const inmClean = cleanStr(inm.inmueble || (inm as any).Inmueble);
-                                 return inmClean && inmClean.length > 2 && refClean.includes(inmClean);
+                                 const isGenericInm = inmClean.startsWith('inmueble') || inmClean.startsWith('local');
+                                 return !isGenericInm && inmClean && inmClean.length > 2 && refClean.includes(inmClean);
                                });
                                const targetInms = specificInms.length > 0 ? specificInms : userInmsHist;
                                if (targetInms.length > 0) {
