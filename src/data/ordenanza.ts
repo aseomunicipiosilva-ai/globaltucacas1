@@ -244,3 +244,59 @@ export const ordenanzaData = {
     { codigo: 'VB-04', label: 'Modificación / Ampliación (por m²)', tcmvPorM2: 0.4 }
   ]
 };
+
+// =====================================================================
+// TARIFAS Y ALÍCUOTAS OFICIALES MUNICIPIO SILVA (HACIENDA Y CATASTRO)
+// Expresadas en TCMMV (Tipo de Cambio de Mayor Valor - Euro BCV)
+// Conforme a la Ley Orgánica de Coordinación y Armonización Tributaria
+// =====================================================================
+export const tarifasHaciendaCatastro = {
+  // Tasas Administrativas y Trámites de Hacienda Municipal (en TCMMV)
+  hacienda: {
+    solvenciaMunicipal: { tcmmv: 0.10, label: 'Certificado de Solvencia Municipal' },
+    tramiteLicenciaNueva: { tcmmv: 0.50, label: 'Trámite de Licencia de Actividades Económicas (Nueva)' },
+    renovacionLicencia: { tcmmv: 0.25, label: 'Renovación Anual de Patente / Licencia' },
+    propagandaPublicidadBase: { tcmmv: 0.20, label: 'Tasa por Propaganda y Publicidad Comercial' },
+    tasaAdministrativaFiscal: { tcmmv: 0.08, label: 'Tasa Administrativa y Verificación Fiscal' },
+    // Mínimos tributarios mensuales ISAE según sector (en TCMMV)
+    minimosTributariosISAE: {
+      comercioGeneral: 0.30,
+      comercioAlimentosSalud: 0.20,
+      licoresBaresDiscotecas: 0.80,
+      hotelesTurismo: 0.60,
+      marinasNautica: 1.00,
+      industriaManufactura: 0.50
+    },
+    // Alícuotas de Actividades Económicas (% sobre Ingresos Brutos)
+    alicuotasISAE: [
+      { sector: 'Comercio al por menor de alimentos y víveres', alicuota: 1.25, minimoTcmmv: 0.20 },
+      { sector: 'Farmacias y expendio de medicinas', alicuota: 1.00, minimoTcmmv: 0.20 },
+      { sector: 'Restaurantes, cafetines y comida rápida', alicuota: 2.00, minimoTcmmv: 0.35 },
+      { sector: 'Hoteles, posadas y alojamiento turístico', alicuota: 2.50, minimoTcmmv: 0.60 },
+      { sector: 'Marinas deportivas, varaderos y náutica', alicuota: 3.00, minimoTcmmv: 1.00 },
+      { sector: 'Licores al detal, bodegones y discotecas', alicuota: 3.50, minimoTcmmv: 0.80 },
+      { sector: 'Ferreterías y materiales de construcción', alicuota: 1.80, minimoTcmmv: 0.40 },
+      { sector: 'Talleres mecánicos y servicios automotrices', alicuota: 1.50, minimoTcmmv: 0.30 },
+      { sector: 'Industria, manufactura y empaque', alicuota: 1.75, minimoTcmmv: 0.50 },
+      { sector: 'Otras actividades comerciales y de servicios', alicuota: 2.00, minimoTcmmv: 0.30 }
+    ]
+  },
+
+  // Tasas de Catastro y Avalúo Inmobiliario (Derecho de Frente en TCMMV)
+  catastro: {
+    cedulaCatastral: { tcmmv: 0.15, label: 'Emisión / Actualización de Cédula Catastral' },
+    fichaMensura: { tcmmv: 0.25, label: 'Ficha y Levantamiento de Mensura Técnica' },
+    certificadoAvaluo: { tcmmv: 0.20, label: 'Certificado de Avalúo Inmobiliario Oficial' },
+    inspeccionInmueble: { tcmmv: 0.15, label: 'Inspección Ocular y Constatación de Parcela' },
+    solvenciaCatastral: { tcmmv: 0.10, label: 'Solvencia Catastral para Trámites Notariales' },
+    // Derecho de frente base trimestral según tipo de inmueble (en TCMMV)
+    derechoFrenteTrimestralBase: {
+      residencialPopular: 0.15,
+      residencialCasaApto: 0.30,
+      residencialQuintaTownhouse: 0.50,
+      comercialPequeno: 0.60,
+      comercialMedianoGrande: 1.20,
+      industrial: 1.50
+    }
+  }
+};
