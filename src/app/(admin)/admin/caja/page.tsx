@@ -1006,8 +1006,9 @@ export default function CajaPage() {
         for (const t of transferenciasMultiples) {
           const { data: dupCheck } = await supabase
             .from('pagos_reportados')
-            .select('id')
+            .select('id, estado')
             .eq('referencia', t.referencia.trim())
+            .not('estado', 'in', '("Rechazado","Anulado")')
             .limit(1);
           if (dupCheck && dupCheck.length > 0) {
             return alert(`⚠️ ADVERTENCIA: La referencia "${t.referencia.trim()}" ya fue registrada previamente en el sistema.`);
@@ -1031,11 +1032,12 @@ export default function CajaPage() {
         }
         if (!fechaTransaccion) return alert("La fecha de transacción es obligatoria.");
         
-        // Verificar referencia duplicada
+        // Verificar referencia duplicada (excluye pagos Rechazados o Anulados)
         const { data: dupCheck } = await supabase
           .from('pagos_reportados')
-          .select('id')
+          .select('id, estado')
           .eq('referencia', referencia)
+          .not('estado', 'in', '("Rechazado","Anulado")')
           .limit(1);
         if (dupCheck && dupCheck.length > 0) {
           return alert(`⚠️ ADVERTENCIA: El número de referencia "${referencia}" ya fue registrado previamente en el sistema. Verifique antes de continuar.`);
@@ -1061,12 +1063,13 @@ export default function CajaPage() {
       if (!referenciaDebito.trim()) return alert("Debe ingresar el número de comprobante o referencia del pago por punto.");
       if (referenciaDebito.trim().length > 8) return alert("El número de referencia para Punto de Venta no puede superar los 8 dígitos.");
       
-      // Verificar referencia duplicada (BLOQUEO ESTRICTO)
+      // Verificar referencia duplicada (BLOQUEO ESTRICTO excepto si fue Rechazado o Anulado)
       const refDebTrim = referenciaDebito.trim();
       const { data: dupCheck } = await supabase
         .from('pagos_reportados')
-        .select('id')
+        .select('id, estado')
         .eq('referencia', refDebTrim)
+        .not('estado', 'in', '("Rechazado","Anulado")')
         .limit(1);
       if (dupCheck && dupCheck.length > 0) {
         return alert(`⛔ BLOQUEO DE SEGURIDAD: El comprobante de Punto de Venta "${refDebTrim}" ya fue registrado previamente en el sistema. Verifique antes de continuar.`);
@@ -1074,8 +1077,9 @@ export default function CajaPage() {
 
       const { data: dupFacturas } = await supabase
         .from('facturas')
-        .select('id')
+        .select('id, estado')
         .eq('referencia_pago', refDebTrim)
+        .eq('estado', 'Pagado')
         .limit(1);
       if (dupFacturas && dupFacturas.length > 0) {
         return alert(`⛔ BLOQUEO DE SEGURIDAD: El comprobante de Punto de Venta "${refDebTrim}" ya fue liquidado en otra factura.`);
@@ -2700,7 +2704,7 @@ await supabase.from('documentos').insert([{
                                   const val = e.target.value.replace(/\D/g, '').slice(0, 8);
                                   setTransferenciasMultiples(prev => prev.map(x => x.id === t.id ? { ...x, referencia: val, dupWarning: '' } : x));
                                   if (val.length === 8) {
-                                    const { data } = await supabase.from('pagos_reportados').select('id').eq('referencia', val).limit(1);
+                                    const { data } = await supabase.from('pagos_reportados').select('id, estado').eq('referencia', val).not('estado', 'in', '("Rechazado","Anulado")').limit(1);
                                     if (data && data.length > 0) {
                                       setTransferenciasMultiples(prev => prev.map(x => x.id === t.id ? { ...x, dupWarning: '⚠️ Referencia ya registrada en el sistema' } : x));
                                     }
@@ -2875,7 +2879,7 @@ await supabase.from('documentos').insert([{
                             setReferencia(val);
                             setDupRefWarning('');
                             if (val.length === 8) {
-                              const { data } = await supabase.from('pagos_reportados').select('id').eq('referencia', val).limit(1);
+                              const { data } = await supabase.from('pagos_reportados').select('id, estado').eq('referencia', val).not('estado', 'in', '("Rechazado","Anulado")').limit(1);
                               if (data && data.length > 0) setDupRefWarning(`⚠️ Esta referencia "${val}" ya fue registrada antes.`);
                             }
                           }}

@@ -492,7 +492,8 @@ function ModalConciliacion({ pago, onClose, onSuccess }: { pago: Pago; onClose: 
           .from('pagos_reportados')
           .select('id, referencia, identidad, monto, estado, created_at, banco, tipo')
           .eq('referencia', refVerif)
-          .neq('id', pago.id);
+          .neq('id', pago.id)
+          .not('estado', 'in', '("Rechazado","Anulado")');
         if (!cancel) {
           setPagosCoincidentes(dups || []);
         }

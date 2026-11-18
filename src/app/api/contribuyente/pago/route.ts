@@ -22,25 +22,27 @@ export async function POST(request: Request) {
     const fechaPago = fecha || new Date().toISOString().split('T')[0];
     const identidadNorm = identidad ? identidad.replace(/-/g, '').replace(/^([JVEG])(\d)/i, '$1-$2').toUpperCase() : '';
 
-    // Verificar duplicado si hay referencia (BLOQUEO ESTRICTO)
+    // Verificar duplicado si hay referencia (BLOQUEO ESTRICTO excepto si el pago previo fue Rechazado o Anulado)
     if (referencia && referencia.trim()) {
       const refLimpia = referencia.trim();
       const { data: dupReportados } = await supabase
         .from('pagos_reportados')
-        .select('id')
+        .select('id, estado')
         .eq('referencia', refLimpia)
+        .not('estado', 'in', '("Rechazado","Anulado")')
         .limit(1);
       if (dupReportados && dupReportados.length > 0) {
-        return NextResponse.json({ error: `⛔ BLOQUEO FINANCIERO: El número de referencia "${refLimpia}" ya fue registrado previamente en un pago. No se permite reutilizar referencias.` }, { status: 400 });
+        return NextResponse.json({ error: `⛔ BLOQUEO FINANCIERO: El número de referencia "${refLimpia}" ya fue registrado previamente en un pago activo o aprobado. No se permite reutilizar referencias activas.` }, { status: 400 });
       }
 
       const { data: dupFacturas } = await supabase
         .from('facturas')
-        .select('id')
+        .select('id, estado')
         .eq('referencia_pago', refLimpia)
+        .eq('estado', 'Pagado')
         .limit(1);
       if (dupFacturas && dupFacturas.length > 0) {
-        return NextResponse.json({ error: `⛔ BLOQUEO FINANCIERO: La referencia "${refLimpia}" ya fue liquidada en una factura anterior.` }, { status: 400 });
+        return NextResponse.json({ error: `⛔ BLOQUEO FINANCIERO: La referencia "${refLimpia}" ya fue liquidada en una factura pagada.` }, { status: 400 });
       }
     }
 

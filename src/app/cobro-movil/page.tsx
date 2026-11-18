@@ -376,26 +376,28 @@ export default function CobroMovilPage() {
       return;
     }
 
-    // Verificar referencia duplicada (BLOQUEO ESTRICTO)
+    // Verificar referencia duplicada (BLOQUEO ESTRICTO excepto si el pago previo fue Rechazado o Anulado)
     const refTrim = referencia.trim();
     const { data: dupCheck } = await supabase
       .from('pagos_reportados')
-      .select('id')
+      .select('id, estado')
       .eq('referencia', refTrim)
+      .not('estado', 'in', '("Rechazado","Anulado")')
       .limit(1);
     if (dupCheck && dupCheck.length > 0) {
-      setPayError(`⛔ BLOQUEO: El número de referencia "${refTrim}" ya fue registrado previamente en el sistema.`);
+      setPayError(`⛔ BLOQUEO: El número de referencia "${refTrim}" ya fue registrado previamente en un pago activo o aprobado.`);
       setIsProcessing(false);
       return;
     }
 
     const { data: dupFact } = await supabase
       .from('facturas')
-      .select('id')
+      .select('id, estado')
       .eq('referencia_pago', refTrim)
+      .eq('estado', 'Pagado')
       .limit(1);
     if (dupFact && dupFact.length > 0) {
-      setPayError(`⛔ BLOQUEO: La referencia "${refTrim}" ya fue liquidada en una factura anterior.`);
+      setPayError(`⛔ BLOQUEO: La referencia "${refTrim}" ya fue liquidada en una factura pagada.`);
       setIsProcessing(false);
       return;
     }
