@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { DataTable } from '@/components/DataTable';
 import { useAppContext } from '@/store/AppContext';
-import { List, Check, X, CheckCircle, Calculator, AlertCircle, FileSpreadsheet, Clock } from 'lucide-react';
+import { List, Check, X, CheckCircle, Calculator, AlertCircle, FileSpreadsheet, Clock, FileText } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import * as XLSX from 'xlsx';
 import { exportToExcelWithLogos } from '@/lib/excelExport';
@@ -293,14 +293,14 @@ export default function PreRegistrosPage() {
     { key: 'tipo', header: 'Clasificación' },
     { key: 'actividad', header: 'Actividad P.' },
     { key: 'codigo', header: 'Metraje' },
-    ...(activeTab === 'Web' ? [{
+    {
       key: 'documentos',
       header: 'Docs',
       render: (row: any) => {
         const docs = [
           { key: 'rif_doc', label: 'RIF' },
           { key: 'cedula_doc', label: 'CI' },
-          { key: 'patente_doc', label: 'Pat.' }
+          { key: 'patente_doc', label: 'Pat/Ficha' }
         ].filter(d => row[d.key]);
         return docs.length > 0 ? (
           <div className="flex gap-1 flex-wrap">
@@ -315,7 +315,7 @@ export default function PreRegistrosPage() {
           </div>
         ) : <span className="text-[10px] text-slate-400">Sin docs</span>;
       }
-    }] : []),
+    },
     ...(activeTab === 'Censo' ? [
       { key: 'fecha_inicio', header: 'Fecha Inicio Actividad' },
       { key: 'operador', header: 'Operador', render: (row: any) => {
@@ -559,6 +559,33 @@ export default function PreRegistrosPage() {
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Notas u Observaciones</span>
                   <p className="text-sm font-medium text-slate-800 whitespace-pre-wrap">{rowToApprove.nota || 'Ninguna'}</p>
                 </div>
+
+                {/* Documentos Adjuntos Digitalizados */}
+                {(rowToApprove.rif_doc || rowToApprove.cedula_doc || rowToApprove.patente_doc) && (
+                  <div className="col-span-2 p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Documentos Adjuntos Digitalizados</span>
+                    <div className="flex gap-2 flex-wrap">
+                      {rowToApprove.rif_doc && (
+                        <a href={rowToApprove.rif_doc} target="_blank" rel="noopener noreferrer"
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 shadow-sm transition-colors">
+                          <FileText className="w-4 h-4" /> Ver RIF Digital
+                        </a>
+                      )}
+                      {rowToApprove.cedula_doc && (
+                        <a href={rowToApprove.cedula_doc} target="_blank" rel="noopener noreferrer"
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 shadow-sm transition-colors">
+                          <FileText className="w-4 h-4" /> Ver Cédula Identidad
+                        </a>
+                      )}
+                      {rowToApprove.patente_doc && (
+                        <a href={rowToApprove.patente_doc} target="_blank" rel="noopener noreferrer"
+                          className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 shadow-sm transition-colors">
+                          <FileText className="w-4 h-4" /> Ver Patente / Ficha Catastral
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
                 
                 {rowToApprove.is_condominio && rowToApprove.locales && rowToApprove.locales.length > 0 && (
                   <div className="col-span-2 space-y-2 mt-4">

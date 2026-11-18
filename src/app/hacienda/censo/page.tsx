@@ -16,7 +16,11 @@ import {
   Landmark, 
   X,
   FileCheck2,
-  Briefcase
+  Briefcase,
+  Upload,
+  Eye,
+  Calendar,
+  Layers
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { ordenanzaData } from '@/data/ordenanza';
@@ -33,6 +37,27 @@ export default function CensoHaciendaPage() {
   // Formulario de Levantamiento de Censo Comercial / Industrial
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+
+  // Helper para convertir archivos a Base64
+  const toBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  // Documentos digitalizados adjuntos
+  const [archivos, setArchivos] = useState<{
+    rif: File | null;
+    patente: File | null;
+    cedula: File | null;
+  }>({
+    rif: null,
+    patente: null,
+    cedula: null
+  });
+
   const [formData, setFormData] = useState({
     identidadTipo: 'J',
     identidadNumero: '',
@@ -43,9 +68,15 @@ export default function CensoHaciendaPage() {
     correoNombre: '',
     correoDominio: '@gmail.com',
     domicilioFiscal: '',
+    direccionExacta: '',
     sector: 'Centro Tucacas',
     clasificacion: 'Comercial',
     actividadEconomica: 'Comercio al por menor de alimentos y víveres',
+    nivelMetraje: '0 - 50 m²',
+    fechaInicioActividad: new Date().toISOString().split('T')[0],
+    isCondominio: false,
+    cantidadInmuebles: 1,
+    // Específico Hacienda
     numeroPatente: '',
     alicuotaEstimada: '1.5',
     nota: ''
@@ -73,6 +104,14 @@ export default function CensoHaciendaPage() {
     }
   }
 
+  const handleFileChange = (tipo: 'rif' | 'patente' | 'cedula', file: File | null) => {
+    if (file && file.size > 5 * 1024 * 1024) {
+      alert('El archivo no debe exceder los 5 MB.');
+      return;
+    }
+    setArchivos(prev => ({ ...prev, [tipo]: file }));
+  };
+
   const handleSaveCenso = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.identidadNumero.trim() || !formData.razonSocial.trim()) {
@@ -88,20 +127,37 @@ export default function CensoHaciendaPage() {
         ? `${formData.razonSocial.trim()} | Comercial: ${formData.nombreComercial.trim()}`
         : formData.razonSocial.trim();
 
-      // Guardar en pre_registros con origen Censo - HACIENDA
-      const { error: prErr } = await supabase.from('pre_registros').insert([{
+      // Convertir archivos a Base64 si fueron cargados
+      let rifDocB64 = null;
+      let patenteDocB64 = null;
+      let cedulaDocB64 = null;
+
+      if (archivos.rif) rifDocB64 = await toBase64(archivos.rif);
+      if (archivos.patente) patenteDocB64 = await toBase64(archivos.patente);
+      if (archivos.cedula) cedulaDocB64 = await toBase64(archivos.cedula);
+
+      // Objeto pre_registros interconectado con todos los datos requeridos por Aseo
+      const payload: any = {
         identidad: fullIdentidad,
         contribuyente: finalContribuyente,
         registro: fullTelefono,
         tipo: formData.clasificacion,
         actividad: formData.actividadEconomica,
-        codigo: formData.numeroPatente ? `Patente: ${formData.numeroPatente}` : 'Sin Patente',
+        codigo: formData.nivelMetraje, // Requerido para cálculo de tarifa en Aseo Urbano
         origen: 'Censo - HACIENDA',
         departamento: 'HACIENDA',
+        fecha_inicio: formData.fechaInicioActividad,
         domicilio_fiscal: `${formData.domicilioFiscal} (Sector ${formData.sector})`,
-        direccion_exacta: formData.domicilioFiscal,
-        nota: `Hacienda: Censo de Actividad Económica | Alícuota Est: ${formData.alicuotaEstimada}% | ${formData.nota || ''}`
-      }]);
+        direccion_exacta: formData.direccionExacta || formData.domicilioFiscal,
+        is_condominio: formData.isCondominio,
+        cantidad_inmuebles: formData.isCondominio ? Number(formData.cantidadInmuebles) || 1 : 1,
+        nota: `Hacienda: Censo de Actividad Económica | Patente: ${formData.numeroPatente || 'Sin Patente'} | Alícuota Est: ${formData.alicuotaEstimada}% | Email: ${fullCorreo} | ${formData.nota || ''}`,
+        rif_doc: rifDocB64,
+        patente_doc: patenteDocB64,
+        cedula_doc: cedulaDocB64
+      };
+
+      const { error: prErr } = await supabase.from('pre_registros').insert([payload]);
 
       if (prErr) throw prErr;
 
@@ -127,13 +183,19 @@ export default function CensoHaciendaPage() {
         correoNombre: '',
         correoDominio: '@gmail.com',
         domicilioFiscal: '',
+        direccionExacta: '',
         sector: 'Centro Tucacas',
         clasificacion: 'Comercial',
         actividadEconomica: 'Comercio al por menor de alimentos y víveres',
+        nivelMetraje: '0 - 50 m²',
+        fechaInicioActividad: new Date().toISOString().split('T')[0],
+        isCondominio: false,
+        cantidadInmuebles: 1,
         numeroPatente: '',
         alicuotaEstimada: '1.5',
         nota: ''
       });
+      setArchivos({ rif: null, patente: null, cedula: null });
 
       // Recargar datos
       loadData();
@@ -177,7 +239,7 @@ export default function CensoHaciendaPage() {
             Censo Comercial e Industrial - Hacienda Municipal
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Empadronamiento de establecimientos comerciales, industrias, patentes y actividades económicas en Silva.
+            Empadronamiento interconectado de establecimientos comerciales, patentes y actividades económicas de Silva.
           </p>
         </div>
 
@@ -214,7 +276,7 @@ export default function CensoHaciendaPage() {
                 Formulario de Empadronamiento de Hacienda Municipal
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Los datos censados se enviarán directamente al padrón central de pre-registros con asignación al departamento de Hacienda.
+                Los datos se interconectan directamente con Aseo Urbano y el Módulo de Pre-Registros centralizado.
               </p>
             </div>
             <span className="px-3 py-1 rounded-lg text-xs font-mono font-bold bg-sky-950 text-sky-300 border border-sky-800">
@@ -229,207 +291,391 @@ export default function CensoHaciendaPage() {
             </div>
           )}
 
-          <form onSubmit={handleSaveCenso} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
-                  RIF del Contribuyente <span className="text-red-400">*</span>
-                </label>
-                <div className="flex gap-2">
-                  <select
-                    value={formData.identidadTipo}
-                    onChange={e => setFormData({ ...formData, identidadTipo: e.target.value })}
-                    className="w-20 px-2 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-bold"
-                  >
-                    <option value="J">J-</option>
-                    <option value="V">V-</option>
-                    <option value="G">G-</option>
-                    <option value="E">E-</option>
-                  </select>
+          <form onSubmit={handleSaveCenso} className="space-y-5">
+            {/* Sección 1: Identificación del Contribuyente */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-800/80 pb-1.5">
+                <Building2 className="w-4 h-4" />
+                1. Identificación del Contribuyente y Razón Social
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                    RIF del Contribuyente <span className="text-red-400">*</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      value={formData.identidadTipo}
+                      onChange={e => setFormData({ ...formData, identidadTipo: e.target.value })}
+                      className="w-20 px-2 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-bold"
+                    >
+                      <option value="J">J-</option>
+                      <option value="V">V-</option>
+                      <option value="G">G-</option>
+                      <option value="E">E-</option>
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="312768320"
+                      maxLength={10}
+                      value={formData.identidadNumero}
+                      onChange={e => setFormData({ ...formData, identidadNumero: e.target.value.replace(/\D/g, '') })}
+                      className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-mono"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                    Razón Social (según Registro Mercantil) <span className="text-red-400">*</span>
+                  </label>
                   <input
                     type="text"
-                    placeholder="312768320"
-                    maxLength={10}
-                    value={formData.identidadNumero}
-                    onChange={e => setFormData({ ...formData, identidadNumero: e.target.value.replace(/\D/g, '') })}
-                    className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-mono"
+                    placeholder="Ej. DISTRIBUIDORA MORROCOY, C.A."
+                    value={formData.razonSocial}
+                    onChange={e => setFormData({ ...formData, razonSocial: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white uppercase"
                     required
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
-                  Razón Social (según Registro Mercantil) <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ej. DISTRIBUIDORA MORROCOY, C.A."
-                  value={formData.razonSocial}
-                  onChange={e => setFormData({ ...formData, razonSocial: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white uppercase"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
-                  Nombre Comercial / Denominación
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ej. Automercado Morrocoy"
-                  value={formData.nombreComercial}
-                  onChange={e => setFormData({ ...formData, nombreComercial: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
-                  Clasificación Tributaria
-                </label>
-                <select
-                  value={formData.clasificacion}
-                  onChange={e => setFormData({ ...formData, clasificacion: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"
-                >
-                  <option value="Comercial">Comercial</option>
-                  <option value="Industrial">Industrial</option>
-                  <option value="Servicios / Mixto">Servicios / Mixto</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
-                  Actividad Económica Principal (Clasificador Oficial Silva)
-                </label>
-                <select
-                  value={formData.actividadEconomica}
-                  onChange={e => setFormData({ ...formData, actividadEconomica: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"
-                >
-                  <optgroup label="Sectores con Alícuota ISAE Especificada">
-                    {tarifasHaciendaCatastro.hacienda.alicuotasISAE.map(a => (
-                      <option key={a.sector} value={a.sector}>{a.sector} ({a.alicuota}%)</option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Actividades Comerciales (Ordenanza Municipal)">
-                    {ordenanzaData.actividadesComerciales.map(a => (
-                      <option key={`com-${a.label}`} value={a.label}>{a.label}</option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Actividades Industriales (Ordenanza Municipal)">
-                    {ordenanzaData.actividadesIndustriales.map(a => (
-                      <option key={`ind-${a.label}`} value={a.label}>{a.label}</option>
-                    ))}
-                  </optgroup>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
-                  N° de Patente Asignada (Si posee)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ej. 1918 o En Trámite"
-                  value={formData.numeroPatente}
-                  onChange={e => setFormData({ ...formData, numeroPatente: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-mono"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
-                  Teléfono Móvil / Contacto
-                </label>
-                <div className="flex gap-2">
-                  <select
-                    value={formData.telefonoPrefijo}
-                    onChange={e => setFormData({ ...formData, telefonoPrefijo: e.target.value })}
-                    className="w-24 px-2 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"
-                  >
-                    <option value="0414">0414</option>
-                    <option value="0424">0424</option>
-                    <option value="0412">0412</option>
-                    <option value="0416">0416</option>
-                    <option value="0426">0426</option>
-                  </select>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                    Nombre Comercial / Denominación
+                  </label>
                   <input
                     type="text"
-                    placeholder="1234567"
-                    maxLength={7}
-                    value={formData.telefonoNumero}
-                    onChange={e => setFormData({ ...formData, telefonoNumero: e.target.value.replace(/\D/g, '') })}
-                    className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-mono"
+                    placeholder="Ej. Automercado Morrocoy"
+                    value={formData.nombreComercial}
+                    onChange={e => setFormData({ ...formData, nombreComercial: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"
                   />
                 </div>
               </div>
+            </div>
 
-              <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
-                  Correo Electrónico
-                </label>
-                <div className="flex gap-1">
-                  <input
-                    type="text"
-                    placeholder="empresa"
-                    value={formData.correoNombre}
-                    onChange={e => setFormData({ ...formData, correoNombre: e.target.value.replace(/\s/g, '') })}
-                    className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"
-                  />
+            {/* Sección 2: Actividad, Clasificación y Parámetros Requeridos por Aseo Urbano */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-800/80 pb-1.5">
+                <Layers className="w-4 h-4" />
+                2. Actividad Económica, Metraje y Fecha de Inicio (Requeridos para Aseo Urbano)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                    Clasificación Tributaria
+                  </label>
                   <select
-                    value={formData.correoDominio}
-                    onChange={e => setFormData({ ...formData, correoDominio: e.target.value })}
-                    className="w-32 px-2 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"
+                    value={formData.clasificacion}
+                    onChange={e => setFormData({ ...formData, clasificacion: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"
                   >
-                    <option value="@gmail.com">@gmail.com</option>
-                    <option value="@hotmail.com">@hotmail.com</option>
-                    <option value="@outlook.com">@outlook.com</option>
-                    <option value="@yahoo.com">@yahoo.com</option>
+                    <option value="Comercial">Comercial</option>
+                    <option value="Industrial">Industrial</option>
+                    <option value="Servicios / Mixto">Servicios / Mixto</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                    Actividad Económica (Ordenanza Municipal)
+                  </label>
+                  <select
+                    value={formData.actividadEconomica}
+                    onChange={e => setFormData({ ...formData, actividadEconomica: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"
+                  >
+                    <optgroup label="Sectores con Alícuota ISAE Especificada">
+                      {tarifasHaciendaCatastro.hacienda.alicuotasISAE.map(a => (
+                        <option key={a.sector} value={a.sector}>{a.sector} ({a.alicuota}%)</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Actividades Comerciales (Ordenanza)">
+                      {ordenanzaData.actividadesComerciales.map(a => (
+                        <option key={`com-${a.label}`} value={a.label}>{a.label}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Actividades Industriales (Ordenanza)">
+                      {ordenanzaData.actividadesIndustriales.map(a => (
+                        <option key={`ind-${a.label}`} value={a.label}>{a.label}</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                    Rango de Metraje / Área del Local <span className="text-emerald-400 font-bold">(Para Aseo)</span>
+                  </label>
+                  <select
+                    value={formData.nivelMetraje}
+                    onChange={e => setFormData({ ...formData, nivelMetraje: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-semibold"
+                  >
+                    {ordenanzaData.nivelesMetraje.map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
                   </select>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
-                  Sector Geográfico
-                </label>
-                <select
-                  value={formData.sector}
-                  onChange={e => setFormData({ ...formData, sector: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"
-                >
-                  <option value="Centro Tucacas">Centro Tucacas</option>
-                  <option value="Bomba H">Bomba H</option>
-                  <option value="Morrocoy / Marina">Morrocoy / Marina</option>
-                  <option value="Ramadita">Ramadita</option>
-                  <option value="Araguita">Araguita</option>
-                  <option value="Boca de Aroa">Boca de Aroa</option>
-                  <option value="Carretera Nacional">Carretera Nacional</option>
-                </select>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                    Fecha de Inicio de Actividades <span className="text-emerald-400 font-bold">(Cálculo Retroactivo Aseo)</span>
+                  </label>
+                  <div className="relative">
+                    <Calendar className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="date"
+                      value={formData.fechaInicioActividad}
+                      onChange={e => setFormData({ ...formData, fechaInicioActividad: e.target.value })}
+                      className="w-full pl-9 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-mono"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                    ¿Es Inmueble con Varios Locales / Galería?
+                  </label>
+                  <div className="flex items-center gap-3 mt-1.5">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={formData.isCondominio}
+                        onChange={e => setFormData({ ...formData, isCondominio: e.target.checked })}
+                        className="w-4 h-4 rounded text-sky-600 focus:ring-0 bg-slate-900 border-slate-700"
+                      />
+                      <span>Múltiples locales/oficinas</span>
+                    </label>
+                    {formData.isCondominio && (
+                      <input
+                        type="number"
+                        min="1"
+                        max="50"
+                        placeholder="Cant."
+                        value={formData.cantidadInmuebles}
+                        onChange={e => setFormData({ ...formData, cantidadInmuebles: Number(e.target.value) })}
+                        className="w-20 px-2 py-1 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white font-mono"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                    N° de Patente Asignada (Hacienda)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ej. 1918 o En Trámite"
+                    value={formData.numeroPatente}
+                    onChange={e => setFormData({ ...formData, numeroPatente: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-mono"
+                  />
+                </div>
               </div>
             </div>
 
-            <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
-                Dirección / Domicilio Fiscal Exacto
-              </label>
-              <input
-                type="text"
-                placeholder="Avenida Principal, Local N° 4, frente a la plaza..."
-                value={formData.domicilioFiscal}
-                onChange={e => setFormData({ ...formData, domicilioFiscal: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"
-                required
-              />
+            {/* Sección 3: Contacto y Ubicación */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-800/80 pb-1.5">
+                <MapPin className="w-4 h-4" />
+                3. Contacto y Ubicación Física
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                    Teléfono Móvil / Contacto
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      value={formData.telefonoPrefijo}
+                      onChange={e => setFormData({ ...formData, telefonoPrefijo: e.target.value })}
+                      className="w-24 px-2 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"
+                    >
+                      <option value="0414">0414</option>
+                      <option value="0424">0424</option>
+                      <option value="0412">0412</option>
+                      <option value="0416">0416</option>
+                      <option value="0426">0426</option>
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="1234567"
+                      maxLength={7}
+                      value={formData.telefonoNumero}
+                      onChange={e => setFormData({ ...formData, telefonoNumero: e.target.value.replace(/\D/g, '') })}
+                      className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                    Correo Electrónico
+                  </label>
+                  <div className="flex gap-1">
+                    <input
+                      type="text"
+                      placeholder="empresa"
+                      value={formData.correoNombre}
+                      onChange={e => setFormData({ ...formData, correoNombre: e.target.value.replace(/\s/g, '') })}
+                      className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"
+                    />
+                    <select
+                      value={formData.correoDominio}
+                      onChange={e => setFormData({ ...formData, correoDominio: e.target.value })}
+                      className="w-32 px-2 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"
+                    >
+                      <option value="@gmail.com">@gmail.com</option>
+                      <option value="@hotmail.com">@hotmail.com</option>
+                      <option value="@outlook.com">@outlook.com</option>
+                      <option value="@yahoo.com">@yahoo.com</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                    Sector Geográfico
+                  </label>
+                  <select
+                    value={formData.sector}
+                    onChange={e => setFormData({ ...formData, sector: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"
+                  >
+                    <option value="Centro Tucacas">Centro Tucacas</option>
+                    <option value="Bomba H">Bomba H</option>
+                    <option value="Morrocoy / Marina">Morrocoy / Marina</option>
+                    <option value="Ramadita">Ramadita</option>
+                    <option value="Araguita">Araguita</option>
+                    <option value="Boca de Aroa">Boca de Aroa</option>
+                    <option value="Carretera Nacional">Carretera Nacional</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                    Domicilio Fiscal (según RIF)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Avenida Principal, Centro Comercial..."
+                    value={formData.domicilioFiscal}
+                    onChange={e => setFormData({ ...formData, domicilioFiscal: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                    Dirección Exacta / Punto de Referencia
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Calle Páez con Av. Silva, Local N° 3, diagonal al Banco..."
+                    value={formData.direccionExacta}
+                    onChange={e => setFormData({ ...formData, direccionExacta: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white"
+                  />
+                </div>
+              </div>
             </div>
 
+            {/* Sección 4: Carga de Documentos Digitalizados */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-800/80 pb-1.5">
+                <Upload className="w-4 h-4" />
+                4. Carga de Documentos Digitalizados (PDF o Imagen)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* RIF Digital */}
+                <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <FileText className="w-4 h-4 text-sky-400" />
+                      RIF Digital Vigente
+                    </span>
+                    {archivos.rif && (
+                      <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
+                        Cargado
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    accept=".pdf,image/*"
+                    onChange={e => handleFileChange('rif', e.target.files?.[0] || null)}
+                    className="w-full text-[11px] text-slate-400 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-sky-600 file:text-white hover:file:bg-sky-500 cursor-pointer"
+                  />
+                  {archivos.rif && (
+                    <p className="text-[10px] text-slate-400 truncate">
+                      {archivos.rif.name} ({(archivos.rif.size / 1024).toFixed(1)} KB)
+                    </p>
+                  )}
+                </div>
+
+                {/* Patente Comercial */}
+                <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <FileCheck2 className="w-4 h-4 text-amber-400" />
+                      Patente Comercial (Si posee)
+                    </span>
+                    {archivos.patente && (
+                      <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
+                        Cargada
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    accept=".pdf,image/*"
+                    onChange={e => handleFileChange('patente', e.target.files?.[0] || null)}
+                    className="w-full text-[11px] text-slate-400 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-amber-600 file:text-white hover:file:bg-amber-500 cursor-pointer"
+                  />
+                  {archivos.patente && (
+                    <p className="text-[10px] text-slate-400 truncate">
+                      {archivos.patente.name} ({(archivos.patente.size / 1024).toFixed(1)} KB)
+                    </p>
+                  )}
+                </div>
+
+                {/* Cédula del Representante Legal */}
+                <div className="p-3 bg-slate-900/60 border border-slate-800 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                      Cédula del Representante Legal
+                    </span>
+                    {archivos.cedula && (
+                      <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
+                        Cargada
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    accept=".pdf,image/*"
+                    onChange={e => handleFileChange('cedula', e.target.files?.[0] || null)}
+                    className="w-full text-[11px] text-slate-400 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 cursor-pointer"
+                  />
+                  {archivos.cedula && (
+                    <p className="text-[10px] text-slate-400 truncate">
+                      {archivos.cedula.name} ({(archivos.cedula.size / 1024).toFixed(1)} KB)
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Observaciones */}
             <div>
               <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
                 Observaciones del Levantamiento

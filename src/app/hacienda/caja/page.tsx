@@ -4,15 +4,15 @@ import { supabase } from '@/lib/supabase';
 import { verificarSolvenciaAseo, SolvenciaStatus } from '@/lib/solvenciaAseo';
 import { tarifasHaciendaCatastro } from '@/data/ordenanza';
 import { esContribuyenteHacienda, deduplicarContribuyentes } from '@/lib/filtroHacienda';
-import { 
-  Search, 
-  CreditCard, 
-  AlertTriangle, 
-  CheckCircle2, 
-  Building2, 
-  Briefcase, 
-  Filter, 
-  Receipt, 
+import {
+  Search,
+  CreditCard,
+  AlertTriangle,
+  CheckCircle2,
+  Building2,
+  Briefcase,
+  Filter,
+  Receipt,
   FileCheck2,
   DollarSign,
   Printer,
@@ -64,7 +64,7 @@ export default function HaciendaCajaPage() {
   const [banco, setBanco] = useState('Banco de Venezuela');
   const [referenciaTransferencia, setReferenciaTransferencia] = useState('');
   const [fechaTransaccion, setFechaTransaccion] = useState(new Date().toISOString().split('T')[0]);
-  
+
   // Override de supervisor
   const [checkSupervisor, setCheckSupervisor] = useState(false);
   const [procesandoPago, setProcesandoPago] = useState(false);
@@ -321,7 +321,7 @@ export default function HaciendaCajaPage() {
             Caja de Recaudación - Hacienda Municipal
           </h1>
           <p className="text-xs text-slate-400 mt-1">
-            Cobro oficial de tributos municipales según Ley de Armonización Tributaria. 
+            Cobro oficial de tributos municipales según Ley de Armonización Tributaria.
             <span className="text-amber-400 font-semibold ml-1">Solo Punto de Venta y Transferencia Bancaria Directa.</span>
           </p>
         </div>
@@ -350,9 +350,8 @@ export default function HaciendaCajaPage() {
                   <button
                     key={f}
                     onClick={() => setTipoFiltro(f)}
-                    className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                      tipoFiltro === f ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-white'
-                    }`}
+                    className={`px-2.5 py-1 rounded-md font-semibold transition-all ${tipoFiltro === f ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-white'
+                      }`}
                   >
                     {f}
                   </button>
@@ -386,11 +385,10 @@ export default function HaciendaCajaPage() {
                     <button
                       key={user.id}
                       onClick={() => seleccionarContribuyente(user)}
-                      className={`w-full text-left p-3 rounded-xl border transition-all ${
-                        isSelected
-                          ? 'bg-sky-950/60 border-sky-500 shadow-md ring-1 ring-sky-500'
-                          : 'bg-slate-900/40 border-slate-800/80 hover:bg-slate-900 hover:border-slate-700'
-                      }`}
+                      className={`w-full text-left p-3 rounded-xl border transition-all ${isSelected
+                        ? 'bg-sky-950/60 border-sky-500 shadow-md ring-1 ring-sky-500'
+                        : 'bg-slate-900/40 border-slate-800/80 hover:bg-slate-900 hover:border-slate-700'
+                        }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <span className="font-bold text-white text-xs truncate block max-w-[220px]">
@@ -501,9 +499,8 @@ export default function HaciendaCajaPage() {
                 </div>
                 <div className="space-y-2">
                   {conceptos.map(c => (
-                    <label key={c.id} className={`flex items-center justify-between p-3 rounded-xl border text-xs cursor-pointer transition-all ${
-                      c.seleccionado ? 'bg-sky-950/40 border-sky-500 text-white' : 'bg-slate-900/40 border-slate-800 text-slate-400'
-                    }`}>
+                    <label key={c.id} className={`flex items-center justify-between p-3 rounded-xl border text-xs cursor-pointer transition-all ${c.seleccionado ? 'bg-sky-950/40 border-sky-500 text-white' : 'bg-slate-900/40 border-slate-800 text-slate-400'
+                      }`}>
                       <div className="flex items-center gap-3">
                         <input
                           type="checkbox"
@@ -604,11 +601,10 @@ export default function HaciendaCajaPage() {
                   <button
                     type="submit"
                     disabled={!puedeCobrar || procesandoPago}
-                    className={`w-full py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg transition-all ${
-                      puedeCobrar
-                        ? 'bg-sky-600 hover:bg-sky-500 text-white shadow-sky-600/30'
-                        : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                    }`}
+                    className={`w-full py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg transition-all ${puedeCobrar
+                      ? 'bg-sky-600 hover:bg-sky-500 text-white shadow-sky-600/30'
+                      : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                      }`}
                   >
                     {procesandoPago ? 'Procesando Transacción...' : `Registrar Cobro de Hacienda (Bs. ${formatBs(totalPagar)})`}
                   </button>
