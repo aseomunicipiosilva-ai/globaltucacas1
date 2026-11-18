@@ -19,7 +19,8 @@ import {
   Calendar,
   Layers,
   FileCheck2,
-  ShieldCheck
+  ShieldCheck,
+  Check
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { tarifasHaciendaCatastro, ordenanzaData } from '@/data/ordenanza';
@@ -71,7 +72,8 @@ export default function CensoCatastroPage() {
     nivelMetraje: '0 - 50 m²',
     fechaInicioActividad: new Date().toISOString().split('T')[0],
     isCondominio: false,
-    cantidadInmuebles: 1,
+    cantidadInmuebles: 2,
+    locales: [] as any[],
     // Específico Catastro
     codigoCatastral: '',
     metrosTerreno: '200',
@@ -99,6 +101,32 @@ export default function CensoCatastroPage() {
     }
   }
 
+  // Generador de unidades/locales/apartamentos para condominios
+  const generarLocalesCatastro = (cant: number) => {
+    const val = Math.max(1, Math.min(cant, 200));
+    let newLocales = [...(formData.locales || [])];
+    if (newLocales.length < val) {
+      for (let i = newLocales.length; i < val; i++) {
+        newLocales.push({
+          numeracion: formData.clasificacion === 'Residencial' ? `Apto / Casa ${i + 1}` : `Local / Oficina ${i + 1}`,
+          uso: formData.clasificacion === 'Residencial' ? 'Residencial' : 'Comercial',
+          estatus: 'Ocupado',
+          actividad: formData.clasificacion === 'Residencial' ? '' : (ordenanzaData.actividadesComerciales[0]?.label || 'Comercial General'),
+          nivel: ordenanzaData.nivelesMetraje[0],
+          tipoResidencia: ordenanzaData.tiposResidenciales[0]?.label || 'Tipo III: Casas',
+          nombreContribuyente: '',
+          documentoIdentidadTipo: 'V',
+          documentoIdentidadNumero: '',
+          catastro: '',
+          patente: ''
+        });
+      }
+    } else {
+      newLocales = newLocales.slice(0, val);
+    }
+    setFormData(prev => ({ ...prev, cantidadInmuebles: val, locales: newLocales }));
+  };
+
   const handleFileChange = (tipo: 'cedula' | 'ficha' | 'rif', file: File | null) => {
     if (file && file.size > 5 * 1024 * 1024) {
       alert('El archivo no debe exceder los 5 MB.');
@@ -111,6 +139,10 @@ export default function CensoCatastroPage() {
     e.preventDefault();
     if (!formData.identidadNumero.trim() || !formData.propietario.trim()) {
       return alert('Debe completar la cédula/RIF y el nombre del propietario.');
+    }
+
+    if (formData.isCondominio && (!formData.locales || formData.locales.length === 0)) {
+      return alert('Debe generar el desglose de unidades/locales del condominio.');
     }
 
     setIsSaving(true);
@@ -131,7 +163,7 @@ export default function CensoCatastroPage() {
       // Convertir archivos a Base64 si fueron cargados
       let cedulaDocB64 = null;
       let rifDocB64 = null;
-      let patenteDocB64 = null; // En catastro se puede guardar la ficha catastral en patente_doc o rif_doc
+      let patenteDocB64 = null;
 
       if (archivos.cedula) cedulaDocB64 = await toBase64(archivos.cedula);
       if (archivos.rif) rifDocB64 = await toBase64(archivos.rif);
@@ -152,6 +184,10 @@ export default function CensoCatastroPage() {
         direccion_exacta: formData.direccionExacta,
         is_condominio: formData.isCondominio,
         cantidad_inmuebles: formData.isCondominio ? Number(formData.cantidadInmuebles) || 1 : 1,
+        locales: formData.isCondominio ? formData.locales.map((l: any) => ({
+          ...l,
+          documentoIdentidad: l.documentoIdentidadNumero ? `${l.documentoIdentidadTipo || 'V'}-${l.documentoIdentidadNumero}` : ''
+        })) : [],
         nota: `Catastro: ${codCat} | Terreno: ${formData.metrosTerreno}m² | Const: ${formData.metrosConstruccion}m² | ${formData.nota || ''}`,
         cedula_doc: cedulaDocB64,
         rif_doc: rifDocB64,
@@ -190,7 +226,8 @@ export default function CensoCatastroPage() {
         nivelMetraje: '0 - 50 m²',
         fechaInicioActividad: new Date().toISOString().split('T')[0],
         isCondominio: false,
-        cantidadInmuebles: 1,
+        cantidadInmuebles: 2,
+        locales: [],
         codigoCatastral: '',
         metrosTerreno: '200',
         metrosConstruccion: '120',
@@ -374,11 +411,22 @@ export default function CensoCatastroPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-[11px] font-bold text-stone-400 uppercase mb-1">
-                    Clasificación del Uso
+                    Clasificación del Uso Principal
                   </label>
                   <select
                     value={formData.clasificacion}
-                    onChange={e => setFormData({ ...formData, clasificacion: e.target.value })}
+                    onChange={e => {
+                      const newClasif = e.target.value;
+                      setFormData(prev => ({
+                        ...prev,
+                        clasificacion: newClasif,
+                        // Si ya tenía locales generados, actualizar su uso sugerido
+                        locales: prev.locales.map(l => ({
+                          ...l,
+                          uso: newClasif === 'Residencial' ? 'Residencial' : 'Comercial'
+                        }))
+                      }));
+                    }}
                     className="w-full px-3 py-2 bg-stone-900 border border-stone-700 rounded-xl text-xs text-white"
                   >
                     <option value="Residencial">Residencial</option>
@@ -387,7 +435,7 @@ export default function CensoCatastroPage() {
                   </select>
                 </div>
 
-                {formData.clasificacion === 'Residencial' ? (
+                {!formData.isCondominio && formData.clasificacion === 'Residencial' && (
                   <div>
                     <label className="block text-[11px] font-bold text-stone-400 uppercase mb-1">
                       Tipología Residencial (Ordenanza)
@@ -402,7 +450,9 @@ export default function CensoCatastroPage() {
                       ))}
                     </select>
                   </div>
-                ) : (
+                )}
+
+                {!formData.isCondominio && formData.clasificacion !== 'Residencial' && (
                   <div>
                     <label className="block text-[11px] font-bold text-stone-400 uppercase mb-1">
                       Actividad Comercial / Industrial
@@ -412,12 +462,12 @@ export default function CensoCatastroPage() {
                       onChange={e => setFormData({ ...formData, actividadComercial: e.target.value })}
                       className="w-full px-3 py-2 bg-stone-900 border border-stone-700 rounded-xl text-xs text-white"
                     >
-                      <optgroup label="Actividades Comerciales">
+                      <optgroup label="Actividades Comerciales (Ordenanza)">
                         {ordenanzaData.actividadesComerciales.map(a => (
                           <option key={`c-${a.label}`} value={a.label}>{a.label}</option>
                         ))}
                       </optgroup>
-                      <optgroup label="Actividades Industriales">
+                      <optgroup label="Actividades Industriales (Ordenanza)">
                         {ordenanzaData.actividadesIndustriales.map(a => (
                           <option key={`i-${a.label}`} value={a.label}>{a.label}</option>
                         ))}
@@ -426,7 +476,7 @@ export default function CensoCatastroPage() {
                   </div>
                 )}
 
-                {formData.clasificacion !== 'Residencial' && (
+                {!formData.isCondominio && formData.clasificacion !== 'Residencial' && (
                   <div>
                     <label className="block text-[11px] font-bold text-stone-400 uppercase mb-1">
                       Rango de Metraje Comercial <span className="text-emerald-400 font-bold">(Para Aseo)</span>
@@ -460,38 +510,260 @@ export default function CensoCatastroPage() {
                 </div>
               </div>
 
-              {/* Opción Condominio Residencial / Conjunto */}
-              <div className="p-3 bg-stone-900/40 border border-stone-800 rounded-xl flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-bold text-stone-200">¿Es Conjunto Residencial o Edificio de Apartamentos?</span>
-                  <p className="text-[11px] text-stone-400">Permite registrar el número de apartamentos/locales de la edificación.</p>
+              {/* Opción Condominio Residencial / Conjunto / Galería */}
+              <div className="p-4 bg-stone-900/60 border border-stone-800 rounded-xl space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-bold text-stone-200 block">
+                      ¿Es Condominio, Conjunto Residencial o Centro Comercial?
+                    </span>
+                    <p className="text-[11px] text-stone-400">
+                      Permite desglosar y registrar individualmente cada apartamento, casa o local comercial con su propia actividad, tipo y metraje.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs text-stone-200 font-bold bg-stone-950 px-3 py-1.5 rounded-lg border border-stone-700">
+                      <input
+                        type="checkbox"
+                        checked={formData.isCondominio}
+                        onChange={e => {
+                          const checked = e.target.checked;
+                          setFormData(prev => ({ ...prev, isCondominio: checked }));
+                          if (checked && (!formData.locales || formData.locales.length === 0)) {
+                            generarLocalesCatastro(formData.cantidadInmuebles || 2);
+                          }
+                        }}
+                        className="w-4 h-4 rounded text-orange-600 focus:ring-0 bg-stone-900 border-stone-700"
+                      />
+                      <span>Sí, es condominio</span>
+                    </label>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-2 cursor-pointer text-xs text-stone-300">
-                    <input
-                      type="checkbox"
-                      checked={formData.isCondominio}
-                      onChange={e => setFormData({ ...formData, isCondominio: e.target.checked })}
-                      className="w-4 h-4 rounded text-orange-600 focus:ring-0 bg-stone-900 border-stone-700"
-                    />
-                    <span>Sí, condominio</span>
-                  </label>
-                  {formData.isCondominio && (
-                    <input
-                      type="number"
-                      min="2"
-                      max="200"
-                      placeholder="N° Inmuebles"
-                      value={formData.cantidadInmuebles}
-                      onChange={e => setFormData({ ...formData, cantidadInmuebles: Number(e.target.value) })}
-                      className="w-24 px-2 py-1 bg-stone-900 border border-stone-700 rounded-lg text-xs text-white font-mono"
-                    />
-                  )}
-                </div>
+
+                {formData.isCondominio && (
+                  <div className="space-y-4 pt-3 border-t border-stone-800">
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1">
+                          Cantidad Total de Unidades
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="200"
+                          value={formData.cantidadInmuebles}
+                          onChange={e => {
+                            const val = parseInt(e.target.value) || 1;
+                            setFormData(prev => ({ ...prev, cantidadInmuebles: val }));
+                          }}
+                          className="w-32 px-3 py-1.5 bg-stone-950 border border-stone-700 rounded-xl text-xs text-white font-mono font-bold"
+                        />
+                      </div>
+                      <div className="pt-4">
+                        <button
+                          type="button"
+                          onClick={() => generarLocalesCatastro(formData.cantidadInmuebles)}
+                          className="px-4 py-1.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-xs shadow-md transition-all flex items-center gap-1.5"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          Generar / Actualizar Unidades ({formData.cantidadInmuebles})
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Desglose de Unidades del Condominio */}
+                    {formData.locales && formData.locales.length > 0 && (
+                      <div className="space-y-3 bg-stone-950/70 p-4 rounded-xl border border-stone-800 max-h-[480px] overflow-y-auto">
+                        <h4 className="text-xs font-bold text-orange-400 uppercase tracking-wider flex items-center justify-between border-b border-stone-800 pb-2">
+                          <span>Unidades / Locales Registrados ({formData.locales.length})</span>
+                          <span className="text-[10px] font-normal text-stone-400">Cada unidad tiene su propia actividad, tipo y metraje para Aseo y Catastro</span>
+                        </h4>
+
+                        <div className="space-y-3">
+                          {formData.locales.map((local: any, idx: number) => (
+                            <div key={idx} className="p-3 bg-stone-900/90 border border-stone-800 rounded-xl space-y-3">
+                              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1">
+                                    Identificador / N° Inmueble
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={local.numeracion}
+                                    onChange={e => {
+                                      const n = [...formData.locales];
+                                      n[idx].numeracion = e.target.value;
+                                      setFormData({ ...formData, locales: n });
+                                    }}
+                                    className="w-full px-2.5 py-1.5 bg-stone-950 border border-stone-700 rounded-lg text-xs text-white font-semibold"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1">
+                                    Uso de la Unidad
+                                  </label>
+                                  <select
+                                    value={local.uso}
+                                    onChange={e => {
+                                      const n = [...formData.locales];
+                                      n[idx].uso = e.target.value;
+                                      setFormData({ ...formData, locales: n });
+                                    }}
+                                    className="w-full px-2 py-1.5 bg-stone-950 border border-stone-700 rounded-lg text-xs text-white font-bold"
+                                  >
+                                    <option value="Residencial">Residencial</option>
+                                    <option value="Comercial">Comercial</option>
+                                  </select>
+                                </div>
+
+                                {local.uso === 'Residencial' ? (
+                                  <div className="md:col-span-2">
+                                    <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1">
+                                      Tipología Residencial (Para Aseo)
+                                    </label>
+                                    <select
+                                      value={local.tipoResidencia}
+                                      onChange={e => {
+                                        const n = [...formData.locales];
+                                        n[idx].tipoResidencia = e.target.value;
+                                        setFormData({ ...formData, locales: n });
+                                      }}
+                                      className="w-full px-2 py-1.5 bg-stone-950 border border-stone-700 rounded-lg text-xs text-white"
+                                    >
+                                      {ordenanzaData.tiposResidenciales.map(t => (
+                                        <option key={t.label} value={t.label}>{t.label}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <div>
+                                      <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1">
+                                        Actividad Comercial
+                                      </label>
+                                      <select
+                                        value={local.actividad}
+                                        onChange={e => {
+                                          const n = [...formData.locales];
+                                          n[idx].actividad = e.target.value;
+                                          setFormData({ ...formData, locales: n });
+                                        }}
+                                        className="w-full px-2 py-1.5 bg-stone-950 border border-stone-700 rounded-lg text-xs text-white truncate"
+                                      >
+                                        <optgroup label="Actividades Comerciales">
+                                          {ordenanzaData.actividadesComerciales.map(a => (
+                                            <option key={a.label} value={a.label}>{a.label}</option>
+                                          ))}
+                                        </optgroup>
+                                        <optgroup label="Actividades Industriales">
+                                          {ordenanzaData.actividadesIndustriales.map(a => (
+                                            <option key={a.label} value={a.label}>{a.label}</option>
+                                          ))}
+                                        </optgroup>
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="block text-[10px] font-bold text-stone-400 uppercase mb-1">
+                                        Rango Metraje (Para Aseo)
+                                      </label>
+                                      <select
+                                        value={local.nivel}
+                                        onChange={e => {
+                                          const n = [...formData.locales];
+                                          n[idx].nivel = e.target.value;
+                                          setFormData({ ...formData, locales: n });
+                                        }}
+                                        className="w-full px-2 py-1.5 bg-stone-950 border border-stone-700 rounded-lg text-xs text-white"
+                                      >
+                                        {ordenanzaData.nivelesMetraje.map(m => (
+                                          <option key={m} value={m}>{m}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-stone-800">
+                                <div>
+                                  <label className="block text-[10px] font-medium text-stone-400 mb-1">
+                                    Cédula / RIF del Ocupante
+                                  </label>
+                                  <div className="flex gap-1.5">
+                                    <select
+                                      value={local.documentoIdentidadTipo || 'V'}
+                                      onChange={e => {
+                                        const n = [...formData.locales];
+                                        n[idx].documentoIdentidadTipo = e.target.value;
+                                        setFormData({ ...formData, locales: n });
+                                      }}
+                                      className="w-16 px-1.5 py-1 bg-stone-950 border border-stone-700 rounded-lg text-xs text-white font-bold"
+                                    >
+                                      <option value="V">V-</option>
+                                      <option value="J">J-</option>
+                                      <option value="E">E-</option>
+                                      <option value="G">G-</option>
+                                    </select>
+                                    <input
+                                      type="text"
+                                      placeholder="12345678"
+                                      value={local.documentoIdentidadNumero || ''}
+                                      onChange={e => {
+                                        const n = [...formData.locales];
+                                        n[idx].documentoIdentidadNumero = e.target.value.replace(/\D/g, '');
+                                        setFormData({ ...formData, locales: n });
+                                      }}
+                                      className="flex-1 px-2 py-1 bg-stone-950 border border-stone-700 rounded-lg text-xs text-white font-mono"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <label className="block text-[10px] font-medium text-stone-400 mb-1">
+                                    Nombre del Residente / Negocio
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="Nombre completo o comercial"
+                                    value={local.nombreContribuyente || ''}
+                                    onChange={e => {
+                                      const n = [...formData.locales];
+                                      n[idx].nombreContribuyente = e.target.value;
+                                      setFormData({ ...formData, locales: n });
+                                    }}
+                                    className="w-full px-2 py-1 bg-stone-950 border border-stone-700 rounded-lg text-xs text-white"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-[10px] font-medium text-stone-400 mb-1">
+                                    Ficha Catastral Individual (Opcional)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="Ej. CAT-01-A"
+                                    value={local.catastro || ''}
+                                    onChange={e => {
+                                      const n = [...formData.locales];
+                                      n[idx].catastro = e.target.value;
+                                      setFormData({ ...formData, locales: n });
+                                    }}
+                                    className="w-full px-2 py-1 bg-stone-950 border border-stone-700 rounded-lg text-xs text-white font-mono"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Sección 3: Datos Físicos y Métricos de Catastro */}
+            {/* Sección 3: Datos Físicos y Mensura Predial de Catastro */}
             <div className="space-y-3">
               <h3 className="text-xs font-bold text-orange-400 uppercase tracking-wider flex items-center gap-1.5 border-b border-stone-800/80 pb-1.5">
                 <Compass className="w-4 h-4" />
