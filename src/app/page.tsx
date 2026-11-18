@@ -113,6 +113,7 @@ export default function Home() {
           gap: 28px;
           width: 100%; max-width: 1080px; justify-content: center;
         }
+        .cards-grid-7 { grid-template-columns: repeat(auto-fit, minmax(220px, 270px)); max-width: 1400px; }
         .cards-grid-5 { grid-template-columns: repeat(auto-fit, minmax(220px, 280px)); max-width: 1200px; }
         .cards-grid-4 { grid-template-columns: repeat(auto-fit, minmax(220px, 280px)); }
         .cards-grid-3 { grid-template-columns: repeat(3, minmax(240px, 340px)); }
@@ -187,6 +188,7 @@ export default function Home() {
           .center { padding: 36px 20px 44px; }
           .section-title { margin-bottom: 40px; }
 
+          .cards-grid-7,
           .cards-grid-5,
           .cards-grid-4,
           .cards-grid-3,
@@ -241,7 +243,7 @@ export default function Home() {
             <div className="title-line" />
           </div>
 
-          <div className={`cards-grid ${showWorkers ? 'cards-grid-5' : 'cards-grid-1'}`}>
+          <div className={`cards-grid ${showWorkers ? 'cards-grid-7' : 'cards-grid-1'}`}>
 
             {showContribuyente && (
               <Link href="/portal" className="card">
@@ -318,6 +320,32 @@ export default function Home() {
                 <h3 className="card-title"><b style={{ fontWeight:800 }}>Presidencia</b>{' '}<span style={{ fontWeight:400 }}>Ejecutiva</span></h3>
                 <p className="card-desc">Panel ejecutivo en tiempo real. Consulta la recaudación del instituto desde cualquier dispositivo.</p>
                 <DotRow label="Ingresar" />
+              </Link>
+            )}
+
+            {showWorkers && (
+              <Link href="/hacienda/login" className="card" style={{ border: '1px solid rgba(56, 189, 248, 0.4)' }}>
+                <div className="icon-bubble" style={{ background: 'rgba(2, 132, 199, 0.25)', border: '1px solid rgba(56, 189, 248, 0.4)' }}>
+                  <svg width="34" height="34" fill="none" viewBox="0 0 24 24" stroke="#38bdf8" strokeWidth="1.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" />
+                  </svg>
+                </div>
+                <h3 className="card-title"><b style={{ fontWeight:800, color: '#38bdf8' }}>Hacienda</b>{' '}<span style={{ fontWeight:400 }}>Municipal</span></h3>
+                <p className="card-desc">Gestión de actividades económicas (ISAE), patentes, tasas administrativas y libros de rentas.</p>
+                <DotRow label="Ingresar a Hacienda" />
+              </Link>
+            )}
+
+            {showWorkers && (
+              <Link href="/catastro/login" className="card" style={{ border: '1px solid rgba(249, 115, 22, 0.4)' }}>
+                <div className="icon-bubble" style={{ background: 'rgba(234, 88, 12, 0.25)', border: '1px solid rgba(249, 115, 22, 0.4)' }}>
+                  <svg width="34" height="34" fill="none" viewBox="0 0 24 24" stroke="#fb923c" strokeWidth="1.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
+                  </svg>
+                </div>
+                <h3 className="card-title"><b style={{ fontWeight:800, color: '#fb923c' }}>Catastro</b>{' '}<span style={{ fontWeight:400 }}>Municipal</span></h3>
+                <p className="card-desc">Fichas catastrales, avalúo de terrenos, cálculo del derecho de frente y empadronamiento de inmuebles.</p>
+                <DotRow label="Ingresar a Catastro" />
               </Link>
             )}
 
