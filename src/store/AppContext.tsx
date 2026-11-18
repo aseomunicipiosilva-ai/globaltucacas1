@@ -237,9 +237,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
               existing.Actividad = act;
               existing.ActividadComercial = act;
             }
-            // Mantener el estado más severo si hay múltiples (Eliminado > Inactivo > Activo)
-            if (row.estado === 'Eliminado' || (row.estado === 'Inactivo' && existing.Estado !== 'Eliminado')) {
-              existing.Estado = row.estado;
+            // Si tiene al menos un inmueble Activo, el contribuyente debe permanecer Activo
+            if (existing.Estado === 'Eliminado' && (row.estado === 'Activo' || !row.estado)) {
+              existing.Estado = 'Activo';
+            } else if (existing.Estado !== 'Activo' && row.estado === 'Activo') {
+              existing.Estado = 'Activo';
             }
             map.set(row.identidad, existing);
           }

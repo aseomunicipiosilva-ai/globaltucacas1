@@ -1378,12 +1378,30 @@ export default function CajaPage() {
 
             // Agrupar facturas seleccionadas por inmueble
             const facturasPorInmueble: Record<string, { inm: any; refs: string[] }> = {};
+            const cleanStrBox = (s: any) => String(s || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
             selectedRecibos.forEach((ref: string) => {
-              // Extraer código de inmueble de la referencia CM-I-000080-09-2026
-              const matchedInm = userInmsRec.find((i: any) => i.inmueble && ref.includes(i.inmueble));
-              const inmKey = matchedInm?.inmueble || '__general__';
+              const refClean = cleanStrBox(ref);
+              const matchedInm = userInmsRec.find((i: any) => {
+                const inmClean = cleanStrBox(i.inmueble || i.Inmueble);
+                return inmClean && inmClean.length > 2 && refClean.includes(inmClean);
+              });
+              let finalInm = matchedInm;
+              let inmKey = matchedInm?.inmueble || '__general__';
+              if (!matchedInm && userInmsRec.length > 1) {
+                // Factura global consolidada
+                const isCondo = foundUser?.isCondominio || userInmsRec.some((i: any) => (parseInt(i.cant_inmuebles) || 1) > 1);
+                finalInm = {
+                  ...primerInm,
+                  inmueble: primerInm.cod_cont || foundUser.Identidad,
+                  tipo: isCondo ? `Condominio Residencial (${userInmsRec.length} Apartamentos)` : `Complejo Comercial (${userInmsRec.length} Locales)`,
+                  clasificacion: isCondo ? 'Condominio' : 'Comercial'
+                };
+                inmKey = '__consolidado__';
+              } else if (!finalInm) {
+                finalInm = primerInm;
+              }
               if (!facturasPorInmueble[inmKey]) {
-                facturasPorInmueble[inmKey] = { inm: matchedInm || primerInm, refs: [] };
+                facturasPorInmueble[inmKey] = { inm: finalInm, refs: [] };
               }
               facturasPorInmueble[inmKey].refs.push(ref);
             });
@@ -2273,8 +2291,19 @@ await supabase.from('documentos').insert([{
                                 const fid = (foundUser.Identidad || '').replace(/-/g,'').toUpperCase();
                                 return id === fid;
                               });
-                              const matchedInm = userInms.find((i: any) => i.inmueble && r.referencia.includes(i.inmueble));
-                              if (!matchedInm) return null;
+                              const cleanStr = (s: any) => String(s || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                              const refClean = cleanStr(r.referencia);
+                              const matchedInm = userInms.find((i: any) => {
+                                const inmClean = cleanStr(i.inmueble || i.Inmueble);
+                                return inmClean && inmClean.length > 2 && refClean.includes(inmClean);
+                              });
+                              if (!matchedInm) {
+                                if (userInms.length > 1) {
+                                  const isCondo = foundUser?.isCondominio || userInms.some((i: any) => (parseInt(i.cant_inmuebles) || 1) > 1);
+                                  return <p className="text-[10px] text-emerald-700 font-semibold mt-0.5 truncate max-w-[220px]">Consolidado ({userInms.length} {isCondo ? 'Apartamentos' : 'Locales'})</p>;
+                                }
+                                return null;
+                              }
                               const desc = [matchedInm.tipo, matchedInm.actividad_principal].filter(Boolean).join(' · ') || matchedInm.clasificacion || '';
                               return <p className="text-[10px] text-emerald-700 font-semibold mt-0.5 truncate max-w-[220px]">{matchedInm.inmueble}{desc ? ` · ${desc}` : ''}</p>;
                             })()}

@@ -238,13 +238,78 @@ export default function EstadoCuentaPage() {
       Direccion: myContribuyente?.Direccion || ''
     };
 
-    // === Generate one PDF per inmueble ===
-    const inmsToProcess = misInmuebles.length > 0 ? misInmuebles : [{ inmueble: 'Principal', tipo: 'Residencial', cant_inmuebles: 1 }];
+    // === Generate one PDF per inmueble / Consolidado ===
+    const cleanStr = (s: any) => String(s || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    const inmsActivos = (misInmuebles.length > 0 ? misInmuebles : [{ inmueble: 'Principal', tipo: 'Residencial', cant_inmuebles: 1 }])
+      .filter((i: any) => i.estado !== 'Eliminado');
+
+    const totalInmsContribuyente = inmsActivos.length > 0 ? inmsActivos : [{ inmueble: 'Principal', tipo: 'Residencial', cant_inmuebles: 1 }];
+
+    const getInmueblesForFactura = (f: any): any[] => {
+      if (!f.referencia || totalInmsContribuyente.length <= 1) return totalInmsContribuyente;
+      const refClean = cleanStr(f.referencia);
+      const specific = totalInmsContribuyente.filter((inm: any) => {
+        const inmClean = cleanStr(inm.inmueble || (inm as any).Inmueble);
+        return inmClean && inmClean.length > 2 && refClean.includes(inmClean);
+      });
+      if (specific.length > 0) return specific;
+      return totalInmsContribuyente;
+    };
+
+    const isGlobalConsolidado = totalInmsContribuyente.length > 1 && pendientes.every((f: any) => {
+      const matched = getInmueblesForFactura(f);
+      return matched.length === totalInmsContribuyente.length;
+    });
+
+    let inmsToProcess: any[] = [];
+    if (isGlobalConsolidado) {
+      let sumMMV = 0;
+      totalInmsContribuyente.forEach((i: any) => {
+        sumMMV += parseFloat(i.cant_inmuebles || 1) * parseFloat(i.mmv_mes || 0);
+      });
+      const primerInm = totalInmsContribuyente[0];
+      const tipoRes = misInmuebles.some((i: any) => (parseInt(i.cant_inmuebles) || 1) > 1) ? 'Condominio Residencial' : (primerInm.clasificacion || primerInm.tipo || 'Complejo Comercial');
+      inmsToProcess = [{
+        inmueble: primerInm.cod_cont || myContribuyente?.CodCont || 'CONSOLIDADO',
+        tipo: `${tipoRes} (${totalInmsContribuyente.length} ${misInmuebles.some((i: any) => (parseInt(i.cant_inmuebles) || 1) > 1) ? 'Apartamentos' : 'Locales'})`,
+        clasificacion: tipoRes,
+        cant_inmuebles: 1,
+        mmv_mes: sumMMV,
+        area: primerInm.area || '',
+        direccion: viewData.Direccion || primerInm.direccion || '',
+        isConsolidadoGroup: true
+      }];
+    } else {
+      inmsToProcess = totalInmsContribuyente;
+    }
 
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     let pageAdded = false;
 
     inmsToProcess.forEach((inm: any, idx: number) => {
+      let inmRecibos: any[] = [];
+      if (inm.isConsolidadoGroup) {
+        inmRecibos = [...pendientes];
+      } else {
+        inmRecibos = pendientes.filter((f: any) => {
+          const matched = getInmueblesForFactura(f);
+          return matched.some((m: any) => m.inmueble === inm.inmueble || m.id === inm.id);
+        });
+        if (inmRecibos.length === 0 && idx === 0) {
+          const anyMatched = inmsToProcess.some((otherInm: any) => {
+            return pendientes.some((f: any) => {
+              const matched = getInmueblesForFactura(f);
+              return matched.some((m: any) => m.inmueble === otherInm.inmueble || m.id === otherInm.id);
+            });
+          });
+          if (!anyMatched) inmRecibos = [...pendientes];
+        }
+      }
+
+      if (inmsToProcess.length > 1 && inmRecibos.length === 0) {
+        return;
+      }
+
       if (pageAdded) doc.addPage();
       pageAdded = true;
       const today = new Date();
@@ -307,46 +372,33 @@ export default function EstadoCuentaPage() {
       doc.setFont('helvetica', 'normal');
       doc.text('Identidad:', 162, 47);
       doc.setFont('helvetica', 'bold');
-      doc.text(viewData.Identidad, 179, 47);
+      doc.text(viewData.Identidad, 180, 47);
 
-      // ── NOMBRE/RAZÓN SOCIAL ──
+      // ── NOMBRE / RAZÓN SOCIAL ──
       doc.setFont('helvetica', 'normal');
       doc.text('Nombre o Razón Social:', 14, 54);
       doc.setFont('helvetica', 'bold');
-      doc.text(viewData.Contribuyente, 60, 54);
+      doc.text(viewData.Contribuyente || '', 62, 54);
 
-      // ── DIRECCIÓN INMUEBLE ──
+      // ── DIRECCIÓN ──
       doc.setFont('helvetica', 'normal');
       const dirInm = inm.direccion || viewData.Direccion || '';
       const splitDir = doc.splitTextToSize(`Dirección Inmueble: ${dirInm}`, 182);
       doc.text(splitDir, 14, 60);
 
-      let y = 60 + splitDir.length * 5 + 5;
+      let y = 60 + splitDir.length * 5 + 4;
 
       // ── LINE ──
       doc.line(14, y, 196, y);
       y += 6;
 
-      // ── ESTADO DE CUENTA RESUMIDO ──
+      // ── RESUMEN BOX ──
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
       doc.text('ESTADO DE CUENTA RESUMIDO', 105, y, { align: 'center' });
       y += 2;
       doc.line(14, y, 196, y);
       y += 6;
-
-      // Get recibos for this specific inmueble
-      let inmRecibos = pendientes.filter((f: any) => {
-        if (!f.referencia) return true;
-        if (f.referencia.startsWith('CM-')) {
-          const match = f.referencia.match(/(I-\d+|C-\d+)/);
-          if (match) {
-            const refId = match[0];
-            return inm.inmueble === refId || inm.cod_cont === refId || (inm as any).Inmueble === refId;
-          }
-        }
-        return true;
-      });
 
       // Filtrar por período seleccionado si modo es rango
       if (modo === 'rango') {
@@ -362,9 +414,19 @@ export default function EstadoCuentaPage() {
       const calcMonto = (f: any): number => {
         if (f.estado === 'Abonado') return parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
         if (f.referencia?.startsWith('CM-') && tasaBcv && tasaBcv > 0) {
-          const cant = parseFloat(inm.cant_inmuebles || 1);
-          const mmv = parseFloat(inm.mmv_mes || 0);
-          if (mmv > 0) return parseFloat((cant * mmv * tasaBcv).toFixed(2));
+          if (inm.isConsolidadoGroup) {
+            const mmv = parseFloat(inm.mmv_mes || 0);
+            if (mmv > 0) return parseFloat((mmv * tasaBcv).toFixed(2));
+          } else {
+            const matched = getInmueblesForFactura(f);
+            let sumMMV = 0;
+            matched.forEach((mInm: any) => {
+              const cant = parseFloat(mInm.cant_inmuebles || 1);
+              const mmv = parseFloat(mInm.mmv_mes || 0);
+              if (mmv > 0) sumMMV += cant * mmv;
+            });
+            if (sumMMV > 0) return parseFloat((sumMMV * tasaBcv).toFixed(2));
+          }
         }
         return parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
       };
@@ -409,52 +471,51 @@ export default function EstadoCuentaPage() {
 
       // ── TOTAL A PAGAR ──
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12);
+      doc.setFontSize(10);
       doc.text('TOTAL A PAGAR', 14, y);
-      const totalNetoInm = Math.max(0, totalInm - parseFloat(inm.saldo_favor_bs || myContribuyente?.SaldoFavor || 0));
-      doc.text(`Bs. ${totalNetoInm.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 196, y, { align: 'right' });
-      y += 2;
+      doc.text(`Bs. ${Math.max(0, totalInm - parseFloat(inm.saldo_favor_bs || myContribuyente?.SaldoFavor || 0)).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 196, y, { align: 'right' });
+      y += 4;
       doc.line(14, y, 196, y);
       y += 8;
 
-      // ── ESTADO DE CUENTA DETALLADO ──
+      // ── DETALLADO TABLE ──
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
       doc.text('ESTADO DE CUENTA DETALLADO', 105, y, { align: 'center' });
       y += 4;
 
-      const detalleRows = inmRecibos.map((f: any) => {
+      const detalleRows: any[] = [];
+      inmRecibos.forEach((f: any) => {
         const monto = calcMonto(f);
-        const det = (inm as any).actividad_principal ? `Aseo ${(inm as any).actividad_principal}` : `Aseo ${((inm as any).tipo || (inm as any).clasificacion || "residencial").toLowerCase()}`;
-        const periodoDate = f.emision ? f.emision.replace(/-/g, '-') : '—';
-        return [
-          periodoDate,
-          det,
-          monto.toLocaleString('es-VE', { minimumFractionDigits: 2 }),
+        const actName = inm.isConsolidadoGroup ? inm.tipo : (inm.actividad_principal || (inm.tipo ? `Aseo ${inm.tipo}` : 'Aseo residencial'));
+        detalleRows.push([
+          f.emision || '—',
+          actName,
+          monto.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
           '0,00', '0,00', '0,00',
-          monto.toLocaleString('es-VE', { minimumFractionDigits: 2 })
-        ];
+          monto.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        ]);
       });
 
       if (idx === 0 && serviciosPendientes.length > 0) {
-        serviciosPendientes.forEach(s => {
-          const montoServicio = parseFloat(s.monto) || 0;
-              let tripsDesc = '';
-              if (s.tipo === 'extraordinario' && typeof tcmmv !== 'undefined' && tcmmv > 0) {
-                const userInms = inmuebles.filter((i: any) => i.identidad === s.identidad);
-                let totalMmv = 0;
-                userInms.forEach((i: any) => { totalMmv += parseFloat(i.mmv_mes || 0); });
-                if (totalMmv > 0) {
-                  const trips = Math.round((montoServicio / tcmmv) / totalMmv);
-                  if (trips > 0) tripsDesc = ` (${trips} viaje${trips > 1 ? 's' : ''})`;
-                }
-              }
-              detalleRows.push([
-                s.fecha ? s.fecha.replace(/-/g, '-') : '—',
-                (TIPO_LABEL[s.tipo] || 'Serv. Especial') + ': ' + (s.descripcion || '') + tripsDesc,
-            montoServicio.toLocaleString('es-VE', { minimumFractionDigits: 2 }),
+        const TIPO_LABEL: any = { 'tala_poda': 'Tala y Poda', 'especial': 'Serv. Especial', 'visto_bueno': 'Visto Bueno', 'inspeccion': 'Inspección', 'extraordinario': 'Serv. Extraordinario' };
+        serviciosPendientes.forEach((s: any) => {
+          const montoS = parseFloat(s.monto) || 0;
+          let tripsDesc = '';
+          if (s.tipo === 'extraordinario' && typeof tasaBcv !== 'undefined' && tasaBcv > 0) {
+            let totalMmv = 0;
+            totalInmsContribuyente.forEach((i: any) => { totalMmv += parseFloat(i.mmv_mes || 0); });
+            if (totalMmv > 0) {
+              const trips = Math.round((montoS / tasaBcv) / totalMmv);
+              if (trips > 0) tripsDesc = ` (${trips} viaje${trips > 1 ? 's' : ''})`;
+            }
+          }
+          detalleRows.push([
+            s.fecha ? s.fecha.replace(/-/g, '-') : '—',
+            `${TIPO_LABEL[s.tipo] || 'Serv. Especial'}: ${s.descripcion || ''}${tripsDesc}`,
+            montoS.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
             '0,00', '0,00', '0,00',
-            montoServicio.toLocaleString('es-VE', { minimumFractionDigits: 2 })
+            montoS.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
           ]);
         });
       }
@@ -465,11 +526,14 @@ export default function EstadoCuentaPage() {
           head: [['PERIODO', 'DETALLE', 'RECOLECCIÓN', 'INT REC', 'MULTA', 'IVA', 'TOTAL BS']],
           body: detalleRows,
           theme: 'grid',
-          headStyles: { fillColor: [255, 255, 255], textColor: [0,0,0], fontStyle: 'bold', lineColor: [0,0,0], lineWidth: 0.3, halign: 'center' },
+          headStyles: {
+            fillColor: [255, 255, 255], textColor: [0, 0, 0],
+            fontStyle: 'bold', lineColor: [0, 0, 0], lineWidth: 0.3, halign: 'center'
+          },
           styles: { fontSize: 8, cellPadding: 2 },
           columnStyles: {
             0: { cellWidth: 25 },
-            1: { cellWidth: 45 },
+            1: { cellWidth: 48 },
             2: { halign: 'right' },
             3: { halign: 'right' },
             4: { halign: 'right' },
@@ -484,16 +548,32 @@ export default function EstadoCuentaPage() {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
       doc.text('INFORMACIÓN PARA PAGOS Y TRANSFERENCIAS', 105, y, { align: 'center' });
-      y += 5;
+      y += 4;
       doc.line(14, y, 196, y);
       y += 5;
       doc.setFont('helvetica', 'normal');
       doc.text('Banco:  BANESCO (0134)', 14, y);
       y += 5;
       doc.text('Cta:    01340415144151031715', 14, y);
-      y += 7;
+      y += 6;
       doc.setFont('helvetica', 'italic');
       doc.text('Pagos a nombre de: INST SOC MUN PARA EL AMBIENTE R.I.F.: G-200076739', 14, y);
+
+      // ── PIE DE PÁGINA: NOTA DE VIGENCIA DE TASA ──
+      y += 10;
+      doc.setLineWidth(0.3);
+      doc.setDrawColor(220, 38, 38);
+      doc.line(14, y, 196, y);
+      y += 5;
+      doc.setDrawColor(0, 0, 0);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bolditalic');
+      doc.setTextColor(220, 38, 38);
+      doc.text('IMPORTANTE: Los montos indicados en este estado de cuenta son válidos ÚNICAMENTE para la fecha de emisión del presente documento.', 105, y, { align: 'center' });
+      y += 5;
+      doc.text('La tasa de cambio BCV varía diariamente. Para cancelar en una fecha posterior, solicite un nuevo estado de cuenta actualizado.', 105, y, { align: 'center' });
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
 
       const fileName = `Estado_Cuenta_${viewData.Identidad}_${codInm}_${Date.now()}.pdf`;
       doc.save(fileName);

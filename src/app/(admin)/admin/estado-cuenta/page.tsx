@@ -1056,14 +1056,26 @@ export default function EstadoCuentaPage() {
       render: (row: any) => {
         let monto = Number(parseFloat(String(row.monto || '0').replace(/[^\d.]/g, '')));
         if (row.estado !== 'Abonado' && row.estado !== 'Pagado' && row.referencia?.startsWith('CM-') && tcmmv && tcmmv > 0) {
-          const matchedInm = inmuebles.find((inm: any) =>
-            (inm.inmueble && row.referencia.includes(inm.inmueble)) ||
-            (inm.cod_cont && row.referencia.includes(inm.cod_cont))
+          const cleanStr = (s: any) => String(s || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          const refClean = cleanStr(row.referencia);
+          const rowId = (row.identidad || '').replace(/-/g, '').toUpperCase();
+          const userInms = (inmuebles as any[]).filter((i: any) =>
+            (i.identidad || '').replace(/-/g, '').toUpperCase() === rowId &&
+            i.estado !== 'Eliminado'
           );
-          if (matchedInm) {
-            const cant = parseFloat(String(matchedInm.cant_inmuebles || 1));
-            const mmv = parseFloat(String(matchedInm.mmv_mes || 0));
-            if (mmv > 0) monto = parseFloat((cant * mmv * tcmmv).toFixed(2));
+          const specific = userInms.filter((inm: any) => {
+            const inmClean = cleanStr(inm.inmueble || inm.Inmueble);
+            return inmClean && inmClean.length > 2 && refClean.includes(inmClean);
+          });
+          const targetInms = specific.length > 0 ? specific : userInms;
+          if (targetInms.length > 0) {
+            let sumMMV = 0;
+            targetInms.forEach((inm: any) => {
+              const cant = parseFloat(String(inm.cant_inmuebles || 1));
+              const mmv = parseFloat(String(inm.mmv_mes || 0));
+              if (mmv > 0) sumMMV += cant * mmv;
+            });
+            if (sumMMV > 0) monto = parseFloat((sumMMV * tcmmv).toFixed(2));
           }
         }
         if (row.estado === 'Pagado') {
