@@ -110,7 +110,7 @@ export default function DeclaracionesHaciendaPage() {
                   {solvenciaAseo?.solvente ? 'Solvente con Aseo Urbano' : 'Bloqueado: Deuda en Aseo'}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-300 mt-1">{solvenciaAseo?.detalle}</p>
+              <p className="text-[11px] text-slate-300 mt-1">{solvenciaAseo?.detalles}</p>
             </div>
           </div>
 

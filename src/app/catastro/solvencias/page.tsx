@@ -105,10 +105,10 @@ export default function SolvenciasCatastroPage() {
               </div>
 
               <div className="p-4 bg-stone-900/80 rounded-xl border border-stone-800 text-xs space-y-1">
-                <p className="text-stone-300 font-semibold">{resultado.solvencia.detalle}</p>
+                <p className="text-stone-300 font-semibold">{resultado.solvencia.detalles}</p>
                 {!resultado.solvencia.solvente && (
                   <p className="text-red-400 font-bold text-sm pt-1">
-                    Total Deuda Aseo Urbano: Bs. {resultado.solvencia.deudaTotalBs.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    Total Deuda Aseo Urbano: Bs. {resultado.solvencia.montoDeuda.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                   </p>
                 )}
               </div>

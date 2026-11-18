@@ -12,79 +12,108 @@ import {
   Filter, 
   Receipt, 
   FileCheck2,
-  DollarSign
+  DollarSign,
+  Printer,
+  Calendar,
+  Lock,
+  Unlock,
+  Plus,
+  Trash2
 } from 'lucide-react';
+import { formatBs } from '@/lib/formatCurrency';
+
+const bancosVenezuela = [
+  'Banco de Venezuela', 'Banesco', 'Bancaribe', 'Banco Mercantil', 'Banco Provincial',
+  'Banco Nacional de Crédito (BNC)', 'Bancamiga', 'Banco Exterior', 'Banco Activo',
+  'Banco Plaza', 'Banco del Tesoro', 'Banco Digital de los Trabajadores', 'Banplus',
+  '100% Banco', 'Otro'
+];
 
 export default function HaciendaCajaPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [tipoFiltro, setTipoFiltro] = useState<'Todos' | 'Comercial' | 'Industrial'>('Comercial');
-  const [loading, setLoading] = useState(false);
   const [contribuyentes, setContribuyentes] = useState<any[]>([]);
   const [selectedUser, setSelectedUser] = useState<any>(null);
-  
-  // Solvencia de Aseo (REGLA DE ORO)
-  const [solvenciaAseo, setSolvenciaAseo] = useState<SolvenciaStatus | null>(null);
+  const [loading, setLoading] = useState(false);
   const [checkingSolvencia, setCheckingSolvencia] = useState(false);
-  
-  // Check manual de supervisor
-  const [checkSupervisor, setCheckSupervisor] = useState(false);
-  
-  // Conceptos de Hacienda a cobrar
-  const [tipoTramite, setTipoTramite] = useState('ISAE');
-  const [montoTributo, setMontoTributo] = useState('');
+  const [solvenciaAseo, setSolvenciaAseo] = useState<SolvenciaStatus | null>(null);
+
+  // Conceptos tributarios seleccionables
+  const [conceptos, setConceptos] = useState<
+    { id: string; concepto: string; periodo: string; monto: number; seleccionado: boolean }[]
+  >([
+    { id: '1', concepto: 'Impuesto Actividades Económicas (ISAE)', periodo: 'NOVIEMBRE 2026', monto: 1850.00, seleccionado: true },
+    { id: '2', concepto: 'Tasa Administrativa / Trámite Fiscal', periodo: 'AÑO 2026', monto: 350.00, seleccionado: false },
+    { id: '3', concepto: 'Propaganda y Publicidad Comercial', periodo: '4TO TRIMESTRE', monto: 720.00, seleccionado: false }
+  ]);
+
+  // Formulario de Pago idéntico a Caja Principal
+  const [metodoPago, setMetodoPago] = useState<'Debito' | 'Transferencia' | 'Efectivo'>('Debito');
+  const [referenciaDebito, setReferenciaDebito] = useState('');
+  const [banco, setBanco] = useState('Banco de Venezuela');
+  const [referenciaTransferencia, setReferenciaTransferencia] = useState('');
+  const [montoTransferido, setMontoTransferido] = useState('');
+  const [fechaTransaccion, setFechaTransaccion] = useState(new Date().toISOString().split('T')[0]);
   const [observacion, setObservacion] = useState('');
+  
+  // Override de supervisor
+  const [checkSupervisor, setCheckSupervisor] = useState(false);
   const [procesandoPago, setProcesandoPago] = useState(false);
   const [reciboEmitido, setReciboEmitido] = useState<any>(null);
 
-  useEffect(() => {
-    buscarContribuyentes();
-  }, [tipoFiltro]);
-
+  // Buscar contribuyentes
   const buscarContribuyentes = async () => {
     setLoading(true);
     try {
-      let query = supabase.from('inmuebles').select('id, identidad, contribuyente, clasificacion, actividad_principal, direccion, telefono');
-      
-      if (tipoFiltro === 'Comercial') {
-        query = query.or('clasificacion.ilike.%Comercial%,actividad_principal.ilike.%Comercial%,actividad_principal.ilike.%Hotel%,actividad_principal.ilike.%Posada%,actividad_principal.ilike.%Marina%');
-      } else if (tipoFiltro === 'Industrial') {
-        query = query.or('clasificacion.ilike.%Industrial%,actividad_principal.ilike.%Industrial%,actividad_principal.ilike.%Galpon%');
-      }
+      let query = supabase.from('inmuebles').select('*').limit(60);
 
       if (searchTerm.trim()) {
-        const clean = searchTerm.trim();
-        query = query.or(`identidad.ilike.%${clean}%,contribuyente.ilike.%${clean}%`);
+        const term = searchTerm.trim();
+        query = query.or(`identidad.ilike.%${term}%,contribuyente.ilike.%${term}%,cod_cont.ilike.%${term}%`);
       }
 
-      const { data, error } = await query.limit(25);
-      if (!error && data) {
-        // Eliminar duplicados de RIF para la búsqueda
-        const map = new Map();
-        data.forEach((item: any) => {
-          if (!map.has(item.identidad)) map.set(item.identidad, item);
+      const { data, error } = await query;
+      if (error) throw error;
+
+      let filtrados = data || [];
+      if (tipoFiltro === 'Comercial') {
+        filtrados = filtrados.filter(i => {
+          const cls = (i.clasificacion || '').toUpperCase();
+          return cls.includes('COMERCIAL') || cls.includes('TIPO D') || cls.includes('TIPO B') || cls.includes('TIPO C');
         });
-        setContribuyentes(Array.from(map.values()));
+      } else if (tipoFiltro === 'Industrial') {
+        filtrados = filtrados.filter(i => (i.clasificacion || '').toUpperCase().includes('INDUSTRIAL'));
       }
-    } catch (e) {
+
+      setContribuyentes(filtrados);
+    } catch (e: any) {
       console.error(e);
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    buscarContribuyentes();
+  }, [tipoFiltro]);
+
   const seleccionarContribuyente = async (user: any) => {
     setSelectedUser(user);
     setReciboEmitido(null);
-    setCheckingSolvencia(true);
     setCheckSupervisor(false);
-    
-    // Consultar solvencia de aseo
+    setCheckingSolvencia(true);
+
     const res = await verificarSolvenciaAseo(user.identidad);
     setSolvenciaAseo(res);
     setCheckingSolvencia(false);
   };
 
-  const puedeCobrar = (solvenciaAseo?.solvente || checkSupervisor) && parseFloat(montoTributo) > 0;
+  const totalPagar = conceptos.filter(c => c.seleccionado).reduce((acc, c) => acc + c.monto, 0);
+  const puedeCobrar = (solvenciaAseo?.solvente || checkSupervisor) && totalPagar > 0;
+
+  const toggleConcepto = (id: string) => {
+    setConceptos(prev => prev.map(c => c.id === id ? { ...c, seleccionado: !c.seleccionado } : c));
+  };
 
   const handleProcesarCobro = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,10 +123,18 @@ export default function HaciendaCajaPage() {
       return;
     }
 
+    if (metodoPago === 'Debito') {
+      if (!referenciaDebito.trim()) return alert('Debe ingresar el número de comprobante de punto de venta.');
+      if (referenciaDebito.trim().length > 8) return alert('La referencia no puede exceder 8 dígitos.');
+    } else if (metodoPago === 'Transferencia') {
+      if (!referenciaTransferencia.trim()) return alert('Debe ingresar el número de referencia bancaria.');
+      if (referenciaTransferencia.trim().length !== 8) return alert('La referencia de transferencia debe tener exactamente 8 dígitos.');
+    }
+
     setProcesandoPago(true);
     try {
       const numRecibo = `HAC-REC-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 900 + 100)}`;
-      const montoNum = parseFloat(montoTributo);
+      const refFinal = metodoPago === 'Debito' ? referenciaDebito.trim() : metodoPago === 'Transferencia' ? referenciaTransferencia.trim() : 'EFECTIVO';
 
       const nuevoPago = {
         numero_recibo: numRecibo,
@@ -105,27 +142,30 @@ export default function HaciendaCajaPage() {
         contribuyente: selectedUser.contribuyente,
         clasificacion: selectedUser.clasificacion || 'Comercial',
         ramo: 'Hacienda Municipal',
-        tipo_tramite: tipoTramite,
-        monto_bs: montoNum,
-        observaciones: observacion || 'Pago procesado en taquilla de Hacienda',
+        conceptos: conceptos.filter(c => c.seleccionado).map(c => c.concepto).join(', '),
+        monto_bs: totalPagar,
+        metodo_pago: metodoPago,
+        banco: metodoPago === 'Transferencia' ? banco : 'Punto de Venta',
+        referencia: refFinal,
+        fecha: fechaTransaccion,
         cajero: 'dzara (Hacienda)',
-        solvencia_aseo_validada: solvenciaAseo?.solvente || false,
+        solvencia_aseo: solvenciaAseo?.solvente || false,
         autorizado_supervisor: checkSupervisor,
         created_at: new Date().toISOString()
       };
 
-      // Registrar declaración / cobro en tabla de hacienda
+      // Registrar en base de datos
       await supabase.from('hacienda_declaraciones').insert([{
         empresa_id: selectedUser.id,
         periodo: new Date().toISOString().slice(0, 7),
-        tipo_declaracion: tipoTramite,
-        ingresos_brutos: montoNum,
-        impuesto_calculado: montoNum
+        tipo_declaracion: nuevoPago.conceptos,
+        ingresos_brutos: totalPagar,
+        impuesto_calculado: totalPagar
       }]);
 
       setReciboEmitido(nuevoPago);
-      setMontoTributo('');
-      setObservacion('');
+      setReferenciaDebito('');
+      setReferenciaTransferencia('');
       alert(`✅ Cobro de Hacienda procesado exitosamente. Recibo: ${numRecibo}`);
     } catch (err: any) {
       alert('Error procesando pago: ' + err.message);
@@ -135,16 +175,16 @@ export default function HaciendaCajaPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
-      {/* Título de Sección */}
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Header y Filtro Superior */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
         <div>
-          <h2 className="text-xl font-black text-white flex items-center gap-2.5">
-            <CreditCard className="w-6 h-6 text-sky-400" />
-            Caja de Recaudación — Hacienda Municipal
-          </h2>
-          <p className="text-xs text-slate-400">
-            Cobro de ISAE, Licencias, Patentes y Aranceles Comerciales con validación cruzada de Aseo Urbano
+          <h1 className="text-2xl font-black text-white flex items-center gap-2">
+            <Building2 className="w-7 h-7 text-sky-400" />
+            Caja de Recaudación • Hacienda Municipal
+          </h1>
+          <p className="text-xs text-slate-400 mt-1">
+            Cobro de ISAE, tasas, patentes y publicidad con validación obligatoria de Solvencia de Aseo Urbano.
           </p>
         </div>
 
@@ -168,9 +208,8 @@ export default function HaciendaCajaPage() {
         </div>
       </div>
 
-      {/* Grid Principal: Buscador y Pantalla de Cobro */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Columna Izquierda: Buscador de Contribuyentes (5 columnas) */}
+        {/* Columna Izquierda: Buscador de Contribuyentes (5 cols) */}
         <div className="lg:col-span-5 bg-slate-950/70 border border-slate-800 rounded-2xl p-4 space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-300 uppercase mb-1.5">
@@ -181,7 +220,7 @@ export default function HaciendaCajaPage() {
                 <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Ej: J-12345678 o Posada..."
+                  placeholder="Ej: J-12345678 o Nombre..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && buscarContribuyentes()}
@@ -198,12 +237,11 @@ export default function HaciendaCajaPage() {
             </div>
           </div>
 
-          {/* Listado de Resultados */}
-          <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+          <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
             {loading ? (
-              <p className="text-center py-8 text-xs text-slate-500">Buscando en padrón comercial...</p>
+              <p className="text-center py-8 text-xs text-slate-500">Buscando contribuyentes...</p>
             ) : contribuyentes.length === 0 ? (
-              <p className="text-center py-8 text-xs text-slate-500">No se encontraron contribuyentes para este filtro.</p>
+              <p className="text-center py-8 text-xs text-slate-500">No se encontraron contribuyentes.</p>
             ) : (
               contribuyentes.map((c) => {
                 const isSelected = selectedUser?.identidad === c.identidad;
@@ -219,16 +257,12 @@ export default function HaciendaCajaPage() {
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-mono font-bold text-sky-400">{c.identidad}</span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
-                        (c.clasificacion || '').includes('Industrial')
-                          ? 'bg-purple-950 text-purple-300 border border-purple-800'
-                          : 'bg-blue-950 text-blue-300 border border-blue-800'
-                      }`}>
+                      <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-slate-950 text-slate-300 border border-slate-700">
                         {c.clasificacion || 'Comercial'}
                       </span>
                     </div>
                     <p className="font-bold text-slate-100 line-clamp-1">{c.contribuyente}</p>
-                    <p className="text-[10px] text-slate-400 mt-1 line-clamp-1">{c.actividad_principal || c.direccion || 'Sin actividad'}</p>
+                    <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">{c.direccion}</p>
                   </div>
                 );
               })
@@ -236,66 +270,76 @@ export default function HaciendaCajaPage() {
           </div>
         </div>
 
-        {/* Columna Derecha: Panel de Cobro y Validación de Aseo (7 columnas) */}
-        <div className="lg:col-span-7 space-y-4">
+        {/* Columna Derecha: Panel de Cobro Funcional Idéntico a Caja (7 cols) */}
+        <div className="lg:col-span-7 bg-slate-950/70 border border-slate-800 rounded-2xl p-6 space-y-5">
           {!selectedUser ? (
-            <div className="h-full min-h-[380px] bg-slate-950/40 border border-dashed border-slate-800 rounded-2xl flex flex-col items-center justify-center p-8 text-center text-slate-500">
-              <Briefcase className="w-12 h-12 text-slate-700 mb-3" />
-              <p className="font-semibold text-sm text-slate-400">Seleccione un contribuyente del panel izquierdo</p>
-              <p className="text-xs text-slate-600 mt-1">Podrá consultar su estado fiscal y procesar cobros de actividades económicas.</p>
+            <div className="py-20 text-center text-slate-500 space-y-2">
+              <CreditCard className="w-12 h-12 text-slate-700 mx-auto" />
+              <p className="text-sm font-semibold">Seleccione un contribuyente del panel izquierdo para cobrar.</p>
+              <p className="text-xs text-slate-600">Se validará automáticamente si está solvente con Aseo Urbano.</p>
             </div>
           ) : (
-            <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-6 space-y-5">
-              {/* Encabezado del Contribuyente */}
-              <div className="flex items-start justify-between pb-4 border-b border-slate-800">
+            <div className="space-y-5">
+              {/* Contribuyente Seleccionado */}
+              <div className="flex items-start justify-between border-b border-slate-800 pb-4">
                 <div>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-800 font-bold">
-                    {selectedUser.identidad}
-                  </span>
-                  <h3 className="text-base font-bold text-white mt-1.5">{selectedUser.contribuyente}</h3>
-                  <p className="text-xs text-slate-400">{selectedUser.actividad_principal || 'Actividad comercial regular'}</p>
+                  <span className="text-[10px] font-bold text-sky-400 uppercase tracking-wider">Contribuyente Seleccionado</span>
+                  <h2 className="text-lg font-black text-white">{selectedUser.contribuyente}</h2>
+                  <p className="text-xs text-slate-400 font-mono mt-0.5">RIF: {selectedUser.identidad} • Actividad: {selectedUser.actividad_principal || 'Comercio General'}</p>
                 </div>
-                <div className="text-right">
-                  <span className="text-xs text-slate-400 block font-medium">Clasificación:</span>
-                  <span className="text-xs font-bold text-sky-400">{selectedUser.clasificacion || 'Comercial'}</span>
-                </div>
+                <span className="px-3 py-1 rounded-lg text-xs font-bold uppercase bg-slate-900 text-slate-300 border border-slate-700">
+                  {selectedUser.clasificacion || 'Comercial'}
+                </span>
               </div>
 
-              {/* ── SEMÁFORO DE SOLVENCIA DE ASEO URBANO (REGLA DE ORO) ── */}
-              <div className="space-y-2">
+              {/* SEMÁFORO DE SOLVENCIA DE ASEO URBANO */}
+              <div className={`p-4 rounded-xl border ${
+                checkingSolvencia 
+                  ? 'bg-slate-900 border-slate-700 text-slate-400'
+                  : solvenciaAseo?.solvente
+                  ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200'
+                  : 'bg-red-950/40 border-red-500/50 text-red-200'
+              }`}>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase text-slate-300 tracking-wider">Validación de Aseo Urbano:</span>
-                  {checkingSolvencia && <span className="text-xs text-sky-400 animate-pulse">Verificando facturas de aseo...</span>}
+                  <div className="flex items-center gap-2.5">
+                    {checkingSolvencia ? (
+                      <span className="text-xs animate-pulse">Verificando solvencia en Aseo Urbano...</span>
+                    ) : solvenciaAseo?.solvente ? (
+                      <>
+                        <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                        <div>
+                          <p className="text-xs font-black uppercase text-emerald-300 tracking-wide">SOLVENTE CON EL ASEO URBANO</p>
+                          <p className="text-[11px] text-emerald-400/80">{solvenciaAseo.detalles}</p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <AlertTriangle className="w-5 h-5 text-red-400" />
+                        <div>
+                          <p className="text-xs font-black uppercase text-red-300 tracking-wide">BLOQUEO FISCAL: DEUDA PENDIENTE EN ASEO URBANO</p>
+                          <p className="text-[11px] text-red-400 font-semibold">{solvenciaAseo?.detalles}</p>
+                          <p className="text-[11px] text-red-300 font-bold mt-0.5">
+                            Deuda Total: Bs. {formatBs(solvenciaAseo?.montoDeuda || 0)}
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {!checkingSolvencia && (
+                    <span className={`px-2.5 py-1 rounded text-[10px] font-black uppercase border ${
+                      solvenciaAseo?.solvente 
+                        ? 'bg-emerald-900/60 text-emerald-300 border-emerald-700' 
+                        : 'bg-red-900/60 text-red-300 border-red-700'
+                    }`}>
+                      {solvenciaAseo?.solvente ? 'HABILITADO' : 'INHABILITADO'}
+                    </span>
+                  )}
                 </div>
 
-                {solvenciaAseo && (
-                  <div className={`p-4 rounded-xl border flex items-start gap-3 transition-all ${
-                    solvenciaAseo.solvente
-                      ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-200'
-                      : 'bg-red-950/50 border-red-800/80 text-red-200'
-                  }`}>
-                    {solvenciaAseo.solvente ? (
-                      <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
-                    ) : (
-                      <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-                    )}
-                    <div className="flex-1 text-xs">
-                      <p className="font-bold text-sm">
-                        {solvenciaAseo.solvente ? '✅ CONTRIBUYENTE SOLVENTE EN ASEO URBANO' : '⛔ DEUDA DETECTADA EN ASEO URBANO'}
-                      </p>
-                      <p className="mt-1 opacity-90">{solvenciaAseo.detalles}</p>
-                      {!solvenciaAseo.solvente && (
-                        <p className="mt-2 text-[11px] font-bold text-amber-300 bg-black/40 p-2 rounded-lg border border-amber-500/30">
-                          ⚠️ Condición Legal: Para pagar cualquier tributo o trámite en Hacienda Municipal, el contribuyente debe cancelar primero el Aseo Urbano.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Checkbox de Supervisor / Excepción manual */}
+                {/* Checkbox de Supervisor */}
                 {!solvenciaAseo?.solvente && (
-                  <label className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer text-xs">
+                  <label className="mt-3 flex items-center gap-2 p-2.5 rounded-lg bg-slate-900 border border-slate-800 cursor-pointer text-xs">
                     <input
                       type="checkbox"
                       checked={checkSupervisor}
@@ -303,94 +347,149 @@ export default function HaciendaCajaPage() {
                       className="w-4 h-4 accent-amber-500 rounded"
                     />
                     <span className="text-slate-300">
-                      <strong>Check Supervisor:</strong> Autorizar excepción manual de cobro (Se registra en bitácora).
+                      <strong>Check Supervisor:</strong> Autorizar cobro manual con excepción (Registra auditoría dzara).
                     </span>
                   </label>
                 )}
               </div>
 
-              {/* Formulario de Cobro de Hacienda */}
-              <form onSubmit={handleProcesarCobro} className="space-y-4 pt-2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase mb-1">
-                      Tipo de Trámite / Tributo
+              {/* LISTA DE CONCEPTOS TRIBUTARIOS */}
+              <div>
+                <span className="text-xs font-bold text-slate-300 uppercase block mb-2">Conceptos Tributarios a Liquidar:</span>
+                <div className="space-y-2">
+                  {conceptos.map(c => (
+                    <label key={c.id} className={`flex items-center justify-between p-3 rounded-xl border text-xs cursor-pointer transition-all ${
+                      c.seleccionado ? 'bg-sky-950/40 border-sky-500 text-white' : 'bg-slate-900/40 border-slate-800 text-slate-400'
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={c.seleccionado}
+                          onChange={() => toggleConcepto(c.id)}
+                          className="w-4 h-4 accent-sky-500 rounded"
+                        />
+                        <div>
+                          <p className="font-bold text-slate-200">{c.concepto}</p>
+                          <p className="text-[10px] text-slate-500">{c.periodo}</p>
+                        </div>
+                      </div>
+                      <span className="font-mono font-bold text-sky-400">Bs. {formatBs(c.monto)}</span>
                     </label>
-                    <select
-                      value={tipoTramite}
-                      onChange={(e) => setTipoTramite(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
-                    >
-                      <option value="ISAE">Impuesto Actividades Económicas (ISAE)</option>
-                      <option value="Licencia">Renovación Licencia de Funcionamiento</option>
-                      <option value="Publicidad">Propaganda y Publicidad Comercial</option>
-                      <option value="TasaAdm">Tasa Administrativa / Constancia</option>
-                      <option value="Multa">Multa / Sanción Tributaria</option>
-                    </select>
-                  </div>
+                  ))}
+                </div>
+              </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 uppercase mb-1">
-                      Monto a Cobrar (Bs.)
-                    </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      required
-                      placeholder="0.00"
-                      value={montoTributo}
-                      onChange={(e) => setMontoTributo(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono font-bold"
-                    />
-                  </div>
+              {/* RESUMEN DE PAGO Y PASARELA DE COBRO */}
+              <div className="p-4 bg-slate-900 rounded-xl border border-slate-800 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <span className="text-xs font-bold uppercase text-slate-400">Total a Cancelar en Hacienda:</span>
+                  <span className="text-2xl font-black text-sky-400 font-mono">Bs. {formatBs(totalPagar)}</span>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 uppercase mb-1">
-                    Observaciones / Número de Comprobante
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ej: Pago de patente anual 2026..."
-                    value={observacion}
-                    onChange={(e) => setObservacion(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
-                  />
-                </div>
+                <form onSubmit={handleProcesarCobro} className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">Método de Pago</label>
+                      <select
+                        value={metodoPago}
+                        onChange={(e: any) => setMetodoPago(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
+                      >
+                        <option value="Debito">Punto de Venta (TD/TC)</option>
+                        <option value="Transferencia">Transferencia Bancaria</option>
+                        <option value="Efectivo">Efectivo (Taquilla)</option>
+                      </select>
+                    </div>
 
-                <button
-                  type="submit"
-                  disabled={!puedeCobrar || procesandoPago}
-                  className={`w-full py-3 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                    puedeCobrar
-                      ? 'bg-sky-600 hover:bg-sky-500 text-white shadow-lg shadow-sky-600/30 cursor-pointer'
-                      : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                  }`}
-                >
-                  <Receipt className="w-4 h-4" />
-                  {procesandoPago
-                    ? 'Procesando Pago...'
-                    : puedeCobrar
-                    ? 'Procesar Cobro y Emitir Recibo de Hacienda'
-                    : 'Cobro Bloqueado: Requiere Solvencia de Aseo'}
-                </button>
-              </form>
-
-              {/* Recibo Emitido Reciente */}
-              {reciboEmitido && (
-                <div className="p-4 rounded-xl bg-sky-950/50 border border-sky-600/40 text-xs text-sky-200 space-y-2">
-                  <div className="flex items-center justify-between border-b border-sky-800/40 pb-2">
-                    <span className="font-bold text-sky-300">RECIBO OFICIAL DE HACIENDA EMITIDO</span>
-                    <span className="font-mono font-black text-white">{reciboEmitido.numero_recibo}</span>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">Fecha de Transacción</label>
+                      <input
+                        type="date"
+                        value={fechaTransaccion}
+                        onChange={e => setFechaTransaccion(e.target.value)}
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white font-semibold"
+                      />
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+
+                  {metodoPago === 'Debito' && (
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">
+                        N° de Comprobante / Referencia Punto (Máx. 8 dígitos):
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={8}
+                        placeholder="Ej. 00012345"
+                        value={referenciaDebito}
+                        onChange={e => setReferenciaDebito(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                        className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white font-mono"
+                      />
+                    </div>
+                  )}
+
+                  {metodoPago === 'Transferencia' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">Banco Emisor</label>
+                        <select
+                          value={banco}
+                          onChange={e => setBanco(e.target.value)}
+                          className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
+                        >
+                          {bancosVenezuela.map(b => <option key={b} value={b}>{b}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">N° Referencia (8 dígitos)</label>
+                        <input
+                          type="text"
+                          maxLength={8}
+                          placeholder="Ej. 75912451"
+                          value={referenciaTransferencia}
+                          onChange={e => setReferenciaTransferencia(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                          className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white font-mono"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={!puedeCobrar || procesandoPago}
+                    className={`w-full py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg transition-all ${
+                      puedeCobrar
+                        ? 'bg-sky-600 hover:bg-sky-500 text-white shadow-sky-600/30'
+                        : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                    }`}
+                  >
+                    <Receipt className="w-4 h-4" />
+                    {procesandoPago
+                      ? 'Procesando Pago...'
+                      : puedeCobrar
+                      ? 'Procesar Cobro y Emitir Recibo de Hacienda'
+                      : 'Cobro Bloqueado: Requiere Solvencia de Aseo'}
+                  </button>
+                </form>
+
+                {reciboEmitido && (
+                  <div className="p-4 bg-sky-950/60 border border-sky-500 rounded-xl text-xs space-y-2">
+                    <div className="flex items-center justify-between border-b border-sky-800 pb-2">
+                      <span className="font-bold text-sky-300">RECIBO DE HACIENDA EMITIDO</span>
+                      <span className="font-mono font-black text-white">{reciboEmitido.numero_recibo}</span>
+                    </div>
                     <p><span className="text-slate-400">Contribuyente:</span> {reciboEmitido.contribuyente}</p>
-                    <p><span className="text-slate-400">RIF:</span> {reciboEmitido.identidad}</p>
-                    <p><span className="text-slate-400">Concepto:</span> {reciboEmitido.tipo_tramite}</p>
-                    <p><span className="text-slate-400">Monto:</span> <strong>Bs. {reciboEmitido.monto_bs.toFixed(2)}</strong></p>
+                    <p><span className="text-slate-400">Conceptos:</span> {reciboEmitido.conceptos}</p>
+                    <p><span className="text-slate-400">Monto:</span> <strong>Bs. {formatBs(reciboEmitido.monto_bs)}</strong> ({reciboEmitido.metodo_pago} - Ref: {reciboEmitido.referencia})</p>
+                    <button
+                      onClick={() => alert(`Imprimiendo Recibo Oficial de Hacienda N° ${reciboEmitido.numero_recibo}...`)}
+                      className="mt-2 w-full py-2 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-lg flex items-center justify-center gap-2"
+                    >
+                      <Printer className="w-4 h-4" /> Imprimir Recibo Oficial
+                    </button>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
         </div>

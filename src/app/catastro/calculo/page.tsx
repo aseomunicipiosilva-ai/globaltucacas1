@@ -127,7 +127,7 @@ export default function CalculoCatastroPage() {
                   {solvencia?.solvente ? 'Solvente en Aseo Urbano' : 'Bloqueado: Deuda en Aseo'}
                 </span>
               </div>
-              <p className="text-[11px] text-stone-300 mt-1">{solvencia?.detalle}</p>
+              <p className="text-[11px] text-stone-300 mt-1">{solvencia?.detalles}</p>
             </div>
           </div>
 
