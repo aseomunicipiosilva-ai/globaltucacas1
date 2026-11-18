@@ -38,6 +38,7 @@ export default function CatastroLayout({ children }: CatastroLayoutProps) {
     { name: 'Inicio Catastro', href: '/catastro', icon: Home },
     { name: 'Caja de Catastro', href: '/catastro/caja', icon: CreditCard, highlight: true },
     { name: 'Fichas Catastrales', href: '/catastro/fichas', icon: FileText },
+    { name: 'Fichas / Documentos', href: '/catastro/documentos', icon: Compass },
     { name: 'Cálculo Derecho Frente', href: '/catastro/calculo', icon: Calculator },
     { name: 'Censo Inmobiliario', href: '/catastro/censo', icon: Users },
     { name: 'Verificador Solvencias', href: '/catastro/solvencias', icon: ShieldCheck },

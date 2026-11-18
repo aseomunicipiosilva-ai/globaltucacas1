@@ -151,6 +151,30 @@ export default function CatastroCajaPage() {
         created_at: new Date().toISOString()
       };
 
+      // Registrar en pagos_reportados para libro de ingresos y cuadre
+      try {
+        await supabase.from('pagos_reportados').insert([{
+          identidad: selectedUser.identidad,
+          monto: totalPagar,
+          banco: nuevoPago.banco,
+          referencia: refFinal,
+          tipo: 'Catastro',
+          estado: 'Aprobado',
+          detalles: {
+            numero_recibo: numRecibo,
+            modulo: 'Catastro',
+            inmueble_codigo: nuevoPago.inmueble_codigo,
+            concepto: nuevoPago.conceptos,
+            cajero: 'dzara',
+            clasificacion: selectedUser.clasificacion || 'Residencial',
+            solvencia_aseo: solvenciaAseo?.solvente || false,
+            autorizado_supervisor: checkSupervisor
+          }
+        }]);
+      } catch (errRep) {
+        console.warn('Registro en pagos_reportados opcional:', errRep);
+      }
+
       setReciboEmitido(nuevoPago);
       setReferenciaDebito('');
       setReferenciaTransferencia('');

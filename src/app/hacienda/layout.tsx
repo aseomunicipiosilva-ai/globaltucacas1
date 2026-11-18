@@ -41,6 +41,7 @@ export default function HaciendaLayout({ children }: HaciendaLayoutProps) {
     { name: 'Censo Comercial / Ind.', href: '/hacienda/censo', icon: Users },
     { name: 'Declaraciones ISAE', href: '/hacienda/declaraciones', icon: Calculator },
     { name: 'Licencias / Patentes', href: '/hacienda/licencias', icon: FileCheckIcon },
+    { name: 'Documentos / Patentes', href: '/hacienda/documentos', icon: FileSpreadsheet },
     { name: 'Verificador Solvencias', href: '/hacienda/solvencias', icon: ShieldCheck },
     { name: 'Emisión de Correos', href: '/hacienda/correos', icon: Mail },
     { name: 'Reportes y Cierres', href: '/hacienda/reportes', icon: BarChart3 },

@@ -154,7 +154,7 @@ export default function HaciendaCajaPage() {
         created_at: new Date().toISOString()
       };
 
-      // Registrar en base de datos
+      // Registrar en base de datos hacienda_declaraciones
       await supabase.from('hacienda_declaraciones').insert([{
         empresa_id: selectedUser.id,
         periodo: new Date().toISOString().slice(0, 7),
@@ -162,6 +162,43 @@ export default function HaciendaCajaPage() {
         ingresos_brutos: totalPagar,
         impuesto_calculado: totalPagar
       }]);
+
+      // Registrar también en hacienda_pagos
+      try {
+        await supabase.from('hacienda_pagos').insert([{
+          contribuyente_identidad: selectedUser.identidad,
+          contribuyente_nombre: selectedUser.contribuyente,
+          concepto: nuevoPago.conceptos,
+          monto_total: totalPagar,
+          metodo_pago: metodoPago,
+          referencia_comprobante: refFinal
+        }]);
+      } catch (errHac) {
+        console.warn('Registro en hacienda_pagos opcional:', errHac);
+      }
+
+      // Registrar en pagos_reportados para libro de ingresos y cuadre
+      try {
+        await supabase.from('pagos_reportados').insert([{
+          identidad: selectedUser.identidad,
+          monto: totalPagar,
+          banco: nuevoPago.banco,
+          referencia: refFinal,
+          tipo: 'Hacienda',
+          estado: 'Aprobado',
+          detalles: {
+            numero_recibo: numRecibo,
+            modulo: 'Hacienda',
+            concepto: nuevoPago.conceptos,
+            cajero: 'dzara',
+            clasificacion: selectedUser.clasificacion || 'Comercial',
+            solvencia_aseo: solvenciaAseo?.solvente || false,
+            autorizado_supervisor: checkSupervisor
+          }
+        }]);
+      } catch (errRep) {
+        console.warn('Registro en pagos_reportados opcional:', errRep);
+      }
 
       setReciboEmitido(nuevoPago);
       setReferenciaDebito('');
