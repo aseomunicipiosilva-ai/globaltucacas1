@@ -600,13 +600,11 @@ export default function HaciendaCajaPage() {
 
                   <button
                     type="submit"
-                    disabled={!puedeCobrar || procesandoPago}
-                    className={`w-full py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg transition-all ${puedeCobrar
-                      ? 'bg-sky-600 hover:bg-sky-500 text-white shadow-sky-600/30'
-                      : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
-                      }`}
+                    disabled={true}
+                    className="w-full py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all bg-slate-800 text-slate-400 border border-slate-700 cursor-not-allowed opacity-80"
+                    title="Módulo de recaudación en taquilla en fase de homologación contable"
                   >
-                    {procesandoPago ? 'Procesando Transacción...' : `Registrar Cobro de Hacienda (Bs. ${formatBs(totalPagar)})`}
+                    <span>Módulo de Cobro en Caja (Próximamente disponible)</span>
                   </button>
                 </form>
               </div>

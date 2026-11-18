@@ -580,14 +580,11 @@ export default function CatastroCajaPage() {
 
                   <button
                     type="submit"
-                    disabled={!puedeCobrar || procesandoPago}
-                    className={`w-full py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg transition-all ${
-                      puedeCobrar
-                        ? 'bg-orange-600 hover:bg-orange-500 text-white shadow-orange-600/30'
-                        : 'bg-stone-800 text-stone-500 cursor-not-allowed border border-stone-700'
-                    }`}
+                    disabled={true}
+                    className="w-full py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all bg-stone-800 text-stone-400 border border-stone-700 cursor-not-allowed opacity-80"
+                    title="Módulo de recaudación en taquilla en fase de homologación contable"
                   >
-                    {procesandoPago ? 'Procesando Transacción...' : `Registrar Cobro de Catastro (Bs. ${formatBs(totalPagar)})`}
+                    <span>Módulo de Cobro en Caja (Próximamente disponible)</span>
                   </button>
                 </form>
               </div>
