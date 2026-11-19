@@ -265,6 +265,54 @@ function ValidarContent() {
               </div>
             </div>
 
+            {/* BANNER INSTITUCIONAL PERMANENTE: CONDICIÓN FISCAL / BLOQUEO POR MOROSIDAD (APLICA PARA TODOS LOS TRÁMITES) */}
+            <div className="p-4 border-b border-slate-800 bg-slate-900/60">
+              <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                solvenciaStatus.solvente
+                  ? 'bg-emerald-950/40 border-emerald-800/80 text-emerald-200'
+                  : 'bg-rose-950/50 border-rose-800 text-rose-200'
+              }`}>
+                <div className="flex items-start sm:items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    solvenciaStatus.solvente ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
+                  }`}>
+                    {solvenciaStatus.solvente ? <CheckCircle className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6 text-rose-400 animate-pulse" />}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-slate-950 border border-slate-800">
+                        Condición Tributaria Municipal
+                      </span>
+                      <span className="text-xs font-mono font-bold">
+                        {solvenciaStatus.solvente ? 'SOLVENTE' : 'MOROSO'}
+                      </span>
+                    </div>
+                    <h3 className="text-sm sm:text-base font-black text-white mt-1">
+                      {solvenciaStatus.solvente 
+                        ? 'HABILITADO PARA TODOS LOS TRÁMITES MUNICIPALES'
+                        : 'BLOQUEO GENERAL DE TRÁMITES POR MOROSIDAD EN ASEO'
+                      }
+                    </h3>
+                    <p className="text-xs text-slate-300 mt-0.5">
+                      {solvenciaStatus.solvente
+                        ? 'El contribuyente se encuentra al día con la tasa de Aseo Urbano. Habilitado para solicitar solvencias, trámites de Catastro, permisos comerciales y licencias en Hacienda.'
+                        : 'El contribuyente presenta deuda pendiente en el Servicio de Aseo Urbano. Conforme a la Ordenanza Municipal, no podrá realizar trámites de Catastro (Fichas/Derecho de Frente) ni gestiones tributarias en Hacienda hasta regularizar su cuenta.'
+                      }
+                    </p>
+                  </div>
+                </div>
+
+                {!solvenciaStatus.solvente && (
+                  <div className="shrink-0 text-right">
+                    <span className="text-[10px] uppercase font-bold text-rose-300 block">Deuda Pendiente:</span>
+                    <span className="text-base font-black text-white font-mono bg-rose-900/60 border border-rose-700/80 px-3 py-1 rounded-xl inline-block mt-0.5">
+                      Bs. {solvenciaStatus.montoDeuda.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* SELECTOR DE MÓDULOS: ASEO URBANO | CATASTRO | HACIENDA */}
             <div className="p-4 bg-slate-900/40 border-b border-slate-800">
               <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 block mb-2">
@@ -343,7 +391,7 @@ function ValidarContent() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                        Deuda Total Aseo (Bs.)
+                        Deuda Total Aseo Urbano
                       </span>
                       <span className={`text-2xl font-black mt-1 block font-mono ${
                         solvenciaStatus.solvente ? 'text-emerald-400' : 'text-rose-400'
@@ -354,10 +402,10 @@ function ValidarContent() {
 
                     <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                        Condición para Trámites
+                        Facturas Pendientes
                       </span>
                       <span className="text-sm font-bold text-white mt-1 block">
-                        {solvenciaStatus.solvente ? '✅ Habilitado para expedición de permisos' : '⚠️ Bloqueado por morosidad'}
+                        {solvenciaStatus.solvente ? '0 Facturas (Sin deuda pendiente)' : `${solvenciaStatus.facturasPendientes} recibo(s) pendiente(s)`}
                       </span>
                     </div>
                   </div>
