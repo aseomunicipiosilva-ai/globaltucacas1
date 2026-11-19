@@ -3,7 +3,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { DataTable } from '@/components/DataTable';
 import { useAppContext } from '@/store/AppContext';
-import { Users, Save, ArrowLeft, Plus, Building, Home as HomeIcon, MapPin, Edit, Edit2, DollarSign, Handshake, Eye, X, CheckCircle, Calculator, AlertCircle, Download, FileText, Trash2, Power, Calendar, Filter } from 'lucide-react';
+import { Users, Save, ArrowLeft, Plus, Building, Home as HomeIcon, MapPin, Edit, Edit2, DollarSign, Handshake, Eye, X, CheckCircle, Calculator, AlertCircle, Download, FileText, Trash2, Power, Calendar, Filter, QrCode } from 'lucide-react';
 import { generarSolvenciaPDF } from '@/lib/pdfGenerator';
 import { ordenanzaData } from '@/data/ordenanza';
 import Select from 'react-select';
@@ -92,6 +92,7 @@ function ContribuyentesPageContent() {
   const [isSaving, setIsSaving] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewData, setViewData] = useState<any>(null);
+  const [viewQrDataUrl, setViewQrDataUrl] = useState<string>('');
   const [selectedSolvenciaInmueble, setSelectedSolvenciaInmueble] = useState<string>('');
   const [viewCalculo, setViewCalculo] = useState<any>(null);
   const [viewFacturasCM, setViewFacturasCM] = useState<any[]>([]);
@@ -451,12 +452,21 @@ function ContribuyentesPageContent() {
             setViewFacturasDb(facData || []);
           }
         });
+
+      // Generar código QR funcional para el contribuyente
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://aseosilva.globalrecca.com';
+      const targetParam = viewData.Codigo || viewData.Identidad;
+      const qrUrl = `${baseUrl}/validar?codigo=${encodeURIComponent(targetParam)}`;
+      QRCode.toDataURL(qrUrl, { margin: 1, width: 220 })
+        .then(url => setViewQrDataUrl(url))
+        .catch(err => console.error('Error generando QR del contribuyente:', err));
     } else {
       setViewCalculo(null);
       setViewServiciosEsp([]);
       setViewPagos([]);
       setViewFacturasDb([]);
       setViewConvenios([]);
+      setViewQrDataUrl('');
     }
   }, [isViewModalOpen, viewData, inmuebles]);
 
@@ -2769,6 +2779,100 @@ function ContribuyentesPageContent() {
             </div>
             
             <div className="p-6 overflow-y-auto space-y-6">
+              {/* Bloque Superior: QR Oficial del Contribuyente y Estatus de Solvencia */}
+              {(() => {
+                const totalDeudaActual = viewFacturasDb.reduce((acc: number, f: any) => {
+                  const m = parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
+                  return acc + m;
+                }, 0);
+                const isSolventeLive = viewFacturasDb.length === 0 || totalDeudaActual <= 0;
+                const qrTargetUrl = typeof window !== 'undefined' 
+                  ? `${window.location.origin}/validar?codigo=${encodeURIComponent(viewData.Codigo || viewData.Identidad)}`
+                  : `https://aseosilva.globalrecca.com/validar?codigo=${encodeURIComponent(viewData.Codigo || viewData.Identidad)}`;
+
+                return (
+                  <div className={`p-4 rounded-xl border flex flex-col md:flex-row items-center gap-5 shadow-sm transition-all ${
+                    isSolventeLive 
+                      ? 'bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-emerald-200' 
+                      : 'bg-gradient-to-r from-rose-50 via-red-50 to-orange-50 border-rose-200'
+                  }`}>
+                    {/* Código QR Interactivo */}
+                    <div className="flex flex-col items-center bg-white p-2.5 rounded-xl border border-slate-200/90 shadow-sm shrink-0">
+                      {viewQrDataUrl ? (
+                        <a href={qrTargetUrl} target="_blank" rel="noopener noreferrer" title="Clic para probar enlace de validación pública">
+                          <img 
+                            src={viewQrDataUrl} 
+                            alt={`QR ${viewData.Identidad}`} 
+                            className="w-32 h-32 object-contain hover:scale-105 transition-transform cursor-pointer"
+                          />
+                        </a>
+                      ) : (
+                        <div className="w-32 h-32 bg-slate-100 flex items-center justify-center text-slate-400">
+                          <QrCode className="w-8 h-8 animate-pulse" />
+                        </div>
+                      )}
+                      <span className="text-[10px] font-mono font-bold text-slate-500 mt-1">
+                        {viewData.Codigo || viewData.Identidad}
+                      </span>
+                    </div>
+
+                    {/* Resumen de Solvencia y Datos de Verificación */}
+                    <div className="flex-1 space-y-2 text-center md:text-left">
+                      <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
+                        <span className="text-[10px] font-extrabold tracking-wider uppercase px-2.5 py-0.5 rounded-full bg-slate-800 text-white flex items-center gap-1">
+                          <QrCode className="w-3 h-3 text-cyan-300" /> CÓDIGO QR OFICIAL
+                        </span>
+                        {isSolventeLive ? (
+                          <span className="inline-flex items-center gap-1 bg-emerald-600 text-white px-3 py-0.5 rounded-full text-xs font-black shadow-sm">
+                            <CheckCircle className="w-3.5 h-3.5" /> SOLVENTE
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 bg-rose-600 text-white px-3 py-0.5 rounded-full text-xs font-black shadow-sm">
+                            <AlertCircle className="w-3.5 h-3.5" /> CON DEUDA PENDIENTE
+                          </span>
+                        )}
+                      </div>
+
+                      <h4 className="text-base font-black text-slate-800">
+                        {viewData.Contribuyente}
+                      </h4>
+
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        {isSolventeLive ? (
+                          <span className="text-emerald-800 font-medium">
+                            Este contribuyente se encuentra <strong>100% al día</strong> con el servicio de Aseo Urbano. Al escanear este código QR se muestra su solvencia municipal oficial e información predial.
+                          </span>
+                        ) : (
+                          <span className="text-rose-800 font-medium">
+                            Posee <strong>{viewFacturasDb.length} recibo(s)</strong> pendientes por un total de <strong>Bs. {totalDeudaActual.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>. Al escanear el QR se detalla el estado de deuda en vivo.
+                          </span>
+                        )}
+                      </p>
+
+                      <div className="pt-1 flex flex-wrap items-center justify-center md:justify-start gap-2">
+                        <a
+                          href={qrTargetUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-white hover:bg-blue-50 border border-blue-200 px-3 py-1 rounded-lg transition-colors shadow-xs"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-blue-600" /> Probar Escaneo / Abrir Página
+                        </a>
+                        {viewQrDataUrl && (
+                          <a
+                            href={viewQrDataUrl}
+                            download={`QR_${(viewData.Identidad || 'contribuyente').replace(/[^a-zA-Z0-9]/g, '_')}.png`}
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 px-3 py-1 rounded-lg transition-colors shadow-xs"
+                          >
+                            <Download className="w-3.5 h-3.5 text-slate-500" /> Descargar Imagen QR
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">R.I.F. / Cédula</span>
