@@ -24,6 +24,9 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { tarifasHaciendaCatastro, ordenanzaData } from '@/data/ordenanza';
+import dynamic from 'next/dynamic';
+
+const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
 
 export default function CensoCatastroPage() {
   const [activeTab, setActiveTab] = useState<'censo' | 'nuevo'>('censo');
@@ -66,6 +69,7 @@ export default function CensoCatastroPage() {
     correoDominio: '@gmail.com',
     sector: 'Centro Tucacas',
     direccionExacta: '',
+    coordenadas: null as { lat: number; lng: number } | null,
     clasificacion: 'Residencial',
     tipoInmueble: 'Tipo III: Casas',
     actividadComercial: ordenanzaData.actividadesComerciales[0]?.label || '',
@@ -181,6 +185,7 @@ export default function CensoCatastroPage() {
         fecha_inicio: formData.fechaInicioActividad,
         domicilio_fiscal: `${formData.direccionExacta} (Sector ${formData.sector})`,
         direccion_exacta: formData.direccionExacta,
+        coordenadas: formData.coordenadas,
         is_condominio: formData.isCondominio,
         cantidad_inmuebles: formData.isCondominio ? Number(formData.cantidadInmuebles) || 1 : 1,
         locales: formData.isCondominio ? formData.locales.map((l: any) => ({
@@ -219,6 +224,7 @@ export default function CensoCatastroPage() {
         correoDominio: '@gmail.com',
         sector: 'Centro Tucacas',
         direccionExacta: '',
+        coordenadas: null,
         clasificacion: 'Residencial',
         tipoInmueble: 'Tipo III: Casas',
         actividadComercial: ordenanzaData.actividadesComerciales[0]?.label || '',
@@ -824,6 +830,44 @@ export default function CensoCatastroPage() {
                     value={formData.metrosConstruccion}
                     onChange={e => setFormData({ ...formData, metrosConstruccion: e.target.value })}
                     className="w-full px-3 py-2 bg-stone-900 border border-stone-700 rounded-xl text-xs text-white font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-[11px] font-bold text-stone-400 uppercase">
+                    Ubicación Georreferenciada en el Mapa
+                  </label>
+                  {formData.coordenadas && (
+                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-700/50 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <MapPin size={11} />
+                      Ubicación fijada: {formData.coordenadas.lat.toFixed(5)}, {formData.coordenadas.lng.toFixed(5)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-stone-400 mb-2">
+                  Haz clic en el mapa para marcar las coordenadas exactas de la parcela o inmueble. Auto-completará la dirección predial.
+                </p>
+                <div className="rounded-xl overflow-hidden border border-stone-700 shadow-inner">
+                  <MapPicker
+                    position={formData.coordenadas || undefined}
+                    onLocationSelect={async (loc) => {
+                      setFormData(prev => ({ ...prev, coordenadas: loc }));
+                      try {
+                        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.lat}&lon=${loc.lng}`);
+                        const data = await res.json();
+                        if (data && data.display_name) {
+                          setFormData(prev => ({
+                            ...prev,
+                            coordenadas: loc,
+                            direccionExacta: data.display_name
+                          }));
+                        }
+                      } catch (err) {
+                        console.error('Error reverse geocoding catastro:', err);
+                      }
+                    }}
                   />
                 </div>
               </div>

@@ -139,6 +139,35 @@ export default function PreRegistrosPage() {
  
   const calculateFactor = (row: any) => {
     let factor = 0;
+    
+    // Si es condominio / desglose de unidades múltiples
+    if (row.is_condominio && row.locales && row.locales.length > 0) {
+      row.locales.forEach((local: any) => {
+        let fLocal = 0;
+        if (local.uso === 'Residencial') {
+          const t = ordenanzaData.tiposResidenciales.find(x => x.label === (local.tipoResidencia || row.actividad));
+          if (t) fLocal = t.factor;
+        } else if (local.uso === 'Industrial') {
+          const t = ordenanzaData.actividadesIndustriales.find(x => x.label === local.actividad);
+          if (t) {
+            const nivelIdx = ordenanzaData.nivelesMetraje.indexOf(local.nivel);
+            if (nivelIdx >= 0 && t.factores.length > nivelIdx) fLocal = t.factores[nivelIdx];
+            else fLocal = t.factores[0] || 0;
+          }
+        } else {
+          // Comercial
+          const t = ordenanzaData.actividadesComerciales.find(x => x.label === local.actividad);
+          if (t) {
+            const nivelIdx = ordenanzaData.nivelesMetraje.indexOf(local.nivel);
+            if (nivelIdx >= 0 && t.factores.length > nivelIdx) fLocal = t.factores[nivelIdx];
+            else fLocal = t.factores[0] || 0;
+          }
+        }
+        factor += fLocal;
+      });
+      return factor;
+    }
+
     if (row.tipo === 'Residencial') {
        const t = ordenanzaData.tiposResidenciales.find(x => x.label === row.actividad);
        if (t) factor = t.factor;
@@ -217,20 +246,42 @@ export default function PreRegistrosPage() {
       let mainInmueble = null;
 
       if (rowToApprove.is_condominio && rowToApprove.locales?.length > 0) {
-        recordsToInsert = rowToApprove.locales.map((local: any) => ({
-          ...baseInmuebleData,
-          inmueble: local.numeracion,
-          actividad_principal: local.uso === 'Comercial' ? local.actividad : local.uso,
-          tipo: local.uso === 'Residencial' ? local.tipoResidencia : 'Inmueble',
-          area: local.uso === 'Comercial' ? parseAreaNumeric(local.nivel) : null,
-          mmv_mes: 0 // Will be recalculated in general or mapped later if needed
-        }));
+        recordsToInsert = rowToApprove.locales.map((local: any) => {
+          let localFactor = 0;
+          if (local.uso === 'Residencial') {
+            const t = ordenanzaData.tiposResidenciales.find(x => x.label === (local.tipoResidencia || rowToApprove.actividad));
+            if (t) localFactor = t.factor;
+          } else if (local.uso === 'Industrial') {
+            const t = ordenanzaData.actividadesIndustriales.find(x => x.label === local.actividad);
+            if (t) {
+              const nivelIdx = ordenanzaData.nivelesMetraje.indexOf(local.nivel);
+              localFactor = (nivelIdx >= 0 && t.factores.length > nivelIdx) ? t.factores[nivelIdx] : (t.factores[0] || 0);
+            }
+          } else {
+            const t = ordenanzaData.actividadesComerciales.find(x => x.label === local.actividad);
+            if (t) {
+              const nivelIdx = ordenanzaData.nivelesMetraje.indexOf(local.nivel);
+              localFactor = (nivelIdx >= 0 && t.factores.length > nivelIdx) ? t.factores[nivelIdx] : (t.factores[0] || 0);
+            }
+          }
+
+          return {
+            ...baseInmuebleData,
+            inmueble: local.numeracion,
+            actividad_principal: local.uso === 'Comercial' ? local.actividad : (local.uso === 'Industrial' ? local.actividad : (local.tipoResidencia || local.uso)),
+            tipo: local.uso === 'Residencial' ? local.tipoResidencia : 'Inmueble',
+            area: local.uso !== 'Residencial' ? parseAreaNumeric(local.nivel) : null,
+            mmv_mes: localFactor,
+            deuda_mmv: localFactor * meses
+          };
+        });
       } else {
         recordsToInsert = [{
           ...baseInmuebleData,
           tipo: rowToApprove.tipo === 'Residencial' ? rowToApprove.codigo : 'Inmueble',
           // codigo puede ser "101 - 200 m²" para comercial, extraer numero
-          area: rowToApprove.tipo !== 'Residencial' ? parseAreaNumeric(rowToApprove.codigo) : null
+          area: rowToApprove.tipo !== 'Residencial' ? parseAreaNumeric(rowToApprove.codigo) : null,
+          mmv_mes: calculatedFactor
         }];
       }
 
