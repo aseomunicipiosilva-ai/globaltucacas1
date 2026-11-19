@@ -64,8 +64,8 @@ const formatPeriodoLabel = (desdeM: number, hastaM: number, anio: number, modo: 
 
 const calcularPeriodoDeudas = (facturas: any[]): string => {
   if (!facturas || facturas.length === 0) return 'AL DÍA (SIN DEUDA)';
-  const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
-  
+  const MESES = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+
   const parsed = facturas.map((f: any) => getFacturaYearMonth(f)).filter(ym => ym.month >= 1 && ym.month <= 12);
   if (parsed.length === 0) return 'PERÍODO ACTUAL';
 
@@ -117,7 +117,7 @@ function ContribuyentesPageContent() {
 
   const [debtModalOpen, setDebtModalOpen] = useState(false);
   const [selectedDebtRow, setSelectedDebtRow] = useState<any>(null);
-  
+
   // Calculadora state
   const [bcvRate, setBcvRate] = useState<string | null>(null);
   const [bcvDate, setBcvDate] = useState<string>('');
@@ -126,7 +126,7 @@ function ContribuyentesPageContent() {
   const [isCalculating, setIsCalculating] = useState(false);
 
   // Action Modal State
-  const [actionModal, setActionModal] = useState<{type: 'Anular'|'Reversar', recibo: any} | null>(null);
+  const [actionModal, setActionModal] = useState<{ type: 'Anular' | 'Reversar', recibo: any } | null>(null);
   const [actionNota, setActionNota] = useState('');
   const [isProcessingAction, setIsProcessingAction] = useState(false);
 
@@ -137,7 +137,7 @@ function ContribuyentesPageContent() {
   const [customDebtBcvRate, setCustomDebtBcvRate] = useState<string>('');
 
   // Status Modal (Eliminar/Desactivar)
-  const [statusModal, setStatusModal] = useState<{type: 'Eliminar'|'Desactivar', row: any} | null>(null);
+  const [statusModal, setStatusModal] = useState<{ type: 'Eliminar' | 'Desactivar', row: any } | null>(null);
   const [statusNota, setStatusNota] = useState('');
   const [isProcessingStatus, setIsProcessingStatus] = useState(false);
   const [activeTab, setActiveTab] = useState<'Activos' | 'Inactivos'>('Activos');
@@ -151,8 +151,8 @@ function ContribuyentesPageContent() {
     ficha: { url: string; uploading: boolean; name: string };
     registro: { url: string; uploading: boolean; name: string };
   }>({
-    cedula:   { url: '', uploading: false, name: '' },
-    ficha:    { url: '', uploading: false, name: '' },
+    cedula: { url: '', uploading: false, name: '' },
+    ficha: { url: '', uploading: false, name: '' },
     registro: { url: '', uploading: false, name: '' },
   });
 
@@ -168,7 +168,7 @@ function ContribuyentesPageContent() {
     try {
       const identidad = formData?.Identidad || 'sin_id';
       const ext = file.name.split('.').pop();
-      const path = `expedientes/${identidad.replace(/[^a-zA-Z0-9]/g,'_')}/${tipo}_${Date.now()}.${ext}`;
+      const path = `expedientes/${identidad.replace(/[^a-zA-Z0-9]/g, '_')}/${tipo}_${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage.from('documentos').upload(path, file, { upsert: true });
       if (upErr) throw upErr;
       const { data: urlData } = supabase.storage.from('documentos').getPublicUrl(path);
@@ -206,7 +206,7 @@ function ContribuyentesPageContent() {
   };
 
   useEffect(() => {
-    let baseList = activeTab === 'Activos' 
+    let baseList = activeTab === 'Activos'
       ? contribuyentes.filter(c => c.Estado !== 'Eliminado' && c.Estado !== 'Inactivo')
       : contribuyentes.filter(c => c.Estado === 'Eliminado' || c.Estado === 'Inactivo');
 
@@ -228,7 +228,7 @@ function ContribuyentesPageContent() {
   const handleActionSubmit = async () => {
     if (!actionModal) return;
     if (!actionNota.trim()) return alert("Debe ingresar el motivo obligatoriamente.");
-    
+
     setIsProcessingAction(true);
     try {
       const nuevoEstado = actionModal.type === 'Anular' ? 'Anulado' : 'Reversado';
@@ -240,7 +240,7 @@ function ContribuyentesPageContent() {
         .update({ estado: nuevoEstado })
         .eq('referencia', actionModal.recibo.referencia);
       // Guardar motivo en audit_logs
-      try { await supabase.from('audit_logs').insert({ usuario: cajeroUser, accion: 'FACTURA_' + actionModal.type.toUpperCase(), detalles: 'Recibo ' + actionModal.recibo.referencia + ' - ' + nuevoEstado + '. Motivo: ' + actionNota.trim() }); } catch(_ae) {}
+      try { await supabase.from('audit_logs').insert({ usuario: cajeroUser, accion: 'FACTURA_' + actionModal.type.toUpperCase(), detalles: 'Recibo ' + actionModal.recibo.referencia + ' - ' + nuevoEstado + '. Motivo: ' + actionNota.trim() }); } catch (_ae) { }
       if (actionModal.type === 'Reversar') {
         const montoPagado = parseFloat((actionModal.recibo.monto || '0').toString().replace(/[^\d.]/g, ''));
         if (montoPagado > 0) {
@@ -256,10 +256,10 @@ function ContribuyentesPageContent() {
           }
         }
       }
-      
+
       // Update local state
       setFacturas(prev => prev.map(f => f.referencia === actionModal.recibo.referencia ? { ...f, estado: nuevoEstado } : f));
-      
+
       setActionModal(null);
       setActionNota('');
       alert(`Recibo ${actionModal.recibo.referencia} ha sido ${nuevoEstado.toLowerCase()} exitosamente.${actionModal.type === 'Reversar' ? ' El monto fue acreditado como Saldo a Favor.' : ''}`);
@@ -293,10 +293,10 @@ function ContribuyentesPageContent() {
     try {
       const { type, row } = statusModal;
       const nuevoEstado = type === 'Eliminar' ? 'Eliminado' : 'Inactivo';
-      
+
       const { error } = await supabase.from('inmuebles').update({ estado: nuevoEstado }).eq('identidad', row.Identidad);
       if (error) throw error;
-      
+
       await addAuditLog(
         type === 'Eliminar' ? 'ELIMINAR_CONTRIBUYENTE' : 'DESACTIVAR_CONTRIBUYENTE',
         JSON.stringify({
@@ -305,7 +305,7 @@ function ContribuyentesPageContent() {
           motivo: statusNota.trim()
         })
       );
-      
+
       alert(`Contribuyente ${type === 'Eliminar' ? 'eliminado' : 'desactivado'} exitosamente.`);
       window.location.reload();
     } catch (err: any) {
@@ -319,7 +319,7 @@ function ContribuyentesPageContent() {
     try {
       const res = await fetch(`/api/bcv?t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
-      
+
       let factorTotal = 0;
       let leyenda = '';
       const desgloseLocales: any[] = [];
@@ -329,21 +329,21 @@ function ContribuyentesPageContent() {
       if (misInmuebles.length > 0) {
         const isCondominio = misInmuebles.some(i => (parseInt(i.cant_inmuebles) || 1) > 1);
         leyenda = isCondominio ? `Condominio / Complejo Residencial` : misInmuebles.map(i => i.actividad_principal || 'Residencial').join(', ');
-        
+
         misInmuebles.forEach(inm => {
           const localFactor = parseFloat(inm.mmv_mes) || 0;
           const cant = parseInt(inm.cant_inmuebles) || 1;
           const metraje = inm.area || inm.area_operativa || 'N/A';
           const actividad = inm.actividad_principal || 'No especificada';
           const tipoVivienda = inm.tipo || 'Inmueble';
-          
+
           const conceptoTexto = `${actividad} | Nivel: ${metraje} m² | ${tipoVivienda}`;
-          
+
           factorTotal += (localFactor * cant);
-          
+
           if (localFactor > 0) {
             if (cant > 1) {
-              for(let i=1; i<=cant; i++) {
+              for (let i = 1; i <= cant; i++) {
                 desgloseLocales.push({
                   numeracion: `${inm.inmueble || inm.cod_cont} - Unidad ${i}`,
                   leyenda: conceptoTexto,
@@ -362,7 +362,7 @@ function ContribuyentesPageContent() {
           }
         });
       }
-      
+
       if (factorTotal === 0) {
         const rowClasificacion = row.Clasificacion || row.tipo || 'Residencial';
         const rowTipoResidencia = row.TipoResidencia || row.Actividad || row.actividad || '';
@@ -485,7 +485,7 @@ function ContribuyentesPageContent() {
       if (error) throw error;
 
       alert(`Actividad "${desc}" eliminada exitosamente.`);
-      
+
       // Actualizar inmuebles locales
       if (typeof window !== 'undefined') window.location.reload();
     } catch (e: any) {
@@ -554,13 +554,13 @@ function ContribuyentesPageContent() {
     }
   };
 
-  
+
   const handleEliminarSaldoFavorContribuyente = async (row: any) => {
     const saldoActual = parseFloat(row.SaldoFavor || '0') || 0;
     if (saldoActual <= 0) return alert("El contribuyente no posee saldo a favor.");
 
     const password = window.prompt(
-      `¿Estás seguro de ELIMINAR/ANULAR el Saldo a Favor de Bs. ${saldoActual.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})} del contribuyente ${row.Contribuyente} (${row.Identidad})?\n\nEsta acción pondrá su saldo a favor en Bs. 0,00.\n\nIngrese la contraseña maestra para confirmar:`
+      `¿Estás seguro de ELIMINAR/ANULAR el Saldo a Favor de Bs. ${saldoActual.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} del contribuyente ${row.Contribuyente} (${row.Identidad})?\n\nEsta acción pondrá su saldo a favor en Bs. 0,00.\n\nIngrese la contraseña maestra para confirmar:`
     );
     if (password !== 'Omar..') {
       if (password !== null) alert("Contraseña incorrecta. Acción cancelada.");
@@ -620,7 +620,7 @@ function ContribuyentesPageContent() {
     try {
       const { error } = await supabase.from('facturas').delete().eq('id', recibo.id);
       if (error) throw error;
-      
+
       setFacturas(recibos.filter((f: any) => f.id !== recibo.id));
       alert("Deuda eliminada exitosamente.");
     } catch (e: any) {
@@ -670,7 +670,7 @@ function ContribuyentesPageContent() {
       if (!fecha) return 'N/A';
       const parts = fecha.split('-');
       if (parts.length >= 2) {
-        const meses = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+        const meses = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
         return `${meses[parseInt(parts[1]) - 1]}-${parts[0]}`;
       }
       return fecha;
@@ -765,7 +765,7 @@ function ContribuyentesPageContent() {
       const docNro = Math.floor(10000 + Math.random() * 90000);
 
       // ── LOGO ISMA (solo ISMA, lado izquierdo) ──
-      try { doc.addImage(logos.isma, 'JPEG', 14, 8, 42, 22); } catch(e) {}
+      try { doc.addImage(logos.isma, 'JPEG', 14, 8, 42, 22); } catch (e) { }
 
       // ── TÍTULO ──
       doc.setFontSize(20);
@@ -867,24 +867,24 @@ function ContribuyentesPageContent() {
             if (sumMMV > 0) baseMonto = parseFloat((sumMMV * tcmmv).toFixed(2));
           }
         }
-        
+
         // Descontar pagos Por Verificar
         let montoPendiente = 0;
         viewPagos.filter((p: any) => p.estado === 'Por Verificar').forEach((p: any) => {
           let det: any = {};
-          try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+          try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) { }
           const refs: string[] = det.recibos || [];
           if (refs.includes(f.referencia)) {
             const montoPago = parseFloat(String(p.monto || '0').replace(/[^\d.]/g, '')) || 0;
             if (refs.length > 0) montoPendiente += (montoPago / refs.length);
           }
         });
-        
+
         return Math.max(0, baseMonto - montoPendiente);
       };
 
       let totalInm = inmRecibos.reduce((s: number, f: any) => s + calcMonto(f), 0);
-      
+
       const serviciosPendientes = viewServiciosEsp.filter((s: any) => s.estado !== 'Pagado');
       const totalServiciosBs = serviciosPendientes.reduce((a: number, s: any) => a + (parseFloat(s.monto) || 0), 0);
 
@@ -897,7 +897,7 @@ function ContribuyentesPageContent() {
 
         pagosConv.forEach((p: any) => {
           let det: any = {};
-          try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+          try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) { }
           if (p.estado === 'Aprobado' || p.estado === 'Conciliado') {
             if (det.cuotas && Array.isArray(det.cuotas)) {
               det.cuotas.forEach((cq: any) => {
@@ -918,14 +918,14 @@ function ContribuyentesPageContent() {
             try {
               const meta = JSON.parse(conv.documento_url.slice(5));
               if (meta.pago_inicial) cuotaInicialPactada = parseFloat(meta.pago_inicial) || 0;
-            } catch(e){}
+            } catch (e) { }
           }
 
           let pagoInicialCobradoReal = false;
           let pagoInicialPagado = 0;
           pagosConv.forEach((p: any) => {
             let det: any = {};
-            try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+            try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) { }
             const isThisConv = det.convenio_numero === conv.numero || (p.referencia && p.referencia.includes(conv.numero));
             const isIni = (det.cuota_pagada && det.cuota_pagada.includes('Inicial')) || (det.concepto && det.concepto.toLowerCase().includes('inicial'));
             if (isThisConv && isIni) {
@@ -977,7 +977,7 @@ function ContribuyentesPageContent() {
       if (idx === 0) {
         totalInm += totalServiciosBs + totalCuotasConvenioBs;
       }
-      
+
       const mesesArr = [...new Set(inmRecibos.map((f: any) => getMesTexto(f.emision)))];
       const periodosLabel = mesesArr.join(', ') || '—';
 
@@ -988,14 +988,14 @@ function ContribuyentesPageContent() {
         [`Períodos Calculados (${inmRecibos.length}):`, periodosLabel],
         ['Monto Recolección Aseo Urbano Bs.', `Bs. ${inmRecibos.reduce((s: number, f: any) => s + calcMonto(f), 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
       ];
-      
+
       if (idx === 0 && totalServiciosBs > 0) {
         resumenRows.push(['Monto Servicios Especiales Bs.', `Bs. ${totalServiciosBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`]);
       }
       if (idx === 0 && totalCuotasConvenioBs > 0) {
         resumenRows.push([`Cuotas Convenio de Pago (${cuotasConvenioPendientes.length}) Bs.`, `Bs. ${totalCuotasConvenioBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`]);
       }
-      
+
       resumenRows.push(
         ['Total Exento Bs.', `Bs. ${totalInm.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`],
         ['Base Imponible Bs.', 'Bs. 0,00'],
@@ -1122,7 +1122,7 @@ function ContribuyentesPageContent() {
           }
         });
         y = (doc as any).lastAutoTable.finalY + 8;
-      } catch(e) {}
+      } catch (e) { }
 
       // ── INFORMACIÓN DE PAGO ──
       doc.setFont('helvetica', 'bold');
@@ -1181,7 +1181,7 @@ function ContribuyentesPageContent() {
         .filter((f: any) => f.contribuyente === c.Contribuyente || f.contribuyente === c.Identidad)
         .filter((f: any) => f.estado === 'Pendiente' || f.estado === 'Abonado');
       const totalBs = deudas.reduce((acc: number, f: any) => acc + parseFloat(f.monto || '0'), 0);
-      
+
       const tipoReal = esResidencialContribuyente(c) ? 'Residencial' : 'Comercial / Jurídico';
 
       return {
@@ -1246,7 +1246,7 @@ function ContribuyentesPageContent() {
     if (autoClasificacion.startsWith('TIPO') || autoClasificacion === 'A') {
       autoClasificacion = 'Residencial';
     }
-    
+
     // Auto-detectar condominio si viene de una importación con clasificación 'A'
     if (autoClasificacion !== 'Condominio') {
       const nombreLC = (row.Contribuyente || '').toLowerCase();
@@ -1271,13 +1271,13 @@ function ContribuyentesPageContent() {
     let NivelMetraje = ordenanzaData.nivelesMetraje[0];
 
     const misInmuebles = inmuebles.filter((i: any) => i.identidad === row.Identidad);
-    
+
     if (misInmuebles.length > 0) {
       if (misInmuebles.length > 1 || (parseInt(misInmuebles[0].cant_inmuebles) || 1) > 1 || autoClasificacion === 'Condominio') {
         isCondominio = true;
         autoClasificacion = 'Condominio';
         cantidadInmuebles = misInmuebles.length > 1 ? misInmuebles.length : (parseInt(misInmuebles[0].cant_inmuebles) || 1);
-        
+
         locales = misInmuebles.map((inm, idx) => ({
           id: `local-${idx}-${Date.now()}`,
           numeracion: inm.inmueble || `Inmueble ${idx + 1}`,
@@ -1297,7 +1297,7 @@ function ContribuyentesPageContent() {
       }
     }
 
-    setFormData({ 
+    setFormData({
       ...row,
       Clasificacion: autoClasificacion,
       tipoIdentidad,
@@ -1362,7 +1362,7 @@ function ContribuyentesPageContent() {
     const val = parseInt(e.target.value) || 0;
     const currentLocales = formData.locales || [];
     let newLocales = [...currentLocales];
-    
+
     if (val > currentLocales.length) {
       for (let i = currentLocales.length; i < val; i++) {
         newLocales.push({
@@ -1378,7 +1378,7 @@ function ContribuyentesPageContent() {
     } else {
       newLocales = newLocales.slice(0, val);
     }
-    setFormData({...formData, cantidadInmuebles: val, locales: newLocales});
+    setFormData({ ...formData, cantidadInmuebles: val, locales: newLocales });
   };
 
   const calcularTarifa = async () => {
@@ -1387,7 +1387,7 @@ function ContribuyentesPageContent() {
       // Fetch BCV
       const res = await fetch(`/api/bcv?t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
-      
+
       const tasaTruncada = (Math.trunc(data.tcmmv * 100) / 100).toFixed(2);
       setBcvRate(tasaTruncada);
       setBcvDate(new Date(data.timestamp).toLocaleString());
@@ -1411,7 +1411,7 @@ function ContribuyentesPageContent() {
             }
           } else if (local.uso === 'Comercial') {
             const nivelIndex = ordenanzaData.nivelesMetraje.indexOf(local.nivel || ordenanzaData.nivelesMetraje[0]);
-            
+
             if (local.estatus === 'Desocupado') {
               const actVacio = todasLasActividades.find(a => a.label === 'Inmueble desocupado (vacío)');
               if (actVacio && nivelIndex !== -1) {
@@ -1426,9 +1426,9 @@ function ContribuyentesPageContent() {
               }
             }
           }
-          
+
           factorTotal += localFactor;
-          
+
           if (localFactor > 0) {
             desgloseLocales.push({
               numeracion: local.numeracion,
@@ -1478,8 +1478,8 @@ function ContribuyentesPageContent() {
     setIsProcessingDebt(true);
     try {
       const deudaMMV = calculoDetalle.factor * debtMonths;
-      
-            const parseLevelToArea = (nivel: string | null) => {
+
+      const parseLevelToArea = (nivel: string | null) => {
         if (!nivel) return null;
         if (nivel.includes('0 - 50')) return 50;
         if (nivel.includes('51 - 100')) return 100;
@@ -1493,7 +1493,7 @@ function ContribuyentesPageContent() {
       // Update deuda_mmv and related form data in inmuebles where identidad matches formData.Identidad
       const { error: err1 } = await supabase
         .from('inmuebles')
-        .update({ 
+        .update({
           deuda_mmv: deudaMMV,
           area: areaVal,
           area_m2: areaVal,
@@ -1502,7 +1502,7 @@ function ContribuyentesPageContent() {
           actividad_principal: formData.Clasificacion === 'Residencial' ? formData.TipoResidencia : formData.ActividadComercial
         })
         .eq('identidad', formData.Identidad);
-        
+
       if (err1) throw err1;
 
       // Delete all pending recibos for this taxpayer
@@ -1511,14 +1511,14 @@ function ContribuyentesPageContent() {
         .delete()
         .eq('contribuyente', formData.Contribuyente)
         .eq('estado', 'Pendiente');
-        
+
       if (errDelete) throw errDelete;
 
       // Insert new recibo for the new balance if > 0
       if (deudaMMV > 0) {
         const tasaOficial = bcvRate ? parseFloat(bcvRate.replace(',', '.')) : 1;
         const montoBs = (deudaMMV * tasaOficial).toFixed(2);
-        
+
         const facturaData = {
           referencia: `RECIB-${Math.floor(Math.random() * 1000000)}`,
           contribuyente: formData.Contribuyente,
@@ -1557,7 +1557,7 @@ function ContribuyentesPageContent() {
       const changedActividad = formData.ActividadComercial !== originalData.ActividadComercial;
       const changedResidencia = formData.TipoResidencia !== originalData.TipoResidencia;
       const changedClasificacion = formData.Clasificacion !== originalData.Clasificacion;
-      
+
       if ((changedActividad || changedResidencia || changedClasificacion) && !formData.Notas_Adicionales?.trim()) {
         alert("Es OBLIGATORIO ingresar una Nota Adicional explicando el cambio de Actividad Comercial, Tipo de Residencia o Clasificación.");
         return;
@@ -1568,7 +1568,7 @@ function ContribuyentesPageContent() {
     try {
       const finalTelefono = `${formData.telefonoPrefijo}${formData.telefonoNumero}`;
       const finalCorreo = `${formData.correoNombre}${formData.correoDominio === 'Otro' ? formData.correoDominioOtro : formData.correoDominio}`;
-      
+
       // Asegurar que la Identidad siempre tenga el prefijo (V-, J-, E-, G-)
       const tipoId = formData.tipoIdentidad || (formData.Identidad || '').match(/^([VEJG])/i)?.[1]?.toUpperCase() || 'V';
       const numId = (formData.identidadNumero || (formData.Identidad || '').replace(/^[VEJG]-?/i, '')).replace(/[^0-9]/g, '');
@@ -1604,7 +1604,7 @@ function ContribuyentesPageContent() {
           .update({ clave_portal: formData.clave.trim() })
           .or(`identidad.eq.${dataToSave.Identidad},identidad.eq.${idClean}`);
       }
-      
+
       setShowSuccess(true);
       setTimeout(() => { setShowSuccess(false); setEditingId(null); }, 1500);
     } catch (err) {
@@ -1643,7 +1643,7 @@ function ContribuyentesPageContent() {
               <Users className="w-4 h-4 text-slate-500" /> Datos del Contribuyente
             </h2>
           </div>
-          
+
           <div className="p-6 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
@@ -1652,8 +1652,8 @@ function ContribuyentesPageContent() {
               </div>
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Tipo Identidad</label>
-                <select 
-                  value={formData.tipoIdentidad || 'V'} 
+                <select
+                  value={formData.tipoIdentidad || 'V'}
                   onChange={e => {
                     const newTipo = e.target.value;
                     const num = formData.identidadNumero || (formData.Identidad || '').replace(/^[VEJG]-?/i, '');
@@ -1674,10 +1674,10 @@ function ContribuyentesPageContent() {
               </div>
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Nro Identidad (RIF / Cédula)</label>
-                <input 
-                  type="text" 
-                  maxLength={10} 
-                  value={formData.identidadNumero ?? (formData.Identidad || '').replace(/^[VEJG]-?/i, '')} 
+                <input
+                  type="text"
+                  maxLength={10}
+                  value={formData.identidadNumero ?? (formData.Identidad || '').replace(/^[VEJG]-?/i, '')}
                   onChange={e => {
                     const num = e.target.value.replace(/[^0-9]/g, '');
                     const tipo = formData.tipoIdentidad || 'V';
@@ -1686,26 +1686,26 @@ function ContribuyentesPageContent() {
                       identidadNumero: num,
                       Identidad: `${tipo}-${num}`
                     });
-                  }} 
-                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 font-mono" 
+                  }}
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 font-mono"
                   placeholder="Ej: 507338592"
-                  required 
+                  required
                 />
               </div>
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Nombre o Razón Social</label>
-                <input type="text" value={formData.Contribuyente} onChange={e => setFormData({...formData, Contribuyente: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" required />
+                <input type="text" value={formData.Contribuyente} onChange={e => setFormData({ ...formData, Contribuyente: e.target.value })} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" required />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Número de Patente (Si aplica)</label>
-                <input type="text" value={formData.Patente || ''} onChange={e => setFormData({...formData, Patente: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" placeholder="Ej: P-12345" />
+                <input type="text" value={formData.Patente || ''} onChange={e => setFormData({ ...formData, Patente: e.target.value })} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" placeholder="Ej: P-12345" />
               </div>
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Ficha Catastral</label>
-                <input type="text" value={formData.FichaCatastral || ''} onChange={e => setFormData({...formData, FichaCatastral: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" placeholder="Ej: 01-23-456-789" />
+                <input type="text" value={formData.FichaCatastral || ''} onChange={e => setFormData({ ...formData, FichaCatastral: e.target.value })} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" placeholder="Ej: 01-23-456-789" />
               </div>
             </div>
 
@@ -1713,9 +1713,9 @@ function ContribuyentesPageContent() {
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Teléfono Móvil <span className="text-red-500">*</span></label>
                 <div className="flex gap-2">
-                  <select 
+                  <select
                     value={formData.telefonoPrefijo}
-                    onChange={e => setFormData({...formData, telefonoPrefijo: e.target.value})}
+                    onChange={e => setFormData({ ...formData, telefonoPrefijo: e.target.value })}
                     className="w-1/3 border border-slate-300 rounded px-2 py-2 text-sm text-slate-700 outline-none focus:border-blue-500"
                   >
                     <option value="0412">0412</option>
@@ -1725,11 +1725,11 @@ function ContribuyentesPageContent() {
                     <option value="0426">0426</option>
                     <option value="0422">0422</option>
                   </select>
-                  <input 
-                    type="tel" 
+                  <input
+                    type="tel"
                     pattern="[0-9]*"
-                    value={formData.telefonoNumero} 
-                    onChange={e => setFormData({...formData, telefonoNumero: e.target.value.replace(/\D/g, '')})} 
+                    value={formData.telefonoNumero}
+                    onChange={e => setFormData({ ...formData, telefonoNumero: e.target.value.replace(/\D/g, '') })}
                     onKeyPress={(e) => {
                       if (!/[0-9]/.test(e.key)) {
                         e.preventDefault();
@@ -1737,73 +1737,73 @@ function ContribuyentesPageContent() {
                     }}
                     maxLength={7}
                     placeholder="1234567"
-                    className="w-2/3 border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" 
+                    className="w-2/3 border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500"
                     required
                   />
-                </div> 
- 
-            <div className="bg-slate-50 border-b border-t border-slate-200 px-4 py-3 mt-6">
-              <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-2">
-                <FileText className="w-4 h-4 text-slate-500" /> Expediente Digitalizado (Adjuntar Documentos)
-              </h2>
-            </div>
-            
-            <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Cédula / RIF */}
-              <div>
-                <label className="block text-[10px] font-semibold text-slate-600 mb-1">Copia de Cédula / RIF <span className="text-red-500">*</span></label>
-                <label className="block border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-colors">
-                  {uploadDocs.cedula.uploading ? (
-                    <span className="text-xs text-blue-500 animate-pulse">â ³ Subiendo...</span>
-                  ) : uploadDocs.cedula.url ? (
-                    <div className="space-y-1">
-                      <span className="text-[10px] text-green-600 font-bold block">âœ… {uploadDocs.cedula.name}</span>
-                      <a href={uploadDocs.cedula.url} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 underline" onClick={e => e.stopPropagation()}>Ver documento</a>
-                      <span className="block text-[10px] text-slate-400">Click para cambiar</span>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-slate-500">ðŸ“Ž Click para subir archivo<br/><span className="text-[10px] text-slate-400">PDF o imagen, máx. 10 MB</span></span>
-                  )}
-                  <input type="file" className="hidden" accept=".pdf,image/*" onChange={e => handleUploadDoc(e, 'cedula')} disabled={uploadDocs.cedula.uploading}/>
-                </label>
-              </div>
-              {/* Ficha Catastral */}
-              <div>
-                <label className="block text-[10px] font-semibold text-slate-600 mb-1">Ficha Catastral Digitalizada</label>
-                <label className="block border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-colors">
-                  {uploadDocs.ficha.uploading ? (
-                    <span className="text-xs text-blue-500 animate-pulse">â ³ Subiendo...</span>
-                  ) : uploadDocs.ficha.url ? (
-                    <div className="space-y-1">
-                      <span className="text-[10px] text-green-600 font-bold block">âœ… {uploadDocs.ficha.name}</span>
-                      <a href={uploadDocs.ficha.url} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 underline" onClick={e => e.stopPropagation()}>Ver documento</a>
-                      <span className="block text-[10px] text-slate-400">Click para cambiar</span>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-slate-500">ðŸ“Ž Click para subir archivo<br/><span className="text-[10px] text-slate-400">PDF o imagen, máx. 10 MB</span></span>
-                  )}
-                  <input type="file" className="hidden" accept=".pdf,image/*" onChange={e => handleUploadDoc(e, 'ficha')} disabled={uploadDocs.ficha.uploading}/>
-                </label>
-              </div>
-              {/* Registro Mercantil */}
-              <div>
-                <label className="block text-[10px] font-semibold text-slate-600 mb-1">Registro Mercantil / Otros</label>
-                <label className="block border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-colors">
-                  {uploadDocs.registro.uploading ? (
-                    <span className="text-xs text-blue-500 animate-pulse">â ³ Subiendo...</span>
-                  ) : uploadDocs.registro.url ? (
-                    <div className="space-y-1">
-                      <span className="text-[10px] text-green-600 font-bold block">âœ… {uploadDocs.registro.name}</span>
-                      <a href={uploadDocs.registro.url} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 underline" onClick={e => e.stopPropagation()}>Ver documento</a>
-                      <span className="block text-[10px] text-slate-400">Click para cambiar</span>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-slate-500">ðŸ“Ž Click para subir archivo<br/><span className="text-[10px] text-slate-400">PDF o imagen, máx. 10 MB</span></span>
-                  )}
-                  <input type="file" className="hidden" accept=".pdf,image/*" onChange={e => handleUploadDoc(e, 'registro')} disabled={uploadDocs.registro.uploading}/>
-                </label>
-              </div>
-            </div>
+                </div>
+
+                <div className="bg-slate-50 border-b border-t border-slate-200 px-4 py-3 mt-6">
+                  <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-slate-500" /> Expediente Digitalizado (Adjuntar Documentos)
+                  </h2>
+                </div>
+
+                <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Cédula / RIF */}
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">Copia de Cédula / RIF <span className="text-red-500">*</span></label>
+                    <label className="block border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-colors">
+                      {uploadDocs.cedula.uploading ? (
+                        <span className="text-xs text-blue-500 animate-pulse">â ³ Subiendo...</span>
+                      ) : uploadDocs.cedula.url ? (
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-green-600 font-bold block">âœ… {uploadDocs.cedula.name}</span>
+                          <a href={uploadDocs.cedula.url} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 underline" onClick={e => e.stopPropagation()}>Ver documento</a>
+                          <span className="block text-[10px] text-slate-400">Click para cambiar</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-500">ðŸ“Ž Click para subir archivo<br /><span className="text-[10px] text-slate-400">PDF o imagen, máx. 10 MB</span></span>
+                      )}
+                      <input type="file" className="hidden" accept=".pdf,image/*" onChange={e => handleUploadDoc(e, 'cedula')} disabled={uploadDocs.cedula.uploading} />
+                    </label>
+                  </div>
+                  {/* Ficha Catastral */}
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">Ficha Catastral Digitalizada</label>
+                    <label className="block border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-colors">
+                      {uploadDocs.ficha.uploading ? (
+                        <span className="text-xs text-blue-500 animate-pulse">â ³ Subiendo...</span>
+                      ) : uploadDocs.ficha.url ? (
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-green-600 font-bold block">âœ… {uploadDocs.ficha.name}</span>
+                          <a href={uploadDocs.ficha.url} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 underline" onClick={e => e.stopPropagation()}>Ver documento</a>
+                          <span className="block text-[10px] text-slate-400">Click para cambiar</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-500">ðŸ“Ž Click para subir archivo<br /><span className="text-[10px] text-slate-400">PDF o imagen, máx. 10 MB</span></span>
+                      )}
+                      <input type="file" className="hidden" accept=".pdf,image/*" onChange={e => handleUploadDoc(e, 'ficha')} disabled={uploadDocs.ficha.uploading} />
+                    </label>
+                  </div>
+                  {/* Registro Mercantil */}
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-600 mb-1">Registro Mercantil / Otros</label>
+                    <label className="block border-2 border-dashed border-slate-300 rounded p-4 text-center cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition-colors">
+                      {uploadDocs.registro.uploading ? (
+                        <span className="text-xs text-blue-500 animate-pulse">â ³ Subiendo...</span>
+                      ) : uploadDocs.registro.url ? (
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-green-600 font-bold block">âœ… {uploadDocs.registro.name}</span>
+                          <a href={uploadDocs.registro.url} target="_blank" rel="noreferrer" className="text-[10px] text-blue-500 underline" onClick={e => e.stopPropagation()}>Ver documento</a>
+                          <span className="block text-[10px] text-slate-400">Click para cambiar</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-500">ðŸ“Ž Click para subir archivo<br /><span className="text-[10px] text-slate-400">PDF o imagen, máx. 10 MB</span></span>
+                      )}
+                      <input type="file" className="hidden" accept=".pdf,image/*" onChange={e => handleUploadDoc(e, 'registro')} disabled={uploadDocs.registro.uploading} />
+                    </label>
+                  </div>
+                </div>
 
               </div>
               <div>
@@ -1813,17 +1813,17 @@ function ContribuyentesPageContent() {
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Email <span className="text-red-500">*</span></label>
                 <div className="flex gap-1 mb-1">
-                  <input 
-                    type="text" 
-                    value={formData.correoNombre} 
-                    onChange={e => setFormData({...formData, correoNombre: e.target.value.replace(/\s/g, '')})} 
+                  <input
+                    type="text"
+                    value={formData.correoNombre}
+                    onChange={e => setFormData({ ...formData, correoNombre: e.target.value.replace(/\s/g, '') })}
                     placeholder="usuario"
-                    className="w-1/2 border border-slate-300 rounded px-2 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" 
+                    className="w-1/2 border border-slate-300 rounded px-2 py-2 text-sm text-slate-700 outline-none focus:border-blue-500"
                     required
                   />
-                  <select 
+                  <select
                     value={formData.correoDominio}
-                    onChange={e => setFormData({...formData, correoDominio: e.target.value})}
+                    onChange={e => setFormData({ ...formData, correoDominio: e.target.value })}
                     className="w-1/2 border border-slate-300 rounded px-1 py-2 text-sm text-slate-700 outline-none focus:border-blue-500"
                   >
                     <option value="@gmail.com">@gmail.com</option>
@@ -1834,12 +1834,12 @@ function ContribuyentesPageContent() {
                   </select>
                 </div>
                 {formData.correoDominio === 'Otro' && (
-                  <input 
-                    type="text" 
-                    value={formData.correoDominioOtro} 
-                    onChange={e => setFormData({...formData, correoDominioOtro: e.target.value.replace(/\s/g, '')})} 
+                  <input
+                    type="text"
+                    value={formData.correoDominioOtro}
+                    onChange={e => setFormData({ ...formData, correoDominioOtro: e.target.value.replace(/\s/g, '') })}
                     placeholder="@prueba.com"
-                    className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 mt-1" 
+                    className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 mt-1"
                     required
                   />
                 )}
@@ -1848,15 +1848,15 @@ function ContribuyentesPageContent() {
 
             <div className="md:col-span-2">
               <label className="block text-[10px] font-medium text-slate-500 mb-1">Dirección Exacta <span className="text-red-500">*</span></label>
-              <textarea 
-                value={formData.Direccion} 
-                onChange={e => setFormData({...formData, Direccion: e.target.value})}
-                rows={2} 
-                className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" 
+              <textarea
+                value={formData.Direccion}
+                onChange={e => setFormData({ ...formData, Direccion: e.target.value })}
+                rows={2}
+                className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500"
                 required
               />
             </div>
-            
+
             <div className="md:col-span-2">
               <div className="flex justify-between items-center mb-1">
                 <label className="block text-[10px] font-medium text-slate-500">Ubicación en el Mapa</label>
@@ -1868,32 +1868,32 @@ function ContribuyentesPageContent() {
                 )}
               </div>
               <p className="text-[10px] text-slate-400 mb-2">Haz clic en el mapa para marcar la ubicación exacta del inmueble. (Auto-completará la dirección)</p>
-              <MapPicker 
-                position={formData.coordenadas} 
+              <MapPicker
+                position={formData.coordenadas}
                 onLocationSelect={async (loc) => {
-                  setFormData({...formData, coordenadas: loc});
+                  setFormData({ ...formData, coordenadas: loc });
                   // Geocodificación inversa
                   try {
                     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.lat}&lon=${loc.lng}`);
                     const data = await res.json();
                     if (data && data.display_name) {
-                      setFormData((prev: any) => ({...prev, coordenadas: loc, DireccionExacta: data.display_name}));
+                      setFormData((prev: any) => ({ ...prev, coordenadas: loc, DireccionExacta: data.display_name }));
                     }
                   } catch (err) {
                     console.error('Error in reverse geocoding:', err);
                   }
-                }} 
+                }}
               />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Domicilio fiscal (como aparece en el RIF)</label>
-                <input type="text" value={formData.Direccion || ''} onChange={e => setFormData({...formData, Direccion: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
+                <input type="text" value={formData.Direccion || ''} onChange={e => setFormData({ ...formData, Direccion: e.target.value })} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
               </div>
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Dirección Exacta (Punto en el Mapa)</label>
-                <input type="text" value={formData.DireccionExacta || ''} onChange={e => setFormData({...formData, DireccionExacta: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
+                <input type="text" value={formData.DireccionExacta || ''} onChange={e => setFormData({ ...formData, DireccionExacta: e.target.value })} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
               </div>
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Nombre Comercial</label>
@@ -1901,9 +1901,9 @@ function ContribuyentesPageContent() {
               </div>
               <div className="md:col-span-2 mt-2">
                 <label className="block text-[10px] font-bold text-blue-800 mb-1">Nota Simple (Opcional)</label>
-                <textarea 
+                <textarea
                   value={formData.Nota || ''}
-                  onChange={e => setFormData({...formData, Nota: e.target.value})}
+                  onChange={e => setFormData({ ...formData, Nota: e.target.value })}
                   placeholder="Ingrese una nota sencilla, ej: Trajo documentación completa..."
                   className="w-full border border-blue-200 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-blue-50/30"
                   rows={2}
@@ -1917,8 +1917,8 @@ function ContribuyentesPageContent() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-[10px] font-semibold text-blue-600 mb-1">Clasificación Principal</label>
-                  <select 
-                    value={formData.Clasificacion} 
+                  <select
+                    value={formData.Clasificacion}
                     onChange={e => {
                       const val = e.target.value;
                       const updatedLocales = (formData.locales || []).map((loc: any) => ({
@@ -1926,7 +1926,7 @@ function ContribuyentesPageContent() {
                         uso: val === 'Residencial' ? 'Residencial' : (val.includes('Comercial') || val === 'Industrial') ? 'Comercial' : loc.uso
                       }));
                       setFormData({
-                        ...formData, 
+                        ...formData,
                         Clasificacion: val,
                         TipoResidencia: (val === 'Residencial' || val === 'Mixto') ? (formData.TipoResidencia || ordenanzaData.tiposResidenciales[0].label) : '',
                         ActividadComercial: (val.includes('Comercial') || val === 'Industrial' || val === 'Mixto') ? (formData.ActividadComercial || todasLasActividades[0].label) : '',
@@ -1943,9 +1943,9 @@ function ContribuyentesPageContent() {
                 {(formData.Clasificacion === 'Residencial') && !formData.isCondominio && (
                   <div>
                     <label className="block text-[10px] font-medium text-slate-500 mb-1">Tipo de Residencia (Clasificador)</label>
-                    <select 
-                      value={formData.TipoResidencia || ordenanzaData.tiposResidenciales[0].label} 
-                      onChange={e => setFormData({...formData, TipoResidencia: e.target.value})}
+                    <select
+                      value={formData.TipoResidencia || ordenanzaData.tiposResidenciales[0].label}
+                      onChange={e => setFormData({ ...formData, TipoResidencia: e.target.value })}
                       className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500"
                     >
                       {ordenanzaData.tiposResidenciales.map(t => <option key={t.label} value={t.label}>{t.label}</option>)}
@@ -1960,7 +1960,7 @@ function ContribuyentesPageContent() {
                       <Select
                         options={todasLasActividades.map(a => ({ value: a.label, label: a.label }))}
                         value={{ value: formData.ActividadComercial, label: formData.ActividadComercial }}
-                        onChange={(selected: any) => setFormData({...formData, ActividadComercial: selected?.value || ''})}
+                        onChange={(selected: any) => setFormData({ ...formData, ActividadComercial: selected?.value || '' })}
                         placeholder="Buscar o seleccionar..."
                         className="text-sm text-slate-700"
                         styles={{
@@ -1976,9 +1976,9 @@ function ContribuyentesPageContent() {
                     </div>
                     <div>
                       <label className="block text-[10px] font-medium text-slate-500 mb-1">Nivel (Rango de Metraje)</label>
-                      <select 
-                        value={formData.NivelMetraje || ordenanzaData.nivelesMetraje[0]} 
-                        onChange={e => setFormData({...formData, NivelMetraje: e.target.value})}
+                      <select
+                        value={formData.NivelMetraje || ordenanzaData.nivelesMetraje[0]}
+                        onChange={e => setFormData({ ...formData, NivelMetraje: e.target.value })}
                         className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500"
                       >
                         {ordenanzaData.nivelesMetraje.map(n => <option key={n} value={n}>{n}</option>)}
@@ -1988,47 +1988,47 @@ function ContribuyentesPageContent() {
                 )}
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2 mt-4 mb-2">
-              <input 
-                type="checkbox" 
-                id="isCondominio" 
+              <input
+                type="checkbox"
+                id="isCondominio"
                 checked={formData.isCondominio || false}
                 onChange={e => setFormData({
-                  ...formData, 
-                  isCondominio: e.target.checked, 
+                  ...formData,
+                  isCondominio: e.target.checked,
                   cantidadInmuebles: e.target.checked ? (formData.cantidadInmuebles || 0) : 0,
                   locales: e.target.checked ? (formData.locales || []) : []
                 })}
-                className="w-4 h-4 text-blue-600 rounded border-slate-300" 
+                className="w-4 h-4 text-blue-600 rounded border-slate-300"
               />
               <label htmlFor="isCondominio" className="text-xs font-medium text-slate-700">Tiene múltiples locales / actividades comerciales o es un Condominio</label>
             </div>
 
             {formData.isCondominio && (
               <div className="mb-4">
-                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Cantidad de Locales / Apartamentos</label>
-                 <input 
-                   type="number" 
-                   min="0"
-                   max="200"
-                   value={formData.cantidadInmuebles || 0}
-                   onChange={handleCantidadChange}
-                   className="w-32 border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" 
-                 />
+                <label className="block text-[10px] font-medium text-slate-500 mb-1">Cantidad de Locales / Apartamentos</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="200"
+                  value={formData.cantidadInmuebles || 0}
+                  onChange={handleCantidadChange}
+                  className="w-32 border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500"
+                />
               </div>
             )}
-            
+
             {formData.isCondominio && formData.cantidadInmuebles > 0 && (
               <div className="mt-4 border border-slate-200 rounded overflow-hidden">
                 <div className="bg-slate-50 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
                   <h4 className="text-xs font-bold text-slate-700 uppercase">Desglose de Inmuebles ({formData.cantidadInmuebles})</h4>
                   <div className="flex items-center gap-1.5">
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       id="uniformConfig"
                       checked={formData.uniformConfig || false}
-                      onChange={e => setFormData({...formData, uniformConfig: e.target.checked})}
+                      onChange={e => setFormData({ ...formData, uniformConfig: e.target.checked })}
                       className="w-3.5 h-3.5 text-blue-600 rounded border-slate-300 cursor-pointer"
                     />
                     <label htmlFor="uniformConfig" className="text-[10px] font-medium text-slate-600 cursor-pointer uppercase tracking-wide">
@@ -2041,15 +2041,15 @@ function ContribuyentesPageContent() {
                   <div className="bg-blue-50 px-4 py-3 border-b border-blue-100 flex flex-wrap gap-4 items-end shadow-inner">
                     <div className="flex-1 min-w-[200px]">
                       <label className="block text-[10px] font-bold text-blue-800 mb-1">Unificar Tipo de Residencia</label>
-                      <select 
+                      <select
                         onChange={e => {
                           const val = e.target.value;
-                          if(!val) return;
+                          if (!val) return;
                           const newLocales = formData.locales.map((l: any) => ({
                             ...l,
                             tipoResidencia: l.uso === 'Residencial' ? val : l.tipoResidencia
                           }));
-                          setFormData({...formData, locales: newLocales});
+                          setFormData({ ...formData, locales: newLocales });
                         }}
                         className="w-full border border-blue-200 rounded px-2 py-1.5 text-xs outline-none text-blue-800 bg-white"
                       >
@@ -2060,15 +2060,15 @@ function ContribuyentesPageContent() {
                     {formData.Clasificacion !== 'Residencial' && (
                       <div className="flex-1 min-w-[200px]">
                         <label className="block text-[10px] font-bold text-blue-800 mb-1">Unificar Tamaño (Metraje Comercial)</label>
-                        <select 
+                        <select
                           onChange={e => {
                             const val = e.target.value;
-                            if(!val) return;
+                            if (!val) return;
                             const newLocales = formData.locales.map((l: any) => ({
                               ...l,
                               nivel: l.uso === 'Comercial' ? val : l.nivel
                             }));
-                            setFormData({...formData, locales: newLocales});
+                            setFormData({ ...formData, locales: newLocales });
                           }}
                           className="w-full border border-blue-200 rounded px-2 py-1.5 text-xs outline-none text-blue-800 bg-white"
                         >
@@ -2083,123 +2083,123 @@ function ContribuyentesPageContent() {
                 <div className="max-h-[400px] overflow-y-auto p-4 space-y-4 bg-white">
                   {formData.locales?.map((local: any, index: number) => (
                     <div key={local.id || index} className="grid grid-cols-1 md:grid-cols-4 gap-3 p-3 border border-slate-100 bg-slate-50 rounded items-end">
-                       <div>
-                         <div className="flex items-center justify-between mb-1">
-                           <label className="block text-[10px] font-medium text-slate-500">Numeración / Identificador</label>
-                           {formData.locales.length > 1 && (
-                             <button
-                               type="button"
-                               onClick={() => {
-                                 if (window.confirm(`¿Eliminar la unidad/actividad "${local.numeracion || `Unidad ${index+1}`}"?`)) {
-                                   const newLocales = formData.locales.filter((_: any, idx: number) => idx !== index);
-                                   setFormData({...formData, locales: newLocales, cantidadInmuebles: newLocales.length});
-                                 }
-                               }}
-                               className="text-red-500 hover:text-red-700 text-[10px] font-bold flex items-center gap-0.5"
-                               title="Eliminar esta actividad"
-                             >
-                               <Trash2 className="w-3 h-3" /> Quitar
-                             </button>
-                           )}
-                         </div>
-                         <input type="text" value={local.numeracion} onChange={e => {
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-[10px] font-medium text-slate-500">Numeración / Identificador</label>
+                          {formData.locales.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (window.confirm(`¿Eliminar la unidad/actividad "${local.numeracion || `Unidad ${index + 1}`}"?`)) {
+                                  const newLocales = formData.locales.filter((_: any, idx: number) => idx !== index);
+                                  setFormData({ ...formData, locales: newLocales, cantidadInmuebles: newLocales.length });
+                                }
+                              }}
+                              className="text-red-500 hover:text-red-700 text-[10px] font-bold flex items-center gap-0.5"
+                              title="Eliminar esta actividad"
+                            >
+                              <Trash2 className="w-3 h-3" /> Quitar
+                            </button>
+                          )}
+                        </div>
+                        <input type="text" value={local.numeracion} onChange={e => {
+                          const newLocales = [...formData.locales];
+                          newLocales[index].numeracion = e.target.value;
+                          setFormData({ ...formData, locales: newLocales });
+                        }} className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-slate-500 mb-1">Uso</label>
+                        <select
+                          value={local.uso}
+                          onChange={e => {
                             const newLocales = [...formData.locales];
-                            newLocales[index].numeracion = e.target.value;
-                            setFormData({...formData, locales: newLocales});
-                         }} className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none" />
-                       </div>
-                       <div>
-                         <label className="block text-[10px] font-medium text-slate-500 mb-1">Uso</label>
-                         <select 
-                           value={local.uso} 
-                           onChange={e => {
-                              const newLocales = [...formData.locales];
-                              newLocales[index].uso = e.target.value;
-                              if(e.target.value === 'Residencial') newLocales[index].actividad = '';
-                              setFormData({...formData, locales: newLocales});
-                           }} 
-                           className={`w-full border rounded px-2 py-1.5 text-xs outline-none ${formData.Clasificacion !== 'Mixto' ? 'bg-slate-100 text-slate-500 border-slate-200' : 'border-slate-300 text-slate-700'}`}
-                           disabled={formData.Clasificacion !== 'Mixto'}
-                         >
-                           {(formData.Clasificacion === 'Residencial' || formData.Clasificacion === 'Mixto') && <option value="Residencial">Residencial</option>}
-                           {(formData.Clasificacion === 'Comercial' || formData.Clasificacion === 'Industrial' || formData.Clasificacion === 'Mixto') && <option value="Comercial">Comercial</option>}
-                         </select>
-                       </div>
-                       <div>
-                         <label className="block text-[10px] font-medium text-slate-500 mb-1">Estatus</label>
-                         <select value={local.estatus} onChange={e => {
-                            const newLocales = [...formData.locales];
-                            newLocales[index].estatus = e.target.value;
-                            if(e.target.value === 'Desocupado') newLocales[index].actividad = '';
-                            setFormData({...formData, locales: newLocales});
-                         }} className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none">
-                           <option value="Desocupado">Desocupado</option>
-                           <option value="Ocupado">Ocupado</option>
-                         </select>
-                       </div>
-                       <div className="min-w-[150px]">
-                         {local.uso === 'Comercial' ? (
-                           <>
-                             {local.estatus === 'Ocupado' ? (
-                               <div className="mb-2">
-                                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Actividad Comercial</label>
-                                 <Select
-                                   options={todasLasActividades.map(a => ({ value: a.label, label: a.label }))}
-                                   value={local.actividad ? { value: local.actividad, label: local.actividad } : null}
-                                   onChange={(selected: any) => {
-                                     const newLocales = [...formData.locales];
-                                     newLocales[index].actividad = selected?.value || '';
-                                     setFormData({...formData, locales: newLocales});
-                                   }}
-                                   placeholder="Actividad..."
-                                   className="text-xs"
-                                   styles={{
-                                     control: (base) => ({...base, minHeight: '30px', fontSize: '0.75rem'}),
-                                     menuList: (base) => ({...base, maxHeight: '150px'})
-                                   }}
-                                   menuPosition="fixed"
-                                 />
-                               </div>
-                             ) : (
-                               <div className="mb-2">
-                                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Actividad Comercial</label>
-                                 <div className="h-[30px] flex items-center px-2 text-[10px] bg-slate-100 text-slate-500 rounded border border-slate-200">
-                                   Inmueble desocupado (vacío)
-                                 </div>
-                               </div>
-                             )}
-                             <div>
-                               <label className="block text-[10px] font-medium text-slate-500 mb-1">Nivel (Metraje)</label>
-                               <select 
-                                 value={local.nivel || ordenanzaData.nivelesMetraje[0]} 
-                                 onChange={e => {
+                            newLocales[index].uso = e.target.value;
+                            if (e.target.value === 'Residencial') newLocales[index].actividad = '';
+                            setFormData({ ...formData, locales: newLocales });
+                          }}
+                          className={`w-full border rounded px-2 py-1.5 text-xs outline-none ${formData.Clasificacion !== 'Mixto' ? 'bg-slate-100 text-slate-500 border-slate-200' : 'border-slate-300 text-slate-700'}`}
+                          disabled={formData.Clasificacion !== 'Mixto'}
+                        >
+                          {(formData.Clasificacion === 'Residencial' || formData.Clasificacion === 'Mixto') && <option value="Residencial">Residencial</option>}
+                          {(formData.Clasificacion === 'Comercial' || formData.Clasificacion === 'Industrial' || formData.Clasificacion === 'Mixto') && <option value="Comercial">Comercial</option>}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-slate-500 mb-1">Estatus</label>
+                        <select value={local.estatus} onChange={e => {
+                          const newLocales = [...formData.locales];
+                          newLocales[index].estatus = e.target.value;
+                          if (e.target.value === 'Desocupado') newLocales[index].actividad = '';
+                          setFormData({ ...formData, locales: newLocales });
+                        }} className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none">
+                          <option value="Desocupado">Desocupado</option>
+                          <option value="Ocupado">Ocupado</option>
+                        </select>
+                      </div>
+                      <div className="min-w-[150px]">
+                        {local.uso === 'Comercial' ? (
+                          <>
+                            {local.estatus === 'Ocupado' ? (
+                              <div className="mb-2">
+                                <label className="block text-[10px] font-medium text-slate-500 mb-1">Actividad Comercial</label>
+                                <Select
+                                  options={todasLasActividades.map(a => ({ value: a.label, label: a.label }))}
+                                  value={local.actividad ? { value: local.actividad, label: local.actividad } : null}
+                                  onChange={(selected: any) => {
                                     const newLocales = [...formData.locales];
-                                    newLocales[index].nivel = e.target.value;
-                                    setFormData({...formData, locales: newLocales});
-                                 }}
-                                 className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none"
-                               >
-                                 {ordenanzaData.nivelesMetraje.map(n => <option key={n} value={n}>{n}</option>)}
-                               </select>
-                             </div>
-                           </>
-                         ) : (
-                           <div className="h-full flex flex-col items-start justify-center pt-2">
-                             <label className="block text-[10px] font-medium text-slate-500 mb-1">Tipo de Residencia</label>
-                             <select 
-                               value={local.tipoResidencia || ordenanzaData.tiposResidenciales[0].label} 
-                               onChange={e => {
+                                    newLocales[index].actividad = selected?.value || '';
+                                    setFormData({ ...formData, locales: newLocales });
+                                  }}
+                                  placeholder="Actividad..."
+                                  className="text-xs"
+                                  styles={{
+                                    control: (base) => ({ ...base, minHeight: '30px', fontSize: '0.75rem' }),
+                                    menuList: (base) => ({ ...base, maxHeight: '150px' })
+                                  }}
+                                  menuPosition="fixed"
+                                />
+                              </div>
+                            ) : (
+                              <div className="mb-2">
+                                <label className="block text-[10px] font-medium text-slate-500 mb-1">Actividad Comercial</label>
+                                <div className="h-[30px] flex items-center px-2 text-[10px] bg-slate-100 text-slate-500 rounded border border-slate-200">
+                                  Inmueble desocupado (vacío)
+                                </div>
+                              </div>
+                            )}
+                            <div>
+                              <label className="block text-[10px] font-medium text-slate-500 mb-1">Nivel (Metraje)</label>
+                              <select
+                                value={local.nivel || ordenanzaData.nivelesMetraje[0]}
+                                onChange={e => {
                                   const newLocales = [...formData.locales];
-                                  newLocales[index].tipoResidencia = e.target.value;
-                                  setFormData({...formData, locales: newLocales});
-                               }}
-                               className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none"
-                             >
-                               {ordenanzaData.tiposResidenciales.map(t => <option key={t.label} value={t.label}>{t.label}</option>)}
-                             </select>
-                           </div>
-                         )}
-                       </div>
+                                  newLocales[index].nivel = e.target.value;
+                                  setFormData({ ...formData, locales: newLocales });
+                                }}
+                                className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none"
+                              >
+                                {ordenanzaData.nivelesMetraje.map(n => <option key={n} value={n}>{n}</option>)}
+                              </select>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="h-full flex flex-col items-start justify-center pt-2">
+                            <label className="block text-[10px] font-medium text-slate-500 mb-1">Tipo de Residencia</label>
+                            <select
+                              value={local.tipoResidencia || ordenanzaData.tiposResidenciales[0].label}
+                              onChange={e => {
+                                const newLocales = [...formData.locales];
+                                newLocales[index].tipoResidencia = e.target.value;
+                                setFormData({ ...formData, locales: newLocales });
+                              }}
+                              className="w-full border border-slate-300 rounded px-2 py-1.5 text-xs outline-none"
+                            >
+                              {ordenanzaData.tiposResidenciales.map(t => <option key={t.label} value={t.label}>{t.label}</option>)}
+                            </select>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -2229,29 +2229,29 @@ function ContribuyentesPageContent() {
               </div>
             </>
           )}
-          
+
           {/* Section: Datos de Seguridad */}
           <div className="bg-purple-100 border-y border-purple-200 px-4 py-2 mt-4">
             <h2 className="text-[10px] font-bold text-slate-800 uppercase tracking-wide">
               Datos de Seguridad
             </h2>
           </div>
-          
+
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mb-8">
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Clave</label>
-                <input type="password" placeholder="Clave" value={formData.clave || ''} onChange={e => setFormData({...formData, clave: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
+                <input type="password" placeholder="Clave" value={formData.clave || ''} onChange={e => setFormData({ ...formData, clave: e.target.value })} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
               </div>
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Confirmar Clave</label>
-                <input type="password" placeholder="Confirmar Clave" value={formData.confirmarClave || ''} onChange={e => setFormData({...formData, confirmarClave: e.target.value})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
+                <input type="password" placeholder="Confirmar Clave" value={formData.confirmarClave || ''} onChange={e => setFormData({ ...formData, confirmarClave: e.target.value })} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500" />
               </div>
             </div>
 
             {!isNew && (
               <div className="flex gap-4 mb-8 pt-4 border-t border-slate-100">
-                <button 
+                <button
                   type="button"
                   onClick={() => {
                     if (window.confirm('¿Está seguro que desea DESACTIVAR este usuario? No podrá ingresar al portal.')) {
@@ -2262,7 +2262,7 @@ function ContribuyentesPageContent() {
                 >
                   Desactivar Acceso
                 </button>
-                <button 
+                <button
                   type="button"
                   onClick={() => {
                     if (window.confirm('ALERTA CRÍTICA: ¿Está absolutamente seguro de ELIMINAR este usuario y todo su historial de forma permanente?')) {
@@ -2275,7 +2275,7 @@ function ContribuyentesPageContent() {
                 </button>
               </div>
             )}
-            
+
             {/* INLINE CONDOMINIO UNITS */}
             {!isNew && formData.Clasificacion === 'Condominio' && formData.id && (
               <div className="mb-6">
@@ -2287,22 +2287,22 @@ function ContribuyentesPageContent() {
                 />
               </div>
             )}
-            
+
             <div className="flex justify-between items-center pt-4 border-t border-slate-100">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={calcularTarifa}
                 disabled={isCalculating}
                 className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2 rounded text-xs font-semibold transition-colors flex items-center gap-2 border border-slate-300"
               >
                 {isCalculating ? 'Calculando...' : 'Calcular Tarifa Mensual'}
               </button>
-              
+
               <button type="submit" disabled={isSaving} className="border border-orange-500 text-orange-500 hover:bg-orange-50 disabled:opacity-50 px-6 py-2 rounded text-xs font-medium transition-colors flex items-center gap-2">
                 <Plus className="w-3 h-3" /> {isSaving ? 'Guardando...' : (isNew ? 'Agregar Contribuyente' : 'Actualizar Contribuyente')}
               </button>
             </div>
-            
+
             {showCalculation && calculoDetalle && (
               <div className="mt-6 bg-slate-50 border border-slate-200 rounded p-4 animate-in fade-in slide-in-from-bottom-2">
                 <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-2">
@@ -2322,8 +2322,8 @@ function ContribuyentesPageContent() {
                     <div className="flex items-center gap-4">
                       <p className="text-lg font-bold text-green-700">Total Mensual: Bs. {calculoDetalle.totalBs}</p>
                       {!isNew && (
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={() => setIsDebtModalOpen(true)}
                           className="bg-orange-100 text-orange-700 hover:bg-orange-200 px-3 py-1.5 rounded text-xs font-bold transition-colors flex items-center gap-1 shadow-sm"
                         >
@@ -2333,7 +2333,7 @@ function ContribuyentesPageContent() {
                     </div>
                   </div>
                 </div>
-                
+
                 {calculoDetalle.desglose && calculoDetalle.desglose.length > 0 && (
                   <div className="mt-4 border border-slate-200 rounded overflow-hidden shadow-sm">
                     <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex justify-between items-center">
@@ -2355,8 +2355,8 @@ function ContribuyentesPageContent() {
                             <tr key={i} className="border-b border-slate-100 hover:bg-blue-50 transition-colors">
                               <td className="px-3 py-2 font-medium border-r border-slate-100">{item.numeracion}</td>
                               <td className="px-3 py-2 truncate max-w-[200px] border-r border-slate-100">{item.leyenda}</td>
-                              <td className="px-3 py-2 text-right border-r border-slate-100">{Number(item.factor || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
-                              <td className="px-3 py-2 text-right font-bold text-green-700 bg-green-50/30">{Number(item.montoBs || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                              <td className="px-3 py-2 text-right border-r border-slate-100">{Number(item.factor || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                              <td className="px-3 py-2 text-right font-bold text-green-700 bg-green-50/30">{Number(item.montoBs || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -2382,7 +2382,7 @@ function ContribuyentesPageContent() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              
+
               <div className="p-6 space-y-6">
                 <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 space-y-2">
                   <p className="text-sm"><span className="font-semibold text-slate-700">Contribuyente:</span> {formData.Contribuyente} ({formData.Identidad})</p>
@@ -2397,10 +2397,10 @@ function ContribuyentesPageContent() {
 
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2">Meses a adeudar (Morosidad Ajustada)</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       min="0"
-                      value={debtMonths} 
+                      value={debtMonths}
                       onChange={(e) => setDebtMonths(Number(e.target.value))}
                       className="w-full border-2 border-slate-200 rounded-lg px-4 py-2 font-semibold text-slate-700 focus:border-orange-500 outline-none"
                     />
@@ -2425,13 +2425,13 @@ function ContribuyentesPageContent() {
                 </div>
 
                 <div className="flex gap-3 pt-4 border-t border-slate-100">
-                  <button 
+                  <button
                     onClick={() => setIsDebtModalOpen(false)}
                     className="flex-1 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-bold py-2.5 rounded-lg transition-colors"
                   >
                     Cancelar
                   </button>
-                  <button 
+                  <button
                     onClick={handleAjustarDeuda}
                     disabled={isProcessingDebt}
                     className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-lg transition-colors shadow-sm disabled:opacity-70 flex justify-center"
@@ -2448,8 +2448,8 @@ function ContribuyentesPageContent() {
   }
 
   const columns = [
-    { 
-      key: 'cod_cont', 
+    {
+      key: 'cod_cont',
       header: 'Código',
       render: (row: any) => <span className="font-bold text-slate-700">{row.cod_cont || row.CodCont || 'N/A'}</span>
     },
@@ -2510,39 +2510,39 @@ function ContribuyentesPageContent() {
         // Calculo real de deuda y convenios
         const idRow = row.Identidad || row.identidad || '';
         const idLimpio = idRow.replace(/-/g, '');
-        const rowRecibos = recibos.filter((r: any) => 
-          (r.identidad === idRow || r.identidad?.replace(/-/g, '') === idLimpio) && 
+        const rowRecibos = recibos.filter((r: any) =>
+          (r.identidad === idRow || r.identidad?.replace(/-/g, '') === idLimpio) &&
           r.estado !== 'Pagado' && r.estado !== 'Anulado'
         );
         const debtAmountNum = rowRecibos.reduce((sum: number, r: any) => {
-          const m = parseFloat(String(r.monto||'0').replace(/[^0-9.]/g,''));
+          const m = parseFloat(String(r.monto || '0').replace(/[^0-9.]/g, ''));
           return sum + (isNaN(m) ? 0 : m);
         }, 0);
         const hasDebt = debtAmountNum > 0.01;
-        const debtAmount = hasDebt ? debtAmountNum.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00';
-        
-        const hasAgreement = convenios.some((c: any) => 
-          (c.identidad === idRow || c.identidad?.replace(/-/g, '') === idLimpio) && 
+        const debtAmount = hasDebt ? debtAmountNum.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
+
+        const hasAgreement = convenios.some((c: any) =>
+          (c.identidad === idRow || c.identidad?.replace(/-/g, '') === idLimpio) &&
           c.estado === 'Activo'
         );
 
         return (
           <div className="flex gap-2 items-center">
-            <button 
+            <button
               onClick={() => { setViewData(row); setIsViewModalOpen(true); }}
               className="bg-blue-50 text-blue-600 hover:bg-blue-100 p-1.5 rounded transition-colors"
               title="Ver Detalles"
             >
               <Eye className="w-4 h-4" />
             </button>
-            <button 
+            <button
               onClick={() => handleEdit(row)}
               className="bg-slate-100 text-slate-600 hover:bg-slate-200 p-1.5 rounded transition-colors"
               title="Editar"
             >
               <Edit className="w-4 h-4" />
             </button>
-            <button 
+            <button
               onClick={() => { setSelectedDebtRow(row); setDebtModalOpen(true); }}
               className="bg-orange-50 text-orange-600 hover:bg-orange-100 p-1.5 rounded transition-colors"
               title="Ajustar Deuda"
@@ -2550,19 +2550,19 @@ function ContribuyentesPageContent() {
               <Calculator className="w-4 h-4" />
             </button>
             {hasDebt ? (
-              <button 
+              <button
                 className="bg-red-50 text-red-600 p-1.5 rounded cursor-default"
                 title={`Deuda pendiente: Bs. ${debtAmount}`}
               >
                 <DollarSign className="w-4 h-4" />
               </button>
             ) : (
-              <button 
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  const isCondominio = (row.CantidadInmuebles && parseInt(row.CantidadInmuebles) > 1) || 
-                                       (row.Contribuyente && row.Contribuyente.toUpperCase().includes('CONDOMINIO'));
-                  
+                  const isCondominio = (row.CantidadInmuebles && parseInt(row.CantidadInmuebles) > 1) ||
+                    (row.Contribuyente && row.Contribuyente.toUpperCase().includes('CONDOMINIO'));
+
                   if (isCondominio) {
                     // Open view modal to let them select specific unit
                     setViewData(row);
@@ -2577,7 +2577,7 @@ function ContribuyentesPageContent() {
                 <Download className="w-4 h-4" />
               </button>
             )}
-            <button 
+            <button
               className={`${hasAgreement ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-slate-50 text-slate-400 cursor-default'} p-1.5 rounded transition-colors`}
               title={hasAgreement ? 'Tiene convenio activo' : 'Sin convenios'}
             >
@@ -2604,8 +2604,8 @@ function ContribuyentesPageContent() {
   ];
 
   const inactiveColumns = [
-    { 
-      key: 'cod_cont', 
+    {
+      key: 'cod_cont',
       header: 'Código',
       render: (row: any) => <span className="font-bold text-slate-700">{row.cod_cont || row.CodCont || 'N/A'}</span>
     },
@@ -2624,8 +2624,8 @@ function ContribuyentesPageContent() {
       key: 'Motivo',
       header: 'Motivo de Baja',
       render: (row: any) => {
-        const auditLog = auditLogs?.find((log: any) => 
-          (log.action === 'ELIMINAR_CONTRIBUYENTE' || log.action === 'DESACTIVAR_CONTRIBUYENTE') && 
+        const auditLog = auditLogs?.find((log: any) =>
+          (log.action === 'ELIMINAR_CONTRIBUYENTE' || log.action === 'DESACTIVAR_CONTRIBUYENTE') &&
           log.details.includes(row.Identidad)
         );
         let motivo = 'No registrado';
@@ -2633,7 +2633,7 @@ function ContribuyentesPageContent() {
           try {
             const parsed = JSON.parse(auditLog.details);
             motivo = parsed.motivo || motivo;
-          } catch(e) {}
+          } catch (e) { }
         }
         return <p className="text-[10px] text-slate-600 italic max-w-[250px] line-clamp-3">{motivo}</p>;
       }
@@ -2667,8 +2667,8 @@ function ContribuyentesPageContent() {
         <div className="flex items-center gap-3">
           <div className="relative inline-block text-left">
             <div className="inline-flex shadow-sm rounded-md overflow-hidden">
-              <button 
-                onClick={() => exportarExcelContribuyentes(tipoFiltroClasificacion)} 
+              <button
+                onClick={() => exportarExcelContribuyentes(tipoFiltroClasificacion)}
                 className="bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-2 text-xs font-bold transition-colors flex items-center gap-1.5"
                 title={`Descargar Excel con Logos (${tipoFiltroClasificacion.toUpperCase()})`}
               >
@@ -2730,31 +2730,28 @@ function ContribuyentesPageContent() {
           </span>
           <button
             onClick={() => setTipoFiltroClasificacion('todos')}
-            className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
-              tipoFiltroClasificacion === 'todos'
-                ? 'bg-white text-slate-800 shadow-xs border border-slate-200'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+            className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${tipoFiltroClasificacion === 'todos'
+              ? 'bg-white text-slate-800 shadow-xs border border-slate-200'
+              : 'text-slate-600 hover:text-slate-900'
+              }`}
           >
             Todos ({contribuyentes.length})
           </button>
           <button
             onClick={() => setTipoFiltroClasificacion('residencial')}
-            className={`px-3 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1 ${
-              tipoFiltroClasificacion === 'residencial'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-emerald-700'
-            }`}
+            className={`px-3 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1 ${tipoFiltroClasificacion === 'residencial'
+              ? 'bg-emerald-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-emerald-700'
+              }`}
           >
             <HomeIcon className="w-3 h-3" /> Residenciales
           </button>
           <button
             onClick={() => setTipoFiltroClasificacion('comercial')}
-            className={`px-3 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1 ${
-              tipoFiltroClasificacion === 'comercial'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-blue-700'
-            }`}
+            className={`px-3 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1 ${tipoFiltroClasificacion === 'comercial'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-blue-700'
+              }`}
           >
             <Building className="w-3 h-3" /> Comerciales
           </button>
@@ -2777,7 +2774,7 @@ function ContribuyentesPageContent() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="p-6 overflow-y-auto space-y-6">
               {/* Bloque Superior: QR Oficial del Contribuyente y Estatus de Solvencia */}
               {(() => {
@@ -2900,18 +2897,18 @@ function ContribuyentesPageContent() {
                 </div>
                 <div className="bg-emerald-50 p-3 rounded-lg border border-emerald-100 col-span-1">
                   <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1 block">Saldo a Favor</span>
-                  <p className="text-lg font-black text-emerald-700">Bs. {viewData.SaldoFavor ? Number(viewData.SaldoFavor).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2}) : '0,00'}</p>
+                  <p className="text-lg font-black text-emerald-700">Bs. {viewData.SaldoFavor ? Number(viewData.SaldoFavor).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00'}</p>
                 </div>
               </div>
-              
+
               {/* Ficha de Censo Inmobiliario */}
               {(() => {
                 const userInms = inmuebles.filter((i: any) =>
-                  (i.identidad || '').replace(/-/g,'').toUpperCase() === (viewData?.Identidad || '').replace(/-/g,'').toUpperCase()
+                  (i.identidad || '').replace(/-/g, '').toUpperCase() === (viewData?.Identidad || '').replace(/-/g, '').toUpperCase()
                 );
-                
+
                 if (userInms.length === 0) return null;
-                
+
                 return (
                   <div className="mt-6 bg-slate-50 border border-slate-200 rounded p-4">
                     <h4 className="font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-2 text-xs">
@@ -2921,7 +2918,7 @@ function ContribuyentesPageContent() {
                       {userInms.map((inm: any, idx: number) => (
                         <div key={idx} className="bg-white p-3 rounded border border-slate-200 shadow-sm grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                           <div className="col-span-2 md:col-span-4 border-b border-slate-100 pb-2 mb-1 flex items-center justify-between">
-                            <span className="font-bold text-blue-700">{inm.inmueble || inm.cod_cont || `Inmueble ${idx+1}`}</span>
+                            <span className="font-bold text-blue-700">{inm.inmueble || inm.cod_cont || `Inmueble ${idx + 1}`}</span>
                             <div className="flex items-center gap-2">
                               <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded text-[10px] font-medium">{inm.tipo || 'N/A'}</span>
                               <button
@@ -2935,7 +2932,7 @@ function ContribuyentesPageContent() {
                               </button>
                             </div>
                           </div>
-                          
+
                           <div>
                             <span className="block text-[10px] text-slate-400 font-bold uppercase">Clasificación</span>
                             <span className="font-medium text-slate-700">{inm.clasificacion || 'Residencial'}</span>
@@ -2962,7 +2959,7 @@ function ContribuyentesPageContent() {
                   </div>
                 );
               })()}
-              
+
               {viewCalculo && (
                 <div className="mt-6 bg-slate-50 border border-slate-200 rounded p-4">
                   <h4 className="font-bold text-slate-700 uppercase tracking-wide mb-3 flex items-center gap-2 text-xs">
@@ -2974,14 +2971,14 @@ function ContribuyentesPageContent() {
                       <p className="mb-1"><span className="font-semibold text-slate-700">Factor Multiplicador:</span> {viewCalculo.factor} TCMMV</p>
                     </div>
                     <div>
-                      <p className="mb-1"><span className="font-semibold text-slate-700">Tasa de Cambio Oficial:</span> {Number(viewCalculo.tasaBcv || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:4})} Bs</p>
+                      <p className="mb-1"><span className="font-semibold text-slate-700">Tasa de Cambio Oficial:</span> {Number(viewCalculo.tasaBcv || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} Bs</p>
                     </div>
                     <div className="md:col-span-2 pt-2 border-t border-slate-100 flex justify-between items-center">
-                      <p className="text-xs font-medium">Fórmula: {viewCalculo.factor} × {Number(viewCalculo.tasaBcv || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:4})} Bs</p>
-                      <p className="text-lg font-bold text-green-700">Total Mensual: Bs. {Number(viewCalculo.totalBs || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</p>
+                      <p className="text-xs font-medium">Fórmula: {viewCalculo.factor} × {Number(viewCalculo.tasaBcv || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} Bs</p>
+                      <p className="text-lg font-bold text-green-700">Total Mensual: Bs. {Number(viewCalculo.totalBs || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                     </div>
                   </div>
-                  
+
                   {viewCalculo.desglose && viewCalculo.desglose.length > 0 && (
                     <div className="mt-4 border border-slate-200 rounded overflow-hidden shadow-sm">
                       <div className="bg-slate-100 px-3 py-2 border-b border-slate-200">
@@ -3002,8 +2999,8 @@ function ContribuyentesPageContent() {
                               <tr key={i} className="border-b border-slate-100 last:border-0">
                                 <td className="px-3 py-2 font-medium">{item.numeracion}</td>
                                 <td className="px-3 py-2">{item.leyenda}</td>
-                                <td className="px-3 py-2 text-right">{Number(item.factor || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
-                                <td className="px-3 py-2 text-right font-bold text-green-700">{Number(item.montoBs || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                                <td className="px-3 py-2 text-right">{Number(item.factor || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                <td className="px-3 py-2 text-right font-bold text-green-700">{Number(item.montoBs || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -3022,7 +3019,7 @@ function ContribuyentesPageContent() {
                     <h4 className="font-bold text-red-800 text-base">Estado de Cuenta (Deuda Actual)</h4>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button 
+                    <button
                       type="button"
                       onClick={() => imprimirEstadoDeCuenta('agrupado')}
                       className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-900 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-95"
@@ -3030,7 +3027,7 @@ function ContribuyentesPageContent() {
                     >
                       <FileText className="w-4 h-4 text-amber-400" /> 📦 Exportar Agrupado (Período)
                     </button>
-                    <button 
+                    <button
                       type="button"
                       onClick={() => imprimirEstadoDeCuenta('detallada')}
                       className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-all hover:scale-[1.02] active:scale-95"
@@ -3049,22 +3046,20 @@ function ContribuyentesPageContent() {
                       <button
                         type="button"
                         onClick={() => setTipoVistaDeuda('agrupado')}
-                        className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
-                          tipoVistaDeuda === 'agrupado'
-                            ? 'bg-slate-900 text-white shadow-sm'
-                            : 'text-slate-700 hover:bg-slate-300/60'
-                        }`}
+                        className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${tipoVistaDeuda === 'agrupado'
+                          ? 'bg-slate-900 text-white shadow-sm'
+                          : 'text-slate-700 hover:bg-slate-300/60'
+                          }`}
                       >
                         📦 Agrupado por Período
                       </button>
                       <button
                         type="button"
                         onClick={() => setTipoVistaDeuda('detallada')}
-                        className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${
-                          tipoVistaDeuda === 'detallada'
-                            ? 'bg-red-600 text-white shadow-sm'
-                            : 'text-slate-700 hover:bg-slate-300/60'
-                        }`}
+                        className={`px-3.5 py-1.5 rounded-md text-xs font-bold transition-all ${tipoVistaDeuda === 'detallada'
+                          ? 'bg-red-600 text-white shadow-sm'
+                          : 'text-slate-700 hover:bg-slate-300/60'
+                          }`}
                       >
                         📋 Detallada (Mes a Mes)
                       </button>
@@ -3087,7 +3082,7 @@ function ContribuyentesPageContent() {
                     const periodoTexto = calcularPeriodoDeudas(deudas);
 
                     const userInms = inmuebles.filter((i: any) =>
-                      (i.identidad || '').replace(/-/g,'').toUpperCase() === (viewData?.Identidad || '').replace(/-/g,'').toUpperCase()
+                      (i.identidad || '').replace(/-/g, '').toUpperCase() === (viewData?.Identidad || '').replace(/-/g, '').toUpperCase()
                     );
                     const cleanCode = (s: any) => String(s || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
 
@@ -3120,12 +3115,12 @@ function ContribuyentesPageContent() {
                           if (sumMMV > 0) base = parseFloat((sumMMV * tcmmv).toFixed(2));
                         }
                       }
-                      
+
                       let montoPendiente = 0;
                       let tasaPago = null;
                       viewPagos.filter((p: any) => p.estado === 'Por Verificar').forEach((p: any) => {
                         let det: any = {};
-                        try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+                        try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) { }
                         const refs: string[] = det.recibos || [];
                         if (refs.includes(f.referencia)) {
                           const montoPago = parseFloat(String(p.monto || '0').replace(/[^\d.]/g, '')) || 0;
@@ -3164,24 +3159,24 @@ function ContribuyentesPageContent() {
                         <div className="p-6 text-center">
                           <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-2" />
                           <p className="text-slate-600 font-medium mb-4">El contribuyente está solvente.</p>
-                          
+
                           <div className="max-w-xs mx-auto bg-green-50 p-4 rounded-lg border border-green-100">
                             {viewData.isCondominio ? (
                               <div className="space-y-3">
                                 <label className="text-xs font-bold text-green-800 block text-left">Seleccione el Inmueble:</label>
-                                <select 
+                                <select
                                   className="w-full text-sm p-2 border border-green-200 rounded text-slate-700 bg-white"
                                   value={selectedSolvenciaInmueble}
                                   onChange={(e) => setSelectedSolvenciaInmueble(e.target.value)}
                                 >
                                   <option value="">-- Condominio General --</option>
                                   {viewCalculo?.misInmuebles?.map((inm: any, idx: number) => (
-                                    <option key={idx} value={inm.inmueble || `Local ${idx+1}`}>
-                                      {inm.inmueble || `Local ${idx+1}`} - {inm.actividad_principal || 'Residencial'}
+                                    <option key={idx} value={inm.inmueble || `Local ${idx + 1}`}>
+                                      {inm.inmueble || `Local ${idx + 1}`} - {inm.actividad_principal || 'Residencial'}
                                     </option>
                                   ))}
                                 </select>
-                                <button 
+                                <button
                                   onClick={() => generarSolvenciaIndividual(viewData, selectedSolvenciaInmueble)}
                                   className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded shadow-sm text-sm font-bold flex items-center justify-center gap-2 transition-colors"
                                 >
@@ -3190,7 +3185,7 @@ function ContribuyentesPageContent() {
                                 </button>
                               </div>
                             ) : (
-                              <button 
+                              <button
                                 onClick={() => generarSolvenciaIndividual(viewData, 'general')}
                                 className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded shadow-sm text-sm font-bold flex items-center justify-center gap-2 transition-colors"
                               >
@@ -3214,7 +3209,7 @@ function ContribuyentesPageContent() {
                             </span>
                             <span className="text-xs text-slate-500 font-medium">({deudas.length} mes{deudas.length === 1 ? '' : 'es'})</span>
                           </div>
-                          <span className="text-xl font-black text-red-600">Bs. {totalBs.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+                          <span className="text-xl font-black text-red-600">Bs. {totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                         </div>
 
                         {/* OPCIÓN 1: VISTA AGRUPADA POR PERÍODO */}
@@ -3233,7 +3228,7 @@ function ContribuyentesPageContent() {
                                 </div>
                                 <div className="text-right">
                                   <div className="text-[10px] font-bold text-slate-400 uppercase">Monto Total Consolidado</div>
-                                  <div className="text-xl font-black text-indigo-700">Bs. {totalBs.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
+                                  <div className="text-xl font-black text-indigo-700">Bs. {totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                                 </div>
                               </div>
 
@@ -3273,11 +3268,11 @@ function ContribuyentesPageContent() {
                               </thead>
                               <tbody>
                                 {deudas.map((d: any, idx: number) => {
-                                  const MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+                                  const MESES = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
                                   let mesLabel = d.emision || 'N/A';
                                   if (d.emision) {
                                     const parts = d.emision.split('-');
-                                    if (parts.length >= 2) mesLabel = `${MESES[parseInt(parts[1])-1] || parts[1]} ${parts[0]}`;
+                                    if (parts.length >= 2) mesLabel = `${MESES[parseInt(parts[1]) - 1] || parts[1]} ${parts[0]}`;
                                   }
                                   return (
                                     <tr key={idx} className="border-b border-slate-100 last:border-0 bg-white group">
@@ -3299,12 +3294,12 @@ function ContribuyentesPageContent() {
                                         {getMontoActual(d) <= 0 && d.estado !== 'Abonado' && d.estado !== 'Pagado' ? (
                                           <span className="text-emerald-600">En Verificación</span>
                                         ) : (
-                                          getMontoActual(d).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})
+                                          getMontoActual(d).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                                         )}
                                       </td>
                                       <td className="px-4 py-2 text-center">
                                         <div className="flex items-center justify-center gap-1.5">
-                                          <button 
+                                          <button
                                             type="button"
                                             onClick={() => {
                                               setModificandoMes(d);
@@ -3316,7 +3311,7 @@ function ContribuyentesPageContent() {
                                           >
                                             <Edit2 className="w-3.5 h-3.5" />
                                           </button>
-                                          <button 
+                                          <button
                                             onClick={() => handleDeleteFactura(d)}
                                             className="text-red-400 hover:text-red-600 p-1 rounded-full hover:bg-red-50 transition-colors"
                                             title="Eliminar Deuda"
@@ -3347,7 +3342,7 @@ function ContribuyentesPageContent() {
 
                 pagosConv.forEach((p: any) => {
                   let det: any = {};
-                  try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+                  try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) { }
                   if (p.estado === 'Aprobado' || p.estado === 'Conciliado') {
                     if (det.cuotas && Array.isArray(det.cuotas)) {
                       det.cuotas.forEach((cq: any) => {
@@ -3368,14 +3363,14 @@ function ContribuyentesPageContent() {
                     try {
                       const meta = JSON.parse(conv.documento_url.slice(5));
                       if (meta.pago_inicial) cuotaInicialPactada = parseFloat(meta.pago_inicial) || 0;
-                    } catch(e){}
+                    } catch (e) { }
                   }
 
                   let pagoInicialCobradoReal = false;
                   let pagoInicialPagado = 0;
                   pagosConv.forEach((p: any) => {
                     let det: any = {};
-                    try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+                    try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) { }
                     const isThisConv = det.convenio_numero === conv.numero || (p.referencia && p.referencia.includes(conv.numero));
                     const isIni = (det.cuota_pagada && det.cuota_pagada.includes('Inicial')) || (det.concepto && det.concepto.toLowerCase().includes('inicial'));
                     if (isThisConv && isIni) {
@@ -3479,11 +3474,10 @@ function ContribuyentesPageContent() {
                                   <td className="px-4 py-2 font-medium">{cq.label}</td>
                                   <td className="px-4 py-2 font-mono text-[11px]">{cq.fecha}</td>
                                   <td className="px-4 py-2 text-center">
-                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                      cq.pagado
-                                        ? 'bg-emerald-100 text-emerald-700'
-                                        : 'bg-rose-100 text-rose-700'
-                                    }`}>
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${cq.pagado
+                                      ? 'bg-emerald-100 text-emerald-700'
+                                      : 'bg-rose-100 text-rose-700'
+                                      }`}>
                                       {cq.pagado ? '✓ Pagada' : 'Pendiente'}
                                     </span>
                                   </td>
@@ -3527,13 +3521,12 @@ function ContribuyentesPageContent() {
                             <td className="px-4 py-2 font-medium text-slate-700 text-xs">{s.descripcion}</td>
                             <td className="px-4 py-2 text-slate-500 text-xs">{s.fecha}</td>
                             <td className="px-4 py-2 text-center">
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                s.estado === 'Pendiente' ? 'bg-red-100 text-red-700' :
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${s.estado === 'Pendiente' ? 'bg-red-100 text-red-700' :
                                 s.estado === 'Por Verificar' ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-slate-100 text-slate-600'
-                              }`}>{s.estado}</span>
+                                  'bg-slate-100 text-slate-600'
+                                }`}>{s.estado}</span>
                             </td>
-                            <td className="px-4 py-2 text-right font-bold text-purple-700">Bs. {Number(s.monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                            <td className="px-4 py-2 text-right font-bold text-purple-700">Bs. {Number(s.monto || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -3566,11 +3559,10 @@ function ContribuyentesPageContent() {
                             <td className="px-4 py-2 text-xs text-emerald-700 font-semibold capitalize">{s.tipo?.replace('_', ' ')}</td>
                             <td className="px-4 py-2 text-slate-700 text-xs">{s.descripcion}</td>
                             <td className="px-4 py-2">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                s.estado === 'Pagado' ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'
-                              }`}>{s.estado}</span>
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${s.estado === 'Pagado' ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'
+                                }`}>{s.estado}</span>
                             </td>
-                            <td className="px-4 py-2 text-right font-bold text-emerald-600">Bs. {Number(s.monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                            <td className="px-4 py-2 text-right font-bold text-emerald-600">Bs. {Number(s.monto || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -3590,13 +3582,13 @@ function ContribuyentesPageContent() {
                     const procesadas = (recibos || [])
                       .filter((f: any) => f.identidad === viewData.Identidad || f.contribuyente === viewData.Contribuyente || f.contribuyente === viewData.Identidad)
                       .filter((f: any) => f.estado !== 'Pendiente' && f.estado !== 'Abonado');
-                      
+
                     if (procesadas.length === 0) {
                       return <p className="p-4 text-sm text-slate-500 text-center">No hay recibos procesados (pagados, anulados o reversados).</p>;
                     }
 
                     return (
-                      <table className="w-full text-sm text-left" style={{minWidth:'850px'}}>
+                      <table className="w-full text-sm text-left" style={{ minWidth: '850px' }}>
                         <thead className="bg-slate-100 text-slate-500 font-medium text-[10px] uppercase">
                           <tr>
                             <th className="px-4 py-2">Referencia</th>
@@ -3612,7 +3604,7 @@ function ContribuyentesPageContent() {
                           {procesadas.map((d: any, idx: number) => {
                             // Buscar pago relacionado para obtener cajero y fecha
                             const pagoRel = viewPagos.find((p: any) => {
-                              const pDet = typeof p.detalles === 'string' ? (() => { try { return JSON.parse(p.detalles); } catch(e){return {};} })() : (p.detalles || {});
+                              const pDet = typeof p.detalles === 'string' ? (() => { try { return JSON.parse(p.detalles); } catch (e) { return {}; } })() : (p.detalles || {});
                               return JSON.stringify(pDet).includes(d.referencia);
                             });
                             let cajeroNombre = '—';
@@ -3621,44 +3613,44 @@ function ContribuyentesPageContent() {
                               try {
                                 const pDet = typeof pagoRel.detalles === 'string' ? JSON.parse(pagoRel.detalles) : (pagoRel.detalles || {});
                                 cajeroNombre = pDet.cajero || pDet.usuario || pDet.operador || pagoRel.cajero || '—';
-                              } catch(e){}
+                              } catch (e) { }
                               fechaPago = pagoRel.created_at ? new Date(pagoRel.created_at).toLocaleDateString('es-VE') : '—';
                             }
                             // Período desde la emisión de la recibo
-                            const MESES_NOM = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+                            const MESES_NOM = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
                             const getMesFull = (fecha: string) => {
                               if (!fecha) return '—';
                               const p = fecha.split('-');
-                              return p.length >= 2 ? `${MESES_NOM[parseInt(p[1])-1]} ${p[0]}` : fecha;
+                              return p.length >= 2 ? `${MESES_NOM[parseInt(p[1]) - 1]} ${p[0]}` : fecha;
                             };
                             const periodoLabel = getMesFull(d.emision);
                             let finalMonto = Number(parseFloat(String(d.monto || '0').replace(/[^\d.]/g, '')));
                             if (d.estado !== 'Abonado' && d.referencia?.startsWith('CM-') && typeof tcmmv !== 'undefined' && tcmmv && tcmmv > 0) {
-                               const cleanStr = (s: any) => String(s || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-                               const refClean = cleanStr(d.referencia);
-                               const userInmsHist = inmuebles.filter((i: any) =>
-                                 (i.identidad || '').replace(/-/g,'').toUpperCase() === (viewData?.Identidad || '').replace(/-/g,'').toUpperCase() &&
-                                 i.estado !== 'Eliminado'
-                               );
-                               const specificInms = userInmsHist.filter((inm: any) => {
-                                 const inmClean = cleanStr(inm.inmueble || (inm as any).Inmueble);
-                                 const isGenericInm = inmClean.startsWith('inmueble') || inmClean.startsWith('local');
-                                 return !isGenericInm && inmClean && inmClean.length > 2 && refClean.includes(inmClean);
-                               });
-                               const targetInms = specificInms.length > 0 ? specificInms : userInmsHist;
-                               if (targetInms.length > 0) {
-                                 let sumMMV = 0;
-                                 targetInms.forEach((inm: any) => {
-                                   const cant = parseFloat(inm.cant_inmuebles || 1);
-                                   const mmv = parseFloat(inm.mmv_mes || 0);
-                                   if (mmv > 0) sumMMV += cant * mmv;
-                                 });
-                                 if (sumMMV > 0) finalMonto = parseFloat((sumMMV * tcmmv).toFixed(2));
-                               }
+                              const cleanStr = (s: any) => String(s || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                              const refClean = cleanStr(d.referencia);
+                              const userInmsHist = inmuebles.filter((i: any) =>
+                                (i.identidad || '').replace(/-/g, '').toUpperCase() === (viewData?.Identidad || '').replace(/-/g, '').toUpperCase() &&
+                                i.estado !== 'Eliminado'
+                              );
+                              const specificInms = userInmsHist.filter((inm: any) => {
+                                const inmClean = cleanStr(inm.inmueble || (inm as any).Inmueble);
+                                const isGenericInm = inmClean.startsWith('inmueble') || inmClean.startsWith('local');
+                                return !isGenericInm && inmClean && inmClean.length > 2 && refClean.includes(inmClean);
+                              });
+                              const targetInms = specificInms.length > 0 ? specificInms : userInmsHist;
+                              if (targetInms.length > 0) {
+                                let sumMMV = 0;
+                                targetInms.forEach((inm: any) => {
+                                  const cant = parseFloat(inm.cant_inmuebles || 1);
+                                  const mmv = parseFloat(inm.mmv_mes || 0);
+                                  if (mmv > 0) sumMMV += cant * mmv;
+                                });
+                                if (sumMMV > 0) finalMonto = parseFloat((sumMMV * tcmmv).toFixed(2));
+                              }
                             }
                             if (d.estado === 'Pagado') {
                               const pRel = viewPagos.filter((p: any) => {
-                                const pDet = typeof p.detalles === 'string' ? (() => { try { return JSON.parse(p.detalles); } catch(e){return {};} })() : p.detalles;
+                                const pDet = typeof p.detalles === 'string' ? (() => { try { return JSON.parse(p.detalles); } catch (e) { return {}; } })() : p.detalles;
                                 return JSON.stringify(pDet || {}).includes(d.referencia);
                               });
                               if (pRel.length > 1) finalMonto = pRel.reduce((s: number, p: any) => s + (parseFloat(String(p.monto || '0').replace(/[^\d.]/g, '')) || 0), 0);
@@ -3672,25 +3664,24 @@ function ContribuyentesPageContent() {
                                   <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] font-semibold">{cajeroNombre}</span>
                                 </td>
                                 <td className="px-4 py-2">
-                                  <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                                    d.estado === 'Pagado' ? 'bg-emerald-100 text-emerald-800' :
+                                  <span className={`px-2 py-1 rounded text-xs font-semibold ${d.estado === 'Pagado' ? 'bg-emerald-100 text-emerald-800' :
                                     d.estado === 'Por Verificar' ? 'bg-orange-100 text-orange-800' :
-                                    'bg-red-100 text-red-800'
-                                  }`}>{d.estado}</span>
+                                      'bg-red-100 text-red-800'
+                                    }`}>{d.estado}</span>
                                 </td>
                                 <td className="px-4 py-2 font-bold text-slate-800">
-                                  {finalMonto.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}
+                                  {finalMonto.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </td>
                                 <td className="px-4 py-2 flex justify-center gap-2">
                                   {(d.estado === 'Pagado' || d.estado === 'Por Verificar') && (
                                     <>
-                                      <button 
+                                      <button
                                         onClick={() => setActionModal({ type: 'Reversar', recibo: d })}
                                         className="text-orange-600 bg-orange-50 hover:bg-orange-100 px-2 py-1 rounded text-xs font-medium transition-colors"
                                       >
                                         Reversar
                                       </button>
-                                      <button 
+                                      <button
                                         onClick={() => setActionModal({ type: 'Anular', recibo: d })}
                                         className="text-red-600 bg-red-50 hover:bg-red-100 px-2 py-1 rounded text-xs font-medium transition-colors"
                                       >
@@ -3720,7 +3711,7 @@ function ContribuyentesPageContent() {
                   <p className="p-4 text-sm text-slate-500 text-center">No hay pagos registrados para este contribuyente.</p>
                 ) : (
                   <div className="bg-white overflow-x-auto">
-                    <table className="w-full text-sm text-left" style={{minWidth: '700px'}}>
+                    <table className="w-full text-sm text-left" style={{ minWidth: '700px' }}>
                       <thead className="bg-indigo-50 text-indigo-700 font-medium text-[10px] uppercase">
                         <tr>
                           <th className="px-3 py-2">Fecha</th>
@@ -3734,7 +3725,7 @@ function ContribuyentesPageContent() {
                       <tbody>
                         {viewPagos.map((p: any, idx: number) => {
                           let det: any = {};
-                          try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+                          try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) { }
                           const esAbono = det.es_abono === true;
                           const metodo = p.tipo === 'Debito' ? 'Punto de Venta' : p.tipo || '---';
                           let cajeroNombre = det.cajero || det.usuario || det.operador || det.analista || p.cajero;
@@ -3746,13 +3737,12 @@ function ContribuyentesPageContent() {
                           return (
                             <tr key={idx} className={`border-b border-slate-100 last:border-0 hover:bg-indigo-50/20 ${esAbono ? 'bg-amber-50/20' : ''}`}>
                               <td className="px-3 py-2 text-slate-500 text-xs">{p.created_at ? new Date(p.created_at).toLocaleDateString('es-VE') : '---'}</td>
-                              <td className="px-3 py-2 font-bold text-slate-800">Bs. {Number(p.monto || 0).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                              <td className="px-3 py-2 font-bold text-slate-800">Bs. {Number(p.monto || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                               <td className="px-3 py-2">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                  metodo === 'Punto de Venta' ? 'bg-blue-100 text-blue-700' :
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${metodo === 'Punto de Venta' ? 'bg-blue-100 text-blue-700' :
                                   metodo === 'Transferencia' ? 'bg-purple-100 text-purple-700' :
-                                  'bg-slate-100 text-slate-600'
-                                }`}>{metodo}</span>
+                                    'bg-slate-100 text-slate-600'
+                                  }`}>{metodo}</span>
                               </td>
                               <td className="px-3 py-2">
                                 {esAbono ? (
@@ -3765,11 +3755,10 @@ function ContribuyentesPageContent() {
                                 <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] font-semibold">{cajeroNombre}</span>
                               </td>
                               <td className="px-3 py-2">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                  p.estado === 'Aprobado' ? 'bg-emerald-100 text-emerald-800' :
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${p.estado === 'Aprobado' ? 'bg-emerald-100 text-emerald-800' :
                                   p.estado === 'Por Verificar' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-red-100 text-red-800'
-                                }`}>{p.estado}</span>
+                                    'bg-red-100 text-red-800'
+                                  }`}>{p.estado}</span>
                               </td>
                             </tr>
                           );
@@ -3803,13 +3792,13 @@ function ContribuyentesPageContent() {
 
                     userConvenios.forEach((conv: any) => {
                       let cuotasParsed = [];
-                      try { cuotasParsed = JSON.parse(conv.detalle_cuotas || '[]'); } catch(e){}
-                      
+                      try { cuotasParsed = JSON.parse(conv.detalle_cuotas || '[]'); } catch (e) { }
+
                       cuotasParsed.forEach((c: any) => {
                         if (c.estado === 'Pendiente') {
                           const isVencida = c.fecha <= hoy;
                           if (isVencida) totalVencido += parseFloat(c.monto || '0');
-                          
+
                           cuotasMostradas.push({
                             numeroConv: conv.numero,
                             cuotaId: c.id + 1,
@@ -3898,25 +3887,25 @@ function ContribuyentesPageContent() {
             </div>
             <div className="p-6">
               <p className="text-sm text-slate-600 mb-4">
-                Está a punto de <strong>{actionModal.type.toLowerCase()}</strong> la recibo <span className="font-bold">{actionModal.recibo.referencia}</span>. 
+                Está a punto de <strong>{actionModal.type.toLowerCase()}</strong> la recibo <span className="font-bold">{actionModal.recibo.referencia}</span>.
                 Por favor, indique el motivo. <span className="text-red-600 font-bold">* Obligatorio</span>
               </p>
-              
+
               <textarea
                 value={actionNota}
                 onChange={e => setActionNota(e.target.value)}
                 placeholder="Ej. Error en la emisión, pago duplicado..."
                 className="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-slate-500 min-h-[100px] outline-none"
               ></textarea>
-              
+
               <div className="mt-6 flex justify-end gap-3">
-                <button 
+                <button
                   onClick={() => setActionModal(null)}
                   className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium text-sm transition-colors"
                 >
                   Cancelar
                 </button>
-                <button 
+                <button
                   onClick={handleActionSubmit}
                   disabled={isProcessingAction || !actionNota.trim()}
                   className={`px-6 py-2 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50 ${actionModal.type === 'Anular' ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-600 hover:bg-orange-700'}`}
@@ -3941,25 +3930,25 @@ function ContribuyentesPageContent() {
             </div>
             <div className="p-6">
               <p className="text-sm text-slate-600 mb-4">
-                Está a punto de <strong>{statusModal.type.toLowerCase()}</strong> al contribuyente <span className="font-bold">{statusModal.row.Contribuyente}</span>. 
+                Está a punto de <strong>{statusModal.type.toLowerCase()}</strong> al contribuyente <span className="font-bold">{statusModal.row.Contribuyente}</span>.
                 Por favor, indique el motivo detallado de esta acción. <span className="text-red-600 font-bold">* Obligatorio</span>
               </p>
-              
+
               <textarea
                 value={statusNota}
                 onChange={e => setStatusNota(e.target.value)}
                 placeholder="Ej. Cese de actividades, orden de Alcaldía..."
                 className="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-slate-500 min-h-[100px] outline-none"
               ></textarea>
-              
+
               <div className="mt-6 flex justify-end gap-3">
-                <button 
+                <button
                   onClick={() => setStatusModal(null)}
                   className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium text-sm transition-colors"
                 >
                   Cancelar
                 </button>
-                <button 
+                <button
                   onClick={handleStatusSubmit}
                   disabled={isProcessingStatus || statusNota.trim().length < 10}
                   className={`px-6 py-2 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50 ${statusModal.type === 'Eliminar' ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'}`}
@@ -3980,7 +3969,7 @@ function ContribuyentesPageContent() {
           condominioIdentidad={selectedCondominioModal.identidad}
         />
       )}
-    
+
       {/* MODAL MODIFICAR ACTIVIDAD DE MES YA GENERADO */}
       {modificandoMes && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[150] flex items-center justify-center p-4">
@@ -3999,7 +3988,7 @@ function ContribuyentesPageContent() {
               <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs space-y-1">
                 <p><span className="font-bold text-slate-700">Factura / Referencia:</span> <span className="font-mono font-bold text-blue-700">{modificandoMes.referencia}</span></p>
                 <p><span className="font-bold text-slate-700">Período:</span> {modificandoMes.emision || 'N/A'}</p>
-                <p><span className="font-bold text-slate-700">Monto Actual:</span> Bs. {parseFloat(modificandoMes.monto || '0').toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})}</p>
+                <p><span className="font-bold text-slate-700">Monto Actual:</span> Bs. {parseFloat(modificandoMes.monto || '0').toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               </div>
 
               <div>
@@ -4088,7 +4077,7 @@ function ContribuyentesPageContent() {
         </div>
       )}
 
-</div>
+    </div>
   );
 }
 

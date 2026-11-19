@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { useEffect, useRef, memo } from 'react';
+import { MapContainer, TileLayer, CircleMarker, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
 
 export interface PuntoCatastral {
   id: string | number;
@@ -23,53 +22,43 @@ export interface PuntoCatastral {
   estado?: string;
 }
 
-function getMarkerColor(p: PuntoCatastral): { bg: string; border: string; icon: string; label: string } {
-  if (p.is_condominio || (p.tipo && p.tipo.toUpperCase() === 'CONDOMINIO') || (p.contribuyente && p.contribuyente.toUpperCase().includes('CONDOMINIO'))) {
-    return { bg: '#8b5cf6', border: '#c4b5fd', icon: '🏢', label: 'Condominio' };
+// Estilos de alto rendimiento para CircleMarker (Renderizado por Canvas de la GPU)
+function getPointStyle(tipo: string, isCondo: boolean, isSelected: boolean) {
+  if (isCondo || tipo === 'Condominio') {
+    return {
+      color: '#ffffff',
+      fillColor: '#8b5cf6', // Violeta / Púrpura
+      fillOpacity: isSelected ? 1 : 0.85,
+      weight: isSelected ? 3 : 1.5,
+      radius: isSelected ? 11 : 6.5
+    };
   }
-  const tipoUpper = (p.tipo || '').toUpperCase();
-  if (tipoUpper === 'COMERCIAL' || tipoUpper.includes('COMER') || tipoUpper.includes('INSTITUCIONAL')) {
-    return { bg: '#f97316', border: '#fdba74', icon: '🏪', label: 'Comercial' };
+  if (tipo === 'Comercial') {
+    return {
+      color: '#ffffff',
+      fillColor: '#f97316', // Naranja
+      fillOpacity: isSelected ? 1 : 0.85,
+      weight: isSelected ? 3 : 1.5,
+      radius: isSelected ? 11 : 6
+    };
   }
-  if (tipoUpper === 'INDUSTRIAL' || tipoUpper.includes('INDUS')) {
-    return { bg: '#ef4444', border: '#fca5a5', icon: '🏭', label: 'Industrial' };
+  if (tipo === 'Industrial') {
+    return {
+      color: '#ffffff',
+      fillColor: '#ef4444', // Rojo
+      fillOpacity: isSelected ? 1 : 0.85,
+      weight: isSelected ? 3 : 1.5,
+      radius: isSelected ? 11 : 6.5
+    };
   }
-  return { bg: '#10b981', border: '#6ee7b7', icon: '🏠', label: 'Residencial' };
-}
-
-function createCustomPin(p: PuntoCatastral, isSelected: boolean) {
-  const style = getMarkerColor(p);
-  const size = isSelected ? 42 : 30;
-  const fontSize = isSelected ? '18px' : '14px';
-
-  return L.divIcon({
-    html: `
-      <div style="
-        background: ${style.bg};
-        width: ${size}px;
-        height: ${size}px;
-        border-radius: 50% 50% 50% 0;
-        transform: rotate(-45deg);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 14px rgba(0,0,0,0.45);
-        border: ${isSelected ? '3px solid #ffffff' : '2px solid rgba(255,255,255,0.85)'};
-        cursor: pointer;
-        transition: transform 0.2s ease, width 0.2s ease, height 0.2s ease;
-      ">
-        <span style="
-          transform: rotate(45deg);
-          font-size: ${fontSize};
-          line-height: 1;
-        ">${style.icon}</span>
-      </div>
-    `,
-    className: 'custom-catastro-pin',
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size],
-    popupAnchor: [0, -size]
-  });
+  // Residencial
+  return {
+    color: '#ffffff',
+    fillColor: '#10b981', // Verde esmeralda
+    fillOpacity: isSelected ? 1 : 0.85,
+    weight: isSelected ? 3 : 1.5,
+    radius: isSelected ? 10 : 5.5
+  };
 }
 
 function MapAutoFlyTo({ focusedPoint }: { focusedPoint: PuntoCatastral | null }) {
@@ -80,7 +69,7 @@ function MapAutoFlyTo({ focusedPoint }: { focusedPoint: PuntoCatastral | null })
     if (focusedPoint && focusedPoint.lat && focusedPoint.lng) {
       if (lastIdRef.current !== focusedPoint.id) {
         lastIdRef.current = focusedPoint.id;
-        map.flyTo([focusedPoint.lat, focusedPoint.lng], 18, { duration: 1.2 });
+        map.flyTo([focusedPoint.lat, focusedPoint.lng], 18, { duration: 0.8 });
       }
     }
   }, [focusedPoint, map]);
@@ -94,12 +83,12 @@ interface CatastroMapaProps {
   onSelectPunto: (p: PuntoCatastral) => void;
 }
 
-export default function CatastroMapaInteractivo({
+function CatastroMapaBase({
   puntos,
   focusedPoint,
   onSelectPunto
 }: CatastroMapaProps) {
-  // Centro por defecto: Tucacas, Falcón
+  // Centro inicial: Tucacas, Falcón
   const centerLat = focusedPoint ? focusedPoint.lat : 10.7936;
   const centerLng = focusedPoint ? focusedPoint.lng : -68.318;
 
@@ -108,6 +97,7 @@ export default function CatastroMapaInteractivo({
       <MapContainer
         center={[centerLat, centerLng]}
         zoom={15}
+        preferCanvas={true} // ACELERACIÓN POR HARDWARE / CANVAS: renderiza miles de puntos a 60 FPS
         scrollWheelZoom={true}
         className="w-full h-full rounded-2xl"
         style={{ minHeight: '520px', zIndex: 10 }}
@@ -120,63 +110,31 @@ export default function CatastroMapaInteractivo({
 
         <MapAutoFlyTo focusedPoint={focusedPoint} />
 
+        {/* Renderizado ultraligero por Canvas: Cero lag y máxima fluidez */}
         {puntos.map((p) => {
           const isSelected = focusedPoint?.id === p.id;
-          const markerIcon = createCustomPin(p, isSelected);
-          const colorInfo = getMarkerColor(p);
+          const style = getPointStyle(p.tipo, !!p.is_condominio, isSelected);
 
           return (
-            <Marker
+            <CircleMarker
               key={p.id}
-              position={[p.lat, p.lng]}
-              icon={markerIcon}
+              center={[p.lat, p.lng]}
+              radius={style.radius}
+              pathOptions={{
+                color: style.color,
+                fillColor: style.fillColor,
+                fillOpacity: style.fillOpacity,
+                weight: style.weight
+              }}
               eventHandlers={{
                 click: () => onSelectPunto(p)
               }}
-            >
-              <Popup className="custom-catastro-popup">
-                <div className="p-1 space-y-1.5 max-w-[240px] text-stone-900 font-sans">
-                  <div className="flex items-center gap-1.5 border-b border-stone-200 pb-1">
-                    <span className="text-base">{colorInfo.icon}</span>
-                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded text-white" style={{ background: colorInfo.bg }}>
-                      {colorInfo.label}
-                    </span>
-                    {p.codigo && (
-                      <span className="text-[10px] font-mono text-stone-500 ml-auto">
-                        {p.codigo}
-                      </span>
-                    )}
-                  </div>
-                  <div>
-                    <h5 className="font-bold text-xs leading-tight text-stone-900">
-                      {p.contribuyente}
-                    </h5>
-                    <p className="text-[11px] font-semibold text-stone-600 font-mono">
-                      {p.identidad}
-                    </p>
-                  </div>
-                  {p.actividad && (
-                    <p className="text-[11px] text-stone-700 bg-stone-100 p-1 rounded">
-                      <strong>Uso:</strong> {p.actividad}
-                    </p>
-                  )}
-                  {p.direccion && (
-                    <p className="text-[10px] text-stone-500 leading-snug">
-                      📍 {p.direccion}
-                    </p>
-                  )}
-                  <button
-                    onClick={() => onSelectPunto(p)}
-                    className="w-full mt-1 bg-stone-900 hover:bg-orange-600 text-white text-[11px] font-bold py-1 px-2 rounded transition-colors"
-                  >
-                    Ver Ficha Completa
-                  </button>
-                </div>
-              </Popup>
-            </Marker>
+            />
           );
         })}
       </MapContainer>
     </div>
   );
 }
+
+export default memo(CatastroMapaBase);
