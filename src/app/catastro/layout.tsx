@@ -13,7 +13,8 @@ import {
   Home, 
   ShieldCheck, 
   Calculator, 
-  Compass 
+  Compass,
+  Radio
 } from 'lucide-react';
 
 interface CatastroLayoutProps {
@@ -40,6 +41,7 @@ export default function CatastroLayout({ children }: CatastroLayoutProps) {
     { name: 'Fichas Catastrales', href: '/catastro/fichas', icon: FileText },
     { name: 'Fichas / Documentos', href: '/catastro/documentos', icon: Compass },
     { name: 'Cálculo Derecho Frente', href: '/catastro/calculo', icon: Calculator },
+    { name: 'Sala Situacional GPS', href: '/catastro/sala-situacional', icon: Radio, highlight: true },
     { name: 'Censo Inmobiliario', href: '/catastro/censo', icon: Users },
     { name: 'Verificador Solvencias', href: '/catastro/solvencias', icon: ShieldCheck },
     { name: 'Emisión de Correos', href: '/catastro/correos', icon: Mail },
