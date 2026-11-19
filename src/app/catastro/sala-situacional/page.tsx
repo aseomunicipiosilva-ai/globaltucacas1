@@ -74,11 +74,36 @@ export default function SalaSituacionalCatastroPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // 1. Cargar pre-registros con coordenadas GPS capturadas en campo
-      const { data: preRegs } = await supabase
-        .from('pre_registros')
-        .select('*')
-        .not('coordenadas', 'is', null);
+      // 1. Cargar pre-registros con coordenadas GPS capturadas en campo (Paginado para traer todos los puntos, incluso los más recientes)
+      let allPreRegs: any[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data: chunk, error: chunkErr } = await supabase
+          .from('pre_registros')
+          .select('id, codigo, identidad, contribuyente, coordenadas, origen, tipo, actividad, direccion_exacta, domicilio_fiscal, is_condominio, cantidad_inmuebles, locales, fiscalizado')
+          .not('coordenadas', 'is', null)
+          .order('id', { ascending: false })
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+
+        if (chunkErr) {
+          console.error('Error paginando pre_registros:', chunkErr);
+          break;
+        }
+
+        if (chunk && chunk.length > 0) {
+          allPreRegs = allPreRegs.concat(chunk);
+          if (chunk.length < pageSize) {
+            hasMore = false;
+          } else {
+            page++;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
 
       // 2. Cargar inmuebles registrados del padrón
       const { data: inms } = await supabase
@@ -127,8 +152,8 @@ export default function SalaSituacionalCatastroPage() {
       };
 
       // Procesar puntos levantados con GPS en campo (Censo Catastro / Aseo)
-      if (preRegs && preRegs.length > 0) {
-        preRegs.forEach((r: any) => {
+      if (allPreRegs && allPreRegs.length > 0) {
+        allPreRegs.forEach((r: any) => {
           let lat: number | null = null;
           let lng: number | null = null;
 
