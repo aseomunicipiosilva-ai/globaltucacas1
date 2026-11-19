@@ -519,9 +519,14 @@ export default function SalaSituacionalCatastroPage() {
 
               {/* Coordenadas GPS */}
               <div className="bg-stone-900/90 p-3 rounded-xl border border-stone-800 space-y-1">
-                <span className="text-stone-400 font-bold uppercase text-[10px] flex items-center gap-1">
-                  <Navigation className="w-3.5 h-3.5 text-orange-400" /> Coordenadas Satelitales (WGS84)
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-stone-400 font-bold uppercase text-[10px] flex items-center gap-1">
+                    <Navigation className="w-3.5 h-3.5 text-orange-400" /> Coordenadas Satelitales (WGS84)
+                  </span>
+                  <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${selectedPunto.id.startsWith('prereg-') ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/60' : 'bg-amber-950 text-amber-300 border border-amber-800/60'}`}>
+                    {selectedPunto.id.startsWith('prereg-') ? '📍 GPS en Campo' : '🗺️ Georref. por Sector'}
+                  </span>
+                </div>
                 <p className="font-mono text-xs text-emerald-400 font-bold">
                   Lat: {selectedPunto.lat.toFixed(6)}, Lng: {selectedPunto.lng.toFixed(6)}
                 </p>
