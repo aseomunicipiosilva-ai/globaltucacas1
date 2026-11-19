@@ -157,6 +157,32 @@ function ValidarContent() {
       });
       setSolvenciaStatus(status);
 
+      // Registrar escaneo en audit_logs para reflejarse en tiempo real en la Sala Situacional
+      try {
+        const opParam = searchParams.get('op') || searchParams.get('operador') || searchParams.get('fiscal') || '';
+        let operadorNombre = opParam.trim();
+        if (!operadorNombre && typeof window !== 'undefined') {
+          operadorNombre = localStorage.getItem('operador_nombre') || localStorage.getItem('usuario_nombre') || 'OPERADOR';
+        }
+        if (!operadorNombre) operadorNombre = 'OPERADOR';
+        const inicial = operadorNombre.charAt(0).toUpperCase() || 'O';
+
+        await supabase.from('audit_logs').insert([{
+          user_id: operadorNombre,
+          action: 'QR_ESCANEADO',
+          details: JSON.stringify({
+            identidad: identidad,
+            codigo: mainInm.cod_cont || query,
+            contribuyente: mainInm.contribuyente || '',
+            operador: operadorNombre,
+            inicial: inicial,
+            timestamp: new Date().toISOString()
+          })
+        }]);
+      } catch (logErr) {
+        console.warn('No se pudo registrar log de escaneo QR:', logErr);
+      }
+
     } catch (e: any) {
       console.error(e);
       setError('Error al conectar con la base de datos municipal.');

@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, memo } from 'react';
-import { MapContainer, TileLayer, CircleMarker, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Marker, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 export interface PuntoAseo {
@@ -22,6 +23,11 @@ export interface PuntoAseo {
   tarifa_mensual?: number;
   lat: number;
   lng: number;
+  // Campos de escaneo QR por operadores
+  escaneado?: boolean;
+  operador?: string;
+  inicial_operador?: string;
+  escaneado_at?: string;
 }
 
 // Estilos de alto rendimiento para CircleMarker según Solvencia en Aseo
@@ -43,6 +49,44 @@ function getPointStyle(solvente: boolean, deuda: number, isSelected: boolean) {
     weight: isSelected ? 3 : 1.5,
     radius: isSelected ? 11 : (deuda > 1000 ? 7 : 6)
   };
+}
+
+// Icono morado con la letra inicial del operador adentro para puntos escaneados
+function createOperatorDivIcon(inicial: string, isSelected: boolean) {
+  const size = isSelected ? 32 : 26;
+  const fontSize = isSelected ? 13 : 11;
+  const border = isSelected ? 'border: 3px solid #ffffff;' : 'border: 2px solid #ffffff;';
+  const shadow = isSelected 
+    ? 'box-shadow: 0 0 15px rgba(139, 92, 246, 0.9), 0 4px 6px rgba(0,0,0,0.3);' 
+    : 'box-shadow: 0 0 10px rgba(139, 92, 246, 0.7), 0 2px 4px rgba(0,0,0,0.25);';
+
+  return L.divIcon({
+    className: 'custom-qr-operator-marker',
+    html: `
+      <div style="
+        width: ${size}px;
+        height: ${size}px;
+        background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+        color: #ffffff;
+        border-radius: 9999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-weight: 900;
+        font-size: ${fontSize}px;
+        line-height: 1;
+        ${border}
+        ${shadow}
+        transform: translate(-50%, -50%);
+        transition: transform 0.2s ease;
+      ">
+        ${inicial || 'O'}
+      </div>
+    `,
+    iconSize: [0, 0],
+    iconAnchor: [0, 0]
+  });
 }
 
 function MapAutoFlyTo({ focusedPoint }: { focusedPoint: PuntoAseo | null }) {
@@ -95,6 +139,23 @@ function AseoMapaBase({
 
         {puntos.map((p) => {
           const isSelected = focusedPoint?.id === p.id;
+
+          // Si fue escaneado con QR, se renderiza con color MORADO y la letra del operador adentro
+          if (p.escaneado) {
+            const inicial = (p.inicial_operador || (p.operador ? p.operador[0] : 'O')).toUpperCase();
+            return (
+              <Marker
+                key={p.id}
+                position={[p.lat, p.lng]}
+                icon={createOperatorDivIcon(inicial, isSelected)}
+                eventHandlers={{
+                  click: () => onSelectPunto(p)
+                }}
+              />
+            );
+          }
+
+          // Puntos normales: Verde si solvente, Rojo si moroso
           const style = getPointStyle(p.solvente, p.deuda_total, isSelected);
 
           return (

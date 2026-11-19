@@ -2,22 +2,22 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { 
-  Building2, 
-  MapPin, 
-  Search, 
-  Filter, 
-  Layers, 
-  RefreshCw, 
-  Home, 
-  Store, 
-  Factory, 
-  Building, 
-  X, 
-  CheckCircle, 
-  Compass, 
-  Navigation, 
-  FileText, 
+import {
+  Building2,
+  MapPin,
+  Search,
+  Filter,
+  Layers,
+  RefreshCw,
+  Home,
+  Store,
+  Factory,
+  Building,
+  X,
+  CheckCircle,
+  Compass,
+  Navigation,
+  FileText,
   ExternalLink,
   Phone,
   Maximize2
@@ -190,7 +190,7 @@ export default function SalaSituacionalCatastroPage() {
 
           const sectorName = inm.sector || 'Centro Tucacas';
           const baseCoord = SECTOR_COORDS[sectorName] || SECTOR_COORDS['Centro Tucacas'];
-          
+
           // Generar una ligera dispersión pseudo-aleatoria consistente para no solapar los pines en el centro del sector
           const jitterLat = ((idx * 9301 + 49297) % 233280 / 233280 - 0.5) * 0.007;
           const jitterLng = ((idx * 49297 + 9301) % 233280 / 233280 - 0.5) * 0.007;
@@ -302,11 +302,10 @@ export default function SalaSituacionalCatastroPage() {
 
       {/* ── KPI METRICS ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div 
+        <div
           onClick={() => setFiltroTipo('TODOS')}
-          className={`p-4 rounded-xl border transition-all cursor-pointer ${
-            filtroTipo === 'TODOS' ? 'bg-stone-800 border-orange-500 shadow-lg' : 'bg-stone-950 border-stone-800 hover:bg-stone-900'
-          }`}
+          className={`p-4 rounded-xl border transition-all cursor-pointer ${filtroTipo === 'TODOS' ? 'bg-stone-800 border-orange-500 shadow-lg' : 'bg-stone-950 border-stone-800 hover:bg-stone-900'
+            }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-xs text-stone-400 font-bold uppercase">Total Predios</span>
@@ -316,11 +315,10 @@ export default function SalaSituacionalCatastroPage() {
           <span className="text-[10px] text-stone-500">Puntos registrados</span>
         </div>
 
-        <div 
+        <div
           onClick={() => setFiltroTipo('Residencial')}
-          className={`p-4 rounded-xl border transition-all cursor-pointer ${
-            filtroTipo === 'Residencial' ? 'bg-stone-800 border-emerald-500 shadow-lg' : 'bg-stone-950 border-stone-800 hover:bg-stone-900'
-          }`}
+          className={`p-4 rounded-xl border transition-all cursor-pointer ${filtroTipo === 'Residencial' ? 'bg-stone-800 border-emerald-500 shadow-lg' : 'bg-stone-950 border-stone-800 hover:bg-stone-900'
+            }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-xs text-emerald-400 font-bold uppercase">Viviendas</span>
@@ -330,11 +328,10 @@ export default function SalaSituacionalCatastroPage() {
           <span className="text-[10px] text-stone-500">Residenciales</span>
         </div>
 
-        <div 
+        <div
           onClick={() => setFiltroTipo('Comercial')}
-          className={`p-4 rounded-xl border transition-all cursor-pointer ${
-            filtroTipo === 'Comercial' ? 'bg-stone-800 border-orange-500 shadow-lg' : 'bg-stone-950 border-stone-800 hover:bg-stone-900'
-          }`}
+          className={`p-4 rounded-xl border transition-all cursor-pointer ${filtroTipo === 'Comercial' ? 'bg-stone-800 border-orange-500 shadow-lg' : 'bg-stone-950 border-stone-800 hover:bg-stone-900'
+            }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-xs text-orange-400 font-bold uppercase">Comercios</span>
@@ -344,11 +341,10 @@ export default function SalaSituacionalCatastroPage() {
           <span className="text-[10px] text-stone-500">Locales y negocios</span>
         </div>
 
-        <div 
+        <div
           onClick={() => setFiltroTipo('Condominio')}
-          className={`p-4 rounded-xl border transition-all cursor-pointer ${
-            filtroTipo === 'Condominio' ? 'bg-stone-800 border-purple-500 shadow-lg' : 'bg-stone-950 border-stone-800 hover:bg-stone-900'
-          }`}
+          className={`p-4 rounded-xl border transition-all cursor-pointer ${filtroTipo === 'Condominio' ? 'bg-stone-800 border-purple-500 shadow-lg' : 'bg-stone-950 border-stone-800 hover:bg-stone-900'
+            }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-xs text-purple-400 font-bold uppercase">Condominios</span>
@@ -385,11 +381,10 @@ export default function SalaSituacionalCatastroPage() {
             <button
               key={tipo}
               onClick={() => setFiltroTipo(tipo)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
-                filtroTipo === tipo
-                  ? 'bg-orange-600 text-white shadow-sm'
-                  : 'bg-stone-900 text-stone-400 hover:bg-stone-800 hover:text-white border border-stone-800'
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${filtroTipo === tipo
+                ? 'bg-orange-600 text-white shadow-sm'
+                : 'bg-stone-900 text-stone-400 hover:bg-stone-800 hover:text-white border border-stone-800'
+                }`}
             >
               {tipo === 'TODOS' ? 'Todos los Puntos' : tipo}
             </button>
@@ -432,10 +427,9 @@ export default function SalaSituacionalCatastroPage() {
               {/* Header Ficha */}
               <div className="flex items-start justify-between border-b border-stone-800 pb-3">
                 <div className="flex items-center gap-2.5">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white text-lg ${
-                    selectedPunto.is_condominio ? 'bg-purple-600' :
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white text-lg ${selectedPunto.is_condominio ? 'bg-purple-600' :
                     selectedPunto.tipo === 'Comercial' ? 'bg-orange-600' : 'bg-emerald-600'
-                  }`}>
+                    }`}>
                     {selectedPunto.is_condominio ? '🏢' : selectedPunto.tipo === 'Comercial' ? '🏪' : '🏠'}
                   </div>
                   <div>
@@ -528,7 +522,7 @@ export default function SalaSituacionalCatastroPage() {
                     <div className="max-h-28 overflow-y-auto space-y-1 mt-2">
                       {selectedPunto.locales.map((loc: any, idx: number) => (
                         <div key={idx} className="bg-purple-950/60 p-1.5 rounded text-[11px] border border-purple-800/30 flex justify-between">
-                          <span className="font-bold text-stone-200">{loc.identificador || `Local ${idx+1}`}</span>
+                          <span className="font-bold text-stone-200">{loc.identificador || `Local ${idx + 1}`}</span>
                           <span className="text-stone-400">{loc.actividad || loc.tipo}</span>
                         </div>
                       ))}
