@@ -36,7 +36,9 @@ import {
   ExternalLink,
   Search,
   Filter,
-  QrCode
+  QrCode,
+  Download,
+  Check
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { PuntoAseo } from '@/components/AseoMapaContribuyentes';
@@ -96,8 +98,8 @@ export default function SalaSituacionalPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState('');
   
-  // Pestaña principal: 'contribuyentes' o 'camiones'
-  const [vistaModo, setVistaModo] = useState<'contribuyentes' | 'camiones'>('contribuyentes');
+  // Pestaña principal: 'contribuyentes', 'camiones' o 'bitacora'
+  const [vistaModo, setVistaModo] = useState<'contribuyentes' | 'camiones' | 'bitacora'>('contribuyentes');
 
   // Datos Camiones GPS
   const [gpsUnits, setGpsUnits] = useState<any[]>([]);
@@ -117,6 +119,12 @@ export default function SalaSituacionalPage() {
   const [fechaDesde, setFechaDesde] = useState<string>('');
   const [fechaHasta, setFechaHasta] = useState<string>('');
   const [selectedPunto, setSelectedPunto] = useState<PuntoAseo | null>(null);
+
+  // Datos Bitácora de Escaneos QR
+  const [bitacoraLogs, setBitacoraLogs] = useState<any[]>([]);
+  const [loadingBitacora, setLoadingBitacora] = useState(false);
+  const [selectedBitacoraOperador, setSelectedBitacoraOperador] = useState<string>('TODOS');
+  const [bitacoraSearch, setBitacoraSearch] = useState('');
 
   useEffect(() => {
     const ses = sessionStorage.getItem('sala_situacional_unlocked');
@@ -234,7 +242,9 @@ export default function SalaSituacionalPage() {
         .eq('action', 'QR_ESCANEADO')
         .order('created_at', { ascending: false });
 
+      const parsedLogsList: any[] = [];
       const qrScanMap = new Map<string, { operador: string; inicial: string; timestamp: string }>();
+
       (qrLogs || []).forEach(log => {
         try {
           let parsed: any = null;
@@ -245,11 +255,26 @@ export default function SalaSituacionalPage() {
           }
           if (parsed && parsed.identidad) {
             const cleanId = String(parsed.identidad).replace(/[-.\s]/g, '').toUpperCase();
+            const opName = parsed.operador || log.user_id || 'OPERADOR';
+            const inicial = (parsed.inicial || (parsed.operador ? parsed.operador[0] : 'O')).toUpperCase();
+            const ts = parsed.timestamp || log.created_at;
+
+            parsedLogsList.push({
+              id: log.id,
+              identidad: parsed.identidad,
+              codigo: parsed.codigo || cleanId,
+              contribuyente: parsed.contribuyente || '',
+              operador: opName,
+              inicial: inicial,
+              timestamp: ts,
+              rawLog: log
+            });
+
             if (!qrScanMap.has(cleanId)) {
               qrScanMap.set(cleanId, {
-                operador: parsed.operador || log.user_id || 'OPERADOR',
-                inicial: (parsed.inicial || (parsed.operador ? parsed.operador[0] : 'O')).toUpperCase(),
-                timestamp: parsed.timestamp || log.created_at
+                operador: opName,
+                inicial: inicial,
+                timestamp: ts
               });
             }
           }
@@ -257,6 +282,8 @@ export default function SalaSituacionalPage() {
           // ignore parse error
         }
       });
+
+      setBitacoraLogs(parsedLogsList);
 
       // 5. Mapear los contribuyentes de Aseo (los 764 registros del padrón de Aseo)
       const puntos: PuntoAseo[] = [];
@@ -409,6 +436,55 @@ export default function SalaSituacionalPage() {
     return { total: puntosAseo.length, solventes, conDeuda, escaneados, totalDeudaBs, com, res, cond };
   }, [puntosAseo]);
 
+  // Mapa rápido de identidad a datos del contribuyente en Aseo
+  const contribuyentesMap = useMemo(() => {
+    const map = new Map<string, PuntoAseo>();
+    puntosAseo.forEach(p => {
+      const cleanId = String(p.identidad).replace(/[-.\s]/g, '').toUpperCase();
+      map.set(cleanId, p);
+    });
+    return map;
+  }, [puntosAseo]);
+
+  // Registros filtrados de la Bitácora
+  const filteredBitacora = useMemo(() => {
+    return bitacoraLogs.filter(log => {
+      if (selectedBitacoraOperador !== 'TODOS') {
+        const letra = (log.inicial || (log.operador ? log.operador[0] : '')).toUpperCase();
+        if (letra !== selectedBitacoraOperador.toUpperCase()) return false;
+      }
+
+      if (fechaDesde) {
+        const dDesde = new Date(`${fechaDesde}T00:00:00`);
+        const dLog = new Date(log.timestamp);
+        if (dLog < dDesde) return false;
+      }
+
+      if (fechaHasta) {
+        const dHasta = new Date(`${fechaHasta}T23:59:59`);
+        const dLog = new Date(log.timestamp);
+        if (dLog > dHasta) return false;
+      }
+
+      if (bitacoraSearch.trim()) {
+        const q = bitacoraSearch.toLowerCase().trim();
+        const c = contribuyentesMap.get(String(log.identidad).replace(/[-.\s]/g, '').toUpperCase());
+        const contribName = c?.contribuyente || log.contribuyente || '';
+        const direccion = c?.direccion || '';
+        const sector = c?.sector || '';
+        return (
+          contribName.toLowerCase().includes(q) ||
+          String(log.identidad).toLowerCase().includes(q) ||
+          String(log.codigo).toLowerCase().includes(q) ||
+          direccion.toLowerCase().includes(q) ||
+          sector.toLowerCase().includes(q) ||
+          String(log.operador).toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [bitacoraLogs, selectedBitacoraOperador, fechaDesde, fechaHasta, bitacoraSearch, contribuyentesMap]);
+
   // Lista de operadores únicos detectados en los escaneos
   const operadoresDisponibles = useMemo(() => {
     const setOps = new Map<string, string>();
@@ -560,7 +636,7 @@ export default function SalaSituacionalPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Selector de Vista: Contribuyentes vs Camiones */}
+            {/* Selector de Vista: Contribuyentes vs Camiones vs Bitácora de Operadores */}
             <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 text-xs">
               <button
                 onClick={() => setVistaModo('contribuyentes')}
@@ -572,6 +648,17 @@ export default function SalaSituacionalPage() {
               >
                 <Compass className="w-4 h-4" />
                 Contribuyentes y Deudas ({statsAseo.total})
+              </button>
+              <button
+                onClick={() => setVistaModo('bitacora')}
+                className={`px-4 py-2 rounded-xl font-bold transition-all flex items-center gap-1.5 ${
+                  vistaModo === 'bitacora' 
+                    ? 'bg-purple-600 text-white shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <BookOpen className="w-4 h-4" />
+                Bitácora de Operadores ({bitacoraLogs.length})
               </button>
               <button
                 onClick={() => setVistaModo('camiones')}
@@ -1022,6 +1109,300 @@ export default function SalaSituacionalPage() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODO 3: BITÁCORA DETALLADA DE ESCANEOS POR OPERADOR ── */}
+      {vistaModo === 'bitacora' && (
+        <div className="space-y-6">
+          {/* Tarjetas resumen de bitácora */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Total Escaneos Registrados</span>
+              <p className="text-2xl font-black text-purple-600 mt-1 font-mono">{bitacoraLogs.length}</p>
+              <span className="text-[10px] text-slate-500">Histórico de fiscalización en campo</span>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Operadores Activos</span>
+              <p className="text-2xl font-black text-slate-900 mt-1 font-mono">{operadoresDisponibles.length}</p>
+              <span className="text-[10px] text-slate-500">Fiscales con actividad QR</span>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Predios Filtrados</span>
+              <p className="text-2xl font-black text-emerald-600 mt-1 font-mono">{filteredBitacora.length}</p>
+              <span className="text-[10px] text-slate-500">Según operador y fechas</span>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Operador Seleccionado</span>
+              <p className="text-lg font-black text-slate-900 mt-1 truncate">
+                {selectedBitacoraOperador === 'TODOS' ? 'Todos los Operadores' : `Operador ${selectedBitacoraOperador}`}
+              </p>
+              <span className="text-[10px] text-purple-600 font-semibold">
+                {selectedBitacoraOperador === 'TODOS' ? 'Auditoría completa' : 'Vista individualizada'}
+              </span>
+            </div>
+          </div>
+
+          {/* Filtros de la Bitácora */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
+            <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
+              {/* Buscador de bitácora */}
+              <div className="relative w-full md:w-96">
+                <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar contribuyente, RIF, dirección, sector..."
+                  value={bitacoraSearch}
+                  onChange={(e) => setBitacoraSearch(e.target.value)}
+                  className="w-full bg-slate-50 text-slate-900 placeholder-slate-400 text-sm pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-purple-500 focus:bg-white"
+                />
+                {bitacoraSearch && (
+                  <button onClick={() => setBitacoraSearch('')} className="absolute right-3 top-3 text-slate-400 hover:text-slate-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* Rango de fechas */}
+              <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 text-xs w-full md:w-auto">
+                <Calendar className="w-4 h-4 text-purple-600 shrink-0" />
+                <span className="text-[10px] font-bold uppercase text-slate-600">Periodo:</span>
+                <input
+                  type="date"
+                  value={fechaDesde}
+                  onChange={(e) => setFechaDesde(e.target.value)}
+                  className="bg-white border border-slate-300 text-slate-800 rounded px-2 py-1 text-xs focus:outline-none focus:border-purple-500"
+                  title="Fecha Desde"
+                />
+                <span className="text-slate-400 font-bold">a</span>
+                <input
+                  type="date"
+                  value={fechaHasta}
+                  onChange={(e) => setFechaHasta(e.target.value)}
+                  className="bg-white border border-slate-300 text-slate-800 rounded px-2 py-1 text-xs focus:outline-none focus:border-purple-500"
+                  title="Fecha Hasta"
+                />
+                {(fechaDesde || fechaHasta) && (
+                  <button
+                    onClick={() => {
+                      setFechaDesde('');
+                      setFechaHasta('');
+                    }}
+                    className="p-1 text-slate-400 hover:text-rose-600"
+                    title="Limpiar fechas"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Selector de operadores en pestañas */}
+            <div className="flex items-center gap-2 pt-2 border-t border-slate-100 overflow-x-auto pb-1">
+              <span className="text-xs font-bold text-purple-700 uppercase tracking-wider flex items-center gap-1 shrink-0">
+                <User className="w-3.5 h-3.5 text-purple-600" /> Operador:
+              </span>
+              <button
+                onClick={() => setSelectedBitacoraOperador('TODOS')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                  selectedBitacoraOperador === 'TODOS'
+                    ? 'bg-purple-600 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
+                }`}
+              >
+                Todos los Operadores ({bitacoraLogs.length})
+              </button>
+
+              {operadoresDisponibles.map(op => {
+                const countOp = bitacoraLogs.filter(b => (b.inicial || b.operador?.[0]) === op.letra).length;
+                const isSelected = selectedBitacoraOperador === op.letra;
+                return (
+                  <button
+                    key={op.letra}
+                    onClick={() => setSelectedBitacoraOperador(op.letra)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-2 ${
+                      isSelected
+                        ? 'bg-purple-700 text-white shadow-md ring-2 ring-purple-400'
+                        : 'bg-white text-purple-900 hover:bg-purple-50 border border-purple-200'
+                    }`}
+                  >
+                    <span className="w-5 h-5 rounded-full bg-purple-600 text-white text-[10px] font-black flex items-center justify-center">
+                      {op.letra}
+                    </span>
+                    <span>Operador {op.letra}</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                      isSelected ? 'bg-purple-800 text-white' : 'bg-purple-100 text-purple-700'
+                    }`}>
+                      {countOp}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Tabla de la Bitácora */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-black text-slate-900 text-sm flex items-center gap-2 uppercase tracking-wide">
+                  <BookOpen className="w-4 h-4 text-purple-600" />
+                  Registro Cronológico de Escaneos QR ({filteredBitacora.length})
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Detalle cronológico de visitas, hora exacta y estado fiscal verificado por cada fiscalizador
+                </p>
+              </div>
+
+              {/* Botón para ver en el mapa satelital */}
+              <button
+                onClick={() => {
+                  setFiltroSolvencia('ESCANEADOS');
+                  if (selectedBitacoraOperador !== 'TODOS') {
+                    setFiltroOperador(selectedBitacoraOperador);
+                  }
+                  setVistaModo('contribuyentes');
+                }}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+              >
+                <Compass className="w-4 h-4" />
+                Ver estos puntos en el Mapa
+              </button>
+            </div>
+
+            {filteredBitacora.length === 0 ? (
+              <div className="p-12 text-center text-slate-400">
+                <BookOpen className="w-12 h-12 mx-auto text-slate-300 mb-3" />
+                <p className="font-bold text-slate-600">No se encontraron escaneos con los filtros actuales</p>
+                <p className="text-xs text-slate-400 mt-1">Prueba seleccionando otro operador o ampliando el rango de fechas.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
+                    <tr>
+                      <th className="py-3 px-4">Operador</th>
+                      <th className="py-3 px-4">Fecha y Hora</th>
+                      <th className="py-3 px-4">Contribuyente</th>
+                      <th className="py-3 px-4">Cédula / RIF</th>
+                      <th className="py-3 px-4">Sector / Dirección</th>
+                      <th className="py-3 px-4">Estado en Aseo</th>
+                      <th className="py-3 px-4">Deuda Actual</th>
+                      <th className="py-3 px-4 text-center">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredBitacora.map((item) => {
+                      const cleanId = String(item.identidad).replace(/[-.\s]/g, '').toUpperCase();
+                      const contribData = contribuyentesMap.get(cleanId);
+                      const fechaObj = new Date(item.timestamp);
+                      const fechaStr = isNaN(fechaObj.getTime())
+                        ? item.timestamp
+                        : fechaObj.toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                      const horaStr = isNaN(fechaObj.getTime())
+                        ? ''
+                        : fechaObj.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+                      const esSolvente = contribData ? contribData.solvente : false;
+                      const deudaBs = contribData ? contribData.deuda_total : 0;
+
+                      return (
+                        <tr key={item.id} className="hover:bg-purple-50/40 transition-colors">
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-full bg-purple-600 text-white font-black text-xs flex items-center justify-center shadow-sm">
+                                {item.inicial || 'O'}
+                              </div>
+                              <span className="font-bold text-slate-900">{item.operador}</span>
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            <div className="flex flex-col">
+                              <span className="font-bold text-slate-900">{fechaStr}</span>
+                              <span className="text-[11px] text-slate-500 font-mono flex items-center gap-1">
+                                <Clock className="w-3 h-3 text-purple-600 inline-block" /> {horaStr}
+                              </span>
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-4">
+                            <div className="max-w-[220px]">
+                              <p className="font-bold text-slate-900 truncate">
+                                {contribData?.contribuyente || item.contribuyente || 'Contribuyente'}
+                              </p>
+                              <span className="text-[10px] text-slate-500 font-mono">
+                                {item.codigo || contribData?.codigo}
+                              </span>
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-4 whitespace-nowrap font-mono font-bold text-emerald-700">
+                            {item.identidad}
+                          </td>
+
+                          <td className="py-3 px-4">
+                            <div className="max-w-[200px]">
+                              <span className="font-semibold text-slate-800 block truncate">
+                                {contribData?.sector || 'Tucacas'}
+                              </span>
+                              <span className="text-[10px] text-slate-500 block truncate">
+                                {contribData?.direccion || 'Municipio Silva'}
+                              </span>
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            {contribData ? (
+                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                                esSolvente 
+                                  ? 'bg-emerald-100 text-emerald-800' 
+                                  : 'bg-rose-100 text-rose-800'
+                              }`}>
+                                {esSolvente ? 'SOLVENTE' : 'CON DEUDA'}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 text-[10px]">Censo / Externo</span>
+                            )}
+                          </td>
+
+                          <td className="py-3 px-4 whitespace-nowrap font-mono font-bold">
+                            {deudaBs > 0 ? (
+                              <span className="text-rose-600">
+                                Bs. {deudaBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            ) : (
+                              <span className="text-emerald-600">Bs. 0,00</span>
+                            )}
+                          </td>
+
+                          <td className="py-3 px-4 text-center whitespace-nowrap">
+                            <button
+                              onClick={() => {
+                                if (contribData) {
+                                  setSelectedPunto(contribData);
+                                }
+                                setFiltroSolvencia('ESCANEADOS');
+                                setVistaModo('contribuyentes');
+                              }}
+                              className="text-xs bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold px-2.5 py-1 rounded-lg border border-purple-200 transition-all inline-flex items-center gap-1"
+                              title="Localizar en el mapa satelital"
+                            >
+                              <Compass className="w-3.5 h-3.5" />
+                              Ubicar
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
