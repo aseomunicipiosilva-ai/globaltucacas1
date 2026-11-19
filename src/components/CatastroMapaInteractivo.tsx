@@ -24,14 +24,14 @@ export interface PuntoCatastral {
 }
 
 function getMarkerColor(p: PuntoCatastral): { bg: string; border: string; icon: string; label: string } {
-  if (p.is_condominio || (p.tipo && p.tipo.toUpperCase().includes('CONDO')) || (p.contribuyente && p.contribuyente.toUpperCase().includes('CONDOMINIO'))) {
+  if (p.is_condominio || (p.tipo && p.tipo.toUpperCase() === 'CONDOMINIO') || (p.contribuyente && p.contribuyente.toUpperCase().includes('CONDOMINIO'))) {
     return { bg: '#8b5cf6', border: '#c4b5fd', icon: '🏢', label: 'Condominio' };
   }
   const tipoUpper = (p.tipo || '').toUpperCase();
-  if (tipoUpper.includes('COMER') || tipoUpper.includes('INSTITUCIONAL')) {
+  if (tipoUpper === 'COMERCIAL' || tipoUpper.includes('COMER') || tipoUpper.includes('INSTITUCIONAL')) {
     return { bg: '#f97316', border: '#fdba74', icon: '🏪', label: 'Comercial' };
   }
-  if (tipoUpper.includes('INDUS')) {
+  if (tipoUpper === 'INDUSTRIAL' || tipoUpper.includes('INDUS')) {
     return { bg: '#ef4444', border: '#fca5a5', icon: '🏭', label: 'Industrial' };
   }
   return { bg: '#10b981', border: '#6ee7b7', icon: '🏠', label: 'Residencial' };

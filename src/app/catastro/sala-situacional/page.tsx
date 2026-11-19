@@ -87,6 +87,45 @@ export default function SalaSituacionalCatastroPage() {
 
       const puntosMap: PuntoCatastral[] = [];
 
+      // Función de clasificación estricta de inmuebles
+      const clasificarInmueble = (i: any): 'Condominio' | 'Industrial' | 'Comercial' | 'Residencial' => {
+        const nom = (i.contribuyente || '').toUpperCase();
+        const act = (i.actividad_principal || i.actividad || '').toUpperCase();
+        const cls = (i.clasificacion || '').toUpperCase();
+        const tipo = (i.tipo || '').toUpperCase();
+        const cant = parseInt(i.cant_inmuebles || '1', 10);
+
+        // 1. Condominio
+        if (cant > 1 || cls.includes('CONDOMINIO') || nom.includes('CONDOMINIO') || nom.includes('CONJUNTO RESIDENCIAL') || nom.includes('RESIDENCIAS') || act.includes('CONDOMINIO') || act.includes('ÁREA COMÚN') || act.includes('AREA COMUN')) {
+          return 'Condominio';
+        }
+        // 2. Industrial
+        if (cls.includes('INDUSTRIAL') || act.includes('GALPÓN') || act.includes('GALPON') || tipo.includes('GALPÓN') || tipo.includes('GALPON')) {
+          return 'Industrial';
+        }
+        // 3. Comercial (C.A., Comercios, Posadas, Hoteles, Locales, Oficinas, Muelles)
+        if (cls.includes('COMERCIAL') || nom.includes(' C.A') || nom.includes(' S.A') || nom.includes('POSADA') || nom.includes('HOTEL') || nom.includes('BODEGON') || nom.includes('HIPERMERCADO') || nom.includes('EMBARCADERO') || nom.includes('INVERSIONES') || nom.includes('CORP') || tipo.includes('LOCAL') || tipo.includes('OFICINA') || tipo.includes('MUELLE') || (act.length > 0 && !act.includes('CASA') && !act.includes('VIVIENDA') && !act.includes('RESIDENCIAL') && !act.includes('NO APLICA'))) {
+          return 'Comercial';
+        }
+        // 4. Residencial
+        return 'Residencial';
+      };
+
+      // Función de clasificación estricta de pre_registros (Censo Catastro / Aseo)
+      const clasificarPR = (r: any): 'Condominio' | 'Industrial' | 'Comercial' | 'Residencial' => {
+        const isCondo = r.is_condominio === true || (r.tipo && r.tipo.toUpperCase().includes('CONDO'));
+        if (isCondo) return 'Condominio';
+        const t = (r.tipo || '').toUpperCase();
+        const a = (r.actividad || '').toUpperCase();
+        const nom = (r.contribuyente || '').toUpperCase();
+
+        if (t.includes('INDUS') || a.includes('GALPON') || a.includes('GALPÓN')) return 'Industrial';
+        if (t.includes('COMER') || t.includes('INSTITUCIONAL') || t.includes('MIXTO') || nom.includes(' C.A') || (a.length > 0 && !a.includes('CASAS') && !a.includes('APARTAMENTOS') && !a.includes('RESIDENCIAL') && !a.includes('VIVIENDA'))) {
+          return 'Comercial';
+        }
+        return 'Residencial';
+      };
+
       // Procesar puntos levantados con GPS en campo (Censo Catastro / Aseo)
       if (preRegs && preRegs.length > 0) {
         preRegs.forEach((r: any) => {
@@ -99,11 +138,8 @@ export default function SalaSituacionalCatastroPage() {
           }
 
           if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
-            const isCondo = r.is_condominio === true || (r.tipo && r.tipo.toUpperCase().includes('CONDO'));
-            let tipoFormateado = r.tipo || 'Residencial';
-            if (isCondo) tipoFormateado = 'Condominio';
-            else if (tipoFormateado.toUpperCase().includes('COMER')) tipoFormateado = 'Comercial';
-            else if (tipoFormateado.toUpperCase().includes('INDUS')) tipoFormateado = 'Industrial';
+            const tipoFormateado = clasificarPR(r);
+            const isCondo = tipoFormateado === 'Condominio';
 
             puntosMap.push({
               id: `prereg-${r.id}`,
@@ -111,7 +147,7 @@ export default function SalaSituacionalCatastroPage() {
               identidad: r.identidad || 'Sin ID',
               contribuyente: r.contribuyente || 'Contribuyente',
               tipo: tipoFormateado,
-              clasificacion: r.tipo,
+              clasificacion: r.tipo || tipoFormateado,
               actividad: r.actividad || r.codigo,
               direccion: r.direccion_exacta || r.domicilio_fiscal,
               is_condominio: isCondo,
@@ -139,13 +175,8 @@ export default function SalaSituacionalCatastroPage() {
           const jitterLat = ((idx * 9301 + 49297) % 233280 / 233280 - 0.5) * 0.007;
           const jitterLng = ((idx * 49297 + 9301) % 233280 / 233280 - 0.5) * 0.007;
 
-          const isCondo = (inm.cant_inmuebles && Number(inm.cant_inmuebles) > 1) || 
-                          (inm.contribuyente && inm.contribuyente.toUpperCase().includes('CONDOMINIO'));
-          
-          let tipoFinal = 'Residencial';
-          if (isCondo) tipoFinal = 'Condominio';
-          else if ((inm.clasificacion || '').toUpperCase().includes('COMER') || (inm.actividad_principal || '').length > 0) tipoFinal = 'Comercial';
-          else if ((inm.clasificacion || '').toUpperCase().includes('INDUS')) tipoFinal = 'Industrial';
+          const tipoFinal = clasificarInmueble(inm);
+          const isCondo = tipoFinal === 'Condominio';
 
           puntosMap.push({
             id: `inm-${inm.id}`,
@@ -153,7 +184,7 @@ export default function SalaSituacionalCatastroPage() {
             identidad: inm.identidad || 'Sin ID',
             contribuyente: inm.contribuyente || 'Contribuyente',
             tipo: tipoFinal,
-            clasificacion: inm.clasificacion,
+            clasificacion: inm.clasificacion || tipoFinal,
             actividad: inm.actividad_principal || inm.clasificacion,
             direccion: inm.direccion,
             sector: inm.sector,
