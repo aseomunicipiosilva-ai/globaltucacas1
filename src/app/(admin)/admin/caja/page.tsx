@@ -34,6 +34,7 @@ export default function CajaPage() {
   // Selection State
   const [isCondoIndividualModalOpen, setIsCondoIndividualModalOpen] = useState(false);
   const [activeCondoUnidad, setActiveCondoUnidad] = useState<any>(null); // Unidad individual en proceso de pago
+  const [condoSearchNotice, setCondoSearchNotice] = useState<{ nombreCondo: string; unidad: string; titular: string; rifMatriz: string } | null>(null);
   const [selectedRecibos, setSelectedRecibos] = useState<string[]>([]);
   const [selectedCuotas, setSelectedCuotas] = useState<{convId: string, cuotaId: number}[]>([]);
   const [selectedServicios, setSelectedServicios] = useState<string[]>([]);

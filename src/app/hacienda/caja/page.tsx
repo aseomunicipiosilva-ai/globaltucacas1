@@ -51,6 +51,8 @@ export default function HaciendaCajaPage() {
   const [loading, setLoading] = useState(false);
   const [checkingSolvencia, setCheckingSolvencia] = useState(false);
   const [solvenciaAseo, setSolvenciaAseo] = useState<SolvenciaStatus | null>(null);
+  const [userInmueblesList, setUserInmueblesList] = useState<any[]>([]);
+  const [inmuebleActivoIndex, setInmuebleActivoIndex] = useState<number>(0);
 
   // Tasa Oficial TCMMV (Euro BCV)
   const [tasaBcv, setTasaBcv] = useState<number>(1007.39);
@@ -190,6 +192,24 @@ export default function HaciendaCajaPage() {
     buscarContribuyentes();
   }, [tipoFiltro]);
 
+  const cambiarPropiedadActiva = async (index: number, propsList?: any[]) => {
+    const list = propsList || userInmueblesList;
+    setInmuebleActivoIndex(index);
+    const prop = list[index];
+    if (!prop) return;
+
+    setSelectedUser(prop);
+    actualizarConceptos(prop, tasaBcv);
+    setCheckingSolvencia(true);
+
+    const res = await verificarSolvenciaAseo(prop.identidad, {
+      esUnidadCondo: prop.esCondo,
+      numeroUnidad: prop.numeroUnidad
+    });
+    setSolvenciaAseo(res);
+    setCheckingSolvencia(false);
+  };
+
   const seleccionarContribuyente = async (user: any) => {
     setSelectedUser(user);
     setReciboEmitido(null);
@@ -198,9 +218,82 @@ export default function HaciendaCajaPage() {
 
     actualizarConceptos(user, tasaBcv);
 
-    const res = await verificarSolvenciaAseo(user.identidad);
-    setSolvenciaAseo(res);
-    setCheckingSolvencia(false);
+    try {
+      const idClean = (user.identidad || '').replace(/[-.\s]/g, '').toUpperCase();
+      const idConGuion = idClean.length > 1 ? idClean.charAt(0) + '-' + idClean.slice(1) : idClean;
+
+      // Buscar si tiene otros comercios/locales o inmuebles directos
+      const { data: directos } = await supabase
+        .from('inmuebles')
+        .select('*')
+        .or('identidad.eq.' + user.identidad + ',identidad.eq.' + idClean + ',identidad.eq.' + idConGuion);
+
+      // Buscar si tiene locales o unidades en centros comerciales o condominios
+      const { data: unidades } = await supabase
+        .from('unidades_condominio')
+        .select('id, condominio_id, numero_unidad, propietario, cedula_rif, estado')
+        .or('cedula_rif.eq.' + user.identidad + ',cedula_rif.eq.' + idClean + ',cedula_rif.eq.' + idConGuion);
+
+      let allProps: any[] = [];
+      (directos || []).forEach(d => {
+        allProps.push({
+          ...d,
+          tipoPropiedad: 'Comercio / Inmueble Independiente',
+          etiqueta: d.contribuyente || d.inmueble || d.cod_cont || 'Local Comercial',
+          esCondo: false
+        });
+      });
+
+      if (unidades && unidades.length > 0) {
+        const condoIds = [...new Set(unidades.map(u => u.condominio_id).filter(Boolean))];
+        const { data: condoRows } = await supabase
+          .from('inmuebles')
+          .select('id, contribuyente, identidad, saldo')
+          .in('id', condoIds);
+        const condoMap = new Map((condoRows || []).map(c => [c.id, c]));
+
+        unidades.forEach(u => {
+          const cMatriz = condoMap.get(u.condominio_id);
+          allProps.push({
+            id: 'condo-' + u.id,
+            contribuyente: u.propietario || user.contribuyente,
+            identidad: u.cedula_rif || user.identidad,
+            inmueble: u.numero_unidad,
+            cod_cont: u.numero_unidad,
+            direccion: cMatriz?.contribuyente || 'Centro Comercial',
+            clasificacion: 'Local en C.C. / Condominio',
+            tipoPropiedad: 'Local Comercial Interno',
+            etiqueta: u.numero_unidad + ' (' + (cMatriz?.contribuyente || 'C.C.') + ')',
+            esCondo: true,
+            condominioMatriz: cMatriz,
+            numeroUnidad: u.numero_unidad
+          });
+        });
+      }
+
+      if (allProps.length === 0) {
+        allProps = [{ ...user, tipoPropiedad: 'Comercio Independiente', etiqueta: user.contribuyente || user.cod_cont || 'Comercio', esCondo: false }];
+      }
+
+      setUserInmueblesList(allProps);
+      
+      let initialIdx = allProps.findIndex(p => p.id === user.id);
+      if (initialIdx === -1) initialIdx = 0;
+      setInmuebleActivoIndex(initialIdx);
+
+      const propInicial = allProps[initialIdx];
+      const res = await verificarSolvenciaAseo(user.identidad, {
+        esUnidadCondo: propInicial.esCondo,
+        numeroUnidad: propInicial.numeroUnidad
+      });
+      setSolvenciaAseo(res);
+    } catch (e) {
+      console.error(e);
+      const res = await verificarSolvenciaAseo(user.identidad);
+      setSolvenciaAseo(res);
+    } finally {
+      setCheckingSolvencia(false);
+    }
   };
 
   const totalPagar = conceptos.filter(c => c.seleccionado).reduce((acc, c) => acc + c.montoBs, 0);
@@ -436,6 +529,48 @@ export default function HaciendaCajaPage() {
                   {selectedUser.clasificacion || 'Comercial'}
                 </span>
               </div>
+
+              {/* SELECTOR DE ACTIVIDADES / LOCALES MULTIPROPRIEDAD */}
+              {userInmueblesList.length > 1 && (
+                <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-sky-400" />
+                      Locales / Actividades Registradas ({userInmueblesList.length}) - Seleccione cuál liquidar:
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono">Cobro y solvencia independiente</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {userInmueblesList.map((prop, idx) => {
+                      const isAct = idx === inmuebleActivoIndex;
+                      return (
+                        <button
+                          key={prop.id || idx}
+                          type="button"
+                          onClick={() => cambiarPropiedadActiva(idx)}
+                          className={`p-2.5 rounded-lg border text-left transition-all ${
+                            isAct
+                              ? 'bg-sky-950/80 border-sky-500 ring-1 ring-sky-500 text-white'
+                              : 'bg-slate-950/40 border-slate-800 hover:bg-slate-900 text-slate-400'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-xs font-bold">
+                            <span className="truncate max-w-[170px]">{prop.etiqueta}</span>
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${
+                              prop.esCondo ? 'bg-amber-950 text-amber-300 border border-amber-800' : 'bg-slate-800 text-slate-300'
+                            }`}>
+                              {prop.esCondo ? 'En Centro Comercial' : 'Independiente'}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
+                            <span>{prop.esCondo ? (prop.condominioMatriz?.contribuyente || 'C.C.') : (prop.sector || 'Tucacas')}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* SEMÁFORO DE INTERCONEXIÓN: DEUDA DE ASEO URBANO Y ALERTA DE CONDOMINIO */}
               <div className="p-4 rounded-xl border transition-all">
