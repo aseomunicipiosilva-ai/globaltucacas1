@@ -37,7 +37,7 @@ interface ConceptoCatastroItem {
 
 export default function CatastroCajaPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [tipoFiltro, setTipoFiltro] = useState<'Todos' | 'Residencial' | 'Comercial' | 'Industrial'>('Residencial');
+  const [tipoFiltro, setTipoFiltro] = useState<'Todos' | 'Residencial' | 'Comercial'>('Residencial');
   const [inmuebles, setInmuebles] = useState<any[]>([]);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -163,15 +163,12 @@ export default function CatastroCajaPage() {
     if (cant > 1 || cls.includes('CONDOMINIO') || nom.includes('CONDOMINIO') || nom.includes('CONJUNTO RESIDENCIAL') || nom.includes('RESIDENCIAS') || act.includes('CONDOMINIO') || act.includes('ÁREA COMÚN') || act.includes('AREA COMUN')) {
       return 'Condominio';
     }
-    // 2. Industrial
-    if (cls.includes('INDUSTRIAL') || act.includes('GALPÓN') || act.includes('GALPON') || tipo.includes('GALPÓN') || tipo.includes('GALPON')) {
-      return 'Industrial';
-    }
-    // 3. Comercial (C.A., Comercios, Posadas, Hoteles, Locales, Oficinas, Muelles, Licorerías)
+    // 2. Comercial (C.A., Comercios, Posadas, Hoteles, Locales, Oficinas, Muelles, Licorerías, Galpones)
     if (
       cls.includes('COMERCIAL') || 
       cls.includes('TIPO D') || 
       cls.includes('TIPO A') ||
+      cls.includes('INDUSTRIAL') ||
       nom.includes(' C.A') || 
       nom.includes(' S.A') || 
       nom.includes('POSADA') || 
@@ -184,36 +181,42 @@ export default function CatastroCajaPage() {
       tipo.includes('LOCAL') || 
       tipo.includes('OFICINA') || 
       tipo.includes('MUELLE') || 
+      tipo.includes('GALPÓN') ||
+      tipo.includes('GALPON') ||
       act.includes('POSADA') || 
       act.includes('BAR') || 
       act.includes('RESTAURANT') || 
       act.includes('LICOR') || 
       act.includes('TALLER') || 
       act.includes('KIOSCO') ||
+      act.includes('GALPÓN') ||
+      act.includes('GALPON') ||
       (cls.includes('TIPO B') && act !== 'RESIDENCIAL')
     ) {
       return 'Comercial';
     }
-    // 4. Residencial (Casas, Quintas, Viviendas, Apartamentos individuales)
+    // 3. Residencial (Casas, Quintas, Viviendas, Apartamentos individuales)
     return 'Residencial';
   };
 
-  const clasificarPR = (r: any): 'Condominio' | 'Industrial' | 'Comercial' | 'Residencial' => {
+  const clasificarPR = (r: any): 'Condominio' | 'Comercial' | 'Residencial' => {
     const isCondo = r.is_condominio === true || (r.tipo && r.tipo.toUpperCase().includes('CONDO'));
     if (isCondo) return 'Condominio';
     const t = (r.tipo || '').toUpperCase();
     const a = (r.actividad || '').toUpperCase();
     const nom = (r.contribuyente || '').toUpperCase();
 
-    if (t.includes('INDUS') || a.includes('GALPON') || a.includes('GALPÓN')) return 'Industrial';
     if (
       t.includes('COMER') || 
+      t.includes('INDUS') || 
       t.includes('INSTITUCIONAL') || 
       t.includes('MIXTO') || 
       nom.includes(' C.A') || 
       nom.includes(' S.A') || 
       nom.includes('POSADA') || 
       nom.includes('HOTEL') || 
+      a.includes('GALPON') ||
+      a.includes('GALPÓN') ||
       (a.length > 0 && !a.includes('CASAS') && !a.includes('APARTAMENTOS') && !a.includes('RESIDENCIAL') && !a.includes('VIVIENDA') && !a.includes('NO APLICA'))
     ) {
       return 'Comercial';
@@ -297,14 +300,12 @@ export default function CatastroCajaPage() {
         }
       });
 
-      // Filtrado por Tab (Todos / Residencial / Comercial / Industrial)
+      // Filtrado por Tab (Todos / Residencial / Comercial)
       let filtrados = items;
       if (tipoFiltro === 'Residencial') {
         filtrados = items.filter(x => x.categoria_catastro === 'Residencial');
       } else if (tipoFiltro === 'Comercial') {
         filtrados = items.filter(x => x.categoria_catastro === 'Comercial');
-      } else if (tipoFiltro === 'Industrial') {
-        filtrados = items.filter(x => x.categoria_catastro === 'Industrial');
       }
 
       setInmuebles(filtrados);
@@ -544,7 +545,7 @@ export default function CatastroCajaPage() {
               <span className="text-xs font-bold uppercase tracking-wider text-stone-400">Padrón Inmobiliario</span>
               {/* Filtro Residencial / Comercial */}
               <div className="flex bg-stone-900 p-0.5 rounded-lg border border-stone-800 text-xs">
-                {(['Todos', 'Residencial', 'Comercial', 'Industrial'] as const).map(f => (
+                {(['Todos', 'Residencial', 'Comercial'] as const).map(f => (
                   <button
                     key={f}
                     onClick={() => setTipoFiltro(f)}

@@ -112,8 +112,8 @@ export default function SalaSituacionalCatastroPage() {
 
       const puntosMap: PuntoCatastral[] = [];
 
-      // Función de clasificación estricta de inmuebles
-      const clasificarInmueble = (i: any): 'Condominio' | 'Industrial' | 'Comercial' | 'Residencial' => {
+      // Función de clasificación estricta de inmuebles (En Catastro solo Residencial, Comercial y Condominio)
+      const clasificarInmueble = (i: any): 'Condominio' | 'Comercial' | 'Residencial' => {
         const nom = (i.contribuyente || '').toUpperCase();
         const act = (i.actividad_principal || i.actividad || '').toUpperCase();
         const cls = (i.clasificacion || '').toUpperCase();
@@ -124,28 +124,23 @@ export default function SalaSituacionalCatastroPage() {
         if (cant > 1 || cls.includes('CONDOMINIO') || nom.includes('CONDOMINIO') || nom.includes('CONJUNTO RESIDENCIAL') || nom.includes('RESIDENCIAS') || act.includes('CONDOMINIO') || act.includes('ÁREA COMÚN') || act.includes('AREA COMUN')) {
           return 'Condominio';
         }
-        // 2. Industrial
-        if (cls.includes('INDUSTRIAL') || act.includes('GALPÓN') || act.includes('GALPON') || tipo.includes('GALPÓN') || tipo.includes('GALPON')) {
-          return 'Industrial';
-        }
-        // 3. Comercial (C.A., Comercios, Posadas, Hoteles, Locales, Oficinas, Muelles)
-        if (cls.includes('COMERCIAL') || nom.includes(' C.A') || nom.includes(' S.A') || nom.includes('POSADA') || nom.includes('HOTEL') || nom.includes('BODEGON') || nom.includes('HIPERMERCADO') || nom.includes('EMBARCADERO') || nom.includes('INVERSIONES') || nom.includes('CORP') || tipo.includes('LOCAL') || tipo.includes('OFICINA') || tipo.includes('MUELLE') || (act.length > 0 && !act.includes('CASA') && !act.includes('VIVIENDA') && !act.includes('RESIDENCIAL') && !act.includes('NO APLICA'))) {
+        // 2. Comercial (C.A., Comercios, Posadas, Hoteles, Locales, Oficinas, Muelles, Galpones/Talleres comerciales)
+        if (cls.includes('COMERCIAL') || cls.includes('INDUSTRIAL') || nom.includes(' C.A') || nom.includes(' S.A') || nom.includes('POSADA') || nom.includes('HOTEL') || nom.includes('BODEGON') || nom.includes('HIPERMERCADO') || nom.includes('EMBARCADERO') || nom.includes('INVERSIONES') || nom.includes('CORP') || tipo.includes('LOCAL') || tipo.includes('OFICINA') || tipo.includes('MUELLE') || tipo.includes('GALPÓN') || tipo.includes('GALPON') || act.includes('GALPÓN') || act.includes('GALPON') || (act.length > 0 && !act.includes('CASA') && !act.includes('VIVIENDA') && !act.includes('RESIDENCIAL') && !act.includes('NO APLICA'))) {
           return 'Comercial';
         }
-        // 4. Residencial
+        // 3. Residencial
         return 'Residencial';
       };
 
       // Función de clasificación estricta de pre_registros (Censo Catastro / Aseo)
-      const clasificarPR = (r: any): 'Condominio' | 'Industrial' | 'Comercial' | 'Residencial' => {
+      const clasificarPR = (r: any): 'Condominio' | 'Comercial' | 'Residencial' => {
         const isCondo = r.is_condominio === true || (r.tipo && r.tipo.toUpperCase().includes('CONDO'));
         if (isCondo) return 'Condominio';
         const t = (r.tipo || '').toUpperCase();
         const a = (r.actividad || '').toUpperCase();
         const nom = (r.contribuyente || '').toUpperCase();
 
-        if (t.includes('INDUS') || a.includes('GALPON') || a.includes('GALPÓN')) return 'Industrial';
-        if (t.includes('COMER') || t.includes('INSTITUCIONAL') || t.includes('MIXTO') || nom.includes(' C.A') || (a.length > 0 && !a.includes('CASAS') && !a.includes('APARTAMENTOS') && !a.includes('RESIDENCIAL') && !a.includes('VIVIENDA'))) {
+        if (t.includes('COMER') || t.includes('INDUS') || t.includes('INSTITUCIONAL') || t.includes('MIXTO') || nom.includes(' C.A') || a.includes('GALPON') || a.includes('GALPÓN') || (a.length > 0 && !a.includes('CASAS') && !a.includes('APARTAMENTOS') && !a.includes('RESIDENCIAL') && !a.includes('VIVIENDA'))) {
           return 'Comercial';
         }
         return 'Residencial';
@@ -238,7 +233,6 @@ export default function SalaSituacionalCatastroPage() {
         if (filtroTipo === 'Condominio' && !p.is_condominio && p.tipo !== 'Condominio') return false;
         if (filtroTipo === 'Residencial' && (p.is_condominio || p.tipo !== 'Residencial')) return false;
         if (filtroTipo === 'Comercial' && p.tipo !== 'Comercial') return false;
-        if (filtroTipo === 'Industrial' && p.tipo !== 'Industrial') return false;
       }
 
       // Filtro búsqueda
@@ -307,7 +301,7 @@ export default function SalaSituacionalCatastroPage() {
       </div>
 
       {/* ── KPI METRICS ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div 
           onClick={() => setFiltroTipo('TODOS')}
           className={`p-4 rounded-xl border transition-all cursor-pointer ${
@@ -363,20 +357,6 @@ export default function SalaSituacionalCatastroPage() {
           <p className="text-2xl font-black text-purple-400 mt-1">{stats.cond}</p>
           <span className="text-[10px] text-stone-500">Conjuntos / Edificios</span>
         </div>
-
-        <div 
-          onClick={() => setFiltroTipo('Industrial')}
-          className={`p-4 rounded-xl border transition-all cursor-pointer ${
-            filtroTipo === 'Industrial' ? 'bg-stone-800 border-rose-500 shadow-lg' : 'bg-stone-950 border-stone-800 hover:bg-stone-900'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-rose-400 font-bold uppercase">Industrias</span>
-            <Factory className="w-4 h-4 text-rose-400" />
-          </div>
-          <p className="text-2xl font-black text-rose-400 mt-1">{stats.ind}</p>
-          <span className="text-[10px] text-stone-500">Galpones / Talleres</span>
-        </div>
       </div>
 
       {/* ── BARRA DE BÚSQUEDA Y FILTROS ── */}
@@ -401,7 +381,7 @@ export default function SalaSituacionalCatastroPage() {
           <span className="text-xs font-bold text-stone-400 uppercase tracking-wider flex items-center gap-1 shrink-0">
             <Filter className="w-3.5 h-3.5" /> Filtrar:
           </span>
-          {(['TODOS', 'Residencial', 'Comercial', 'Condominio', 'Industrial'] as const).map(tipo => (
+          {(['TODOS', 'Residencial', 'Comercial', 'Condominio'] as const).map(tipo => (
             <button
               key={tipo}
               onClick={() => setFiltroTipo(tipo)}
@@ -442,10 +422,6 @@ export default function SalaSituacionalCatastroPage() {
               <span className="w-3 h-3 rounded-full bg-purple-500" />
               <span>Condominio / Edificio</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-rose-500" />
-              <span>Industrial / Galpón</span>
-            </div>
           </div>
         </div>
 
@@ -458,10 +434,9 @@ export default function SalaSituacionalCatastroPage() {
                 <div className="flex items-center gap-2.5">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white text-lg ${
                     selectedPunto.is_condominio ? 'bg-purple-600' :
-                    selectedPunto.tipo === 'Comercial' ? 'bg-orange-600' :
-                    selectedPunto.tipo === 'Industrial' ? 'bg-rose-600' : 'bg-emerald-600'
+                    selectedPunto.tipo === 'Comercial' ? 'bg-orange-600' : 'bg-emerald-600'
                   }`}>
-                    {selectedPunto.is_condominio ? '🏢' : selectedPunto.tipo === 'Comercial' ? '🏪' : selectedPunto.tipo === 'Industrial' ? '🏭' : '🏠'}
+                    {selectedPunto.is_condominio ? '🏢' : selectedPunto.tipo === 'Comercial' ? '🏪' : '🏠'}
                   </div>
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-orange-400">
@@ -523,8 +498,8 @@ export default function SalaSituacionalCatastroPage() {
                   <span className="text-stone-400 font-bold uppercase text-[10px] flex items-center gap-1">
                     <Navigation className="w-3.5 h-3.5 text-orange-400" /> Coordenadas Satelitales (WGS84)
                   </span>
-                  <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${selectedPunto.id.startsWith('prereg-') ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/60' : 'bg-amber-950 text-amber-300 border border-amber-800/60'}`}>
-                    {selectedPunto.id.startsWith('prereg-') ? '📍 GPS en Campo' : '🗺️ Georref. por Sector'}
+                  <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${String(selectedPunto.id).startsWith('prereg-') ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/60' : 'bg-amber-950 text-amber-300 border border-amber-800/60'}`}>
+                    {String(selectedPunto.id).startsWith('prereg-') ? '📍 GPS en Campo' : '🗺️ Georref. por Sector'}
                   </span>
                 </div>
                 <p className="font-mono text-xs text-emerald-400 font-bold">

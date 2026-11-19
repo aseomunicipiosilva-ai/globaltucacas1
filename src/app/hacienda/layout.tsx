@@ -14,7 +14,8 @@ import {
   Home, 
   ShieldCheck, 
   CheckCircle2, 
-  Briefcase 
+  Briefcase,
+  Radio 
 } from 'lucide-react';
 
 interface HaciendaLayoutProps {
@@ -38,6 +39,7 @@ export default function HaciendaLayout({ children }: HaciendaLayoutProps) {
   const navItems = [
     { name: 'Inicio Hacienda', href: '/hacienda', icon: Home },
     { name: 'Caja de Hacienda', href: '/hacienda/caja', icon: CreditCard, highlight: true },
+    { name: 'Sala Situacional GPS', href: '/hacienda/sala-situacional', icon: Radio, highlight: true },
     { name: 'Censo Comercial / Ind.', href: '/hacienda/censo', icon: Users },
     { name: 'Declaraciones ISAE', href: '/hacienda/declaraciones', icon: Calculator },
     { name: 'Licencias / Patentes', href: '/hacienda/licencias', icon: FileCheckIcon },

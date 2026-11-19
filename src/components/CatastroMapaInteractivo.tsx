@@ -42,15 +42,6 @@ function getPointStyle(tipo: string, isCondo: boolean, isSelected: boolean) {
       radius: isSelected ? 11 : 6
     };
   }
-  if (tipo === 'Industrial') {
-    return {
-      color: '#ffffff',
-      fillColor: '#ef4444', // Rojo
-      fillOpacity: isSelected ? 1 : 0.85,
-      weight: isSelected ? 3 : 1.5,
-      radius: isSelected ? 11 : 6.5
-    };
-  }
   // Residencial
   return {
     color: '#ffffff',

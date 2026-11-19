@@ -33,7 +33,7 @@ export default function CensoCatastroPage() {
   const [inmuebles, setInmuebles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState('');
-  const [clasificacion, setClasificacion] = useState<'Todos' | 'Residencial' | 'Comercial' | 'Industrial'>('Todos');
+  const [clasificacion, setClasificacion] = useState<'Todos' | 'Residencial' | 'Comercial'>('Todos');
 
   // Formulario de Levantamiento Catastral
   const [isSaving, setIsSaving] = useState(false);
@@ -253,8 +253,7 @@ export default function CensoCatastroPage() {
     if (clasificacion !== 'Todos') {
       const cls = (i.clasificacion || '').toUpperCase();
       if (clasificacion === 'Residencial' && !cls.includes('RESIDENCIAL') && !cls.includes('TIPO')) return false;
-      if (clasificacion === 'Comercial' && !cls.includes('COMERCIAL')) return false;
-      if (clasificacion === 'Industrial' && !cls.includes('INDUSTRIAL')) return false;
+      if (clasificacion === 'Comercial' && !cls.includes('COMERCIAL') && !cls.includes('INDUSTRIAL')) return false;
     }
     if (!filtro) return true;
     const q = filtro.toLowerCase();
@@ -436,7 +435,6 @@ export default function CensoCatastroPage() {
                   >
                     <option value="Residencial">Residencial</option>
                     <option value="Comercial">Comercial</option>
-                    <option value="Industrial">Industrial</option>
                   </select>
                 </div>
 
@@ -1026,7 +1024,7 @@ export default function CensoCatastroPage() {
             </div>
 
             <div className="flex bg-stone-900 p-1 rounded-xl border border-stone-800 text-xs w-full md:w-auto">
-              {(['Todos', 'Residencial', 'Comercial', 'Industrial'] as const).map(c => (
+              {(['Todos', 'Residencial', 'Comercial'] as const).map(c => (
                 <button
                   key={c}
                   onClick={() => setClasificacion(c)}

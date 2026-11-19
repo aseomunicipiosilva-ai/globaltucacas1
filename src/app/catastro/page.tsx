@@ -20,7 +20,6 @@ export default function CatastroDashboard() {
     totalInmuebles: 0,
     totalResidenciales: 0,
     totalComerciales: 0,
-    totalIndustriales: 0,
     solventeCount: 0,
     conDeudaAseo: 0
   });
@@ -36,16 +35,13 @@ export default function CatastroDashboard() {
         if (inms) {
           let res = 0;
           let com = 0;
-          let ind = 0;
           let deudaAseo = 0;
           let solventes = 0;
 
           inms.forEach((i: any) => {
             const cls = (i.clasificacion || '').toUpperCase();
             if (cls.includes('RESIDENCIAL') || cls.includes('TIPO A')) res++;
-            else if (cls.includes('COMERCIAL') || cls.includes('TIPO D') || cls.includes('TIPO B') || cls.includes('TIPO C')) com++;
-            else if (cls.includes('INDUSTRIAL')) ind++;
-            else res++;
+            else com++;
 
             const dMMV = parseFloat(i.deuda_mmv || '0');
             const dCong = parseFloat(i.deuda_congelada_bs || '0');
@@ -60,7 +56,6 @@ export default function CatastroDashboard() {
             totalInmuebles: inms.length,
             totalResidenciales: res,
             totalComerciales: com,
-            totalIndustriales: ind,
             solventeCount: solventes,
             conDeudaAseo: deudaAseo
           });

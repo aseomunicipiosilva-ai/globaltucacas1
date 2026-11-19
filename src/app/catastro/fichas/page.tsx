@@ -7,7 +7,7 @@ export default function FichasCatastroPage() {
   const [inmuebles, setInmuebles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState('');
-  const [clasificacion, setClasificacion] = useState<'Todos' | 'Residencial' | 'Comercial' | 'Industrial'>('Todos');
+  const [clasificacion, setClasificacion] = useState<'Todos' | 'Residencial' | 'Comercial'>('Todos');
   const [inmuebleSeleccionado, setInmuebleSeleccionado] = useState<any>(null);
 
   useEffect(() => {
@@ -31,8 +31,7 @@ export default function FichasCatastroPage() {
   const filtrados = inmuebles.filter(i => {
     const cls = (i.clasificacion || '').toUpperCase();
     if (clasificacion === 'Residencial' && !cls.includes('RESIDENCIAL') && !cls.includes('TIPO A')) return false;
-    if (clasificacion === 'Comercial' && !cls.includes('COMERCIAL') && !cls.includes('TIPO D') && !cls.includes('TIPO B') && !cls.includes('TIPO C')) return false;
-    if (clasificacion === 'Industrial' && !cls.includes('INDUSTRIAL')) return false;
+    if (clasificacion === 'Comercial' && !cls.includes('COMERCIAL') && !cls.includes('TIPO D') && !cls.includes('TIPO B') && !cls.includes('TIPO C') && !cls.includes('INDUSTRIAL')) return false;
 
     if (!filtro) return true;
     const q = filtro.toLowerCase();
@@ -59,7 +58,7 @@ export default function FichasCatastroPage() {
         </div>
 
         <div className="flex items-center gap-2 bg-stone-950 p-1 rounded-xl border border-stone-800">
-          {(['Todos', 'Residencial', 'Comercial', 'Industrial'] as const).map(tipo => (
+          {(['Todos', 'Residencial', 'Comercial'] as const).map(tipo => (
             <button
               key={tipo}
               onClick={() => setClasificacion(tipo)}
