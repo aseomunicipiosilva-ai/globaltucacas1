@@ -96,6 +96,7 @@ function ContribuyentesPageContent() {
   const [viewCalculo, setViewCalculo] = useState<any>(null);
   const [viewFacturasCM, setViewFacturasCM] = useState<any[]>([]);
   const [viewFacturasDb, setViewFacturasDb] = useState<any[]>([]); // recibos frescas desde Supabase
+  const [viewConvenios, setViewConvenios] = useState<any[]>([]);
   const [selectedCondominioModal, setSelectedCondominioModal] = useState<{ id: number, nombre: string, identidad: string } | null>(null);
   const [viewServiciosEsp, setViewServiciosEsp] = useState<any[]>([]);
   const [viewPagos, setViewPagos] = useState<any[]>([]);
@@ -384,6 +385,13 @@ function ContribuyentesPageContent() {
       // Load ALL servicios especiales for this contributor (pending AND paid)
       const idLimpio = (viewData.Identidad || '').replace(/-/g, '').toUpperCase();
       const idFmt = idLimpio.charAt(0) + '-' + idLimpio.slice(1);
+      // Cargar convenios del contribuyente
+      supabase
+        .from('convenios')
+        .select('*')
+        .or(`identidad.eq.${viewData.Identidad},identidad.eq.${(viewData.Identidad || '').replace(/-/g, '')}`)
+        .then(({ data: convData }) => setViewConvenios(convData || []));
+
       supabase
         .from('servicios_especiales')
         .select('*')
@@ -424,6 +432,7 @@ function ContribuyentesPageContent() {
       setViewServiciosEsp([]);
       setViewPagos([]);
       setViewFacturasDb([]);
+      setViewConvenios([]);
     }
   }, [isViewModalOpen, viewData, inmuebles]);
 
@@ -844,9 +853,95 @@ function ContribuyentesPageContent() {
       
       const serviciosPendientes = viewServiciosEsp.filter((s: any) => s.estado !== 'Pagado');
       const totalServiciosBs = serviciosPendientes.reduce((a: number, s: any) => a + (parseFloat(s.monto) || 0), 0);
-      
+
+      // Calcular cuotas de convenios pendientes
+      const cuotasConvenioPendientes: any[] = [];
+      let totalCuotasConvenioBs = 0;
+      if (idx === 0 && viewConvenios && viewConvenios.length > 0) {
+        const pagosConv = viewPagos || [];
+        const cuotasPagadasSet = new Set<string>();
+
+        pagosConv.forEach((p: any) => {
+          let det: any = {};
+          try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+          if (p.estado === 'Aprobado' || p.estado === 'Conciliado') {
+            if (det.cuotas && Array.isArray(det.cuotas)) {
+              det.cuotas.forEach((cq: any) => {
+                cuotasPagadasSet.add(`${cq.convId}_${cq.cuotaId}`);
+              });
+            }
+          }
+        });
+
+        viewConvenios.forEach((conv: any) => {
+          const isContado = conv.frecuencia === 'Única' || conv.cuotas === '1' || conv.cuotas === 1;
+          const totalBs = parseFloat(String(conv.monto_total || '0').replace(/[^\d.]/g, '')) || 0;
+          const nCuotas = isContado ? 1 : (conv.cuotas === 'N/A' || !conv.cuotas ? 1 : (parseInt(String(conv.cuotas)) || 1));
+          const startDate = new Date(conv.inicio || conv.created_at || new Date());
+
+          let cuotaInicialPactada = 0;
+          if (conv.documento_url && conv.documento_url.startsWith('meta:')) {
+            try {
+              const meta = JSON.parse(conv.documento_url.slice(5));
+              if (meta.pago_inicial) cuotaInicialPactada = parseFloat(meta.pago_inicial) || 0;
+            } catch(e){}
+          }
+
+          let pagoInicialCobradoReal = false;
+          let pagoInicialPagado = 0;
+          pagosConv.forEach((p: any) => {
+            let det: any = {};
+            try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+            const isThisConv = det.convenio_numero === conv.numero || (p.referencia && p.referencia.includes(conv.numero));
+            const isIni = (det.cuota_pagada && det.cuota_pagada.includes('Inicial')) || (det.concepto && det.concepto.toLowerCase().includes('inicial'));
+            if (isThisConv && isIni) {
+              pagoInicialPagado = parseFloat(p.monto || '0') || 0;
+              pagoInicialCobradoReal = true;
+            }
+          });
+
+          const montoInicial = pagoInicialCobradoReal ? pagoInicialPagado : (cuotaInicialPactada > 0 ? cuotaInicialPactada : (nCuotas > 1 ? (totalBs * 0.25) : totalBs));
+          const cuotasMensualesCount = nCuotas;
+          const montoCuotaRestante = (montoInicial > 0)
+            ? Math.max(0, (totalBs - montoInicial) / cuotasMensualesCount)
+            : (totalBs / cuotasMensualesCount);
+
+          if (conv.frecuencia !== 'Única') {
+            const keyIni1 = `${conv.id}_0`;
+            const keyIni2 = `${conv.numero}_0`;
+            if (!cuotasPagadasSet.has(keyIni1) && !cuotasPagadasSet.has(keyIni2)) {
+              cuotasConvenioPendientes.push({
+                convNum: conv.numero,
+                cuotaLabel: 'Cuota Inicial',
+                fecha: startDate.toISOString().slice(0, 10),
+                monto: montoInicial
+              });
+              totalCuotasConvenioBs += montoInicial;
+            }
+          }
+
+          for (let m = 1; m <= cuotasMensualesCount; m++) {
+            const key1 = `${conv.id}_${m}`;
+            const key2 = `${conv.numero}_${m}`;
+            if (!cuotasPagadasSet.has(key1) && !cuotasPagadasSet.has(key2)) {
+              const dueDate = new Date(startDate);
+              dueDate.setMonth(dueDate.getMonth() + m);
+              const mEsta = (conv.frecuencia === 'Única') ? totalBs : montoCuotaRestante;
+              const lbl = (conv.frecuencia === 'Única') ? 'Pago Único de Contado' : `Cuota ${m} de ${cuotasMensualesCount}`;
+              cuotasConvenioPendientes.push({
+                convNum: conv.numero,
+                cuotaLabel: lbl,
+                fecha: dueDate.toISOString().slice(0, 10),
+                monto: mEsta
+              });
+              totalCuotasConvenioBs += mEsta;
+            }
+          }
+        });
+      }
+
       if (idx === 0) {
-        totalInm += totalServiciosBs;
+        totalInm += totalServiciosBs + totalCuotasConvenioBs;
       }
       
       const mesesArr = [...new Set(inmRecibos.map((f: any) => getMesTexto(f.emision)))];
@@ -862,6 +957,9 @@ function ContribuyentesPageContent() {
       
       if (idx === 0 && totalServiciosBs > 0) {
         resumenRows.push(['Monto Servicios Especiales Bs.', `Bs. ${totalServiciosBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`]);
+      }
+      if (idx === 0 && totalCuotasConvenioBs > 0) {
+        resumenRows.push([`Cuotas Convenio de Pago (${cuotasConvenioPendientes.length}) Bs.`, `Bs. ${totalCuotasConvenioBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })}`]);
       }
       
       resumenRows.push(
@@ -929,6 +1027,18 @@ function ContribuyentesPageContent() {
             '0,00', '0,00', '0,00',
             monto.toLocaleString('es-VE', { minimumFractionDigits: 2 })
           ];
+        });
+      }
+
+      if (idx === 0 && cuotasConvenioPendientes.length > 0) {
+        cuotasConvenioPendientes.forEach((cq: any) => {
+          detalleRows.push([
+            cq.fecha || '—',
+            `Convenio ${cq.convNum} - ${cq.cuotaLabel}`,
+            cq.monto.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+            '0,00', '0,00', '0,00',
+            cq.monto.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          ]);
         });
       }
 
@@ -3012,6 +3122,169 @@ function ContribuyentesPageContent() {
                   })()}
                 </div>
               </div>
+
+              {/* Convenios de Pago y Cuotas Pendientes */}
+              {(() => {
+                if (!viewConvenios || viewConvenios.length === 0) return null;
+
+                const pagosConv = viewPagos || [];
+                const cuotasPagadasSet = new Set<string>();
+
+                pagosConv.forEach((p: any) => {
+                  let det: any = {};
+                  try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+                  if (p.estado === 'Aprobado' || p.estado === 'Conciliado') {
+                    if (det.cuotas && Array.isArray(det.cuotas)) {
+                      det.cuotas.forEach((cq: any) => {
+                        cuotasPagadasSet.add(`${cq.convId}_${cq.cuotaId}`);
+                      });
+                    }
+                  }
+                });
+
+                const conveniosConCuotas = viewConvenios.map((conv: any) => {
+                  const isContado = conv.frecuencia === 'Única' || conv.cuotas === '1' || conv.cuotas === 1;
+                  const totalBs = parseFloat(String(conv.monto_total || '0').replace(/[^\d.]/g, '')) || 0;
+                  const nCuotas = isContado ? 1 : (conv.cuotas === 'N/A' || !conv.cuotas ? 1 : (parseInt(String(conv.cuotas)) || 1));
+                  const startDate = new Date(conv.inicio || conv.created_at || new Date());
+
+                  let cuotaInicialPactada = 0;
+                  if (conv.documento_url && conv.documento_url.startsWith('meta:')) {
+                    try {
+                      const meta = JSON.parse(conv.documento_url.slice(5));
+                      if (meta.pago_inicial) cuotaInicialPactada = parseFloat(meta.pago_inicial) || 0;
+                    } catch(e){}
+                  }
+
+                  let pagoInicialCobradoReal = false;
+                  let pagoInicialPagado = 0;
+                  pagosConv.forEach((p: any) => {
+                    let det: any = {};
+                    try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch(e){}
+                    const isThisConv = det.convenio_numero === conv.numero || (p.referencia && p.referencia.includes(conv.numero));
+                    const isIni = (det.cuota_pagada && det.cuota_pagada.includes('Inicial')) || (det.concepto && det.concepto.toLowerCase().includes('inicial'));
+                    if (isThisConv && isIni) {
+                      pagoInicialPagado = parseFloat(p.monto || '0') || 0;
+                      pagoInicialCobradoReal = true;
+                    }
+                  });
+
+                  const montoInicial = pagoInicialCobradoReal ? pagoInicialPagado : (cuotaInicialPactada > 0 ? cuotaInicialPactada : (nCuotas > 1 ? (totalBs * 0.25) : totalBs));
+                  const cuotasMensualesCount = nCuotas;
+                  const montoCuotaRestante = (montoInicial > 0)
+                    ? Math.max(0, (totalBs - montoInicial) / cuotasMensualesCount)
+                    : (totalBs / cuotasMensualesCount);
+
+                  const cuotasList: any[] = [];
+                  if (conv.frecuencia !== 'Única') {
+                    const keyIni1 = `${conv.id}_0`;
+                    const keyIni2 = `${conv.numero}_0`;
+                    cuotasList.push({
+                      id: 0,
+                      label: 'Cuota Inicial',
+                      fecha: startDate.toISOString().slice(0, 10),
+                      monto: montoInicial,
+                      pagado: cuotasPagadasSet.has(keyIni1) || cuotasPagadasSet.has(keyIni2)
+                    });
+                  }
+
+                  for (let m = 1; m <= cuotasMensualesCount; m++) {
+                    const key1 = `${conv.id}_${m}`;
+                    const key2 = `${conv.numero}_${m}`;
+                    const dueDate = new Date(startDate);
+                    dueDate.setMonth(dueDate.getMonth() + m);
+                    const mEsta = (conv.frecuencia === 'Única') ? totalBs : montoCuotaRestante;
+                    const lbl = (conv.frecuencia === 'Única') ? 'Pago Único de Contado' : `Cuota ${m} de ${cuotasMensualesCount}`;
+                    cuotasList.push({
+                      id: m,
+                      label: lbl,
+                      fecha: dueDate.toISOString().slice(0, 10),
+                      monto: mEsta,
+                      pagado: cuotasPagadasSet.has(key1) || cuotasPagadasSet.has(key2)
+                    });
+                  }
+
+                  const pendientes = cuotasList.filter(c => !c.pagado);
+                  const totalPendienteBs = pendientes.reduce((acc, c) => acc + c.monto, 0);
+
+                  return {
+                    conv,
+                    cuotasList,
+                    pendientes,
+                    totalPendienteBs
+                  };
+                });
+
+                if (conveniosConCuotas.length === 0) return null;
+
+                return (
+                  <div className="mt-4 border border-blue-200 rounded-lg overflow-hidden shadow-sm">
+                    <div className="bg-blue-50 px-4 py-3 border-b border-blue-100 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Handshake className="w-5 h-5 text-blue-700" />
+                        <div>
+                          <h4 className="font-bold text-blue-900 text-sm">Convenios de Pago (Refinanciamiento)</h4>
+                          <p className="text-[11px] text-blue-700">Estado de cuotas acordadas e importes pendientes</p>
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold bg-blue-100 text-blue-800 px-2.5 py-1 rounded-full border border-blue-200">
+                        {conveniosConCuotas.length} convenio(s)
+                      </span>
+                    </div>
+
+                    <div className="p-4 space-y-4 bg-white">
+                      {conveniosConCuotas.map(({ conv, cuotasList, pendientes, totalPendienteBs }, cIdx) => (
+                        <div key={conv.id || cIdx} className="border border-slate-200 rounded-xl overflow-hidden">
+                          <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <div className="flex items-center gap-3">
+                              <span className="font-mono font-bold text-slate-800 text-sm">{conv.numero}</span>
+                              <span className="text-slate-500">• Fecha: {conv.inicio || conv.created_at?.slice(0, 10)}</span>
+                              <span className="text-slate-500">• Frecuencia: {conv.frecuencia || 'Mensual'}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-500">Deuda Financiada: <strong>{conv.monto_total}</strong></span>
+                              <span className="text-blue-800 font-bold bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
+                                Pendiente: Bs. {totalPendienteBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          </div>
+
+                          <table className="w-full text-xs text-left">
+                            <thead className="bg-slate-100/70 text-slate-600 font-bold uppercase text-[10px]">
+                              <tr>
+                                <th className="px-4 py-2">Cuota / Concepto</th>
+                                <th className="px-4 py-2">Vencimiento</th>
+                                <th className="px-4 py-2 text-center">Estatus</th>
+                                <th className="px-4 py-2 text-right">Monto (Bs)</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {cuotasList.map((cq: any, qIdx: number) => (
+                                <tr key={qIdx} className={cq.pagado ? 'bg-slate-50/50 text-slate-400' : 'hover:bg-blue-50/30'}>
+                                  <td className="px-4 py-2 font-medium">{cq.label}</td>
+                                  <td className="px-4 py-2 font-mono text-[11px]">{cq.fecha}</td>
+                                  <td className="px-4 py-2 text-center">
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                      cq.pagado
+                                        ? 'bg-emerald-100 text-emerald-700'
+                                        : 'bg-rose-100 text-rose-700'
+                                    }`}>
+                                      {cq.pagado ? '✓ Pagada' : 'Pendiente'}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-2 text-right font-mono font-bold">
+                                    Bs. {cq.monto.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Servicios Especiales Pendientes (no pagados) */}
               {viewServiciosEsp.filter((s: any) => s.estado !== 'Pagado').length > 0 && (
