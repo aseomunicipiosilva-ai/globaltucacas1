@@ -152,66 +152,159 @@ export default function CatastroCajaPage() {
     setConceptos(items);
   };
 
+  const clasificarInmueble = (i: any): 'Condominio' | 'Industrial' | 'Comercial' | 'Residencial' => {
+    const nom = (i.contribuyente || '').toUpperCase();
+    const act = (i.actividad_principal || i.actividad || '').toUpperCase();
+    const cls = (i.clasificacion || '').toUpperCase();
+    const tipo = (i.tipo || '').toUpperCase();
+    const cant = parseInt(i.cant_inmuebles || '1', 10);
+
+    // 1. Condominio matriz (área común / multi-unidad)
+    if (cant > 1 || cls.includes('CONDOMINIO') || nom.includes('CONDOMINIO') || nom.includes('CONJUNTO RESIDENCIAL') || nom.includes('RESIDENCIAS') || act.includes('CONDOMINIO') || act.includes('ÁREA COMÚN') || act.includes('AREA COMUN')) {
+      return 'Condominio';
+    }
+    // 2. Industrial
+    if (cls.includes('INDUSTRIAL') || act.includes('GALPÓN') || act.includes('GALPON') || tipo.includes('GALPÓN') || tipo.includes('GALPON')) {
+      return 'Industrial';
+    }
+    // 3. Comercial (C.A., Comercios, Posadas, Hoteles, Locales, Oficinas, Muelles, Licorerías)
+    if (
+      cls.includes('COMERCIAL') || 
+      cls.includes('TIPO D') || 
+      cls.includes('TIPO A') ||
+      nom.includes(' C.A') || 
+      nom.includes(' S.A') || 
+      nom.includes('POSADA') || 
+      nom.includes('HOTEL') || 
+      nom.includes('BODEGON') || 
+      nom.includes('HIPERMERCADO') || 
+      nom.includes('EMBARCADERO') || 
+      nom.includes('INVERSIONES') || 
+      nom.includes('CORP') || 
+      tipo.includes('LOCAL') || 
+      tipo.includes('OFICINA') || 
+      tipo.includes('MUELLE') || 
+      act.includes('POSADA') || 
+      act.includes('BAR') || 
+      act.includes('RESTAURANT') || 
+      act.includes('LICOR') || 
+      act.includes('TALLER') || 
+      act.includes('KIOSCO') ||
+      (cls.includes('TIPO B') && act !== 'RESIDENCIAL')
+    ) {
+      return 'Comercial';
+    }
+    // 4. Residencial (Casas, Quintas, Viviendas, Apartamentos individuales)
+    return 'Residencial';
+  };
+
+  const clasificarPR = (r: any): 'Condominio' | 'Industrial' | 'Comercial' | 'Residencial' => {
+    const isCondo = r.is_condominio === true || (r.tipo && r.tipo.toUpperCase().includes('CONDO'));
+    if (isCondo) return 'Condominio';
+    const t = (r.tipo || '').toUpperCase();
+    const a = (r.actividad || '').toUpperCase();
+    const nom = (r.contribuyente || '').toUpperCase();
+
+    if (t.includes('INDUS') || a.includes('GALPON') || a.includes('GALPÓN')) return 'Industrial';
+    if (
+      t.includes('COMER') || 
+      t.includes('INSTITUCIONAL') || 
+      t.includes('MIXTO') || 
+      nom.includes(' C.A') || 
+      nom.includes(' S.A') || 
+      nom.includes('POSADA') || 
+      nom.includes('HOTEL') || 
+      (a.length > 0 && !a.includes('CASAS') && !a.includes('APARTAMENTOS') && !a.includes('RESIDENCIAL') && !a.includes('VIVIENDA') && !a.includes('NO APLICA'))
+    ) {
+      return 'Comercial';
+    }
+    return 'Residencial';
+  };
+
   const buscarInmuebles = async () => {
     setLoading(true);
     try {
-      let query = supabase.from('inmuebles').select('*').limit(250);
-
+      // 1. Cargar inmuebles del padrón
+      let inmsQuery = supabase.from('inmuebles').select('*');
       if (searchTerm.trim()) {
         const term = searchTerm.trim();
-        query = query.or(`identidad.ilike.%${term}%,contribuyente.ilike.%${term}%,cod_cont.ilike.%${term}%,inmueble.ilike.%${term}%`);
+        inmsQuery = inmsQuery.or(`identidad.ilike.%${term}%,contribuyente.ilike.%${term}%,cod_cont.ilike.%${term}%,inmueble.ilike.%${term}%`);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
+      // 2. Cargar pre-registros del censo
+      let prQuery = supabase.from('pre_registros').select('*');
+      if (searchTerm.trim()) {
+        const term = searchTerm.trim();
+        prQuery = prQuery.or(`identidad.ilike.%${term}%,contribuyente.ilike.%${term}%,codigo.ilike.%${term}%,domicilio_fiscal.ilike.%${term}%`);
+      }
 
-      // Regla de Oro: En Catastro NO deben salir condominios matrices (J-...), solo propietarios individuales o parcelas
-      let filtrados = (data || []).filter(i => {
-        const nom = (i.contribuyente || '').toUpperCase();
-        const act = (i.actividad_principal || i.actividad || '').toUpperCase();
-        const cls = (i.clasificacion || '').toUpperCase();
-        const cant = parseInt(i.cant_inmuebles || '1', 10);
+      const [inmsRes, preRegsRes] = await Promise.all([
+        inmsQuery,
+        prQuery
+      ]);
 
-        if (nom.includes('CONDOMINIO') || nom.includes('CONJUNTO RESIDENCIAL') || nom.includes('RESIDENCIAS') || act.includes('CONDOMINIO') || act.includes('ÁREA COMÚN') || act.includes('AREA COMUN')) {
-          return false;
+      if (inmsRes.error) throw inmsRes.error;
+
+      const items: any[] = [];
+      const identsSeen = new Set<string>();
+
+      // Unificar Inmuebles del Padrón
+      (inmsRes.data || []).forEach((i: any) => {
+        const cat = clasificarInmueble(i);
+        if (cat !== 'Condominio') {
+          items.push({
+            ...i,
+            id: 'inm-' + i.id,
+            db_id: i.id,
+            identidad: i.identidad,
+            contribuyente: i.contribuyente,
+            inmueble: i.inmueble || i.cod_cont || ('PAR-' + i.id),
+            cod_cont: i.cod_cont,
+            sector: i.sector || 'Tucacas',
+            direccion: i.direccion,
+            clasificacion: i.clasificacion || cat,
+            categoria_catastro: cat,
+            actividad_principal: i.actividad_principal || i.actividad,
+            origen_fuente: 'Padrón Inmobiliario'
+          });
+          if (i.identidad) identsSeen.add(i.identidad.toUpperCase().trim());
         }
-        if (cls.includes('TIPO C') && cant > 1) {
-          return false;
-        }
-        return true;
       });
-      if (tipoFiltro === 'Residencial') {
-        filtrados = filtrados.filter(i => {
-          const cls = (i.clasificacion || '').toUpperCase();
-          const act = (i.actividad_principal || i.actividad || '').toUpperCase();
-          const nom = (i.contribuyente || '').toUpperCase();
-          const tipo = (i.tipo || '').toUpperCase();
 
-          // Excluir si es claramente comercial o empresarial (C.A., Bodegón, Hipermercado, Posada, Embarcadero, etc.)
-          if (nom.includes(' C.A.') || nom.includes(' C.A') || nom.includes(' S.A.') || nom.includes('POSADA') || nom.includes('HOTEL') || nom.includes('BODEGON') || nom.includes('HIPERMERCADO') || nom.includes('EMBARCADERO') || nom.includes('INVERSIONES') || nom.includes('CORP')) {
-            return false;
+      // Unificar Registros del Censo de Catastro / Aseo
+      (preRegsRes.data || []).forEach((r: any) => {
+        const ident = (r.identidad || '').toUpperCase().trim();
+        if (!identsSeen.has(ident)) {
+          const cat = clasificarPR(r);
+          if (cat !== 'Condominio') {
+            items.push({
+              ...r,
+              id: 'pr-' + r.id,
+              db_id: r.id,
+              identidad: r.identidad,
+              contribuyente: r.contribuyente,
+              inmueble: r.codigo || ('PR-' + r.id),
+              cod_cont: r.codigo,
+              sector: 'Tucacas',
+              direccion: r.direccion_exacta || r.domicilio_fiscal,
+              clasificacion: r.tipo || cat,
+              categoria_catastro: cat,
+              actividad_principal: r.actividad,
+              origen_fuente: 'Censo Catastro'
+            });
+            if (ident) identsSeen.add(ident);
           }
-          if (tipo.includes('LOCAL') || tipo.includes('OFICINA') || tipo.includes('MUELLE')) {
-            return false;
-          }
-          if (act.includes('POSADA') || act.includes('BAR') || act.includes('RESTAURANT') || act.includes('AUTOMERCADO') || act.includes('MARINA') || act.includes('COMERCIO')) {
-            return false;
-          }
-          if (cls.includes('TIPO D') || cls.includes('TIPO B') || cls.includes('COMERCIAL') || cls.includes('INDUSTRIAL')) {
-            return false;
-          }
-          return cls.includes('RESIDENCIAL') || cls.includes('TIPO A') || nom.startsWith('V-') || nom.startsWith('V') || !nom.includes('J-');
-        });
+        }
+      });
+
+      // Filtrado por Tab (Todos / Residencial / Comercial / Industrial)
+      let filtrados = items;
+      if (tipoFiltro === 'Residencial') {
+        filtrados = items.filter(x => x.categoria_catastro === 'Residencial');
       } else if (tipoFiltro === 'Comercial') {
-        filtrados = filtrados.filter(i => {
-          const cls = (i.clasificacion || '').toUpperCase();
-          const act = (i.actividad_principal || i.actividad || '').toUpperCase();
-          const nom = (i.contribuyente || '').toUpperCase();
-          const tipo = (i.tipo || '').toUpperCase();
-          return cls.includes('COMERCIAL') || cls.includes('TIPO D') || cls.includes('TIPO B') || nom.includes(' C.A') || act.includes('POSADA') || act.includes('BAR') || tipo.includes('LOCAL');
-        });
+        filtrados = items.filter(x => x.categoria_catastro === 'Comercial');
       } else if (tipoFiltro === 'Industrial') {
-        filtrados = filtrados.filter(i => (i.clasificacion || '').toUpperCase().includes('INDUSTRIAL'));
+        filtrados = items.filter(x => x.categoria_catastro === 'Industrial');
       }
 
       setInmuebles(filtrados);
