@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Key, CheckCircle, AlertTriangle, X, DollarSign, User, ShieldCheck, Printer } from 'lucide-react';
+import { Building2, Key, CheckCircle, AlertTriangle, X, DollarSign, User, ShieldCheck, Printer, MapPin, Calculator } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { logAudit } from '@/lib/audit';
 import jsPDF from 'jspdf';
@@ -33,6 +33,7 @@ export function CondoIndividualPayModal({
 
   // Formulario de pago individual
   const [mesesAPagar, setMesesAPagar] = useState<number>(1);
+  const [montoManualBs, setMontoManualBs] = useState<string>(''); // Permite ajuste si hay monto específico
   const [metodoPago, setMetodoPago] = useState<'PUNTO' | 'PAGO_MOVIL' | 'EFECTIVO_BS' | 'EFECTIVO_USD' | 'TRANSFERENCIA'>('PUNTO');
   const [referenciaPago, setReferenciaPago] = useState('');
   const [nombrePagador, setNombrePagador] = useState('');
@@ -42,6 +43,15 @@ export function CondoIndividualPayModal({
   // Datos para recibo generado
   const [reciboGenerado, setReciboGenerado] = useState<any>(null);
 
+  // Determinación de la cantidad de unidades y la tarifa mensual real por apartamento
+  // En la ordenanza del Municipio Silva: Apartamento en Condominio = 3.00 MMV mensuales
+  // Si el condominio tiene mmv_mes asignado para la unidad o mmv_mes general:
+  const mmvUnidadBase = 3.00; // Tarifa oficial por apartamento según Ordenanza
+  const cuotaOficialBsMes = mmvUnidadBase * currentBcvRate; // 3.00 MMV * Tasa BCV
+
+  // Si el condominio tiene facturas registradas en el sistema, calcular la alícuota proporcional
+  const cantInmuebles = parseInt(condominio.cant_inmuebles || '1', 10) || 1;
+
   useEffect(() => {
     if (isOpen) {
       setStep(1);
@@ -49,18 +59,19 @@ export function CondoIndividualPayModal({
       setAuthError('');
       setSelectedUnidadId(null);
       setReciboGenerado(null);
+      setMontoManualBs('');
+      setMesesAPagar(1);
     }
   }, [isOpen]);
 
   if (!isOpen || !condominio) return null;
 
-  // Cálculo de cuota individual
-  // Si el condominio tiene cant_inmuebles (ej. 20) y tarifa MMV o deuda
-  const cantInmuebles = parseInt(condominio.cant_inmuebles || '1', 10) || 1;
-  const mmvCondoTotal = parseFloat(condominio.mmv_mes || '0') || (cantInmuebles * 0.40); // Base residencial promedio
-  const cuotaMMVUnidad = mmvCondoTotal / cantInmuebles;
-  const cuotaBsUnidadMes = cuotaMMVUnidad * currentBcvRate;
-  const montoTotalCobrarBs = cuotaBsUnidadMes * mesesAPagar;
+  // Monto final a cobrar
+  const cuotaMesEfectiva = cuotaOficialBsMes;
+  const montoSugeridoTotalBs = cuotaMesEfectiva * mesesAPagar;
+  const montoTotalCobrarBs = montoManualBs && parseFloat(montoManualBs) > 0 
+    ? parseFloat(montoManualBs) 
+    : montoSugeridoTotalBs;
 
   // 1. Validar Clave Master
   const handleVerifyMaster = async () => {
@@ -126,7 +137,7 @@ export function CondoIndividualPayModal({
       const horaHoy = new Date().toLocaleTimeString('es-VE');
       const numComprobante = `REC-IND-${Date.now().toString().slice(-7)}`;
 
-      // 1. Registrar recibo en documentos / comprobantes
+      // 1. Registrar recibo en documentos
       await supabase.from('documentos').insert([{
         documento: numComprobante,
         tipo: 'Recibo Individual Condominio',
@@ -137,7 +148,6 @@ export function CondoIndividualPayModal({
       }]);
 
       // 2. Descontar el monto de la deuda total del Condominio matriz
-      // Obtenemos el saldo actual del condominio
       const { data: condoData } = await supabase
         .from('inmuebles')
         .select('saldo, deuda_mmv')
@@ -146,7 +156,7 @@ export function CondoIndividualPayModal({
 
       const saldoActualBs = parseFloat(condoData?.saldo || '0') || 0;
       const nuevoSaldoBs = Math.max(0, saldoActualBs - montoTotalCobrarBs);
-      const nuevaDeudaMmv = (nuevoSaldoBs / currentBcvRate).toFixed(4);
+      const nuevaDeudaMmv = currentBcvRate > 0 ? (nuevoSaldoBs / currentBcvRate).toFixed(4) : 0;
 
       await supabase
         .from('inmuebles')
@@ -170,6 +180,7 @@ export function CondoIndividualPayModal({
       await logAudit('Pago Individual Taquilla Condominio', {
         condominio_id: condominio.id,
         condominio_nombre: condominio.contribuyente,
+        condominio_direccion: condominio.direccion,
         unidad_id: unidad.id,
         numero_unidad: unidad.numero_unidad,
         propietario: nombrePagador,
@@ -190,11 +201,12 @@ export function CondoIndividualPayModal({
         condominioNombre: condominio.contribuyente,
         condominioRif: condominio.identidad,
         condominioCod: condominio.cod_cont || `ID-${condominio.id}`,
+        condominioDireccion: condominio.direccion || 'Municipio Silva, Tucacas',
         numeroUnidad: unidad.numero_unidad,
         propietario: nombrePagador,
         cedula: cedulaPagador,
         meses: mesesAPagar,
-        cuotaMesBs: cuotaBsUnidadMes,
+        cuotaMesBs: cuotaMesEfectiva,
         totalBs: montoTotalCobrarBs,
         metodo: metodoPago,
         referencia: referenciaPago || 'PAGO DIRECTO EN TAQUILLA',
@@ -211,43 +223,44 @@ export function CondoIndividualPayModal({
     }
   };
 
-  // Generar PDF del Recibo Individual
+  // Generar PDF del Recibo Individual con DIRECCIÓN EXACTA DEL CONDOMINIO
   const imprimirReciboPDF = async () => {
     if (!reciboGenerado) return;
     const doc = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
-      format: [100, 180] // Formato ticket/recibo institucional de taquilla
+      format: [105, 200] // Formato ticket institucional
     });
 
-    const qrData = `ALCALDIA SILVA - ASEO URBANO\nRECIBO: ${reciboGenerado.comprobante}\nAPTO: ${reciboGenerado.numeroUnidad}\nCONDOMINIO: ${reciboGenerado.condominioNombre}\nPROPIETARIO: ${reciboGenerado.propietario} (${reciboGenerado.cedula})\nMONTO: Bs. ${reciboGenerado.totalBs.toFixed(2)}\nFECHA: ${reciboGenerado.fecha}`;
-    const qrDataUrl = await QRCode.toDataURL(qrData, { margin: 1, width: 70 });
+    const qrData = `ALCALDIA SILVA - ASEO URBANO\nRECIBO: ${reciboGenerado.comprobante}\nCONDOMINIO: ${reciboGenerado.condominioNombre}\nDIR CONDOMINIO: ${reciboGenerado.condominioDireccion}\nAPTO: ${reciboGenerado.numeroUnidad}\nPROPIETARIO: ${reciboGenerado.propietario} (${reciboGenerado.cedula})\nTOTAL: Bs. ${reciboGenerado.totalBs.toFixed(2)}\nFECHA: ${reciboGenerado.fecha}`;
+    const qrDataUrl = await QRCode.toDataURL(qrData, { margin: 1, width: 75 });
 
     doc.setFillColor(15, 81, 50);
-    doc.rect(0, 0, 100, 16, 'F');
+    doc.rect(0, 0, 105, 17, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8.5);
-    doc.text('ALCALDÍA DEL MUNICIPIO JOSÉ LAURENCIO SILVA', 50, 6, { align: 'center' });
+    doc.text('ALCALDÍA DEL MUNICIPIO JOSÉ LAURENCIO SILVA', 52.5, 6, { align: 'center' });
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
-    doc.text('SERVICIO AUTÓNOMO DE ASEO URBANO (TUCACAS)', 50, 10, { align: 'center' });
-    doc.text('COMPROBANTE OFICIAL DE PAGO INDIVIDUAL', 50, 13.5, { align: 'center' });
+    doc.text('SERVICIO AUTÓNOMO DE ASEO URBANO (TUCACAS)', 52.5, 10.5, { align: 'center' });
+    doc.text('COMPROBANTE OFICIAL DE PAGO INDIVIDUAL', 52.5, 14.5, { align: 'center' });
 
     doc.setTextColor(30, 30, 30);
-    let y = 22;
+    let y = 23;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
-    doc.text(`COMPROBANTE N°: ${reciboGenerado.comprobante}`, 50, y, { align: 'center' });
+    doc.text(`COMPROBANTE N°: ${reciboGenerado.comprobante}`, 52.5, y, { align: 'center' });
     y += 5;
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Fecha/Hora: ${reciboGenerado.fecha} ${reciboGenerado.hora} | Cajero: ${reciboGenerado.cajero}`, 50, y, { align: 'center' });
+    doc.text(`Fecha: ${reciboGenerado.fecha} ${reciboGenerado.hora} | Cajero: ${reciboGenerado.cajero}`, 52.5, y, { align: 'center' });
     y += 4;
     doc.setDrawColor(200, 200, 200);
-    doc.line(5, y, 95, y);
+    doc.line(6, y, 99, y);
     y += 5;
 
+    // DATOS DEL CONDOMINIO MATRIZ (CON SU DIRECCIÓN REAL)
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.5);
     doc.text('DATOS DEL CONDOMINIO MATRIZ:', 6, y);
@@ -257,60 +270,73 @@ export function CondoIndividualPayModal({
     doc.text(`Edificio/Conjunto: ${reciboGenerado.condominioNombre}`, 6, y);
     y += 3.5;
     doc.text(`R.I.F. Condominio: ${reciboGenerado.condominioRif} | Código: ${reciboGenerado.condominioCod}`, 6, y);
+    y += 3.5;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Dirección del Condominio:', 6, y);
+    doc.setFont('helvetica', 'normal');
+    y += 3.5;
+    const splitDir = doc.splitTextToSize(reciboGenerado.condominioDireccion, 90);
+    doc.text(splitDir, 6, y);
+    y += splitDir.length * 3.5 + 2;
+
+    doc.line(6, y, 99, y);
     y += 5;
 
+    // DATOS DE LA UNIDAD Y PROPIETARIO
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.5);
     doc.text('DATOS DE LA UNIDAD Y PROPIETARIO:', 6, y);
     y += 4;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
-    doc.text(`Unidad/Apto: ${reciboGenerado.numeroUnidad}`, 6, y);
+    doc.text(`Unidad / Apartamento: ${reciboGenerado.numeroUnidad}`, 6, y);
     y += 3.5;
-    doc.text(`Titular: ${reciboGenerado.propietario.toUpperCase()}`, 6, y);
+    doc.text(`Propietario / Titular: ${reciboGenerado.propietario.toUpperCase()}`, 6, y);
     y += 3.5;
     doc.text(`C.I. / R.I.F.: ${reciboGenerado.cedula.toUpperCase()}`, 6, y);
     y += 5;
-    doc.line(5, y, 95, y);
+
+    doc.line(6, y, 99, y);
     y += 5;
 
+    // DESGLOSE DEL PAGO
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(7.5);
-    doc.text('DESGLOSE DEL PAGO:', 6, y);
+    doc.text('DESGLOSE DEL PAGO TRIBUTARIO:', 6, y);
     y += 4;
     doc.setFont('helvetica', 'normal');
     doc.text(`Períodos cancelados: ${reciboGenerado.meses} mes(es)`, 6, y);
     y += 3.5;
-    doc.text(`Cuota mensual por Apto: Bs. ${reciboGenerado.cuotaMesBs.toFixed(2)}`, 6, y);
+    doc.text(`Tarifa mensual Ordenanza: 3.00 MMV (Bs. ${reciboGenerado.cuotaMesBs.toFixed(2)})`, 6, y);
     y += 3.5;
-    doc.text(`Método: ${reciboGenerado.metodo} (Ref: ${reciboGenerado.referencia.slice(0, 18)})`, 6, y);
+    doc.text(`Forma de Pago: ${reciboGenerado.metodo} (Ref: ${reciboGenerado.referencia.slice(0, 18)})`, 6, y);
     y += 5;
 
     doc.setFillColor(240, 248, 240);
-    doc.rect(5, y, 90, 10, 'F');
+    doc.rect(6, y, 93, 11, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
+    doc.setFontSize(9.5);
     doc.setTextColor(15, 81, 50);
-    doc.text(`TOTAL CANCELADO: Bs. ${reciboGenerado.totalBs.toFixed(2)}`, 50, y + 6.5, { align: 'center' });
-    y += 14;
+    doc.text(`TOTAL CANCELADO: Bs. ${reciboGenerado.totalBs.toFixed(2)}`, 52.5, y + 7, { align: 'center' });
+    y += 15;
 
     doc.setTextColor(60, 60, 60);
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(6.5);
-    doc.text('* Este pago fue amortizado de la cuenta matriz del condominio.', 50, y, { align: 'center' });
+    doc.text('* Este pago fue amortizado de la cuenta matriz del condominio.', 52.5, y, { align: 'center' });
     y += 3;
-    doc.text(`Saldo restante global del condominio: Bs. ${reciboGenerado.saldoRestanteCondominioBs.toFixed(2)}`, 50, y, { align: 'center' });
+    doc.text(`Saldo restante global del condominio: Bs. ${reciboGenerado.saldoRestanteCondominioBs.toFixed(2)}`, 52.5, y, { align: 'center' });
     y += 3;
-    doc.text('Válido como comprobante individual para trámites en Catastro y Hacienda.', 50, y, { align: 'center' });
+    doc.text('Válido como comprobante individual para trámites en Catastro y Hacienda.', 52.5, y, { align: 'center' });
     y += 4;
 
-    doc.addImage(qrDataUrl, 'PNG', 35, y, 30, 30);
-    y += 34;
+    doc.addImage(qrDataUrl, 'PNG', 36.5, y, 32, 32);
+    y += 35;
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6);
     doc.setTextColor(120, 120, 120);
-    doc.text('Alcaldía del Municipio José Laurencio Silva - Sistema Tributario', 50, y, { align: 'center' });
+    doc.text('Alcaldía del Municipio José Laurencio Silva - Sistema Tributario', 52.5, y, { align: 'center' });
 
     doc.save(`Recibo_Individual_${reciboGenerado.numeroUnidad}_${reciboGenerado.cedula}.pdf`);
   };
@@ -389,19 +415,28 @@ export function CondoIndividualPayModal({
           {/* PASO 2: SELECCIÓN DE UNIDAD Y PROCESO DE COBRO */}
           {step === 2 && (
             <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
-              {/* Resumen Condominio */}
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs">
-                <div>
-                  <span className="text-slate-500">Saldo Matriz en Aseo:</span>
-                  <span className="font-bold text-red-600 ml-1.5">Bs. {parseFloat(condominio.saldo || '0').toLocaleString('es-VE', { minimumFractionDigits: 2 })}</span>
+              {/* Tarjeta de Dirección Real del Condominio */}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-xs">
+                <div className="flex items-center gap-1.5 text-slate-700 font-bold">
+                  <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>Dirección del Condominio Matriz:</span>
                 </div>
-                <div>
-                  <span className="text-slate-500">Total Unidades:</span>
-                  <span className="font-bold text-slate-700 ml-1.5">{cantInmuebles}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500">Cuota Base/Apto:</span>
-                  <span className="font-bold text-emerald-700 ml-1.5">Bs. {cuotaBsUnidadMes.toFixed(2)}/mes</span>
+                <p className="text-slate-600 pl-5 text-[11px] leading-relaxed">
+                  {condominio.direccion || 'Municipio Silva, Parroquia Tucacas, Falcón'}
+                </p>
+                <div className="flex items-center justify-between border-t border-slate-200 pt-2 mt-1">
+                  <div>
+                    <span className="text-slate-500">Saldo Global Condominio:</span>
+                    <span className="font-bold text-red-600 ml-1.5">
+                      Bs. {parseFloat(condominio.saldo || '0').toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Tarifa Mensual Ordenanza:</span>
+                    <span className="font-bold text-emerald-700 ml-1.5">
+                      3.00 MMV (Bs. {cuotaOficialBsMes.toFixed(2)})
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -462,19 +497,19 @@ export function CondoIndividualPayModal({
                 </div>
               </div>
 
-              {/* Meses a Pagar y Forma de Pago */}
+              {/* Meses a Pagar, Ajuste de Monto y Método de Pago */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Meses a Cancelar:</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Períodos a Cancelar:</label>
                   <select
                     value={mesesAPagar}
                     onChange={(e) => setMesesAPagar(parseInt(e.target.value, 10))}
                     className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white"
                   >
-                    <option value={1}>1 Mes</option>
-                    <option value={3}>3 Meses (Trimestre)</option>
-                    <option value={6}>6 Meses (Semestre)</option>
-                    <option value={12}>12 Meses (Año Completo)</option>
+                    <option value={1}>1 Mes (Bs. {(cuotaOficialBsMes * 1).toFixed(2)})</option>
+                    <option value={3}>3 Meses - Trimestre (Bs. {(cuotaOficialBsMes * 3).toFixed(2)})</option>
+                    <option value={6}>6 Meses - Semestre (Bs. {(cuotaOficialBsMes * 6).toFixed(2)})</option>
+                    <option value={12}>12 Meses - Año Completo (Bs. {(cuotaOficialBsMes * 12).toFixed(2)})</option>
                   </select>
                 </div>
                 <div>
@@ -493,15 +528,32 @@ export function CondoIndividualPayModal({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Referencia / Comprobante Bancario:</label>
-                <input
-                  type="text"
-                  value={referenciaPago}
-                  onChange={(e) => setReferenciaPago(e.target.value)}
-                  placeholder="Número de referencia bancaria o tarjeta..."
-                  className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs"
-                />
+              {/* Campo para Ajuste Manual de Monto si aplica deuda específica */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Monto a Cobrar (Bs.) {montoManualBs ? '(Ajustado)' : '(Oficial)'}:
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={montoManualBs !== '' ? montoManualBs : montoSugeridoTotalBs.toFixed(2)}
+                    onChange={(e) => setMontoManualBs(e.target.value)}
+                    placeholder="Monto exacto..."
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-mono font-bold text-emerald-700"
+                  />
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Tarifa ordenanza: 3.00 MMV/mes</span>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Referencia / Comprobante:</label>
+                  <input
+                    type="text"
+                    value={referenciaPago}
+                    onChange={(e) => setReferenciaPago(e.target.value)}
+                    placeholder="Ref. bancaria o tarjeta..."
+                    className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs"
+                  />
+                </div>
               </div>
 
               {/* Total a Cancelar */}
@@ -551,6 +603,14 @@ export function CondoIndividualPayModal({
 
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-left text-xs space-y-1.5">
                 <div className="flex justify-between">
+                  <span className="text-slate-500">Condominio Matriz:</span>
+                  <span className="font-bold text-slate-700">{reciboGenerado.condominioNombre}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Dirección Condominio:</span>
+                  <span className="font-semibold text-slate-600 truncate max-w-[280px]">{reciboGenerado.condominioDireccion}</span>
+                </div>
+                <div className="flex justify-between border-t border-slate-200 pt-1 mt-1">
                   <span className="text-slate-500">Unidad Cancelada:</span>
                   <span className="font-bold text-slate-700">{reciboGenerado.numeroUnidad}</span>
                 </div>
@@ -562,7 +622,7 @@ export function CondoIndividualPayModal({
                   <span className="text-slate-500">Monto Cobrado:</span>
                   <span className="font-bold text-emerald-600">Bs. {reciboGenerado.totalBs.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between border-t border-slate-200 pt-1.5 mt-1.5">
+                <div className="flex justify-between border-t border-slate-200 pt-1 mt-1">
                   <span className="text-slate-500">Nuevo Saldo Global Condominio:</span>
                   <span className="font-bold text-red-600">Bs. {reciboGenerado.saldoRestanteCondominioBs.toFixed(2)}</span>
                 </div>
