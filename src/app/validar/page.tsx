@@ -47,6 +47,19 @@ function ValidarContent() {
   const [solvenciaStatus, setSolvenciaStatus] = useState<SolvenciaStatus | null>(null);
   const [error, setError] = useState('');
 
+  // Modal para solicitar la letra/nombre del operador al escanear QR
+  const [showOperadorModal, setShowOperadorModal] = useState(false);
+  const [operadorLetraInput, setOperadorLetraInput] = useState('');
+  const [pendingContribuyente, setPendingContribuyente] = useState<any>(null);
+
+  useEffect(() => {
+    // Si ya tiene una letra u operador guardado en sesión previa
+    if (typeof window !== 'undefined') {
+      const savedLetra = localStorage.getItem('operador_letra') || '';
+      if (savedLetra) setOperadorLetraInput(savedLetra);
+    }
+  }, []);
+
   useEffect(() => {
     if (initialCodigo) {
       handleSearch(initialCodigo);
@@ -157,30 +170,24 @@ function ValidarContent() {
       });
       setSolvenciaStatus(status);
 
-      // Registrar escaneo en audit_logs para reflejarse en tiempo real en la Sala Situacional
-      try {
-        const opParam = searchParams.get('op') || searchParams.get('operador') || searchParams.get('fiscal') || '';
-        let operadorNombre = opParam.trim();
-        if (!operadorNombre && typeof window !== 'undefined') {
-          operadorNombre = localStorage.getItem('operador_nombre') || localStorage.getItem('usuario_nombre') || 'OPERADOR';
-        }
-        if (!operadorNombre) operadorNombre = 'OPERADOR';
-        const inicial = operadorNombre.charAt(0).toUpperCase() || 'O';
+      // Si viene por escaneo QR de un contribuyente, pedir o confirmar la letra del operador
+      const opParam = searchParams.get('op') || searchParams.get('operador') || searchParams.get('fiscal') || '';
+      const savedLetra = typeof window !== 'undefined' ? (localStorage.getItem('operador_letra') || localStorage.getItem('operador_nombre') || '') : '';
+      
+      const payloadInfo = {
+        identidad,
+        codigo: mainInm.cod_cont || query,
+        contribuyente: mainInm.contribuyente || ''
+      };
 
-        await supabase.from('audit_logs').insert([{
-          user_id: operadorNombre,
-          action: 'QR_ESCANEADO',
-          details: JSON.stringify({
-            identidad: identidad,
-            codigo: mainInm.cod_cont || query,
-            contribuyente: mainInm.contribuyente || '',
-            operador: operadorNombre,
-            inicial: inicial,
-            timestamp: new Date().toISOString()
-          })
-        }]);
-      } catch (logErr) {
-        console.warn('No se pudo registrar log de escaneo QR:', logErr);
+      if (!opParam && !savedLetra) {
+        // Mostrar modal emergente para que ingrese su letra
+        setPendingContribuyente(payloadInfo);
+        setShowOperadorModal(true);
+      } else {
+        // Ya tiene letra u operador definido, registrar de inmediato
+        const finalLetra = (opParam || savedLetra || 'O').trim().toUpperCase().charAt(0) || 'O';
+        registrarEscaneoEnAuditoria(payloadInfo, finalLetra);
       }
 
     } catch (e: any) {
@@ -189,6 +196,41 @@ function ValidarContent() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const registrarEscaneoEnAuditoria = async (contrib: any, letra: string) => {
+    try {
+      const letraLimpia = (letra || 'O').trim().toUpperCase().charAt(0) || 'O';
+      const operadorNombre = `Operador ${letraLimpia}`;
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('operador_letra', letraLimpia);
+        localStorage.setItem('operador_nombre', operadorNombre);
+      }
+
+      await supabase.from('audit_logs').insert([{
+        user_id: operadorNombre,
+        action: 'QR_ESCANEADO',
+        details: JSON.stringify({
+          identidad: contrib.identidad,
+          codigo: contrib.codigo,
+          contribuyente: contrib.contribuyente,
+          operador: operadorNombre,
+          inicial: letraLimpia,
+          timestamp: new Date().toISOString()
+        })
+      }]);
+    } catch (logErr) {
+      console.warn('No se pudo registrar log de escaneo QR:', logErr);
+    }
+  };
+
+  const handleConfirmarLetraOperador = () => {
+    const letra = operadorLetraInput.trim().toUpperCase().charAt(0) || 'O';
+    if (pendingContribuyente) {
+      registrarEscaneoEnAuditoria(pendingContribuyente, letra);
+    }
+    setShowOperadorModal(false);
   };
 
   return (
@@ -661,6 +703,59 @@ function ValidarContent() {
 
               <div className="border-t border-slate-800 pt-4 text-xs text-slate-400 text-justify leading-relaxed">
                 Este certificado digital hace constar que el contribuyente antes mencionado se encuentra registrado en los sistemas tributarios de la Alcaldía del Municipio Silva y sus obligaciones correspondientes han sido verificadas electrónicamente.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Emergente para pedir la letra del operador al escanear QR */}
+        {showOperadorModal && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-purple-500/50 rounded-3xl p-6 max-w-sm w-full shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+              <div className="text-center space-y-3">
+                <div className="w-16 h-16 rounded-2xl bg-purple-600/20 border border-purple-500/40 text-purple-400 mx-auto flex items-center justify-center text-3xl font-black shadow-lg shadow-purple-500/20">
+                  {operadorLetraInput.trim() ? operadorLetraInput.trim().toUpperCase().charAt(0) : 'O'}
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-white uppercase tracking-tight">
+                    Identificación de Fiscal / Operador
+                  </h3>
+                  <p className="text-xs text-slate-300 mt-1">
+                    Indica tu letra inicial o distintivo para marcar este punto en morado en la Sala Situacional.
+                  </p>
+                </div>
+
+                <div className="pt-2">
+                  <input
+                    type="text"
+                    maxLength={2}
+                    value={operadorLetraInput}
+                    onChange={(e) => setOperadorLetraInput(e.target.value.toUpperCase())}
+                    placeholder="Ej. O, D, J..."
+                    className="w-24 text-center text-2xl font-black py-3 bg-slate-950 border-2 border-purple-500 text-white rounded-2xl focus:outline-none focus:ring-4 focus:ring-purple-500/30 font-mono tracking-widest uppercase mx-auto block"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowOperadorModal(false);
+                      if (pendingContribuyente) registrarEscaneoEnAuditoria(pendingContribuyente, 'O');
+                    }}
+                    className="flex-1 py-2.5 rounded-xl border border-slate-700 text-slate-400 hover:text-white text-xs font-bold transition-all"
+                  >
+                    Omitir (Usar O)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmarLetraOperador}
+                    className="flex-1 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-black shadow-lg shadow-purple-600/30 transition-all"
+                  >
+                    Confirmar
+                  </button>
+                </div>
               </div>
             </div>
           </div>
