@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { formatBs } from '@/lib/formatCurrency';
 import { ReciboImprimible } from '@/components/ReciboImprimible';
 import { logAudit } from '@/lib/audit';
+import { CondoIndividualPayModal } from '@/components/CondoIndividualPayModal';
 
 export default function CajaPage() {
   const { inmuebles, convenios, contribuyentes, documentos, tcmmv } = useAppContext();
@@ -31,6 +32,7 @@ export default function CajaPage() {
   const [selectedTalaPoda, setSelectedTalaPoda] = useState<string[]>([]);
   
   // Selection State
+  const [isCondoIndividualModalOpen, setIsCondoIndividualModalOpen] = useState(false);
   const [selectedRecibos, setSelectedRecibos] = useState<string[]>([]);
   const [selectedCuotas, setSelectedCuotas] = useState<{convId: string, cuotaId: number}[]>([]);
   const [selectedServicios, setSelectedServicios] = useState<string[]>([]);
@@ -2174,11 +2176,32 @@ await supabase.from('documentos').insert([{
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between gap-4">
             <div>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-3">
                 <h2 className="text-xl font-bold text-slate-800">{foundUser.Contribuyente}</h2>
                 <button onClick={() => setIsNotaModalOpen(true)} className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-full border border-slate-300 transition-colors">
                   + Agregar Saldo a Favor / Nota Manual
                 </button>
+                {(() => {
+                  const isCondo = (foundUser.Clasificacion || '').toUpperCase().includes('TIPO C') ||
+                    (foundUser.Clasificacion || '').toUpperCase().includes('TIPO D') ||
+                    (foundUser.Contribuyente || '').toUpperCase().includes('CONDOMINIO') ||
+                    (foundUser.Contribuyente || '').toUpperCase().includes('RESIDENC') ||
+                    (foundUser.Contribuyente || '').toUpperCase().includes('CONJUNTO') ||
+                    (parseInt(foundUser.cant_inmuebles || '1', 10) > 1);
+
+                  if (isCondo) {
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => setIsCondoIndividualModalOpen(true)}
+                        className="text-xs bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold px-3.5 py-1.5 rounded-full shadow-sm flex items-center gap-1.5 transition-all"
+                      >
+                        🔒 Desglosar Unidades (Pago Individual)
+                      </button>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
               <p className="text-sm text-slate-500">{foundUser.Identidad} | Cód: {foundUser.cod_cont}</p>
               <div className="mt-2 text-xs bg-slate-100 text-slate-600 px-3 py-2 rounded border border-slate-200 inline-block">
@@ -3329,6 +3352,30 @@ await supabase.from('documentos').insert([{
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de Pago Individual de Condominio con Clave Master */}
+      {isCondoIndividualModalOpen && foundUser && (
+        <CondoIndividualPayModal
+          isOpen={isCondoIndividualModalOpen}
+          onClose={() => setIsCondoIndividualModalOpen(false)}
+          condominio={(() => {
+            const matched = inmuebles.find((i: any) => i.identidad === foundUser.Identidad) || {
+              id: foundUser.id || 0,
+              contribuyente: foundUser.Contribuyente,
+              identidad: foundUser.Identidad,
+              cod_cont: foundUser.cod_cont,
+              cant_inmuebles: foundUser.cant_inmuebles || 1,
+              saldo: foundUser.Saldo || 0,
+              mmv_mes: foundUser.mmv_mes || 0
+            };
+            return matched;
+          })()}
+          currentBcvRate={currentBcvRate}
+          onPaymentSuccess={() => {
+            handleSearch();
+          }}
+        />
       )}
     </div>
   );
