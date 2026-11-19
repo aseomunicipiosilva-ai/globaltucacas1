@@ -437,56 +437,100 @@ export default function HaciendaCajaPage() {
                 </span>
               </div>
 
-              {/* SEMÁFORO DE INTERCONEXIÓN: DEUDA DE ASEO URBANO */}
+              {/* SEMÁFORO DE INTERCONEXIÓN: DEUDA DE ASEO URBANO Y ALERTA DE CONDOMINIO */}
               <div className="p-4 rounded-xl border transition-all">
                 {checkingSolvencia ? (
                   <div className="flex items-center gap-2 text-xs text-slate-400">
                     <span className="w-3 h-3 rounded-full border-2 border-sky-400 border-t-transparent animate-spin"></span>
                     Consultando solvencia en Aseo Urbano...
                   </div>
-                ) : solvenciaAseo?.solvente ? (
-                  <div className="bg-emerald-950/40 border border-emerald-800/60 rounded-xl p-3 flex items-start gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-bold text-emerald-300 text-xs">SOLVENTE EN ASEO URBANO</h4>
-                      <p className="text-[11px] text-emerald-400/80 mt-0.5">
-                        El contribuyente no presenta facturas pendientes en aseosilvaad. Autorizado para cancelar en Hacienda.
-                      </p>
-                    </div>
-                  </div>
                 ) : (
-                  <div className="bg-rose-950/40 border border-rose-800/80 rounded-xl p-3 space-y-3">
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
-                      <div>
-                        <h4 className="font-bold text-rose-300 text-xs uppercase tracking-wide">
-                          ⛔ BLOQUEO FISCAL: INSOLVENTE EN ASEO URBANO
-                        </h4>
-                        <p className="text-[11px] text-rose-300/80 mt-0.5">
-                          Tiene una deuda pendiente de <strong className="text-white font-mono">Bs. {formatBs(solvenciaAseo?.montoDeuda || 0)}</strong> en el servicio de aseo.
-                          Por ordenanza municipal, no puede tramitar ni cancelar Hacienda sin estar solvente.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Switch de Desbloqueo por Supervisor */}
-                    <div className="pt-2 border-t border-rose-900/50 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {checkSupervisor ? <Unlock className="w-4 h-4 text-amber-400" /> : <Lock className="w-4 h-4 text-slate-500" />}
-                        <span className="text-[11px] font-bold text-slate-300">Autorización Especial de Supervisor:</span>
-                      </div>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={checkSupervisor}
-                          onChange={(e) => setCheckSupervisor(e.target.checked)}
-                          className="w-4 h-4 accent-amber-500 rounded"
-                        />
-                        <span className="text-[10px] text-amber-400 font-bold uppercase">
-                          {checkSupervisor ? 'Autorizado' : 'Bloqueado'}
+                  <div className="space-y-3">
+                    {/* Alerta si pertenece a un Centro Comercial o Condominio */}
+                    {solvenciaAseo?.esCondominio && (
+                      <div className="bg-amber-950/40 border border-amber-700/60 rounded-xl p-3 flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-2.5">
+                          <Building2 className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded border border-amber-500/30">
+                                Local en Centro Comercial / Condominio
+                              </span>
+                              <span className="text-xs font-bold text-white">
+                                {solvenciaAseo.numeroUnidad ? `Local: ${solvenciaAseo.numeroUnidad}` : 'Unidad Comercial'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-amber-200/90 font-semibold mt-1">
+                              Edificio / Complejo: <span className="text-white font-bold">{solvenciaAseo.condominioNombre}</span> ({solvenciaAseo.condominioRif})
+                            </p>
+                            <p className="text-[11px] text-amber-300/80 mt-0.5">
+                              {solvenciaAseo.condominioSolvente
+                                ? '✓ El Condominio Matriz se encuentra SOLVENTE en Aseo Urbano.'
+                                : `⚠️ El Complejo Matriz presenta saldo pendiente de Bs. ${formatBs(solvenciaAseo.condominioDeudaBs || 0)} en Aseo Urbano.`}
+                            </p>
+                          </div>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase border shrink-0 ${
+                          solvenciaAseo.condominioSolvente
+                            ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
+                            : 'bg-rose-950 text-rose-300 border-rose-800'
+                        }`}>
+                          {solvenciaAseo.condominioSolvente ? 'Condominio Al Día' : 'Condominio Moroso'}
                         </span>
-                      </label>
-                    </div>
+                      </div>
+                    )}
+
+                    {/* Estatus Directo de Solvencia */}
+                    {solvenciaAseo?.solvente ? (
+                      <div className="bg-emerald-950/40 border border-emerald-800/60 rounded-xl p-3 flex items-start gap-3">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                        <div>
+                          <h4 className="font-bold text-emerald-300 text-xs">SOLVENTE EN ASEO URBANO</h4>
+                          <p className="text-[11px] text-emerald-400/80 mt-0.5">
+                            {solvenciaAseo.detalles || 'El contribuyente no presenta facturas pendientes en aseosilvaad. Autorizado para cancelar en Hacienda.'}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-rose-950/40 border border-rose-800/80 rounded-xl p-3 space-y-3">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+                          <div>
+                            <h4 className="font-bold text-rose-300 text-xs uppercase tracking-wide">
+                              ⛔ BLOQUEO FISCAL: INSOLVENTE EN ASEO URBANO
+                            </h4>
+                            <p className="text-[11px] text-rose-300/80 mt-0.5">
+                              Tiene una deuda pendiente de <strong className="text-white font-mono">Bs. {formatBs(solvenciaAseo?.montoDeuda || 0)}</strong> en el servicio de aseo.
+                              Por ordenanza municipal, no puede tramitar ni cancelar Hacienda sin estar solvente.
+                            </p>
+                            {solvenciaAseo?.esCondominio && (
+                              <p className="text-[10px] text-amber-300/90 italic mt-1">
+                                * Nota de Taquilla: Si el contribuyente posee otra actividad comercial independiente que esté solvente, puede cancelarla sin que la deuda de este condominio lo limite.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Switch de Desbloqueo por Supervisor */}
+                        <div className="pt-2 border-t border-rose-900/50 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {checkSupervisor ? <Unlock className="w-4 h-4 text-amber-400" /> : <Lock className="w-4 h-4 text-slate-500" />}
+                            <span className="text-[11px] font-bold text-slate-300">Autorización Especial de Supervisor:</span>
+                          </div>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={checkSupervisor}
+                              onChange={(e) => setCheckSupervisor(e.target.checked)}
+                              className="w-4 h-4 accent-amber-500 rounded"
+                            />
+                            <span className="text-[10px] text-amber-400 font-bold uppercase">
+                              {checkSupervisor ? 'Autorizado' : 'Bloqueado'}
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
