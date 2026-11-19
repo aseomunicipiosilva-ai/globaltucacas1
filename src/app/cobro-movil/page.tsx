@@ -1,5 +1,6 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Search, Camera, CreditCard, Landmark, CheckCircle2, XCircle, AlertCircle, ChevronLeft, Send, Upload, ArrowRight, FileDown } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
@@ -28,7 +29,9 @@ const mesLabel = (d: string) => {
 };
 const fmtBs = (n: number) => n.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export default function CobroMovilPage() {
+function CobroMovilContent() {
+  const searchParams = useSearchParams();
+  const initialIdentidad = searchParams.get('identidad') || searchParams.get('rif') || searchParams.get('doc') || '';
   const { contribuyentes, tcmmv } = useAppContext();
   const [step, setStep] = useState<Step>('search');
   const [docType, setDocType] = useState('V');
@@ -352,6 +355,22 @@ export default function CobroMovilPage() {
     setStep('account');
     setIsSearching(false);
   };
+
+  useEffect(() => {
+    if (initialIdentidad && initialIdentidad.trim()) {
+      const clean = initialIdentidad.trim().toUpperCase();
+      const firstChar = clean.charAt(0);
+      if (['V','J','E','G','P'].includes(firstChar)) {
+        setDocType(firstChar);
+        setDocNumber(clean.slice(1).replace(/^-/, ''));
+      } else {
+        setDocNumber(clean);
+      }
+      setTimeout(() => {
+        handleSearch();
+      }, 200);
+    }
+  }, [initialIdentidad]);
 
   const toggleRef = (ref: string) =>
     setSelectedRefs(prev => prev.includes(ref) ? prev.filter(r => r !== ref) : [...prev, ref]);
@@ -707,6 +726,18 @@ export default function CobroMovilPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CobroMovilPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex-1 flex items-center justify-center p-8 text-slate-400">
+        <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <CobroMovilContent />
+    </Suspense>
   );
 }
 

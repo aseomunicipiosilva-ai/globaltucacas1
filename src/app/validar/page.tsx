@@ -1,8 +1,9 @@
 'use client';
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Award, CheckCircle, AlertTriangle, Search, Loader2, Building, MapPin, Phone, Mail, FileCheck, XCircle } from 'lucide-react';
+import { Award, CheckCircle, AlertTriangle, Search, Loader2, Building, MapPin, Phone, Mail, FileCheck, XCircle, Smartphone, ArrowRight } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 import { verificarSolvenciaAseo, SolvenciaStatus } from '@/lib/solvenciaAseo';
 
@@ -132,31 +133,33 @@ function ValidarContent() {
           </p>
         </div>
 
-        {/* Buscador manual por si entran sin QR */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8">
-          <label className="block text-sm font-bold text-slate-700 mb-2">Código del Contribuyente, RIF o Certificado</label>
-          <div className="flex gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Ej. N-14340, V-987456322, J-312097921 o SOL-..."
-                value={codigo}
-                onChange={(e) => setCodigo(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch(codigo)}
-                className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-lg"
-              />
+        {/* Buscador manual (oculto si ya se cargó directamente un contribuyente o certificado por QR) */}
+        {(!contribuyenteInfo && !solvencia) && (
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8">
+            <label className="block text-sm font-bold text-slate-700 mb-2">Código del Contribuyente, RIF o Certificado</label>
+            <div className="flex gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Ej. N-14340, V-987456322, J-312097921 o SOL-..."
+                  value={codigo}
+                  onChange={(e) => setCodigo(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch(codigo)}
+                  className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 text-lg"
+                />
+              </div>
+              <button 
+                onClick={() => handleSearch(codigo)}
+                disabled={isLoading}
+                className="bg-slate-800 hover:bg-slate-900 text-white px-8 py-3 rounded-lg font-bold transition-colors disabled:opacity-70 flex items-center gap-2"
+              >
+                {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
+                Consultar
+              </button>
             </div>
-            <button 
-              onClick={() => handleSearch(codigo)}
-              disabled={isLoading}
-              className="bg-slate-800 hover:bg-slate-900 text-white px-8 py-3 rounded-lg font-bold transition-colors disabled:opacity-70 flex items-center gap-2"
-            >
-              {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
-              Consultar
-            </button>
           </div>
-        </div>
+        )}
 
         {error && (
           <div className="bg-red-50 border-l-4 border-red-500 p-6 rounded-r-lg shadow-sm flex items-start gap-4 mb-8">
@@ -283,6 +286,30 @@ function ValidarContent() {
                     </span>
                   </div>
                 </div>
+
+                {/* BOTÓN DIRECTO A COBRO MÓVIL SI POSEE DEUDA */}
+                {!solvenciaStatus.solvente && (
+                  <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-md flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+                        <Smartphone className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h5 className="font-black text-sm">Pagar Deuda en Línea</h5>
+                        <p className="text-xs text-emerald-100">
+                          Accede a Cobro Móvil y cancela con Pago Móvil o Transferencia bancaria
+                        </p>
+                      </div>
+                    </div>
+                    <Link
+                      href={`/cobro-movil?identidad=${encodeURIComponent(contribuyenteInfo.identidad)}`}
+                      className="w-full sm:w-auto px-5 py-2.5 bg-white text-emerald-800 hover:bg-emerald-50 active:scale-95 font-black text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 shrink-0"
+                    >
+                      Ir a Cobro Móvil
+                      <ArrowRight className="w-4 h-4 text-emerald-700" />
+                    </Link>
+                  </div>
+                )}
 
                 {/* Si tiene recibos pendientes, listar */}
                 {!solvenciaStatus.solvente && solvenciaStatus.facturas && solvenciaStatus.facturas.length > 0 && (
