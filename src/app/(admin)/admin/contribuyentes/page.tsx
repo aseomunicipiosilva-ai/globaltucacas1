@@ -140,6 +140,7 @@ function ContribuyentesPageContent() {
   const [statusNota, setStatusNota] = useState('');
   const [isProcessingStatus, setIsProcessingStatus] = useState(false);
   const [activeTab, setActiveTab] = useState<'Activos' | 'Inactivos'>('Activos');
+  const [tipoFiltroClasificacion, setTipoFiltroClasificacion] = useState<'todos' | 'residencial' | 'comercial'>('todos');
   const [filteredContribuyentes, setFilteredContribuyentes] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -186,13 +187,36 @@ function ContribuyentesPageContent() {
 
   const searchParams = useSearchParams();
 
-  useEffect(() => {
-    if (activeTab === 'Activos') {
-      setFilteredContribuyentes(contribuyentes.filter(c => c.Estado !== 'Eliminado' && c.Estado !== 'Inactivo'));
-    } else {
-      setFilteredContribuyentes(contribuyentes.filter(c => c.Estado === 'Eliminado' || c.Estado === 'Inactivo'));
+  const esResidencialContribuyente = (c: any): boolean => {
+    const clase = (c.Clasificacion || '').toUpperCase();
+    const act = (c.ActividadComercial || c.TipoResidencia || c.Actividad || '').toUpperCase();
+    const nombre = (c.Contribuyente || '').toUpperCase();
+
+    // Si explícitamente es Comercial o Industrial
+    if (clase.includes('COMERCIAL') || clase.includes('INDUSTRIAL')) return false;
+    if (act.includes('COMERCIO') || act.includes('LOCAL') || act.includes('HOTEL') || act.includes('POSADA') || act.includes('SUPERMERCADO') || act.includes('BODEGON') || act.includes('EMBARCADERO')) {
+      return false;
     }
-  }, [activeTab, contribuyentes]);
+    if (nombre.includes(' C.A') || nombre.includes(' C.A.') || nombre.includes(' S.A') || nombre.includes(' S.R.L') || nombre.includes('POSADA') || nombre.includes('HOTEL') || nombre.includes('INVERSIONES') || nombre.includes('HIPERMERCADO')) {
+      return false;
+    }
+    // Es residencial
+    return true;
+  };
+
+  useEffect(() => {
+    let baseList = activeTab === 'Activos' 
+      ? contribuyentes.filter(c => c.Estado !== 'Eliminado' && c.Estado !== 'Inactivo')
+      : contribuyentes.filter(c => c.Estado === 'Eliminado' || c.Estado === 'Inactivo');
+
+    if (tipoFiltroClasificacion === 'residencial') {
+      baseList = baseList.filter(c => esResidencialContribuyente(c));
+    } else if (tipoFiltroClasificacion === 'comercial') {
+      baseList = baseList.filter(c => !esResidencialContribuyente(c));
+    }
+
+    setFilteredContribuyentes(baseList);
+  }, [activeTab, contribuyentes, tipoFiltroClasificacion]);
 
   useEffect(() => {
     if (searchParams.get('action') === 'new') {
@@ -1131,28 +1155,44 @@ function ContribuyentesPageContent() {
     }
   };
 
-  const exportarExcelContribuyentes = () => {
-    const dataToExport = contribuyentes.map((c: any) => {
+  const exportarExcelContribuyentes = (filtroTipo: 'todos' | 'residencial' | 'comercial' = tipoFiltroClasificacion) => {
+    let listParaExportar = activeTab === 'Activos'
+      ? contribuyentes.filter(c => c.Estado !== 'Eliminado' && c.Estado !== 'Inactivo')
+      : contribuyentes.filter(c => c.Estado === 'Eliminado' || c.Estado === 'Inactivo');
+
+    if (filtroTipo === 'residencial') {
+      listParaExportar = listParaExportar.filter(c => esResidencialContribuyente(c));
+    } else if (filtroTipo === 'comercial') {
+      listParaExportar = listParaExportar.filter(c => !esResidencialContribuyente(c));
+    }
+
+    const dataToExport = listParaExportar.map((c: any) => {
       const deudas = (recibos || [])
         .filter((f: any) => f.contribuyente === c.Contribuyente || f.contribuyente === c.Identidad)
         .filter((f: any) => f.estado === 'Pendiente' || f.estado === 'Abonado');
       const totalBs = deudas.reduce((acc: number, f: any) => acc + parseFloat(f.monto || '0'), 0);
       
+      const tipoReal = esResidencialContribuyente(c) ? 'Residencial' : 'Comercial / Jurídico';
+
       return {
-        "CÓDIGO": c.CodCont || 'N/A',
+        "CÓDIGO": c.CodCont || c.cod_cont || 'N/A',
         "R.I.F / C.I": c.Identidad,
-        "RAZÓN SOCIAL": c.Contribuyente,
-        "CLASIFICACIÓN": c.Clasificacion || 'Residencial',
-        "DETALLE ACTIVIDAD/TIPO": c.ActividadComercial || c.TipoResidencia || c.Actividad || 'N/A',
+        "RAZÓN SOCIAL / NOMBRE": c.Contribuyente,
+        "TIPO USUARIO": tipoReal,
+        "CLASIFICACIÓN": c.Clasificacion || tipoReal,
+        "ACTIVIDAD / CONCEPTO": c.ActividadComercial || c.TipoResidencia || c.Actividad || 'N/A',
         "TELÉFONO": c.Telefono || 'N/A',
-        "CORREO": c.Correo || 'N/A',
-        "DIRECCIÓN": c.Direccion || 'N/A',
+        "CORREO ELECTRÓNICO": c.Correo || 'N/A',
+        "DIRECCIÓN FISCAL": c.Direccion || 'N/A',
         "DEUDA TOTAL (Bs)": totalBs.toFixed(2),
-        "MESES PENDIENTES": deudas.length
+        "MESES PENDIENTES": deudas.length,
+        "ESTADO DE CUENTA": totalBs > 0.01 ? 'CON MOROSIDAD' : 'SOLVENTE'
       };
     });
 
-    const worksheet = exportToExcelWithLogos(dataToExport, `Contribuyentes_${new Date().getTime()}.xlsx`, "Contribuyentes_y_Deudas");
+    const tipoLabel = filtroTipo === 'residencial' ? 'Residenciales' : filtroTipo === 'comercial' ? 'Comerciales' : 'General_Todos';
+    const tituloReporte = `Reporte Oficial de Contribuyentes ${tipoLabel} (${activeTab})`;
+    exportToExcelWithLogos(dataToExport, `Reporte_Contribuyentes_${tipoLabel}_${new Date().toISOString().split('T')[0]}.xlsx`, `Contribuyentes_${tipoLabel}`, tituloReporte);
   };
 
   const generarSolvenciaIndividual = async (contribuyente: any, inmuebleSpec: string) => {
@@ -2615,29 +2655,100 @@ function ContribuyentesPageContent() {
           })()}
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={exportarExcelContribuyentes} className="bg-emerald-600 text-white hover:bg-emerald-700 px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 shadow-sm">
-            <Download className="w-4 h-4" /> Exportar a Excel
-          </button>
+          <div className="relative inline-block text-left">
+            <div className="inline-flex shadow-sm rounded-md overflow-hidden">
+              <button 
+                onClick={() => exportarExcelContribuyentes(tipoFiltroClasificacion)} 
+                className="bg-emerald-600 text-white hover:bg-emerald-700 px-3 py-2 text-xs font-bold transition-colors flex items-center gap-1.5"
+                title={`Descargar Excel con Logos (${tipoFiltroClasificacion.toUpperCase()})`}
+              >
+                <Download className="w-4 h-4" /> Exportar a Excel
+              </button>
+              <button
+                type="button"
+                onClick={() => exportarExcelContribuyentes('todos')}
+                className="bg-emerald-700 hover:bg-emerald-800 text-white px-2 py-2 text-[10px] font-bold border-l border-emerald-600 transition-colors"
+                title="Exportar Todos"
+              >
+                Todos
+              </button>
+              <button
+                type="button"
+                onClick={() => exportarExcelContribuyentes('residencial')}
+                className="bg-emerald-700 hover:bg-emerald-800 text-white px-2 py-2 text-[10px] font-bold border-l border-emerald-600 transition-colors"
+                title="Exportar Solo Residenciales"
+              >
+                Resid.
+              </button>
+              <button
+                type="button"
+                onClick={() => exportarExcelContribuyentes('comercial')}
+                className="bg-emerald-700 hover:bg-emerald-800 text-white px-2 py-2 text-[10px] font-bold border-l border-emerald-600 transition-colors"
+                title="Exportar Solo Comerciales"
+              >
+                Comerc.
+              </button>
+            </div>
+          </div>
           <button onClick={handleAdd} className="bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 shadow-sm">
             <Plus className="w-4 h-4" /> Nuevo Registro
           </button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-4 border-b border-slate-200 mt-4">
-        <button
-          onClick={() => setActiveTab('Activos')}
-          className={`pb-2 px-2 text-sm font-semibold transition-colors border-b-2 ${activeTab === 'Activos' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-        >
-          Activos
-        </button>
-        <button
-          onClick={() => setActiveTab('Inactivos')}
-          className={`pb-2 px-2 text-sm font-semibold transition-colors border-b-2 ${activeTab === 'Inactivos' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-        >
-          Usuarios Inactivos / Eliminados
-        </button>
+      {/* Tabs Principales y Filtro por Tipo de Usuario */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 mt-4 pb-2">
+        <div className="flex gap-4">
+          <button
+            onClick={() => setActiveTab('Activos')}
+            className={`pb-2 px-2 text-sm font-semibold transition-colors border-b-2 ${activeTab === 'Activos' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          >
+            Activos
+          </button>
+          <button
+            onClick={() => setActiveTab('Inactivos')}
+            className={`pb-2 px-2 text-sm font-semibold transition-colors border-b-2 ${activeTab === 'Inactivos' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          >
+            Usuarios Inactivos / Eliminados
+          </button>
+        </div>
+
+        {/* Selector de Tipo de Usuario (Todos / Residencial / Comercial) */}
+        <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200">
+          <span className="text-[11px] font-bold text-slate-500 uppercase px-2 flex items-center gap-1">
+            <Filter className="w-3.5 h-3.5 text-slate-400" /> Ver:
+          </span>
+          <button
+            onClick={() => setTipoFiltroClasificacion('todos')}
+            className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
+              tipoFiltroClasificacion === 'todos'
+                ? 'bg-white text-slate-800 shadow-xs border border-slate-200'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Todos ({contribuyentes.length})
+          </button>
+          <button
+            onClick={() => setTipoFiltroClasificacion('residencial')}
+            className={`px-3 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1 ${
+              tipoFiltroClasificacion === 'residencial'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-emerald-700'
+            }`}
+          >
+            <HomeIcon className="w-3 h-3" /> Residenciales
+          </button>
+          <button
+            onClick={() => setTipoFiltroClasificacion('comercial')}
+            className={`px-3 py-1 text-xs font-bold rounded-md transition-all flex items-center gap-1 ${
+              tipoFiltroClasificacion === 'comercial'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-blue-700'
+            }`}
+          >
+            <Building className="w-3 h-3" /> Comerciales
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded border border-slate-200 shadow-sm mt-4 overflow-hidden">
