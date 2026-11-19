@@ -179,7 +179,6 @@ export default function CensoHaciendaPage() {
         actividad: formData.actividadEconomica,
         codigo: formData.nivelMetraje, // Requerido para cálculo de tarifa en Aseo Urbano
         origen: 'Censo - HACIENDA',
-        departamento: 'HACIENDA',
         fecha_inicio: formData.fechaInicioActividad,
         domicilio_fiscal: `${formData.domicilioFiscal} (Sector ${formData.sector})`,
         direccion_exacta: formData.direccionExacta || formData.domicilioFiscal,

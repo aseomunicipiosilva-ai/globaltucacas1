@@ -178,7 +178,6 @@ export default function CensoCatastroPage() {
         actividad: finalActividad,
         codigo: finalCodigo,
         origen: 'Censo - CATASTRO',
-        departamento: 'CATASTRO',
         fecha_inicio: formData.fechaInicioActividad,
         domicilio_fiscal: `${formData.direccionExacta} (Sector ${formData.sector})`,
         direccion_exacta: formData.direccionExacta,
