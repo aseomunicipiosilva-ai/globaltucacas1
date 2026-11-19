@@ -1,13 +1,13 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { exportToExcelWithLogos } from '@/lib/excelExport';
-import { TreePine, Search, CreditCard, Landmark, CheckCircle, XCircle, FileText, Handshake, Calendar as CalendarIcon, Wrench, ShieldCheck, ClipboardCheck, FlaskConical, Printer, X, RefreshCw, Trash2 } from 'lucide-react';
+import { TreePine, Search, CreditCard, Landmark, CheckCircle, XCircle, FileText, Handshake, Calendar as CalendarIcon, Wrench, ShieldCheck, ClipboardCheck, FlaskConical, Printer, X, RefreshCw, Trash2, Building2 } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
 import { formatBs } from '@/lib/formatCurrency';
 import { ReciboImprimible } from '@/components/ReciboImprimible';
 import { logAudit } from '@/lib/audit';
-import { CondoIndividualPayModal } from '@/components/CondoIndividualPayModal';
+import { CondoSelectorModal } from '@/components/CondoSelectorModal';
 
 export default function CajaPage() {
   const { inmuebles, convenios, contribuyentes, documentos, tcmmv } = useAppContext();
@@ -33,6 +33,7 @@ export default function CajaPage() {
   
   // Selection State
   const [isCondoIndividualModalOpen, setIsCondoIndividualModalOpen] = useState(false);
+  const [activeCondoUnidad, setActiveCondoUnidad] = useState<any>(null); // Unidad individual en proceso de pago
   const [selectedRecibos, setSelectedRecibos] = useState<string[]>([]);
   const [selectedCuotas, setSelectedCuotas] = useState<{convId: string, cuotaId: number}[]>([]);
   const [selectedServicios, setSelectedServicios] = useState<string[]>([]);
@@ -966,11 +967,15 @@ export default function CajaPage() {
 
   const handlePayment = async () => {
     if (totalBs <= 0) return alert("Debe seleccionar al menos una deuda a pagar.");
+
+    if (activeCondoUnidad && paymentMethod === 'Saldo a Favor') {
+      return alert("⛔ REGLA FISCAL: No está permitido utilizar Saldo a Favor del condominio para pagos individuales de apartamentos.");
+    }
     
-    const maxSaldoUsable = foundUser?.SaldoFavor || 0;
+    const maxSaldoUsable = activeCondoUnidad ? 0 : (foundUser?.SaldoFavor || 0);
     // Cuando el método de pago ES Saldo a Favor, el checkbox no aplica
     // (evita doble deducción: una por descuento + otra por el método)
-    const descuentoSaldoFavor = (paymentMethod !== 'Saldo a Favor' && useSaldoFavor)
+    const descuentoSaldoFavor = (!activeCondoUnidad && paymentMethod !== 'Saldo a Favor' && useSaldoFavor)
       ? Math.min(totalBs, maxSaldoUsable)
       : 0;
     const finalTotal = Math.max(0, totalBs - descuentoSaldoFavor);
@@ -1337,6 +1342,41 @@ export default function CajaPage() {
           })
         });
 
+        // Si era pago individual de condominio, restar automáticamente el monto cancelado de la deuda del Condominio
+        if (activeCondoUnidad) {
+          try {
+            const { data: condoInm } = await supabase
+              .from('inmuebles')
+              .select('saldo, deuda_mmv')
+              .eq('id', activeCondoUnidad.condominioId)
+              .maybeSingle();
+
+            if (condoInm) {
+              const saldoViejo = parseFloat(condoInm.saldo || '0') || 0;
+              const nuevoSaldo = Math.max(0, saldoViejo - montoReal);
+              const nuevaDeudaMmv = currentBcvRate > 0 ? (nuevoSaldo / currentBcvRate).toFixed(4) : 0;
+              await supabase
+                .from('inmuebles')
+                .update({ saldo: nuevoSaldo.toFixed(2), deuda_mmv: nuevaDeudaMmv })
+                .eq('id', activeCondoUnidad.condominioId);
+            }
+
+            // Actualizar la unidad a Solvente
+            if (activeCondoUnidad.id && !String(activeCondoUnidad.id).startsWith('manual-')) {
+              await supabase
+                .from('unidades_condominio')
+                .update({
+                  propietario: activeCondoUnidad.propietario,
+                  cedula_rif: activeCondoUnidad.cedula_rif,
+                  estado: 'Solvente'
+                })
+                .eq('id', activeCondoUnidad.id);
+            }
+          } catch (e) {
+            console.error('Error amortizando deuda del condominio matriz:', e);
+          }
+        }
+
         if (esAbonoDebito) {
           (window as any).__lastPaymentAbono = { 
             esAbono: true, 
@@ -1528,16 +1568,29 @@ export default function CajaPage() {
 
               const totalGrupo = conceptosGrupo.reduce((s: number, c: any) => s + c.total, 0);
               const refNum = (grupo.refs[0] || '').split('-').pop()?.padStart(7, '0') || String(idx + 1).padStart(7, '0');
+              
+              // Si es pago individual de condominio, reflejar los datos específicos
+              const isUnidadPago = !!activeCondoUnidad;
+              const razonSocialFinal = isUnidadPago
+                ? `${activeCondoUnidad.propietario} (${activeCondoUnidad.numero_unidad} - ${activeCondoUnidad.condominioNombre})`
+                : (inmGrupo?.contribuyente || foundUser.Contribuyente || '');
+              const rifCiFinal = isUnidadPago ? activeCondoUnidad.cedula_rif : foundUser.Identidad;
+              const direccionCondominioFinal = (activeCondoUnidad?.condominioDireccion || inmGrupo?.direccion || 'TUCACAS MUNICIPIO SILVA, FALCÓN').toUpperCase();
+
               return {
                 reciboNo: refNum,
                 controlWeb: `WEB-${refNum}`,
                 fechaEmision: new Date().toISOString().split('T')[0],
-                codContribuyente: inmGrupo?.cod_cont || foundUser.Identidad,
-                razonSocial: inmGrupo?.contribuyente || foundUser.Contribuyente || '',
-                domicilioFiscal: ((inmGrupo?.direccion || 'TUCACAS MUNICIPIO SILVA, FALCÓN') as string).toUpperCase(),
-                rifCi: foundUser.Identidad,
+                codContribuyente: isUnidadPago ? `${activeCondoUnidad.condominioNombre} - ${activeCondoUnidad.numero_unidad}` : (inmGrupo?.cod_cont || foundUser.Identidad),
+                razonSocial: razonSocialFinal,
+                domicilioFiscal: direccionCondominioFinal,
+                rifCi: rifCiFinal,
                 caja: cajero_id_recibo,
-                conceptos: conceptosGrupo,
+                conceptos: isUnidadPago ? [{
+                  descripcion: `Cuota Mensual Aseo: ${activeCondoUnidad.numero_unidad} (${activeCondoUnidad.condominioNombre}) - Tarifa Oficial 3.00 MMV`,
+                  precioUnit: totalGrupo,
+                  total: totalGrupo
+                }] : conceptosGrupo,
                 subTotal: totalGrupo,
                 exento: totalGrupo,
                 iva: 0,
@@ -2221,7 +2274,7 @@ await supabase.from('documentos').insert([{
                 })()}
               </div>
             </div>
-            {foundUser.SaldoFavor > 0 && (
+            {foundUser.SaldoFavor > 0 && !activeCondoUnidad && (
               <div className="bg-emerald-100 border-2 border-emerald-500 p-4 rounded-xl flex flex-col items-center justify-center min-w-[200px]">
                 <span className="text-emerald-700 font-bold text-sm uppercase">Saldo a Favor</span>
                 <span className="text-2xl font-black text-emerald-600">Bs. {formatBs(foundUser.SaldoFavor)}</span>
@@ -2231,7 +2284,55 @@ await supabase.from('documentos').insert([{
                 </label>
               </div>
             )}
+            {activeCondoUnidad && foundUser.SaldoFavor > 0 && (
+              <div className="bg-slate-100 border border-slate-300 p-3 rounded-xl flex flex-col items-center justify-center text-center max-w-[210px]">
+                <span className="text-[10px] font-bold text-slate-500 uppercase">Saldo a Favor del Condominio</span>
+                <span className="text-xs font-mono font-bold text-slate-600">Bs. {formatBs(foundUser.SaldoFavor)}</span>
+                <span className="text-[9px] text-amber-700 font-bold mt-1 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                  ⛔ Bloqueado para pagos individuales
+                </span>
+              </div>
+            )}
           </div>
+
+          {/* BANNER DE UNIDAD EN PAGO INDIVIDUAL */}
+          {activeCondoUnidad && (
+            <div className="bg-emerald-950/80 border-2 border-emerald-500 rounded-2xl p-4 text-white shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center border border-emerald-400/30">
+                  <Building2 className="w-6 h-6 text-emerald-400" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500 text-emerald-950 px-2 py-0.5 rounded">
+                      Pago Individual de Apartamento
+                    </span>
+                    <span className="text-sm font-bold text-white">
+                      {activeCondoUnidad.numero_unidad}
+                    </span>
+                  </div>
+                  <p className="text-xs text-emerald-200 mt-0.5">
+                    Titular: <strong className="text-white">{activeCondoUnidad.propietario}</strong> ({activeCondoUnidad.cedula_rif}) • Condominio: <strong className="text-white">{activeCondoUnidad.condominioNombre}</strong>
+                  </p>
+                  <p className="text-[11px] text-emerald-300/80 mt-0.5">
+                    Tarifa Oficial: <strong className="text-white font-mono">3.00 MMV</strong> (Bs. {activeCondoUnidad.cuotaMesBs.toFixed(2)}/mes) • Se amortizará de la deuda matriz al pagar.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 self-end sm:self-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveCondoUnidad(null);
+                    handleSearch();
+                  }}
+                  className="text-xs bg-emerald-900/80 hover:bg-emerald-900 text-emerald-200 border border-emerald-700 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  ✕ Cancelar Modo Individual
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Listado de Deudas */}
@@ -3354,9 +3455,9 @@ await supabase.from('documentos').insert([{
         </div>
       )}
 
-      {/* Modal de Pago Individual de Condominio con Clave Master */}
+      {/* Modal de Selección y Desglose de Unidades de Condominio con Clave Master */}
       {isCondoIndividualModalOpen && foundUser && (
-        <CondoIndividualPayModal
+        <CondoSelectorModal
           isOpen={isCondoIndividualModalOpen}
           onClose={() => setIsCondoIndividualModalOpen(false)}
           condominio={(() => {
@@ -3367,13 +3468,38 @@ await supabase.from('documentos').insert([{
               cod_cont: foundUser.cod_cont,
               cant_inmuebles: foundUser.cant_inmuebles || 1,
               saldo: foundUser.Saldo || 0,
-              mmv_mes: foundUser.mmv_mes || 0
+              mmv_mes: foundUser.mmv_mes || 0,
+              direccion: foundUser.Direccion || ''
             };
             return matched;
           })()}
           currentBcvRate={currentBcvRate}
-          onPaymentSuccess={() => {
-            handleSearch();
+          onSelectUnidad={(unidad) => {
+            // Configurar la caja para cobrar directamente la cuota individual
+            setActiveCondoUnidad(unidad);
+            setUseSaldoFavor(false); // Bloquear saldo a favor en pagos individuales
+            
+            // Generar recibo virtual de caja por el monto exacto de la cuota oficial (3.00 MMV * BCV)
+            const cuotaBs = unidad.cuotaMesBs;
+            const refVirtual = `APTO-${unidad.numero_unidad.replace(/[^a-zA-Z0-9]/g, '')}-${Date.now().toString().slice(-4)}`;
+            
+            const reciboUnidad = {
+              referencia: refVirtual,
+              monto: cuotaBs,
+              emision: new Date().toISOString().split('T')[0],
+              vencimiento: new Date().toISOString().split('T')[0],
+              estado: 'Pendiente',
+              descripcion: `Cuota Mensual Aseo: ${unidad.numero_unidad} (${unidad.condominioNombre})`,
+              concepto: `Pago Individual: ${unidad.numero_unidad} - Propietario: ${unidad.propietario} (${unidad.cedula_rif})`,
+              isUnidadCondo: true,
+              unidadData: unidad
+            };
+
+            setRecibos([reciboUnidad]);
+            setSelectedRecibos([refVirtual]);
+            setTotalBs(cuotaBs);
+            setMontoDebito(cuotaBs.toFixed(2));
+            setMontoTransferido(cuotaBs.toFixed(2));
           }}
         />
       )}
