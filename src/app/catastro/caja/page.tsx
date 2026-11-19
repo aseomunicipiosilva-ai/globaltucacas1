@@ -183,12 +183,32 @@ export default function CatastroCajaPage() {
       if (tipoFiltro === 'Residencial') {
         filtrados = filtrados.filter(i => {
           const cls = (i.clasificacion || '').toUpperCase();
-          return cls.includes('RESIDENCIAL') || cls.includes('TIPO A') || cls.includes('TIPO C') || !cls.includes('COMERCIAL');
+          const act = (i.actividad_principal || i.actividad || '').toUpperCase();
+          const nom = (i.contribuyente || '').toUpperCase();
+          const tipo = (i.tipo || '').toUpperCase();
+
+          // Excluir si es claramente comercial o empresarial (C.A., Bodegón, Hipermercado, Posada, Embarcadero, etc.)
+          if (nom.includes(' C.A.') || nom.includes(' C.A') || nom.includes(' S.A.') || nom.includes('POSADA') || nom.includes('HOTEL') || nom.includes('BODEGON') || nom.includes('HIPERMERCADO') || nom.includes('EMBARCADERO') || nom.includes('INVERSIONES') || nom.includes('CORP')) {
+            return false;
+          }
+          if (tipo.includes('LOCAL') || tipo.includes('OFICINA') || tipo.includes('MUELLE')) {
+            return false;
+          }
+          if (act.includes('POSADA') || act.includes('BAR') || act.includes('RESTAURANT') || act.includes('AUTOMERCADO') || act.includes('MARINA') || act.includes('COMERCIO')) {
+            return false;
+          }
+          if (cls.includes('TIPO D') || cls.includes('TIPO B') || cls.includes('COMERCIAL') || cls.includes('INDUSTRIAL')) {
+            return false;
+          }
+          return cls.includes('RESIDENCIAL') || cls.includes('TIPO A') || nom.startsWith('V-') || nom.startsWith('V') || !nom.includes('J-');
         });
       } else if (tipoFiltro === 'Comercial') {
         filtrados = filtrados.filter(i => {
           const cls = (i.clasificacion || '').toUpperCase();
-          return cls.includes('COMERCIAL') || cls.includes('TIPO D') || cls.includes('TIPO B');
+          const act = (i.actividad_principal || i.actividad || '').toUpperCase();
+          const nom = (i.contribuyente || '').toUpperCase();
+          const tipo = (i.tipo || '').toUpperCase();
+          return cls.includes('COMERCIAL') || cls.includes('TIPO D') || cls.includes('TIPO B') || nom.includes(' C.A') || act.includes('POSADA') || act.includes('BAR') || tipo.includes('LOCAL');
         });
       } else if (tipoFiltro === 'Industrial') {
         filtrados = filtrados.filter(i => (i.clasificacion || '').toUpperCase().includes('INDUSTRIAL'));
