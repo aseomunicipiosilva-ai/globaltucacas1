@@ -155,7 +155,7 @@ export default function CatastroCajaPage() {
   const buscarInmuebles = async () => {
     setLoading(true);
     try {
-      let query = supabase.from('inmuebles').select('*').limit(60);
+      let query = supabase.from('inmuebles').select('*').limit(250);
 
       if (searchTerm.trim()) {
         const term = searchTerm.trim();
@@ -165,7 +165,21 @@ export default function CatastroCajaPage() {
       const { data, error } = await query;
       if (error) throw error;
 
-      let filtrados = data || [];
+      // Regla de Oro: En Catastro NO deben salir condominios matrices (J-...), solo propietarios individuales o parcelas
+      let filtrados = (data || []).filter(i => {
+        const nom = (i.contribuyente || '').toUpperCase();
+        const act = (i.actividad_principal || i.actividad || '').toUpperCase();
+        const cls = (i.clasificacion || '').toUpperCase();
+        const cant = parseInt(i.cant_inmuebles || '1', 10);
+
+        if (nom.includes('CONDOMINIO') || nom.includes('CONJUNTO RESIDENCIAL') || nom.includes('RESIDENCIAS') || act.includes('CONDOMINIO') || act.includes('ÁREA COMÚN') || act.includes('AREA COMUN')) {
+          return false;
+        }
+        if (cls.includes('TIPO C') && cant > 1) {
+          return false;
+        }
+        return true;
+      });
       if (tipoFiltro === 'Residencial') {
         filtrados = filtrados.filter(i => {
           const cls = (i.clasificacion || '').toUpperCase();
