@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { CreditCard, FileText, Upload, Send, Building, CheckSquare, AlertCircle, CheckCircle2, MapPin, ArrowRightLeft } from 'lucide-react';
+import { CreditCard, FileText, Upload, Send, Building, CheckSquare, AlertCircle, CheckCircle2, MapPin, ArrowRightLeft, AlertTriangle, Info } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
 import { formatBs } from '@/lib/formatCurrency';
@@ -119,9 +119,16 @@ export default function DondePagarPage() {
 
         const finalMonto = Math.max(0, baseMonto - montoPendiente);
 
+        // Extraer identificador de inmueble de la referencia si existe (ej. CM-I-000651-...)
+        const refParts = (f.referencia || '').split('-');
+        const inmuebleRef = refParts.length >= 3 ? `${refParts[1]}-${refParts[2]}` : '';
+
         return {
           id: f.id,
           dbId: f.id,
+          referencia: f.referencia,
+          emision: f.emision || '',
+          inmuebleRef,
           concepto: `Recibo ${f.referencia} - ${f.emision}`,
           monto: finalMonto,
           seleccionado: false,
@@ -160,8 +167,51 @@ export default function DondePagarPage() {
     setFormData(prev => ({ ...prev, monto: montoTotal > 0 ? formatBs(montoTotal) : '' }));
   }, [montoTotal]);
 
+  // Manejo de monto editable y cálculo de diferencia respecto al monto de las deudas seleccionadas
+  const montoIngresadoNum = (() => {
+    if (!formData.monto) return 0;
+    const clean = formData.monto.replace(/\./g, '').replace(',', '.').replace(/[^0-9.]/g, '');
+    return parseFloat(clean) || 0;
+  })();
+
+  const diferenciaMonto = montoIngresadoNum - montoTotal;
+
   const toggleDeuda = (id: string | number) => {
-    setDeudas(deudas.map(d => d.id === id ? { ...d, seleccionado: !d.seleccionado } : d));
+    const target = deudas.find(d => d.id === id);
+    if (!target) return;
+
+    if (!target.seleccionado) {
+      // Validar orden cronológico: si es recibo, no permitir saltarse recibos anteriores más antiguos del mismo inmueble
+      if (target.tipo === 'recibo') {
+        const facturasMismoInmueble = deudas
+          .filter(d => d.tipo === 'recibo' && (!target.inmuebleRef || d.inmuebleRef === target.inmuebleRef))
+          .sort((a, b) => (a.emision || '').localeCompare(b.emision || ''));
+
+        const targetIdx = facturasMismoInmueble.findIndex(d => d.id === target.id);
+        if (targetIdx > 0) {
+          const anterioresPendientes = facturasMismoInmueble.slice(0, targetIdx);
+          const faltaAnterior = anterioresPendientes.some(d => !d.seleccionado);
+          if (faltaAnterior) {
+            alert('¡Debe seleccionar los recibos en orden cronológico! Cancele primero los meses más antiguos.');
+            return;
+          }
+        }
+      }
+      setDeudas(deudas.map(d => d.id === id ? { ...d, seleccionado: true } : d));
+    } else {
+      // Al desmarcar un recibo, desmarcar también los posteriores más recientes del mismo inmueble
+      if (target.tipo === 'recibo') {
+        const facturasMismoInmueble = deudas
+          .filter(d => d.tipo === 'recibo' && (!target.inmuebleRef || d.inmuebleRef === target.inmuebleRef))
+          .sort((a, b) => (a.emision || '').localeCompare(b.emision || ''));
+
+        const targetIdx = facturasMismoInmueble.findIndex(d => d.id === target.id);
+        const posteriores = targetIdx >= 0 ? facturasMismoInmueble.slice(targetIdx).map(d => d.id) : [id];
+        setDeudas(deudas.map(d => posteriores.includes(d.id) ? { ...d, seleccionado: false } : d));
+      } else {
+        setDeudas(deudas.map(d => d.id === id ? { ...d, seleccionado: false } : d));
+      }
+    }
   };
 
   const compressImage = (file: File): Promise<File> => {
@@ -236,7 +286,7 @@ export default function DondePagarPage() {
           metodo,
           facturaIds,
           convenioIds,
-          monto: montoTotal,
+          monto: montoIngresadoNum > 0 ? montoIngresadoNum : montoTotal,
           referencia: formData.referencia,
           banco: formData.bancoOrigen,
           fecha: formData.fecha,
@@ -404,16 +454,9 @@ export default function DondePagarPage() {
                   </div>
                 </div>
 
-                {/* Solo transferencia disponible en línea */}
-                {hasUnselectedDebts && deudas.length > 0 && (
-                  <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-xs flex items-start gap-2 mb-3">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                    <div>Debe seleccionar <strong>TODAS</strong> las deudas pendientes para poder reportar el pago por Transferencia.</div>
-                  </div>
-                )}
                 <button
                   type="button"
-                  disabled={montoTotal === 0 || hasUnselectedDebts}
+                  disabled={montoTotal === 0}
                   onClick={() => setMetodo('transferencia')}
                   className={`w-full p-4 rounded-lg border-2 text-left transition-all flex items-start gap-3 disabled:opacity-40 disabled:cursor-not-allowed ${
                     metodo === 'transferencia'
@@ -436,18 +479,59 @@ export default function DondePagarPage() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-600 mb-1.5">Monto Transferido (Bs) <span className="text-red-500">*</span></label>
+                      <div className="flex justify-between items-center mb-1.5">
+                        <label className="block text-xs font-semibold text-slate-600">Monto Transferido (Bs) <span className="text-red-500">*</span></label>
+                        {montoTotal > 0 && formData.monto !== formatBs(montoTotal) && (
+                          <button
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, monto: formatBs(montoTotal) }))}
+                            className="text-[10px] text-blue-600 hover:text-blue-800 font-medium underline"
+                          >
+                            Restablecer monto exacto
+                          </button>
+                        )}
+                      </div>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold">Bs.</span>
                         <input 
                           type="text"
                           value={formData.monto}
                           placeholder="0.00"
-                          className="w-full border border-slate-200 bg-slate-50 rounded pl-9 pr-3 py-2 text-sm text-slate-700 outline-none font-mono cursor-not-allowed font-bold"
-                          readOnly
+                          onChange={(e) => setFormData(prev => ({ ...prev, monto: e.target.value }))}
+                          className="w-full border border-slate-300 bg-white rounded pl-9 pr-3 py-2 text-sm text-slate-800 outline-none font-mono focus:border-blue-500 font-bold shadow-sm"
+                          required
                         />
                       </div>
-                      <span className="text-[10px] text-slate-500 mt-1 block">Calculado automáticamente.</span>
+                      <span className="text-[10px] text-slate-500 mt-1 block">
+                        Monto sugerido por recibos seleccionados: <strong>Bs. {formatBs(montoTotal)}</strong>. Puede ajustarlo según su comprobante bancario.
+                      </span>
+
+                      {/* Alerta de saldo por arriba o saldo por abajo */}
+                      {montoTotal > 0 && montoIngresadoNum > 0 && Math.abs(diferenciaMonto) > 0.01 && (
+                        <div className={`mt-2 p-2.5 rounded-lg border text-xs flex items-start gap-2 ${
+                          diferenciaMonto > 0.01 
+                            ? 'bg-emerald-50 border-emerald-300 text-emerald-800' 
+                            : 'bg-amber-50 border-amber-300 text-amber-800'
+                        }`}>
+                          {diferenciaMonto > 0.01 ? (
+                            <>
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                              <div>
+                                <strong className="block font-semibold">Saldo por arriba (+Bs. {formatBs(diferenciaMonto)})</strong>
+                                El monto transferido supera el total de los recibos seleccionados. La diferencia de <strong>Bs. {formatBs(diferenciaMonto)}</strong> quedará como saldo a favor en su cuenta al ser conciliado.
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                              <div>
+                                <strong className="block font-semibold">Saldo por abajo (-Bs. {formatBs(Math.abs(diferenciaMonto))})</strong>
+                                El monto colocado es menor al total de los recibos. Faltan <strong>Bs. {formatBs(Math.abs(diferenciaMonto))}</strong> para cubrir la totalidad de lo seleccionado. Se registrará como abono parcial.
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 mb-1.5">Banco Origen <span className="text-red-500">*</span></label>
