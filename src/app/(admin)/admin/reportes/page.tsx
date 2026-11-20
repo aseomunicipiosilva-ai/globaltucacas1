@@ -96,17 +96,34 @@ export default function ReportesPage() {
         });
       }
 
-      const { data, error } = await supabase
-        .from('pagos_reportados')
-        .select('id, identidad, monto, banco, referencia, tipo, estado, created_at, detalles')
-        .not('estado','in','(Anulado,Reversado,Condonado)')
-        .order('created_at', { ascending: false });
-      
-      let rawData = data;
-      if (error || !rawData) {
-        console.error('Error cargando pagos_reportados:', error);
-        const { data: fallbackData } = await supabase.from('pagos_reportados').select('*').not('estado','in','(Anulado,Reversado,Condonado)').order('created_at', { ascending: false });
-        rawData = fallbackData || [];
+      let rawData: any[] = [];
+      try {
+        const res = await fetch('/api/pagos-reportados', { cache: 'no-store' });
+        if (res.ok) {
+          const json = await res.json();
+          rawData = json.pagos || [];
+        }
+      } catch (err) {
+        console.warn('Error fetching /api/pagos-reportados, fallback paginado:', err);
+      }
+
+      if (rawData.length === 0) {
+        // Fallback paginado para evitar timeout de Supabase
+        const CHUNK_SIZE = 500;
+        let from = 0;
+        let hasMore = true;
+        while (hasMore) {
+          const { data: chunk, error: errChunk } = await supabase
+            .from('pagos_reportados')
+            .select('id, identidad, monto, banco, referencia, tipo, estado, created_at, detalles')
+            .range(from, from + CHUNK_SIZE - 1);
+
+          if (errChunk || !chunk || chunk.length === 0) break;
+          rawData = rawData.concat(chunk);
+          if (chunk.length < CHUNK_SIZE) hasMore = false;
+          else from += CHUNK_SIZE;
+        }
+        rawData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       }
 
       if (rawData) {

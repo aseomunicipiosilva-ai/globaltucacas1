@@ -107,15 +107,45 @@ export default function RecaudacionWidget() {
     setIsLoading(true);
     const range = getRange(periodo, desde, hasta);
     try {
-      const { data } = await supabase
-        .from('pagos_reportados')
-        .select('*')
-        .not('estado', 'in', '(Anulado,Reversado,Condonado,Rechazado)')
-        .gte('created_at', range.desde + 'T00:00:00')
-        .lte('created_at', range.hasta + 'T23:59:59')
-        .order('created_at', { ascending: false });
-      setPagos(data || []);
-    } catch(e) { console.error(e); }
+      const res = await fetch('/api/pagos-reportados', { cache: 'no-store' });
+      if (res.ok) {
+        const json = await res.json();
+        const allList: any[] = json.pagos || [];
+        const dInicio = new Date(range.desde + 'T00:00:00').getTime();
+        const dFin = new Date(range.hasta + 'T23:59:59').getTime();
+
+        const filtrados = allList.filter((p: any) => {
+          if (['Anulado', 'Reversado', 'Condonado', 'Rechazado'].includes(p.estado)) return false;
+          const fechaP = new Date(p.created_at).getTime();
+          return !isNaN(fechaP) && fechaP >= dInicio && fechaP <= dFin;
+        });
+        setPagos(filtrados);
+      } else {
+        // Fallback directo a Supabase paginado
+        const CHUNK_SIZE = 500;
+        let allRows: any[] = [];
+        let from = 0;
+        let hasMore = true;
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from('pagos_reportados')
+            .select('*')
+            .range(from, from + CHUNK_SIZE - 1);
+          if (error || !data || data.length === 0) break;
+          allRows = allRows.concat(data);
+          if (data.length < CHUNK_SIZE) hasMore = false;
+          else from += CHUNK_SIZE;
+        }
+        const dInicio = new Date(range.desde + 'T00:00:00').getTime();
+        const dFin = new Date(range.hasta + 'T23:59:59').getTime();
+        const filtrados = allRows.filter((p: any) => {
+          if (['Anulado', 'Reversado', 'Condonado', 'Rechazado'].includes(p.estado)) return false;
+          const fechaP = new Date(p.created_at).getTime();
+          return !isNaN(fechaP) && fechaP >= dInicio && fechaP <= dFin;
+        });
+        setPagos(filtrados);
+      }
+    } catch(e) { console.error('Error fetching pagos widget:', e); }
     setIsLoading(false);
   };
 
