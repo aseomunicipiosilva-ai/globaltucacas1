@@ -399,6 +399,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
           if (updErr) throw updErr;
         }
 
+        // Si se seleccionaron coordenadas en el mapa, sincronizar también pre_registros para geolocalización satelital inmediata
+        if (data.coordenadas && data.coordenadas.lat && data.coordenadas.lng) {
+          try {
+            await supabase
+              .from('pre_registros')
+              .update({
+                coordenadas: data.coordenadas,
+                direccion_exacta: data.DireccionExacta || data.Direccion,
+                contribuyente: data.Contribuyente
+              })
+              .or(`identidad.eq.${id},identidad.eq.${cleanId},identidad.eq.${targetIdentidad}`);
+          } catch (preErr) {
+            console.warn("Could not sync pre_registros coords:", preErr);
+          }
+        }
+
         // Sincronizar monto en facturas pendientes con el nuevo metraje/actividad
         if (mmvMes > 0 && tcmmv && tcmmv > 0) {
           const nuevoMontoMes = (mmvMes * tcmmv).toFixed(2);

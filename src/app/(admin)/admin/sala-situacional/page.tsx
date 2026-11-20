@@ -285,73 +285,108 @@ export default function SalaSituacionalPage() {
 
       setBitacoraLogs(parsedLogsList);
 
-      // 5. Mapear los contribuyentes de Aseo (los 764 registros del padrón de Aseo)
-      const puntos: PuntoAseo[] = [];
-      allInmuebles.forEach((inm, index) => {
+      // 5. Mapear y consolidar los contribuyentes de Aseo en su ubicación real
+      // Se agrupan los registros con el mismo RIF/Cédula que comparten ubicación/predio para no duplicar puntos por todo el mapa
+      const inmsByContribuyente = new Map<string, any[]>();
+      allInmuebles.forEach((inm) => {
         const idClean = (inm.identidad || '').replace(/[-.\s]/g, '').toUpperCase();
-        
-        // Coordenadas: si tiene en pre_registros usar la exacta, de lo contrario usar centro del sector con jitter
+        if (!inmsByContribuyente.has(idClean)) {
+          inmsByContribuyente.set(idClean, []);
+        }
+        inmsByContribuyente.get(idClean)!.push(inm);
+      });
+
+      const puntos: PuntoAseo[] = [];
+
+      inmsByContribuyente.forEach((inmList, idClean) => {
+        const mainInm = inmList[0];
+
+        // 1. Resolver Coordenadas Reales:
         let lat: number | null = null;
         let lng: number | null = null;
 
+        // Prioridad A: Coordenadas GPS satelitales en pre_registros (Censo / Verificación en campo)
         if (preCoordMap.has(idClean)) {
           const c = preCoordMap.get(idClean)!;
           lat = c.lat;
           lng = c.lng;
         } else {
-          const sec = (inm.sector || '').toUpperCase().trim();
-          let base = SECTOR_COORDS_BASE[sec];
-          if (!base) {
-            for (const key of Object.keys(SECTOR_COORDS_BASE)) {
-              if (sec.includes(key)) {
-                base = SECTOR_COORDS_BASE[key];
-                break;
-              }
+          // Prioridad B: Deducir coordenadas a partir de la DIRECCIÓN exacta o sector del inmueble
+          // Buscar texto de dirección en cualquiera de las actividades del contribuyente
+          let textoDireccion = '';
+          inmList.forEach(item => {
+            textoDireccion += ` ${(item.direccion || '')} ${(item.sector || '')}`;
+          });
+          textoDireccion = textoDireccion.toUpperCase();
+
+          let baseCoords = null;
+          for (const [key, coords] of Object.entries(SECTOR_COORDS_BASE)) {
+            if (textoDireccion.includes(key)) {
+              baseCoords = coords;
+              break;
             }
           }
-          if (!base) base = SECTOR_COORDS_BASE['CENTRO TUCACAS'];
 
-          // Jitter determinista suave basado en id para esparcir los puntos dentro de su sector
-          const seed = (inm.id * 9301 + 49297) % 233280;
-          const rnd1 = ((seed % 1000) / 1000 - 0.5) * 0.008;
-          const rnd2 = ((((seed * 7) % 1000) / 1000) - 0.5) * 0.008;
-          lat = base.lat + rnd1;
-          lng = base.lng + rnd2;
+          if (!baseCoords) {
+            baseCoords = SECTOR_COORDS_BASE['CENTRO TUCACAS'];
+          }
+
+          // Jitter mínimo y estable para que todos los locales de este contribuyente estén exactamente en su predio
+          const seed = (mainInm.id * 9301 + 49297) % 233280;
+          const rnd1 = ((seed % 1000) / 1000 - 0.5) * 0.0015;
+          const rnd2 = ((((seed * 7) % 1000) / 1000) - 0.5) * 0.0015;
+          lat = baseCoords.lat + rnd1;
+          lng = baseCoords.lng + rnd2;
         }
 
+        // 2. Información Financiera consolidada de Aseo
         const infoDeuda = deudaMap[idClean] || { total: 0, count: 0 };
-        // También considerar deuda_mmv registrada en el inmueble
-        const deudaMmv = Number(inm.deuda_mmv || 0);
-        const esSolvente = infoDeuda.count === 0 && infoDeuda.total === 0 && deudaMmv === 0;
+        const totalDeudaMmv = inmList.reduce((acc, curr) => acc + Number(curr.deuda_mmv || 0), 0);
+        const totalTarifaMmv = inmList.reduce((acc, curr) => acc + Number(curr.mmv_mes || 0), 0);
+        const esSolvente = infoDeuda.count === 0 && infoDeuda.total === 0 && totalDeudaMmv === 0;
 
-        const clasif = (inm.clasificacion || '').toUpperCase();
-        const tipoInm = (inm.tipo || '').toUpperCase();
-        const isCondo = clasif.includes('CONDO') || (inm.cant_inmuebles && inm.cant_inmuebles > 1);
-        
+        // 3. Tipología y Clasificación
+        let esCondo = inmList.some(i => (i.clasificacion || '').toUpperCase().includes('CONDO') || (i.cant_inmuebles && i.cant_inmuebles > 1));
+        let esComercial = inmList.some(i => {
+          const c = (i.clasificacion || '').toUpperCase();
+          const t = (i.tipo || '').toUpperCase();
+          return c.includes('COMER') || t.includes('LOCAL') || t.includes('COMER') || (i.contribuyente || '').toUpperCase().includes(' C.A');
+        });
+
         let tipoForm: 'Condominio' | 'Comercial' | 'Residencial' = 'Residencial';
-        if (isCondo) tipoForm = 'Condominio';
-        else if (clasif.includes('COMER') || tipoInm.includes('LOCAL') || tipoInm.includes('COMER') || (inm.contribuyente || '').toUpperCase().includes(' C.A')) {
-          tipoForm = 'Comercial';
-        }
+        if (esCondo) tipoForm = 'Condominio';
+        else if (esComercial) tipoForm = 'Comercial';
+
+        // Actividades agrupadas si tiene múltiples
+        const actividadesList = inmList
+          .map(i => i.actividad_principal || i.inmueble || i.tipo)
+          .filter(Boolean);
+        const actividadConsolidada = actividadesList.length > 1 
+          ? `${actividadesList.length} actividades: ${actividadesList.slice(0, 2).join(', ')}${actividadesList.length > 2 ? '...' : ''}`
+          : (actividadesList[0] || mainInm.tipo || 'Comercial');
 
         const scanInfo = qrScanMap.get(idClean);
 
+        // Detectar sector representativo
+        const sectorFinal = inmList.find(i => i.sector)?.sector || mainInm.sector || 'Tucacas';
+        const direccionFinal = inmList.find(i => i.direccion)?.direccion || mainInm.direccion || `${sectorFinal}, Municipio Silva`;
+
         puntos.push({
-          id: `aseo-${inm.id}`,
-          codigo: inm.cod_cont || `C-${String(inm.id).padStart(6, '0')}`,
-          identidad: inm.identidad || 'Sin ID',
-          contribuyente: inm.contribuyente || 'Contribuyente',
+          id: `aseo-${mainInm.id}`,
+          codigo: mainInm.cod_cont || `C-${String(mainInm.id).padStart(6, '0')}`,
+          identidad: mainInm.identidad || 'Sin ID',
+          contribuyente: mainInm.contribuyente || 'Contribuyente',
           tipo: tipoForm,
-          clasificacion: inm.clasificacion || tipoForm,
-          actividad: inm.actividad_principal || inm.inmueble || inm.tipo,
-          direccion: inm.direccion || `${inm.sector || 'Tucacas'}, Municipio Silva`,
-          sector: inm.sector || 'Tucacas',
-          is_condominio: isCondo,
-          cantidad_inmuebles: inm.cant_inmuebles || 1,
+          clasificacion: mainInm.clasificacion || tipoForm,
+          actividad: actividadConsolidada,
+          direccion: direccionFinal,
+          sector: sectorFinal,
+          is_condominio: esCondo,
+          cantidad_inmuebles: inmList.length > 1 ? inmList.length : (mainInm.cant_inmuebles || 1),
           deuda_total: infoDeuda.total,
           facturas_pendientes: infoDeuda.count,
           solvente: esSolvente,
-          tarifa_mensual: Number(inm.mmv_mes || 0),
+          tarifa_mensual: totalTarifaMmv,
           lat,
           lng,
           // Datos de escaneo QR
