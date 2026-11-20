@@ -19,6 +19,8 @@ export default function DondePagarPage() {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<{type: 'success' | 'approved' | 'error', msg: string} | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAceptado, setConfirmAceptado] = useState(false);
 
   const { recibos, convenios, setFacturas, inmuebles, tcmmv } = useAppContext();
   const [pagosPorVerificar, setPagosPorVerificar] = useState<any[]>([]);
@@ -165,6 +167,7 @@ export default function DondePagarPage() {
 
   useEffect(() => {
     setFormData(prev => ({ ...prev, monto: montoTotal > 0 ? formatBs(montoTotal) : '' }));
+    setConfirmAceptado(false);
   }, [montoTotal]);
 
   // Manejo de monto editable y cálculo de diferencia respecto al monto de las deudas seleccionadas
@@ -250,6 +253,14 @@ export default function DondePagarPage() {
     if (metodo === 'transferencia' && !formData.referencia) { alert('Ingrese el número de referencia.'); return; }
     if (metodo === 'transferencia' && !formData.comprobante) { alert('⚠️ COMPROBANTE OBLIGATORIO: Adjunte la captura o foto del comprobante de transferencia bancaria.'); return; }
 
+    // Validación de discrepancia: saldo por arriba o por abajo
+    // Si hay diferencia y el usuario aún no ha aceptado en la ventana emergente, mostrarla
+    const hayDiferencia = Math.abs(diferenciaMonto) > 0.01;
+    if (hayDiferencia && !confirmAceptado) {
+      setShowConfirmModal(true);
+      return;
+    }
+
     setIsSubmitting(true);
     setResult(null);
 
@@ -310,6 +321,7 @@ export default function DondePagarPage() {
           setDeudas(prev => prev.map(d => ({ ...d, seleccionado: false })));
         }
         setFormData({ bancoOrigen: '', referencia: '', monto: '', fecha: '', comprobante: null });
+        setConfirmAceptado(false);
         setMetodo('');
       } else {
         setResult({ type: 'error', msg: data.error || 'Error al procesar el pago.' });
@@ -497,7 +509,7 @@ export default function DondePagarPage() {
                           type="text"
                           value={formData.monto}
                           placeholder="0.00"
-                          onChange={(e) => setFormData(prev => ({ ...prev, monto: e.target.value }))}
+                          onChange={(e) => { setFormData(prev => ({ ...prev, monto: e.target.value })); setConfirmAceptado(false); }}
                           className="w-full border border-slate-300 bg-white rounded pl-9 pr-3 py-2 text-sm text-slate-800 outline-none font-mono focus:border-blue-500 font-bold shadow-sm"
                           required
                         />
@@ -608,9 +620,19 @@ export default function DondePagarPage() {
                   <button 
                     type="submit"
                     disabled={isSubmitting || montoTotal === 0}
-                    className="px-8 py-2.5 rounded text-sm font-semibold flex items-center gap-2 disabled:opacity-50 shadow-sm transition-colors text-white bg-blue-600 hover:bg-blue-700"
+                    className={`px-8 py-2.5 rounded text-sm font-semibold flex items-center gap-2 disabled:opacity-50 shadow-sm transition-colors text-white ${
+                      confirmAceptado 
+                        ? 'bg-emerald-600 hover:bg-emerald-700 ring-2 ring-emerald-300' 
+                        : 'bg-blue-600 hover:bg-blue-700'
+                    }`}
                   >
-                    {isSubmitting ? 'Procesando...' : <><Send className="w-4 h-4" /> Reportar Transferencia</>}
+                    {isSubmitting ? 'Procesando...' : (
+                      confirmAceptado ? (
+                        <><CheckCircle2 className="w-4 h-4" /> Confirmar y Reportar Transferencia</>
+                      ) : (
+                        <><Send className="w-4 h-4" /> Reportar Transferencia</>
+                      )
+                    )}
                   </button>
                 </div>
               )}
@@ -619,6 +641,80 @@ export default function DondePagarPage() {
           </div>
         </div>
       </div>
+
+      {/* Ventana Emergente de Confirmación por Diferencia de Monto */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-5 animate-in zoom-in-95 duration-200">
+            
+            <div className="flex items-center gap-3">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+                diferenciaMonto > 0.01 ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
+              }`}>
+                {diferenciaMonto > 0.01 ? <CheckCircle2 className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">
+                  {diferenciaMonto > 0.01 ? 'Notificación de Saldo por Arriba' : 'Notificación de Saldo por Abajo'}
+                </h3>
+                <p className="text-xs text-slate-500">Confirmación de reporte financiero</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2 text-sm text-slate-700">
+              <div className="flex justify-between py-1 border-b border-slate-200">
+                <span className="text-slate-500">Total Recibos Seleccionados:</span>
+                <span className="font-semibold text-slate-800">Bs. {formatBs(montoTotal)}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-200">
+                <span className="text-slate-500">Monto Reportado en Comprobante:</span>
+                <span className="font-bold text-slate-900">Bs. {formatBs(montoIngresadoNum)}</span>
+              </div>
+              <div className={`flex justify-between py-1.5 font-bold rounded px-2 ${
+                diferenciaMonto > 0.01 ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'
+              }`}>
+                <span>{diferenciaMonto > 0.01 ? 'Excedente a Favor (Sobrante):' : 'Diferencia Faltante (En Contra):'}</span>
+                <span>{diferenciaMonto > 0.01 ? `+Bs. ${formatBs(diferenciaMonto)}` : `-Bs. ${formatBs(Math.abs(diferenciaMonto))}`}</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              {diferenciaMonto > 0.01 ? (
+                <>Ha ingresado un monto <strong>superior</strong> al total de sus recibos seleccionados. La diferencia sobrante de <strong>Bs. {formatBs(diferenciaMonto)}</strong> se acreditará automáticamente como saldo a favor en su estado de cuenta una vez conciliado por la administración.</>
+              ) : (
+                <>Ha ingresado un monto <strong>menor</strong> al total de sus recibos seleccionados. El pago cubrirá parcialmente la deuda y restará un saldo pendiente de <strong>Bs. {formatBs(Math.abs(diferenciaMonto))}</strong>.</>
+              )}
+            </p>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-900 font-medium flex items-center gap-2">
+              <Info className="w-4 h-4 text-blue-600 shrink-0" />
+              <span>¿Está de acuerdo en realizar este pago con la diferencia indicada? Presione <strong>Aceptar</strong> y luego presione nuevamente <strong>Reportar Transferencia</strong> para finalizar.</span>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors border border-slate-200"
+              >
+                Cancelar y Revisar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmAceptado(true);
+                  setShowConfirmModal(false);
+                }}
+                className="px-5 py-2 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-colors flex items-center gap-1.5"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                Aceptar
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }
