@@ -277,6 +277,14 @@ export default function SalaSituacionalPage() {
       const parsedLogsList: any[] = [];
       const qrScanMap = new Map<string, { operador: string; inicial: string; timestamp: string }>();
 
+      // Definir la medianoche de hoy (00:00:00 hora Venezuela UTC-4) para reiniciar puntos morados en el mapa
+      const nowUtc = new Date();
+      const vzOffsetMs = -4 * 60 * 60 * 1000;
+      const nowVz = new Date(nowUtc.getTime() + vzOffsetMs + (nowUtc.getTimezoneOffset() * 60 * 1000));
+      const pad2 = (n: number) => String(n).padStart(2, '0');
+      const todayVzYMD = `${nowVz.getFullYear()}-${pad2(nowVz.getMonth() + 1)}-${pad2(nowVz.getDate())}`;
+      const medianocheHoyVz = new Date(`${todayVzYMD}T00:00:00-04:00`).getTime();
+
       (qrLogs || []).forEach(log => {
         try {
           let parsed: any = null;
@@ -291,6 +299,7 @@ export default function SalaSituacionalPage() {
             const inicial = (parsed.inicial || (parsed.operador ? parsed.operador[0] : 'O')).toUpperCase();
             const ts = parsed.timestamp || log.created_at;
 
+            // En la Bitácora histórica SÍ se guardan todos los escaneos de todos los días
             parsedLogsList.push({
               id: log.id,
               identidad: parsed.identidad,
@@ -302,12 +311,16 @@ export default function SalaSituacionalPage() {
               rawLog: log
             });
 
-            if (!qrScanMap.has(cleanId)) {
-              qrScanMap.set(cleanId, {
-                operador: opName,
-                inicial: inicial,
-                timestamp: ts
-              });
+            // En el Mapa de Puntos Morados interactivos solo se marcan los escaneados a partir de la medianoche de hoy
+            const logTime = new Date(ts).getTime();
+            if (!isNaN(logTime) && logTime >= medianocheHoyVz) {
+              if (!qrScanMap.has(cleanId)) {
+                qrScanMap.set(cleanId, {
+                  operador: opName,
+                  inicial: inicial,
+                  timestamp: ts
+                });
+              }
             }
           }
         } catch {
