@@ -2790,23 +2790,22 @@ function ContribuyentesPageContent() {
                   return acc + m;
                 }, 0);
                 const isSolventeLive = viewFacturasDb.length === 0 || totalDeudaActual <= 0;
-                const qrTargetUrl = typeof window !== 'undefined' 
+                const qrTargetUrl = typeof window !== 'undefined'
                   ? `${window.location.origin}/validar?codigo=${encodeURIComponent(viewData.Codigo || viewData.Identidad)}`
                   : `https://aseosilva.globalrecca.com/validar?codigo=${encodeURIComponent(viewData.Codigo || viewData.Identidad)}`;
 
                 return (
-                  <div className={`p-4 rounded-xl border flex flex-col md:flex-row items-center gap-5 shadow-sm transition-all ${
-                    isSolventeLive 
-                      ? 'bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-emerald-200' 
-                      : 'bg-gradient-to-r from-rose-50 via-red-50 to-orange-50 border-rose-200'
-                  }`}>
+                  <div className={`p-4 rounded-xl border flex flex-col md:flex-row items-center gap-5 shadow-sm transition-all ${isSolventeLive
+                    ? 'bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border-emerald-200'
+                    : 'bg-gradient-to-r from-rose-50 via-red-50 to-orange-50 border-rose-200'
+                    }`}>
                     {/* Código QR Interactivo */}
                     <div className="flex flex-col items-center bg-white p-2.5 rounded-xl border border-slate-200/90 shadow-sm shrink-0">
                       {viewQrDataUrl ? (
                         <a href={qrTargetUrl} target="_blank" rel="noopener noreferrer" title="Clic para probar enlace de validación pública">
-                          <img 
-                            src={viewQrDataUrl} 
-                            alt={`QR ${viewData.Identidad}`} 
+                          <img
+                            src={viewQrDataUrl}
+                            alt={`QR ${viewData.Identidad}`}
                             className="w-32 h-32 object-contain hover:scale-105 transition-transform cursor-pointer"
                           />
                         </a>
