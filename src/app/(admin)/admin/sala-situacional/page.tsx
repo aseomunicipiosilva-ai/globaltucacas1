@@ -221,14 +221,46 @@ export default function SalaSituacionalPage() {
         }
       });
 
-      // 3. Cargar facturas de Aseo Urbano pendientes
-      const { data: facturas } = await supabase
-        .from('facturas')
-        .select('identidad, monto, estado')
-        .in('estado', ['Pendiente', 'Por Verificar', 'Abonado']);
+      // 3. Cargar facturas de Aseo Urbano pendientes (con paginación para superar el límite de 1000 de Supabase)
+      let allFacturas: any[] = [];
+      let pageFac = 0;
+      const pageSizeFac = 1000;
+      let hasMoreFac = true;
+
+      while (hasMoreFac) {
+        const { data: chunkFac, error: errFac } = await supabase
+          .from('facturas')
+          .select('identidad, monto, estado')
+          .in('estado', ['Pendiente', 'Por Verificar', 'Abonado'])
+          .range(pageFac * pageSizeFac, (pageFac + 1) * pageSizeFac - 1);
+
+        if (errFac || !chunkFac || chunkFac.length === 0) break;
+        allFacturas = allFacturas.concat(chunkFac);
+        if (chunkFac.length < pageSizeFac) hasMoreFac = false;
+        else pageFac++;
+      }
+
+      // Obtener tasa TCMMV para estimar deuda en Bs de inmuebles con deuda_mmv sin facturas emitidas
+      let tcmmvRate = 0;
+      try {
+        const { data: cfgList } = await supabase.from('sistema_config').select('*');
+        if (cfgList) {
+          const manual = cfgList.find((c: any) => c.id === 'tasa_bcv_manual');
+          const semanal = cfgList.find((c: any) => c.id === 'tasa_bcv_semanal');
+          if (manual?.valor && Number(manual.valor) > 0) tcmmvRate = Number(manual.valor);
+          else if (semanal?.valor && Number(semanal.valor) > 0) tcmmvRate = Number(semanal.valor);
+          if (!tcmmvRate && cfgList[0]?.tcmmv) tcmmvRate = Number(cfgList[0].tcmmv);
+        }
+        if (!tcmmvRate) {
+          const res = await fetch(`/api/bcv?t=${Date.now()}`).then(r => r.json()).catch(() => null);
+          if (res?.tcmmv) tcmmvRate = Number(res.tcmmv);
+        }
+      } catch (e) {
+        console.warn('No se pudo obtener tasa TCMMV en sala situacional:', e);
+      }
 
       const deudaMap: Record<string, { total: number; count: number }> = {};
-      (facturas || []).forEach(f => {
+      allFacturas.forEach(f => {
         const idClean = (f.identidad || '').replace(/[-.\s]/g, '').toUpperCase();
         if (!deudaMap[idClean]) deudaMap[idClean] = { total: 0, count: 0 };
         deudaMap[idClean].total += Number(f.monto || 0);
@@ -343,7 +375,16 @@ export default function SalaSituacionalPage() {
         const infoDeuda = deudaMap[idClean] || { total: 0, count: 0 };
         const totalDeudaMmv = inmList.reduce((acc, curr) => acc + Number(curr.deuda_mmv || 0), 0);
         const totalTarifaMmv = inmList.reduce((acc, curr) => acc + Number(curr.mmv_mes || 0), 0);
-        const esSolvente = infoDeuda.count === 0 && infoDeuda.total === 0 && totalDeudaMmv === 0;
+        const totalDeudaCongeladaBs = inmList.reduce((acc, curr) => acc + Number(curr.deuda_congelada_bs || 0), 0);
+        
+        // Deuda real calculada: Si tiene facturas pendientes emitidas, usamos infoDeuda.total;
+        // si no tiene facturas o el monto de facturas no cubre deuda_mmv, estimamos en base a deuda_mmv * tcmmvRate + deuda_congelada_bs
+        let deudaRealBs = infoDeuda.total;
+        if (deudaRealBs <= 0 && (totalDeudaMmv > 0 || totalDeudaCongeladaBs > 0)) {
+          deudaRealBs = (totalDeudaMmv * (tcmmvRate > 0 ? tcmmvRate : 1007.4)) + totalDeudaCongeladaBs;
+        }
+
+        const esSolvente = infoDeuda.count === 0 && deudaRealBs <= 0 && totalDeudaMmv === 0;
 
         // 3. Tipología y Clasificación
         let esCondo = inmList.some(i => (i.clasificacion || '').toUpperCase().includes('CONDO') || (i.cant_inmuebles && i.cant_inmuebles > 1));
@@ -395,7 +436,7 @@ export default function SalaSituacionalPage() {
           sector: sectorFinal,
           is_condominio: esCondo,
           cantidad_inmuebles: inmList.length > 1 ? inmList.length : (mainInm.cant_inmuebles || 1),
-          deuda_total: infoDeuda.total,
+          deuda_total: deudaRealBs,
           facturas_pendientes: infoDeuda.count,
           solvente: esSolvente,
           tarifa_mensual: totalTarifaMmv,
