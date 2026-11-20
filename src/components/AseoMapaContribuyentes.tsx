@@ -28,6 +28,26 @@ export interface PuntoAseo {
   operador?: string;
   inicial_operador?: string;
   escaneado_at?: string;
+  // Detalle ampliado del contribuyente y sus inmuebles
+  telefono?: string;
+  correo?: string;
+  patente?: string;
+  convenio_activo?: boolean;
+  decreto_activo?: boolean;
+  saldo_favor_bs?: number;
+  deuda_mmv?: number;
+  estado_inmueble?: string;
+  clave_portal?: string;
+  locales_detalles?: Array<{
+    id: number;
+    inmueble: string;
+    actividad: string;
+    clasificacion: string;
+    mmv_mes: number;
+    deuda_mmv: number;
+    sector?: string;
+    direccion?: string;
+  }>;
 }
 
 // Estilos de alto rendimiento para CircleMarker según Solvencia en Aseo

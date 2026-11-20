@@ -183,7 +183,7 @@ export default function SalaSituacionalPage() {
       while (hasMore) {
         const { data: chunk, error } = await supabase
           .from('inmuebles')
-          .select('id, cod_cont, identidad, contribuyente, inmueble, direccion, patente, telefono, sector, clasificacion, tipo, actividad_principal, cant_inmuebles, mmv_mes, deuda_mmv, saldo_favor_bs, estado')
+          .select('id, cod_cont, identidad, contribuyente, inmueble, direccion, patente, telefono, correo_electronico, sector, clasificacion, tipo, actividad_principal, cant_inmuebles, mmv_mes, deuda_mmv, saldo_favor_bs, estado, clave_portal, convenio_activo, decreto_activo')
           .order('id', { ascending: true })
           .range(page * pageSize, (page + 1) * pageSize - 1);
 
@@ -371,6 +371,18 @@ export default function SalaSituacionalPage() {
         const sectorFinal = inmList.find(i => i.sector)?.sector || mainInm.sector || 'Tucacas';
         const direccionFinal = inmList.find(i => i.direccion)?.direccion || mainInm.direccion || `${sectorFinal}, Municipio Silva`;
 
+        // Detalle de locales / actividades individuales
+        const localesDetalles = inmList.map(item => ({
+          id: item.id,
+          inmueble: item.inmueble || 'Principal',
+          actividad: item.actividad_principal || item.inmueble || item.tipo || 'Comercial',
+          clasificacion: item.clasificacion || 'Comercial',
+          mmv_mes: Number(item.mmv_mes || 0),
+          deuda_mmv: Number(item.deuda_mmv || 0),
+          sector: item.sector,
+          direccion: item.direccion
+        }));
+
         puntos.push({
           id: `aseo-${mainInm.id}`,
           codigo: mainInm.cod_cont || `C-${String(mainInm.id).padStart(6, '0')}`,
@@ -393,7 +405,18 @@ export default function SalaSituacionalPage() {
           escaneado: !!scanInfo,
           operador: scanInfo?.operador,
           inicial_operador: scanInfo?.inicial,
-          escaneado_at: scanInfo?.timestamp
+          escaneado_at: scanInfo?.timestamp,
+          // Detalle completo del contribuyente
+          telefono: mainInm.telefono,
+          correo: mainInm.correo_electronico,
+          patente: mainInm.patente,
+          convenio_activo: inmList.some(i => i.convenio_activo === true),
+          decreto_activo: inmList.some(i => i.decreto_activo === true),
+          saldo_favor_bs: inmList.reduce((acc, curr) => acc + Number(curr.saldo_favor_bs || 0), 0),
+          deuda_mmv: totalDeudaMmv,
+          estado_inmueble: mainInm.estado || 'Activo',
+          clave_portal: mainInm.clave_portal,
+          locales_detalles: localesDetalles
         });
       });
 
@@ -1042,27 +1065,81 @@ export default function SalaSituacionalPage() {
 
                   {/* Datos del Inmueble y Actividad */}
                   <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2.5 text-xs">
-                    <div>
-                      <span className="text-slate-500 font-bold uppercase text-[10px] block">Cédula / RIF</span>
-                      <span className="text-slate-900 font-mono font-bold text-sm">{selectedPunto.identidad}</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-slate-500 font-bold uppercase text-[10px] block">Cédula / RIF</span>
+                        <span className="text-slate-900 font-mono font-bold text-sm">{selectedPunto.identidad}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 font-bold uppercase text-[10px] block">Código Padrón</span>
+                        <span className="text-emerald-700 font-mono font-bold">{selectedPunto.codigo}</span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-slate-500 font-bold uppercase text-[10px] block">Código Padrón</span>
-                      <span className="text-emerald-700 font-mono font-bold">{selectedPunto.codigo}</span>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-slate-500 font-bold uppercase text-[10px] block">Teléfono de Contacto</span>
+                        <span className="text-slate-800 font-semibold">{selectedPunto.telefono || 'No registrado'}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 font-bold uppercase text-[10px] block">Patente / Licencia</span>
+                        <span className="text-slate-800 font-semibold">{selectedPunto.patente || 'S/N'}</span>
+                      </div>
                     </div>
+
+                    {selectedPunto.correo && (
+                      <div>
+                        <span className="text-slate-500 font-bold uppercase text-[10px] block">Correo Electrónico</span>
+                        <span className="text-slate-800 font-semibold">{selectedPunto.correo}</span>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200/60">
+                      <div>
+                        <span className="text-slate-500 font-bold uppercase text-[10px] block">Convenio de Pago</span>
+                        <span className={`font-bold ${selectedPunto.convenio_activo ? 'text-blue-600' : 'text-slate-400'}`}>
+                          {selectedPunto.convenio_activo ? 'Activo' : 'Ninguno'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 font-bold uppercase text-[10px] block">Saldo a Favor</span>
+                        <span className={`font-mono font-bold ${(selectedPunto.saldo_favor_bs || 0) > 0 ? 'text-emerald-600' : 'text-slate-400'}`}>
+                          Bs. {(selectedPunto.saldo_favor_bs || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+
                     <div>
                       <span className="text-slate-500 font-bold uppercase text-[10px] block">Sector</span>
                       <span className="text-slate-800 font-semibold">{selectedPunto.sector || 'Tucacas'}</span>
                     </div>
-                    <div>
-                      <span className="text-slate-500 font-bold uppercase text-[10px] block">Actividad / Clasificación</span>
-                      <span className="text-slate-800 font-semibold">{selectedPunto.actividad || selectedPunto.clasificacion}</span>
-                    </div>
+
                     <div>
                       <span className="text-slate-500 font-bold uppercase text-[10px] block">Dirección</span>
                       <span className="text-slate-700 leading-relaxed block mt-0.5">
                         📍 {selectedPunto.direccion || 'Tucacas, Municipio Silva'}
                       </span>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-500 font-bold uppercase text-[10px] block">
+                        Locales / Actividades Registradas ({selectedPunto.cantidad_inmuebles || 1})
+                      </span>
+                      {selectedPunto.locales_detalles && selectedPunto.locales_detalles.length > 1 ? (
+                        <div className="mt-1 space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                          {selectedPunto.locales_detalles.map((loc, idx) => (
+                            <div key={loc.id || idx} className="p-2 rounded-lg bg-white border border-slate-200 text-[11px]">
+                              <div className="flex items-center justify-between font-bold text-slate-800">
+                                <span>{loc.inmueble || `Local ${idx + 1}`}</span>
+                                <span className="font-mono text-emerald-700">{loc.mmv_mes} MMV</span>
+                              </div>
+                              <p className="text-slate-500 truncate text-[10px]">{loc.actividad}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-slate-800 font-semibold block mt-0.5">{selectedPunto.actividad || selectedPunto.clasificacion}</span>
+                      )}
                     </div>
                   </div>
 
