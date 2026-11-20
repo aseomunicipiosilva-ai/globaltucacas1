@@ -20,7 +20,10 @@ import {
   FileText,
   ExternalLink,
   Phone,
-  Maximize2
+  Maximize2,
+  ChevronDown,
+  ChevronUp,
+  DoorOpen
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import type { PuntoCatastral } from '@/components/CatastroMapaInteractivo';
@@ -66,6 +69,77 @@ export default function SalaSituacionalCatastroPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<'TODOS' | 'Residencial' | 'Comercial' | 'Industrial' | 'Condominio'>('TODOS');
   const [selectedPunto, setSelectedPunto] = useState<PuntoCatastral | null>(null);
+  const [desplegarLocales, setDesplegarLocales] = useState(false);
+  const [localesCondominio, setLocalesCondominio] = useState<any[]>([]);
+  const [cargandoLocales, setCargandoLocales] = useState(false);
+
+  // Cada vez que cambia el punto seleccionado, resetear el desplegable y cargar sus locales/unidades
+  useEffect(() => {
+    setDesplegarLocales(false);
+    setLocalesCondominio([]);
+    if (!selectedPunto) return;
+
+    // Si ya trae locales precargados desde pre_registros:
+    if (selectedPunto.locales && selectedPunto.locales.length > 0) {
+      setLocalesCondominio(selectedPunto.locales);
+      return;
+    }
+
+    // Si es un condominio de la tabla inmuebles o tiene ID, consultar unidades_condominio
+    const cargarUnidadesDb = async () => {
+      setCargandoLocales(true);
+      try {
+        let inmId: number | null = null;
+        if (typeof selectedPunto.id === 'string' && selectedPunto.id.startsWith('inm-')) {
+          inmId = parseInt(selectedPunto.id.replace('inm-', ''), 10);
+        } else if (typeof selectedPunto.id === 'number') {
+          inmId = selectedPunto.id;
+        }
+
+        if (inmId) {
+          const { data: unidades } = await supabase
+            .from('unidades_condominio')
+            .select('*')
+            .eq('condominio_id', inmId)
+            .order('numero_unidad', { ascending: true });
+
+          if (unidades && unidades.length > 0) {
+            setLocalesCondominio(unidades);
+            return;
+          }
+        }
+
+        // Si no encontró por id directo, intentar por RIF/Cédula en unidades_condominio o locales pre-registro
+        const cleanRif = (selectedPunto.identidad || '').replace(/[-.\s]/g, '');
+        const { data: condoRow } = await supabase
+          .from('inmuebles')
+          .select('id')
+          .ilike('identidad', `%${cleanRif}%`)
+          .limit(1)
+          .maybeSingle();
+
+        if (condoRow?.id) {
+          const { data: unidades } = await supabase
+            .from('unidades_condominio')
+            .select('*')
+            .eq('condominio_id', condoRow.id)
+            .order('numero_unidad', { ascending: true });
+
+          if (unidades && unidades.length > 0) {
+            setLocalesCondominio(unidades);
+          }
+        }
+      } catch (err) {
+        console.error('Error cargando unidades de condominio:', err);
+      } finally {
+        setCargandoLocales(false);
+      }
+    };
+
+    if (selectedPunto.is_condominio) {
+      cargarUnidadesDb();
+    }
+  }, [selectedPunto]);
 
   useEffect(() => {
     loadData();
@@ -512,20 +586,83 @@ export default function SalaSituacionalCatastroPage() {
               {/* Si es Condominio o tiene locales */}
               {selectedPunto.is_condominio && (
                 <div className="bg-purple-950/30 p-3 rounded-xl border border-purple-800/40 text-xs space-y-2">
-                  <span className="text-purple-300 font-bold uppercase text-[10px] block">
-                    Condominio Multiresidencial / Centro Comercial
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-purple-300 font-bold uppercase text-[10px] block">
+                      Condominio Multiresidencial / Centro Comercial
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setDesplegarLocales(!desplegarLocales)}
+                      className="text-purple-300 hover:text-white p-1 rounded hover:bg-purple-900/50 transition-colors flex items-center gap-1 text-[11px] font-bold"
+                    >
+                      <span>{desplegarLocales ? 'Ocultar' : 'Ver Locales'}</span>
+                      {desplegarLocales ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+
                   <p className="text-stone-300">
-                    Contiene un total de <strong>{selectedPunto.cantidad_inmuebles || selectedPunto.locales?.length || 1}</strong> unidades/apartamentos registrados.
+                    Contiene un total de <strong>{selectedPunto.cantidad_inmuebles || localesCondominio.length || selectedPunto.locales?.length || 1}</strong> unidades/apartamentos registrados.
                   </p>
-                  {selectedPunto.locales && selectedPunto.locales.length > 0 && (
-                    <div className="max-h-28 overflow-y-auto space-y-1 mt-2">
-                      {selectedPunto.locales.map((loc: any, idx: number) => (
-                        <div key={idx} className="bg-purple-950/60 p-1.5 rounded text-[11px] border border-purple-800/30 flex justify-between">
-                          <span className="font-bold text-stone-200">{loc.identificador || `Local ${idx + 1}`}</span>
-                          <span className="text-stone-400">{loc.actividad || loc.tipo}</span>
+
+                  {/* Desplegable de locales / apartamentos */}
+                  {desplegarLocales && (
+                    <div className="mt-3 pt-2 border-t border-purple-800/40 space-y-1.5 animate-fadeIn">
+                      <div className="flex items-center justify-between text-[10px] text-purple-300 font-bold uppercase">
+                        <span>Listado de Unidades / Locales</span>
+                        <span>{localesCondominio.length > 0 ? `${localesCondominio.length} unidades` : ''}</span>
+                      </div>
+
+                      {cargandoLocales ? (
+                        <div className="py-3 text-center text-stone-400 flex items-center justify-center gap-2">
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-purple-400" />
+                          <span>Cargando unidades...</span>
                         </div>
-                      ))}
+                      ) : localesCondominio.length > 0 ? (
+                        <div className="max-h-52 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                          {localesCondominio.map((loc: any, idx: number) => {
+                            const nombreUnidad = loc.numero_unidad || loc.numeracion || loc.identificador || `Unidad ${idx + 1}`;
+                            const propietario = loc.propietario && loc.propietario !== 'No asignado' ? loc.propietario : '';
+                            const docRif = loc.cedula_rif || loc.cedula || '';
+                            const actividad = loc.actividad || loc.tipo || loc.uso || (propietario ? 'Apartamento' : 'Local / Apto');
+                            const estado = loc.estado || loc.estatus || 'Solvente';
+
+                            return (
+                              <div
+                                key={idx}
+                                className="bg-purple-950/70 p-2 rounded-lg text-[11px] border border-purple-800/40 flex items-center justify-between gap-2 hover:bg-purple-900/60 transition-colors"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5 font-bold text-stone-200">
+                                    <DoorOpen className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                                    <span className="truncate">{nombreUnidad}</span>
+                                  </div>
+                                  {(propietario || docRif) && (
+                                    <p className="text-[10px] text-stone-400 truncate pl-5">
+                                      {propietario} {docRif ? `(${docRif})` : ''}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-900/80 text-purple-200 font-mono">
+                                    {actividad}
+                                  </span>
+                                  {estado && (
+                                    <span className={`block text-[9px] mt-0.5 font-semibold ${
+                                      estado.toLowerCase().includes('solv') ? 'text-emerald-400' : 'text-amber-400'
+                                    }`}>
+                                      {estado}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-stone-400 italic py-1">
+                          No se encontraron unidades registradas en el desglose de este condominio.
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
