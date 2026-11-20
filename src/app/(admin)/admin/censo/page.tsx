@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 import dynamic from 'next/dynamic';
 
 import { procesarEstadisticasCenso, generarReporteCensoEstadisticoPDF } from '@/lib/pdfCensoReport';
+import { formatDireccionPrecisa } from '@/lib/geoUtils';
 const MapPicker = dynamic(() => import('@/components/MapPicker'), { ssr: false });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -583,15 +584,21 @@ export default function CensoPage() {
             <MapPicker 
               position={formData.coordenadas} 
               onLocationSelect={async (loc) => {
-                setFormData({...formData, coordenadas: loc});
+                setFormData((prev: any) => ({ ...prev, coordenadas: loc }));
                 try {
-                  const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.lat}&lon=${loc.lng}`);
+                  const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.lat}&lon=${loc.lng}&addressdetails=1`);
                   const data = await res.json();
-                  if (data && data.display_name) {
-                    setFormData((prev: any) => ({...prev, coordenadas: loc, DireccionExacta: data.display_name}));
-                  }
+                  const dirExacta = formatDireccionPrecisa(data, loc);
+                  setFormData((prev: any) => ({
+                    ...prev,
+                    coordenadas: loc,
+                    DireccionExacta: dirExacta,
+                    Direccion: prev.Direccion && prev.Direccion.trim() ? prev.Direccion : dirExacta
+                  }));
                 } catch (err) {
                   console.error('Error in reverse geocoding:', err);
+                  const fallback = `Punto GPS: [${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}], Municipio Silva`;
+                  setFormData((prev: any) => ({ ...prev, coordenadas: loc, DireccionExacta: fallback }));
                 }
               }} 
             />

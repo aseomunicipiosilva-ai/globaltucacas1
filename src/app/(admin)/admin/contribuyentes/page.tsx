@@ -6,6 +6,7 @@ import { useAppContext } from '@/store/AppContext';
 import { Users, Save, ArrowLeft, Plus, Building, Home as HomeIcon, MapPin, Edit, Edit2, DollarSign, Handshake, Eye, X, CheckCircle, Calculator, AlertCircle, Download, FileText, Trash2, Power, Calendar, Filter, QrCode } from 'lucide-react';
 import { generarSolvenciaPDF } from '@/lib/pdfGenerator';
 import { ordenanzaData } from '@/data/ordenanza';
+import { formatDireccionPrecisa } from '@/lib/geoUtils';
 import Select from 'react-select';
 import dynamic from 'next/dynamic';
 import { UnidadesModal } from '@/components/UnidadesModal';
@@ -1871,16 +1872,22 @@ function ContribuyentesPageContent() {
               <MapPicker
                 position={formData.coordenadas}
                 onLocationSelect={async (loc) => {
-                  setFormData({ ...formData, coordenadas: loc });
-                  // Geocodificación inversa
+                  setFormData((prev: any) => ({ ...prev, coordenadas: loc }));
+                  // Geocodificación inversa detallada
                   try {
-                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.lat}&lon=${loc.lng}`);
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.lat}&lon=${loc.lng}&addressdetails=1`);
                     const data = await res.json();
-                    if (data && data.display_name) {
-                      setFormData((prev: any) => ({ ...prev, coordenadas: loc, DireccionExacta: data.display_name }));
-                    }
+                    const direccionFormateada = formatDireccionPrecisa(data, loc);
+                    setFormData((prev: any) => ({ 
+                      ...prev, 
+                      coordenadas: loc, 
+                      DireccionExacta: direccionFormateada,
+                      Direccion: prev.Direccion && prev.Direccion.trim() ? prev.Direccion : direccionFormateada
+                    }));
                   } catch (err) {
                     console.error('Error in reverse geocoding:', err);
+                    const fallback = `Punto GPS: [${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}], Municipio Silva`;
+                    setFormData((prev: any) => ({ ...prev, coordenadas: loc, DireccionExacta: fallback }));
                   }
                 }}
               />
