@@ -20,7 +20,16 @@ export default function BitacoraView({ onBack }: { onBack: () => void }) {
         .select('*')
         .order('id', { ascending: false })
         .limit(500);
-      if (data) setLogs(data);
+      if (data) {
+        // Normalizar nombres de columnas (soporta user_id / usuario, action / accion, details / detalles)
+        const normalizados = data.map((d: any) => ({
+          ...d,
+          usuario: d.usuario || d.user_id || 'Sistema',
+          accion: d.accion || d.action || 'ACCION',
+          detalles: d.detalles || d.details || '—'
+        }));
+        setLogs(normalizados);
+      }
     } catch (e) {
       console.error(e);
     }
@@ -104,6 +113,7 @@ export default function BitacoraView({ onBack }: { onBack: () => void }) {
             <label className="block text-xs font-bold text-slate-600 mb-1">Tipo de Acción</label>
             <select value={filtroAccion} onChange={e => setFiltroAccion(e.target.value)} className="w-full border border-slate-300 rounded-lg p-2 text-xs bg-white font-medium">
               <option value="TODAS">Todas las acciones</option>
+              <option value="REGISTRO_VIAJE_VERTEDERO">Descargas / Vertedero</option>
               <option value="COBRO">Cobros de Caja</option>
               <option value="CENSO_CREADO">Censo Creado</option>
               <option value="CENSO_ACTUALIZACION">Censo Actualizado</option>

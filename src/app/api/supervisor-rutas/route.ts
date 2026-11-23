@@ -125,6 +125,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Registrar evento en la bitácora de auditoría
+    try {
+      await supabase.from('audit_logs').insert([{
+        user_id: supervisor ? supervisor.trim() : 'Supervisor de Ruta',
+        action: 'REGISTRO_VIAJE_VERTEDERO',
+        ip_address: 'Módulo Supervisor de Ruta',
+        details: `Viaje #${proximoNumeroViaje} registrado: ${unidad.trim()} (${tipo_vehiculo || 'Compactadora'}), Chofer: ${chofer ? chofer.trim() : 'N/D'}, Ruta: ${ruta.trim()}, Descarga: ${toneladasNum} Ton. Ref: ${refCodigo}`
+      }]);
+    } catch (auditErr) {
+      console.error('Error insertando en audit_logs:', auditErr);
+    }
+
     // Actualizar también la última posición en tiempo real de esta unidad en sistema_config
     if (lat && lng) {
       try {
