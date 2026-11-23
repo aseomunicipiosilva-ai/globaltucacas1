@@ -17,7 +17,8 @@ export async function GET(request: Request) {
     let query = supabase
       .from('servicios_especiales')
       .select('*')
-      .eq('tipo', 'viaje_vertedero')
+      .eq('tipo', 'extraordinario')
+      .ilike('referencia', 'VJ-%')
       .order('fecha', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -83,7 +84,8 @@ export async function POST(request: Request) {
     const { data: viajesPrevios } = await supabase
       .from('servicios_especiales')
       .select('id, notas')
-      .eq('tipo', 'viaje_vertedero')
+      .eq('tipo', 'extraordinario')
+      .ilike('referencia', 'VJ-%')
       .eq('fecha', fechaRegistro)
       .eq('identidad', unidad);
 
@@ -91,6 +93,7 @@ export async function POST(request: Request) {
     const refCodigo = `VJ-${fechaRegistro.replace(/-/g, '')}-${unidad.replace(/\s+/g, '')}-${proximoNumeroViaje}`;
 
     const metadata = {
+      subtipo: 'viaje_vertedero',
       viaje_dia: proximoNumeroViaje,
       tipo_vehiculo: tipo_vehiculo || 'Compactadora',
       lat: lat || null,
@@ -102,7 +105,7 @@ export async function POST(request: Request) {
     const { data, error } = await supabase
       .from('servicios_especiales')
       .insert([{
-        tipo: 'viaje_vertedero',
+        tipo: 'extraordinario',
         identidad: unidad.trim(),
         contribuyente: chofer ? chofer.trim() : 'Chofer de Ruta',
         descripcion: ruta.trim(),
@@ -176,7 +179,8 @@ export async function DELETE(request: Request) {
       .from('servicios_especiales')
       .delete()
       .eq('id', id)
-      .eq('tipo', 'viaje_vertedero');
+      .eq('tipo', 'extraordinario')
+      .ilike('referencia', 'VJ-%');
 
     if (error) throw error;
     return NextResponse.json({ success: true });
