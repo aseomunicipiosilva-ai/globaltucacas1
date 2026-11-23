@@ -905,10 +905,15 @@ function ContribuyentesPageContent() {
                 cuotasPagadasSet.add(`${cq.convId}_${cq.cuotaId}`);
               });
             }
+            if (det.convenio_numero && (det.tipo_pago === 'contado' || det.cuota_pagada === 'Total' || det.concepto?.toLowerCase()?.includes('contado'))) {
+              cuotasPagadasSet.add(`${det.convenio_numero}_1`);
+              cuotasPagadasSet.add(`${det.convenio_id}_1`);
+            }
           }
         });
 
         viewConvenios.forEach((conv: any) => {
+          if (conv.estado === 'Solvente' || conv.estado === 'Pagado') return;
           const isContado = conv.frecuencia === 'Única' || conv.cuotas === '1' || conv.cuotas === 1;
           const totalBs = parseFloat(String(conv.monto_total || '0').replace(/[^\d.]/g, '')) || 0;
           const nCuotas = isContado ? 1 : (conv.cuotas === 'N/A' || !conv.cuotas ? 1 : (parseInt(String(conv.cuotas)) || 1));
@@ -3355,10 +3360,15 @@ function ContribuyentesPageContent() {
                         cuotasPagadasSet.add(`${cq.convId}_${cq.cuotaId}`);
                       });
                     }
+                    if (det.convenio_numero && (det.tipo_pago === 'contado' || det.cuota_pagada === 'Total' || det.concepto?.toLowerCase()?.includes('contado'))) {
+                      cuotasPagadasSet.add(`${det.convenio_numero}_1`);
+                      cuotasPagadasSet.add(`${det.convenio_id}_1`);
+                    }
                   }
                 });
 
                 const conveniosConCuotas = viewConvenios.map((conv: any) => {
+                  const isSolvente = conv.estado === 'Solvente' || conv.estado === 'Pagado';
                   const isContado = conv.frecuencia === 'Única' || conv.cuotas === '1' || conv.cuotas === 1;
                   const totalBs = parseFloat(String(conv.monto_total || '0').replace(/[^\d.]/g, '')) || 0;
                   const nCuotas = isContado ? 1 : (conv.cuotas === 'N/A' || !conv.cuotas ? 1 : (parseInt(String(conv.cuotas)) || 1));
@@ -3400,7 +3410,7 @@ function ContribuyentesPageContent() {
                       label: 'Cuota Inicial',
                       fecha: startDate.toISOString().slice(0, 10),
                       monto: montoInicial,
-                      pagado: cuotasPagadasSet.has(keyIni1) || cuotasPagadasSet.has(keyIni2)
+                      pagado: isSolvente || cuotasPagadasSet.has(keyIni1) || cuotasPagadasSet.has(keyIni2)
                     });
                   }
 
@@ -3416,7 +3426,7 @@ function ContribuyentesPageContent() {
                       label: lbl,
                       fecha: dueDate.toISOString().slice(0, 10),
                       monto: mEsta,
-                      pagado: cuotasPagadasSet.has(key1) || cuotasPagadasSet.has(key2)
+                      pagado: isSolvente || cuotasPagadasSet.has(key1) || cuotasPagadasSet.has(key2)
                     });
                   }
 
