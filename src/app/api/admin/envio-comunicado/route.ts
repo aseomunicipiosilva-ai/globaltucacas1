@@ -185,11 +185,25 @@ export async function POST(request: Request) {
     const bufBasura = Buffer.from(logos.basura_cero.replace(/^data:image\/[a-z]+;base64,/, ''), 'base64');
     const bufGreen = Buffer.from(logos.global_green.replace(/^data:image\/[a-z]+;base64,/, ''), 'base64');
 
-    const emailAttachments = [
+    const emailAttachments: any[] = [
       { filename: 'logo_isma.png', content: bufIsma, contentId: 'logo_isma' },
       { filename: 'logo_basura_cero.png', content: bufBasura, contentId: 'logo_basura_cero' },
       { filename: 'logo_global_green.png', content: bufGreen, contentId: 'logo_global_green' }
     ];
+
+    // Procesar adjunto adicional subido por el usuario (PDF, documento o imagen)
+    if (body.adjunto && body.adjunto.content && body.adjunto.filename) {
+      try {
+        const rawBase64 = body.adjunto.content.replace(/^data:([a-zA-Z0-9_\-\/]+);base64,/, '');
+        const adjBuf = Buffer.from(rawBase64, 'base64');
+        emailAttachments.push({
+          filename: body.adjunto.filename,
+          content: adjBuf
+        });
+      } catch (adjErr) {
+        console.warn('Error adjuntando archivo adicional:', adjErr);
+      }
+    }
 
     let destinatarios: { nombre: string; correo: string; telefono?: string; identidad?: string }[] = [];
 

@@ -1,10 +1,10 @@
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Mail, Settings, Users, Send, CheckCircle, Loader2, 
   AlertTriangle, ShieldCheck, Eye, Search, Filter, 
   RefreshCw, FileText, Check, Phone, Sparkles, 
-  RotateCcw, AlertCircle, ArrowRight
+  RotateCcw, AlertCircle, ArrowRight, Edit3, Save, Paperclip, X, Plus, Trash2, File
 } from 'lucide-react';
 import { EMAIL_TEMPLATES, EmailTemplate } from '@/lib/emailTemplates';
 import { logos } from '@/lib/logosBase64';
@@ -14,9 +14,20 @@ export default function CorreosPage() {
   const [activeTab, setActiveTab] = useState<'preview' | 'contacts' | 'config'>('preview');
 
   // Plantilla seleccionada
+  const [plantillasCustom, setPlantillasCustom] = useState<any[]>([]);
   const [plantillaSeleccionada, setPlantillaSeleccionada] = useState<EmailTemplate>(EMAIL_TEMPLATES[0]);
   const [asunto, setAsunto] = useState(EMAIL_TEMPLATES[0].asuntoDefault);
   const [remitente] = useState('ISMA Aseo Urbano <aseo.municipiosilva@globalgreenca.com>');
+
+  // Modo edición de contenido de plantilla
+  const [isEditingTemplate, setIsEditingTemplate] = useState(false);
+  const [customHtmlContent, setCustomHtmlContent] = useState('');
+  const [nombreNuevaPlantilla, setNombreNuevaPlantilla] = useState('');
+  const [guardandoPlantilla, setGuardandoPlantilla] = useState(false);
+
+  // Adjuntos
+  const [archivoAdjunto, setArchivoAdjunto] = useState<{ filename: string; content: string; size: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Audiencia seleccionada: 'NO_SOLVENTES' | 'SOLVENTES' | 'TODOS'
   const [audiencia, setAudiencia] = useState<'NO_SOLVENTES' | 'SOLVENTES' | 'TODOS'>('NO_SOLVENTES');
@@ -67,16 +78,95 @@ export default function CorreosPage() {
 
   useEffect(() => {
     cargarDatos();
+    // Cargar plantillas personalizadas guardadas
+    const guardadas = localStorage.getItem('plantillas_correos_custom');
+    if (guardadas) {
+      try {
+        const parsed = JSON.parse(guardadas);
+        setPlantillasCustom(parsed);
+      } catch {}
+    }
+    // Inicializar contenido editable con la plantilla por defecto
+    setCustomHtmlContent(EMAIL_TEMPLATES[0].generarHtml({ nombre: '[Nombre del Contribuyente]' }));
   }, []);
 
   // Al cambiar de plantilla, ajustar asunto y sugerir audiencia si corresponde
   const handleSelectPlantilla = (p: EmailTemplate) => {
     setPlantillaSeleccionada(p);
     setAsunto(p.asuntoDefault);
+    setCustomHtmlContent(p.generarHtml({ nombre: '[Nombre del Contribuyente]' }));
+    setIsEditingTemplate(false);
     if (p.audienciaSugerida) {
       setAudiencia(p.audienciaSugerida);
     }
   };
+
+  // Guardar plantilla personalizada
+  const handleGuardarPlantilla = () => {
+    const nombre = (nombreNuevaPlantilla || `Plantilla Personalizada ${plantillasCustom.length + 1}`).trim();
+    const nueva: EmailTemplate = {
+      id: `custom_${Date.now()}`,
+      nombre: nombre,
+      categoria: 'institucional',
+      audienciaSugerida: audiencia,
+      asuntoDefault: asunto,
+      descripcion: `Plantilla guardada por el usuario (${new Date().toLocaleDateString()})`,
+      generarHtml: (params) => {
+        let html = customHtmlContent;
+        if (params?.nombre) {
+          html = html.replace(/\[Nombre del Contribuyente\]/g, params.nombre);
+        }
+        return html;
+      }
+    };
+
+    const actualizadas = [nueva, ...plantillasCustom];
+    setPlantillasCustom(actualizadas);
+    localStorage.setItem('plantillas_correos_custom', JSON.stringify(actualizadas));
+    setPlantillaSeleccionada(nueva);
+    setNombreNuevaPlantilla('');
+    setIsEditingTemplate(false);
+    alert(`¡Plantilla "${nombre}" guardada exitosamente! Ahora puedes seleccionarla cuando desees.`);
+  };
+
+  // Eliminar plantilla personalizada
+  const handleEliminarPlantillaCustom = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("¿Desea eliminar esta plantilla personalizada?")) return;
+    const actualizadas = plantillasCustom.filter(p => p.id !== id);
+    setPlantillasCustom(actualizadas);
+    localStorage.setItem('plantillas_correos_custom', JSON.stringify(actualizadas));
+    if (plantillaSeleccionada.id === id) {
+      handleSelectPlantilla(EMAIL_TEMPLATES[0]);
+    }
+  };
+
+  // Manejar subida de archivo adjunto
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 8 * 1024 * 1024) {
+      alert("El archivo no debe exceder los 8 MB de tamaño.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      const sizeKb = (file.size / 1024).toFixed(1);
+      setArchivoAdjunto({
+        filename: file.name,
+        content: base64,
+        size: `${sizeKb} KB`
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const todasLasPlantillas = useMemo(() => {
+    return [...plantillasCustom, ...EMAIL_TEMPLATES];
+  }, [plantillasCustom]);
 
   // Cálculos de audiencia según filtro
   const audienciaDestinatarios = useMemo(() => {
@@ -159,6 +249,11 @@ export default function CorreosPage() {
           email: testEmail,
           asunto: asunto,
           plantillaId: plantillaSeleccionada.id,
+          customHtml: customHtmlContent || undefined,
+          adjunto: archivoAdjunto ? {
+            filename: archivoAdjunto.filename,
+            content: archivoAdjunto.content
+          } : undefined,
           audiencia: audiencia,
           soloPendientes: true // NUNCA REENVIAR A LOS YA ENVIADOS
         })
@@ -383,27 +478,40 @@ export default function CorreosPage() {
           {activeTab === 'preview' && (
             <div className="space-y-4">
               
-              {/* SELECTOR DE PLANTILLAS PRECONFIGURADAS */}
+              {/* SELECTOR DE PLANTILLAS PRECONFIGURADAS Y PERSONALIZADAS */}
               <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                     <Sparkles className="w-4 h-4 text-amber-500" />
-                    Escoger Plantilla Preconfigurada
+                    Escoger Plantilla Preconfigurada o Guardada
                   </h3>
-                  <span className="text-[11px] text-slate-400">
-                    {EMAIL_TEMPLATES.length} plantillas disponibles
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-slate-400">
+                      {todasLasPlantillas.length} plantillas disponibles
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditingTemplate(true);
+                        setNombreNuevaPlantilla(`Mi Comunicado ${new Date().toLocaleDateString()}`);
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-xs font-bold transition-colors border border-emerald-200"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Nueva Plantilla
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {EMAIL_TEMPLATES.map((tmpl) => {
+                  {todasLasPlantillas.map((tmpl) => {
                     const isSelected = plantillaSeleccionada.id === tmpl.id;
+                    const isCustom = tmpl.id.startsWith('custom_');
                     return (
                       <button
                         key={tmpl.id}
                         type="button"
                         onClick={() => handleSelectPlantilla(tmpl)}
-                        className={`text-left p-3.5 rounded-xl border transition-all ${
+                        className={`text-left p-3.5 rounded-xl border transition-all relative group ${
                           isSelected
                             ? 'bg-emerald-50/60 border-emerald-500 shadow-sm ring-1 ring-emerald-500'
                             : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
@@ -413,12 +521,24 @@ export default function CorreosPage() {
                           <h4 className={`font-bold text-xs ${isSelected ? 'text-emerald-900' : 'text-slate-800'}`}>
                             {tmpl.nombre}
                           </h4>
-                          {isSelected && <Check className="w-4 h-4 text-emerald-600 shrink-0" />}
+                          <div className="flex items-center gap-1">
+                            {isSelected && <Check className="w-4 h-4 text-emerald-600 shrink-0" />}
+                            {isCustom && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleEliminarPlantillaCustom(tmpl.id, e)}
+                                className="text-slate-400 hover:text-rose-600 p-0.5 rounded transition-colors"
+                                title="Eliminar plantilla guardada"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">
                           {tmpl.descripcion}
                         </p>
-                        <div className="mt-2.5 flex items-center gap-1.5">
+                        <div className="mt-2.5 flex items-center gap-1.5 flex-wrap">
                           <span className={`text-[10px] px-2 py-0.5 rounded-md font-semibold ${
                             tmpl.audienciaSugerida === 'NO_SOLVENTES'
                               ? 'bg-amber-100 text-amber-800'
@@ -428,6 +548,11 @@ export default function CorreosPage() {
                           }`}>
                             Audiencia: {tmpl.audienciaSugerida === 'NO_SOLVENTES' ? 'No Solventes' : tmpl.audienciaSugerida === 'SOLVENTES' ? 'Solventes' : 'Todos'}
                           </span>
+                          {isCustom && (
+                            <span className="text-[10px] px-1.5 py-0.5 bg-purple-100 text-purple-700 font-bold rounded">
+                              Guardada por ti
+                            </span>
+                          )}
                         </div>
                       </button>
                     );
@@ -435,11 +560,22 @@ export default function CorreosPage() {
                 </div>
               </div>
 
-              {/* CAMPO DE ASUNTO EDITABLE */}
-              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2">
-                <label className="text-xs font-bold text-slate-700 block">
-                  Línea de Asunto Oficial del Correo:
-                </label>
+              {/* CAMPO DE ASUNTO Y BOTÓN DE EDITAR PLANTILLA */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 block">
+                    Línea de Asunto Oficial del Correo:
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingTemplate(!isEditingTemplate)}
+                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    {isEditingTemplate ? 'Ocultar Editor HTML' : 'Editar Contenido / Crear Plantilla'}
+                  </button>
+                </div>
+
                 <input 
                   type="text" 
                   value={asunto}
@@ -448,6 +584,115 @@ export default function CorreosPage() {
                   placeholder="Asunto del correo electrónico..."
                 />
               </div>
+
+              {/* SECCIÓN DE CARGA DE DOCUMENTO ADJUNTO */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <Paperclip className="w-4 h-4 text-slate-500" />
+                    Documento Adjunto (Opcional):
+                  </label>
+                  <span className="text-[11px] text-slate-400">PDF, JPG, PNG, DOCX (Máx. 8 MB)</span>
+                </div>
+
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  className="hidden" 
+                  accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" 
+                />
+
+                {archivoAdjunto ? (
+                  <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                    <div className="flex items-center gap-2.5">
+                      <File className="w-5 h-5 text-emerald-600" />
+                      <div>
+                        <p className="text-xs font-bold text-emerald-900">{archivoAdjunto.filename}</p>
+                        <p className="text-[10px] text-emerald-700">Tamaño: {archivoAdjunto.size} • Se adjuntará a todos los correos</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setArchivoAdjunto(null)}
+                      className="text-slate-400 hover:text-rose-600 p-1 rounded transition-colors"
+                      title="Quitar archivo adjunto"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full border-2 border-dashed border-slate-300 hover:border-emerald-500 hover:bg-emerald-50/20 p-4 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold text-slate-600 transition-colors"
+                  >
+                    <Paperclip className="w-4 h-4 text-emerald-600" />
+                    Haz clic aquí para seleccionar y adjuntar un archivo (Decreto, Notificación, Circular)
+                  </button>
+                )}
+              </div>
+
+              {/* EDITOR Y GUARDADO DE PLANTILLAS PERSONALIZADAS */}
+              {isEditingTemplate && (
+                <div className="bg-indigo-50/50 p-5 rounded-2xl border border-indigo-200 shadow-sm space-y-4 animate-in fade-in">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-indigo-100 pb-3">
+                    <div>
+                      <h4 className="font-bold text-sm text-indigo-950 flex items-center gap-2">
+                        <Edit3 className="w-4 h-4 text-indigo-600" />
+                        Editor de Plantilla y Código HTML
+                      </h4>
+                      <p className="text-xs text-indigo-700 mt-0.5">
+                        Edita el texto o estructura del correo. Puedes usar la etiqueta <code className="bg-indigo-100 px-1 py-0.5 rounded text-[11px] font-mono">[Nombre del Contribuyente]</code>.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomHtmlContent(plantillaSeleccionada.generarHtml({ nombre: '[Nombre del Contribuyente]' }));
+                        }}
+                        className="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1"
+                        title="Restaurar contenido original de la plantilla seleccionada"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" /> Restaurar
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <textarea
+                      rows={12}
+                      value={customHtmlContent}
+                      onChange={(e) => setCustomHtmlContent(e.target.value)}
+                      className="w-full font-mono text-xs p-3.5 bg-white border border-indigo-200 rounded-xl outline-none focus:border-indigo-500 shadow-inner leading-relaxed"
+                      placeholder="Escribe o pega aquí el código HTML o contenido del correo..."
+                    />
+                  </div>
+
+                  {/* GUARDAR COMO NUEVA PLANTILLA */}
+                  <div className="bg-white p-3.5 rounded-xl border border-indigo-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="w-full sm:w-auto flex-1 flex items-center gap-2">
+                      <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Nombre de la Plantilla:</label>
+                      <input
+                        type="text"
+                        value={nombreNuevaPlantilla}
+                        onChange={(e) => setNombreNuevaPlantilla(e.target.value)}
+                        placeholder="Ej. Notificación Decretos Diciembre 2026"
+                        className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-indigo-500 font-medium"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleGuardarPlantilla}
+                      className="w-full sm:w-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg transition-colors shadow flex items-center justify-center gap-1.5 shrink-0"
+                    >
+                      <Save className="w-4 h-4" /> Guardar Plantilla
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* VISTA PREVIA VISUAL DEL CORREO */}
               <div className="bg-slate-100 border border-slate-200 rounded-2xl p-6 shadow-inner">
