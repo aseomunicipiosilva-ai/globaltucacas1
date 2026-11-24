@@ -107,12 +107,17 @@ export default function ConveniosPagoPage() {
   ];
 
   const handleSearch = () => {
-    const userInmuebles = inmuebles.filter(i => i.identidad === searchDoc || i.cod_cont === searchDoc);
+    const cleanSearchDoc = searchDoc.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const userInmuebles = inmuebles.filter(i => {
+      const idClean = (i.identidad || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+      const codClean = (i.cod_cont || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+      const nomClean = (i.contribuyente || '').toUpperCase();
+      return idClean === cleanSearchDoc || codClean === cleanSearchDoc || (cleanSearchDoc.length > 3 && nomClean.includes(searchDoc.toUpperCase()));
+    });
     
     // Also find pending recibos
-    const cleanSearchDoc = searchDoc.replace(/-/g, '').toUpperCase();
     const userFacturas = (recibos || []).filter(f => {
-      const idCleanFactura = (f.identidad || '').replace(/-/g, '').toUpperCase();
+      const idCleanFactura = (f.identidad || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
       const belongsToUser = idCleanFactura === cleanSearchDoc || (userInmuebles.length > 0 && f.contribuyente === userInmuebles[0].contribuyente);
       return belongsToUser && f.estado === 'Pendiente';
     });
@@ -125,6 +130,15 @@ export default function ConveniosPagoPage() {
       const totalCongelada = userInmuebles.reduce((acc, curr) => acc + (parseFloat(curr.deuda_congelada_bs) || parseFloat(curr.DeudaCongelada) || 0), 0);
       const totalFacturasBs = userFacturas.reduce((acc, curr) => acc + (parseFloat(curr.monto) || 0), 0);
 
+      // Si el contribuyente ya tiene facturas emitidas en el sistema, la deuda real son sus facturas (+ deudas congeladas previas si las hay).
+      // Si no tiene facturas emitidas, se calcula por totalMMV * tcmmv. No se suman ambas para evitar duplicidad.
+      let montoReal = 0;
+      if (totalFacturasBs > 0) {
+        montoReal = totalFacturasBs + totalCongelada;
+      } else {
+        montoReal = (totalMMV * tcmmv) + totalCongelada;
+      }
+
       setFoundUser({
         identidad,
         contribuyente,
@@ -133,7 +147,7 @@ export default function ConveniosPagoPage() {
         totalMMV,
         totalCongelada,
         totalFacturasBs,
-        montoACongelar: ((totalMMV * tcmmv) + totalCongelada + totalFacturasBs).toFixed(2)
+        montoACongelar: montoReal.toFixed(2)
       });
     } else {
       setFoundUser(null);
@@ -302,16 +316,25 @@ export default function ConveniosPagoPage() {
                   <p><span className="font-semibold">Identidad:</span> {foundUser.identidad}</p>
                   <div className="pt-2 mt-2 border-t border-blue-200/50">
                     <p className="text-xs text-slate-500 mb-1">Tasa BCV (TCMMV) Actual: <span className="font-semibold text-slate-700">{tcmmv} Bs</span></p>
-                    <p className="flex justify-between items-center text-red-600 font-medium">
-                      <span>Deuda Fluctuante a Congelar (MMV):</span>
-                      <span>{foundUser.totalMMV} MMV</span>
-                    </p>
-                    <p className="flex justify-between items-center text-slate-600 font-medium mt-1">
-                      <span>Deuda por Recibos (Recibos):</span>
-                      <span>{foundUser.totalFacturasBs?.toFixed(2)} Bs</span>
-                    </p>
+                    {foundUser.totalFacturasBs > 0 ? (
+                      <p className="flex justify-between items-center text-slate-700 font-medium mt-1">
+                        <span>Total Recibos Pendientes ({foundUser.recibos?.length || 0}):</span>
+                        <span>{foundUser.totalFacturasBs?.toFixed(2)} Bs</span>
+                      </p>
+                    ) : (
+                      <p className="flex justify-between items-center text-red-600 font-medium">
+                        <span>Deuda Censo Inicial ({foundUser.totalMMV} MMV × {tcmmv} Bs):</span>
+                        <span>{((foundUser.totalMMV || 0) * tcmmv).toFixed(2)} Bs</span>
+                      </p>
+                    )}
+                    {foundUser.totalCongelada > 0 && (
+                      <p className="flex justify-between items-center text-amber-700 font-medium mt-1">
+                        <span>Deuda Congelada Previa:</span>
+                        <span>{foundUser.totalCongelada?.toFixed(2)} Bs</span>
+                      </p>
+                    )}
                     <p className="flex justify-between items-center text-emerald-700 font-bold text-lg mt-1 pt-1 border-t border-blue-200/50">
-                      <span>Monto Final de la Deuda (Bs):</span>
+                      <span>Monto Total a Refinanciar:</span>
                       <span>{foundUser.montoACongelar} Bs</span>
                     </p>
                   </div>
