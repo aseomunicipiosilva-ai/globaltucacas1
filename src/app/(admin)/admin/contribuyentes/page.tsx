@@ -2530,7 +2530,8 @@ function ContribuyentesPageContent() {
           const m = parseFloat(String(r.monto || '0').replace(/[^0-9.]/g, ''));
           return sum + (isNaN(m) ? 0 : m);
         }, 0);
-        const hasDebt = debtAmountNum > 0.01;
+        const hasPendingOrVerif = rowRecibos.some((r: any) => r.estado === 'Pendiente' || r.estado === 'Por Verificar' || r.estado === 'Abonado');
+        const hasDebt = debtAmountNum > 0.01 || hasPendingOrVerif;
         const debtAmount = hasDebt ? debtAmountNum.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00';
 
         const hasAgreement = convenios.some((c: any) =>
@@ -2564,7 +2565,7 @@ function ContribuyentesPageContent() {
             {hasDebt ? (
               <button
                 className="bg-red-50 text-red-600 p-1.5 rounded cursor-default"
-                title={`Deuda pendiente: Bs. ${debtAmount}`}
+                title={debtAmountNum > 0.01 ? `Deuda pendiente: Bs. ${debtAmount}` : 'Pagos en verificación o recibos pendientes de conciliación'}
               >
                 <DollarSign className="w-4 h-4" />
               </button>
@@ -2794,7 +2795,8 @@ function ContribuyentesPageContent() {
                   const m = parseFloat(String(f.monto || '0').replace(/[^\d.]/g, '')) || 0;
                   return acc + m;
                 }, 0);
-                const isSolventeLive = viewFacturasDb.length === 0 || totalDeudaActual <= 0;
+                const hasFacturasNoPagadas = viewFacturasDb.some((f: any) => f.estado === 'Pendiente' || f.estado === 'Por Verificar' || f.estado === 'Abonado');
+                const isSolventeLive = !hasFacturasNoPagadas && totalDeudaActual <= 0;
                 const qrTargetUrl = typeof window !== 'undefined'
                   ? `${window.location.origin}/validar?codigo=${encodeURIComponent(viewData.Codigo || viewData.Identidad)}`
                   : `https://aseosilva.globalrecca.com/validar?codigo=${encodeURIComponent(viewData.Codigo || viewData.Identidad)}`;
@@ -2852,7 +2854,7 @@ function ContribuyentesPageContent() {
                           </span>
                         ) : (
                           <span className="text-rose-800 font-medium">
-                            Posee <strong>{viewFacturasDb.length} recibo(s)</strong> pendientes por un total de <strong>Bs. {totalDeudaActual.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>. Al escanear el QR se detalla el estado de deuda en vivo.
+                            Posee <strong>{viewFacturasDb.length} recibo(s)</strong> pendientes o en verificación por un total de <strong>Bs. {totalDeudaActual.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>. Al escanear el QR se detalla el estado de deuda en vivo.
                           </span>
                         )}
                       </p>
@@ -3165,7 +3167,8 @@ function ContribuyentesPageContent() {
 
                     const totalBs = deudas.reduce((acc: number, f: any) => acc + getMontoActual(f), 0);
 
-                    if (deudas.length === 0) {
+                    const deudasNoLiquidadas = deudas.filter((f: any) => f.estado === 'Pendiente' || f.estado === 'Por Verificar' || f.estado === 'Abonado');
+                    if (deudasNoLiquidadas.length === 0 && totalBs <= 0) {
                       return (
                         <div className="p-6 text-center">
                           <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto mb-2" />
