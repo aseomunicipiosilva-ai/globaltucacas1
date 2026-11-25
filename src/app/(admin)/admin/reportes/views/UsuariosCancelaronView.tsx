@@ -18,6 +18,13 @@ export default function UsuariosCancelaronView({ onBack, pagos: pagosProp }: Pro
   const [pagosData, setPagosData] = useState<any[]>(pagosProp || []);
   const [loading, setLoading] = useState(false);
 
+  // Sincronizar si pagosProp se actualiza desde el padre
+  useEffect(() => {
+    if (pagosProp && pagosProp.length > 0) {
+      setPagosData(pagosProp);
+    }
+  }, [pagosProp]);
+
   // Filtros de fecha / periodo
   const [modoPeriodo, setModoPeriodo] = useState<'mes' | 'rango'>('mes');
   
@@ -36,18 +43,20 @@ export default function UsuariosCancelaronView({ onBack, pagos: pagosProp }: Pro
     setLoading(true);
     try {
       let allPagos: any[] = [];
-      const CHUNK_SIZE = 1000;
+      const CHUNK_SIZE = 500;
       let from = 0;
       let hasMore = true;
 
       while (hasMore) {
         const { data, error } = await supabase
           .from('pagos_reportados')
-          .select('id, identidad, contribuyente, monto, banco, referencia, tipo, estado, created_at, detalles')
-          .eq('estado', 'Aprobado')
+          .select('id, identidad, monto, banco, referencia, tipo, estado, created_at, detalles')
           .range(from, from + CHUNK_SIZE - 1);
 
-        if (error) throw error;
+        if (error) {
+          console.warn('Error en carga de pagos chunk:', error);
+          break;
+        }
         if (data && data.length > 0) {
           allPagos.push(...data);
           from += CHUNK_SIZE;
@@ -57,7 +66,9 @@ export default function UsuariosCancelaronView({ onBack, pagos: pagosProp }: Pro
         }
       }
 
-      setPagosData(allPagos);
+      if (allPagos.length > 0) {
+        setPagosData(allPagos);
+      }
     } catch (e) {
       console.error('Error cargando pagos:', e);
     } finally {
@@ -111,9 +122,19 @@ export default function UsuariosCancelaronView({ onBack, pagos: pagosProp }: Pro
   // Filtrar pagos por período (mes o rango de fechas)
   const pagosEnPeriodo = useMemo(() => {
     return pagosData.filter((p: any) => {
-      if (p.estado !== 'Aprobado') return false;
+      // Normalizar estado aprobado (case-insensitive y sin espacios)
+      const st = String(p.estado || '').trim().toLowerCase();
+      if (st !== 'aprobado') return false;
 
-      const fechaStr = p.created_at ? p.created_at.split('T')[0] : '';
+      // Obtener fecha del pago (priorizando created_at, o fecha_registro / fecha_banco de detalles)
+      let rawFecha = p.created_at || '';
+      if (!rawFecha && p.detalles) {
+        const det = typeof p.detalles === 'object' ? p.detalles : {};
+        rawFecha = det.fecha_registro || det.fecha_banco || det.fecha_transaccion || '';
+      }
+
+      if (!rawFecha) return false;
+      const fechaStr = rawFecha.split('T')[0];
       if (!fechaStr) return false;
 
       if (modoPeriodo === 'mes') {
