@@ -24,17 +24,39 @@ export default function SolventesView({ onBack }: { onBack: () => void }) {
   const cargarSolventes = async () => {
     setLoading(true);
     try {
-      // Contribuyentes solventes: aquellos cuyos inmuebles no tienen facturas pendientes
+      // Contribuyentes solventes: aquellos cuyos inmuebles no tienen facturas pendientes ni deuda morosa
       const { data: inms } = await supabase.from('inmuebles').select('*');
       const { data: facs } = await supabase.from('facturas').select('identidad, estado').in('estado', ['Pendiente', 'Abonado']);
 
-      const morososSet = new Set((facs || []).map((f: any) => (f.identidad || '').replace(/[-.s]/g, '').toUpperCase()));
+      const morososSet = new Set((facs || []).map((f: any) => (f.identidad || '').replace(/[-.\s]/g, '').toUpperCase()));
 
-      const solList = (inms || []).filter((inm: any) => {
-        const id = (inm.identidad || '').replace(/[-.s]/g, '').toUpperCase();
-        return !morososSet.has(id);
+      // Agrupar por contribuyente único (RIF / Cédula) para no duplicar locales ni apartamentos
+      const contribuyentesMap = new Map<string, any>();
+
+      (inms || []).forEach((inm: any) => {
+        const idClean = (inm.identidad || '').replace(/[-.\s]/g, '').toUpperCase();
+        if (!idClean) return;
+
+        // Si alguna de sus propiedades o facturas está en mora, no es solvente
+        const tieneDeuda = parseFloat(inm.deuda_mmv || '0') > 0 || parseFloat(inm.deuda_congelada_bs || '0') > 0;
+        if (morososSet.has(idClean) || tieneDeuda) {
+          return;
+        }
+
+        if (contribuyentesMap.has(idClean)) {
+          const existente = contribuyentesMap.get(idClean);
+          existente.localesCount = (existente.localesCount || 1) + 1;
+          existente.saldo_favor_bs = (parseFloat(existente.saldo_favor_bs || '0') + parseFloat(inm.saldo_favor_bs || '0')).toString();
+        } else {
+          contribuyentesMap.set(idClean, {
+            ...inm,
+            localesCount: 1,
+            saldo_favor_bs: inm.saldo_favor_bs || '0'
+          });
+        }
       });
 
+      const solList = Array.from(contribuyentesMap.values());
       setSolventes(solList);
     } catch (e) {
       console.error(e);
@@ -60,7 +82,7 @@ export default function SolventesView({ onBack }: { onBack: () => void }) {
       r.cod_cont || '—',
       r.identidad || '—',
       r.contribuyente || '—',
-      r.inmueble || 'Principal',
+      r.localesCount > 1 ? `${r.localesCount} Inmuebles` : '1 Inmueble',
       r.clasificacion || 'Residencial',
       r.direccion || '—',
       'SOLVENTE',
@@ -70,12 +92,12 @@ export default function SolventesView({ onBack }: { onBack: () => void }) {
     const wsData = [
       ['INSTITUTO AUTÓNOMO MUNICIPAL DE GESTIÓN AMBIENTAL - MUNICIPIO SILVA (ISMA)'],
       ['PADRÓN OFICIAL DE CONTRIBUYENTES SOLVENTES'],
-      [`Sector: ${filtroSector}  |  Total Solventes: ${filtered.length}  |  Fecha: ${new Date().toLocaleDateString('es-VE')}`],
+      [`Sector: ${filtroSector}  |  Total Solventes Únicos: ${filtered.length}  |  Fecha: ${new Date().toLocaleDateString('es-VE')}`],
       [],
-      ['N°', 'CÓDIGO', 'IDENTIDAD', 'CONTRIBUYENTE', 'INMUEBLE', 'CLASIFICACIÓN', 'DIRECCIÓN', 'ESTADO', 'SALDO A FAVOR (Bs)'],
+      ['N°', 'CÓDIGO', 'IDENTIDAD', 'CONTRIBUYENTE', 'INMUEBLES ASOCIADOS', 'CLASIFICACIÓN', 'DIRECCIÓN', 'ESTADO', 'SALDO A FAVOR (Bs)'],
       ...rows,
       [],
-      ['', '', '', '', '', '', '', 'TOTAL SOLVENTES:', filtered.length]
+      ['', '', '', '', '', '', '', 'TOTAL CONTRIBUYENTES SOLVENTES:', filtered.length]
     ];
 
     const ws = xlsx.utils.aoa_to_sheet(wsData);
@@ -126,6 +148,7 @@ export default function SolventesView({ onBack }: { onBack: () => void }) {
                 <th className="px-3 py-2.5">Código</th>
                 <th className="px-3 py-2.5">Identidad</th>
                 <th className="px-3 py-2.5">Contribuyente</th>
+                <th className="px-3 py-2.5 text-center">Inmuebles / Locales</th>
                 <th className="px-3 py-2.5">Sector / Dirección</th>
                 <th className="px-3 py-2.5">Clasificación</th>
                 <th className="px-3 py-2.5 text-center">Estatus</th>
@@ -139,6 +162,11 @@ export default function SolventesView({ onBack }: { onBack: () => void }) {
                   <td className="px-3 py-2 font-mono text-slate-500">{r.cod_cont || '—'}</td>
                   <td className="px-3 py-2 font-mono font-bold text-emerald-800">{r.identidad}</td>
                   <td className="px-3 py-2 font-semibold text-slate-800">{r.contribuyente}</td>
+                  <td className="px-3 py-2 text-center">
+                    <span className="px-2 py-0.5 rounded-full font-bold text-[10px] bg-slate-100 text-slate-700 border border-slate-200">
+                      {r.localesCount > 1 ? `${r.localesCount} Inmuebles` : '1 Inmueble'}
+                    </span>
+                  </td>
                   <td className="px-3 py-2 text-slate-600 max-w-xs truncate">{r.direccion || '—'}</td>
                   <td className="px-3 py-2 text-slate-500">{r.clasificacion || 'Residencial'}</td>
                   <td className="px-3 py-2 text-center">
@@ -151,7 +179,7 @@ export default function SolventesView({ onBack }: { onBack: () => void }) {
               ))}
               {filtered.length === 0 && !loading && (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-400">No hay contribuyentes solventes con este filtro.</td>
+                  <td colSpan={9} className="p-8 text-center text-slate-400">No hay contribuyentes solventes con este filtro.</td>
                 </tr>
               )}
             </tbody>
