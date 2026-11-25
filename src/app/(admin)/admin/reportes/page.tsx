@@ -17,6 +17,7 @@ import CuadreCaja from './views/CuadreCaja';
 import NuevosInscritosView from './views/NuevosInscritosView';
 import ConveniosView from './views/ConveniosView';
 import SolventesView from './views/SolventesView';
+import UsuariosCancelaronView from './views/UsuariosCancelaronView';
 import BitacoraView from './views/BitacoraView';
 import ServiciosEspecialesReportView from './views/ServiciosEspecialesReportView';
 import SupervisorRutaReportView from './views/SupervisorRutaReportView';
@@ -25,7 +26,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-type ActiveView = null | 'ingresos' | 'corte' | 'libro-ventas' | 'fiscalizacion' | 'empleados' | 'saldos' | 'ingreso-bancario' | 'morosos' | 'transferencias' | 'inscritos' | 'convenios' | 'solventes' | 'bitacora' | 'censo' | 'servicios-especiales' | 'supervisor-ruta';
+type ActiveView = null | 'ingresos' | 'corte' | 'libro-ventas' | 'fiscalizacion' | 'empleados' | 'saldos' | 'ingreso-bancario' | 'morosos' | 'transferencias' | 'inscritos' | 'convenios' | 'solventes' | 'usuarios-cancelaron' | 'bitacora' | 'censo' | 'servicios-especiales' | 'supervisor-ruta';
 
 const CARDS = [
   { id: 'ingresos' as ActiveView,       label: 'Caja - Ingresos',         emoji: '🖨️',  desc: 'General de Ingresos, Corte, Libro de Ventas', adminOnly: false },
@@ -38,6 +39,7 @@ const CARDS = [
   { id: 'inscritos' as ActiveView,       label: 'Nuevos Inscritos',        emoji: '📋',  desc: 'Nuevos registros con filtros por fecha y sector', adminOnly: false },
   { id: 'convenios' as ActiveView,       label: 'Convenios de Pago',       emoji: '🤝',  desc: 'Convenios, cuotas pendientes y al día',         adminOnly: false },
   { id: 'solventes' as ActiveView,       label: 'Solventes',               emoji: '🎖️',  desc: 'Padrón de contribuyentes solventes por sector', adminOnly: false },
+  { id: 'usuarios-cancelaron' as ActiveView, label: 'Usuarios que Cancelaron', emoji: '✅', desc: 'Contribuyentes que pagaron por mes o período', adminOnly: false },
   { id: 'servicios-especiales' as ActiveView, label: 'Servicios Especiales', emoji: '🚚', desc: 'Reporte extraordinarios y especiales en Excel/PDF', adminOnly: false },
   { id: 'censo' as ActiveView,           label: 'Censo Departamental',     emoji: '??',  desc: 'Reporte estad�stico mensual Catastro y Hacienda', adminOnly: false },
   { id: 'bitacora' as ActiveView,        label: 'Bitácora Auditoría',      emoji: '🛡️',  desc: 'Historial y trazabilidad de eventos del sistema', adminOnly: true  },
@@ -521,6 +523,7 @@ export default function ReportesPage() {
   if (activeView === 'inscritos') return <NuevosInscritosView onBack={() => setActiveView(null)} />;
   if (activeView === 'convenios') return <ConveniosView onBack={() => setActiveView(null)} />;
   if (activeView === 'solventes') return <SolventesView onBack={() => setActiveView(null)} />;
+  if (activeView === 'usuarios-cancelaron') return <UsuariosCancelaronView onBack={() => setActiveView(null)} pagos={pagos} />;
   if (activeView === 'bitacora')  return <BitacoraView onBack={() => setActiveView(null)} />;
   if (activeView === 'servicios-especiales') return <ServiciosEspecialesReportView onBack={() => setActiveView(null)} />;
   if (activeView === 'supervisor-ruta') return <SupervisorRutaReportView onBack={() => setActiveView(null)} />;
