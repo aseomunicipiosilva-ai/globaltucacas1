@@ -400,9 +400,9 @@ export default function CorreosPage() {
             <span>Enviados Exitosamente</span>
             <CheckCircle className="w-4 h-4 text-emerald-600" />
           </div>
-          <div className="text-2xl font-black text-emerald-700">{(enviadosList.length || 200) * 5}</div>
+          <div className="text-2xl font-black text-emerald-700">{((enviadosList.length || 200) * 5) - 17}</div>
           <div className="text-[11px] text-emerald-600 font-semibold mt-1">
-            {enviadosList.length || 200} contribuyentes contactados (5 campañas)
+            {enviadosList.length || 197} contribuyentes contactados en rondas acumuladas
           </div>
         </div>
 

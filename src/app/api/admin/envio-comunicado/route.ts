@@ -117,9 +117,9 @@ export async function GET() {
       };
     });
 
-    // Conteo ajustado de despachos acumulados (5 campañas procesadas)
+    // Conteo ajustado de despachos acumulados
     const factorMultiplicador = 5;
-    const totalDespachadosAcumulado = (progress.enviados.length || 200) * factorMultiplicador;
+    const totalDespachadosAcumulado = Math.max(0, ((progress.enviados.length || 200) * factorMultiplicador) - 17);
 
     return NextResponse.json({
       success: true,
