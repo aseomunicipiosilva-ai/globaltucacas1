@@ -96,6 +96,8 @@ export default function SupervisorRutaPage() {
   // Datos del Supervisor Activo
   const [supervisor, setSupervisor] = useState<string>('');
   const [supervisorData, setSupervisorData] = useState<any>(null);
+  const [isAdminUser, setIsAdminUser] = useState(false);
+  const todayStr = new Date().toISOString().split('T')[0];
 
   // Form states
   const [rutasDisponibles, setRutasDisponibles] = useState<any[]>([]);
@@ -132,24 +134,54 @@ export default function SupervisorRutaPage() {
   const [viajeDiaActual, setViajeDiaActual] = useState<number>(1);
   const [totalToneladasHoy, setTotalToneladasHoy] = useState<number>(0);
 
-  // 1. Verificar si ya tiene sesión activa de supervisor
+  // 1. Verificar si ya tiene sesión activa de supervisor o admin
   useEffect(() => {
     try {
       const storedAuth = localStorage.getItem('supervisor_ruta_auth');
       const storedUserData = localStorage.getItem('supervisor_ruta_user_data');
-      if (storedAuth && storedUserData) {
-        const uData = JSON.parse(storedUserData);
-        setSupervisor(uData.nombre || storedAuth);
-        setSupervisorData(uData);
-        setIsAuth(true);
+      const adminUser = localStorage.getItem('adminUser') || '';
+      let adminData: any = {};
+      try {
+        adminData = JSON.parse(localStorage.getItem('admin_user_data') || '{}');
+      } catch {}
 
-        const lastU = localStorage.getItem('supervisor_last_unidad');
-        const lastR = localStorage.getItem('supervisor_last_ruta');
-        const lastCh = localStorage.getItem('supervisor_last_chofer');
-        if (lastU) setUnidad(lastU);
-        if (lastR) setRuta(lastR);
-        if (lastCh) setChofer(lastCh);
+      let currentUData: any = null;
+      let userIdent = '';
+
+      if (storedAuth && storedUserData) {
+        currentUData = JSON.parse(storedUserData);
+        userIdent = (storedAuth || '').toLowerCase().trim();
+        setSupervisor(currentUData.nombre || storedAuth);
+        setSupervisorData(currentUData);
+        setIsAuth(true);
+      } else if (adminUser) {
+        userIdent = adminUser.toLowerCase().trim();
+        currentUData = adminData;
+        setSupervisor(adminData.nombre || adminUser);
+        setSupervisorData(adminData);
+        setIsAuth(true);
       }
+
+      // Check admin status
+      const rol = ((currentUData?.rol || adminData?.rol || '') + '').toLowerCase().trim();
+      if (
+        userIdent === 'dzara' ||
+        userIdent === 'administrador' ||
+        userIdent === 'rvillegas' ||
+        userIdent === 'roselyn villegas' ||
+        rol === 'master' ||
+        rol === 'administrador' ||
+        rol === 'superadmin'
+      ) {
+        setIsAdminUser(true);
+      }
+
+      const lastU = localStorage.getItem('supervisor_last_unidad');
+      const lastR = localStorage.getItem('supervisor_last_ruta');
+      const lastCh = localStorage.getItem('supervisor_last_chofer');
+      if (lastU) setUnidad(lastU);
+      if (lastR) setRuta(lastR);
+      if (lastCh) setChofer(lastCh);
     } catch (e) {
       console.error(e);
     } finally {
@@ -179,6 +211,7 @@ export default function SupervisorRutaPage() {
         localStorage.setItem('supervisor_ruta_user_data', JSON.stringify(masterData));
         setSupervisor('David Zara');
         setSupervisorData(masterData);
+        setIsAdminUser(true);
         setIsAuth(true);
         return;
       }
@@ -220,6 +253,14 @@ export default function SupervisorRutaPage() {
       localStorage.setItem('supervisor_ruta_user_data', JSON.stringify(data));
       setSupervisor(data.nombre || data.usuario);
       setSupervisorData(data);
+      if (
+        data.usuario?.toLowerCase() === 'dzara' ||
+        data.usuario?.toLowerCase() === 'administrador' ||
+        rolUpper.includes('ADMIN') ||
+        rolUpper.includes('MASTER')
+      ) {
+        setIsAdminUser(true);
+      }
       setIsAuth(true);
 
     } catch (err: any) {
@@ -717,6 +758,47 @@ export default function SupervisorRutaPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3.5">
+            {/* FECHA DEL VIAJE / REGISTRO */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[11px] font-bold text-slate-300 uppercase">
+                  Fecha del Registro <span className="text-red-400">*</span>
+                </label>
+                {!isAdminUser ? (
+                  <span className="text-[9px] bg-slate-800 text-emerald-400 px-2 py-0.5 rounded font-bold border border-slate-700">
+                    Jornada de Hoy (Fija para Supervisor)
+                  </span>
+                ) : (
+                  <span className="text-[9px] bg-purple-950/80 text-purple-300 px-2 py-0.5 rounded font-bold border border-purple-800">
+                    Permiso Administrador (Cualquier Fecha)
+                  </span>
+                )}
+              </div>
+              <input
+                type="date"
+                value={isAdminUser ? fecha : todayStr}
+                onChange={(e) => {
+                  if (isAdminUser) {
+                    setFecha(e.target.value);
+                  }
+                }}
+                disabled={!isAdminUser}
+                min={!isAdminUser ? todayStr : undefined}
+                max={!isAdminUser ? todayStr : undefined}
+                className={`w-full rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold border transition-colors ${
+                  !isAdminUser
+                    ? 'bg-slate-950 border-slate-800 text-slate-400 cursor-not-allowed'
+                    : 'bg-slate-950 border-purple-500/60 text-purple-200 focus:outline-none focus:border-purple-400'
+                }`}
+                required
+              />
+              <p className="text-[10px] text-slate-500 mt-1">
+                {!isAdminUser
+                  ? 'Como supervisor en ruta, los viajes se registran automáticamente con la fecha de hoy.'
+                  : 'Como administrador tiene la opción de registrar o consultar descargas de días anteriores.'}
+              </p>
+            </div>
+
             {/* TIPO DE VEHÍCULO */}
             <div>
               <label className="block text-[11px] font-bold text-slate-300 uppercase mb-1.5">
@@ -890,13 +972,29 @@ export default function SupervisorRutaPage() {
           </form>
         </div>
 
-        {/* LISTADO DE DESCARGAS REGISTRADAS HOY */}
+        {/* LISTADO DE DESCARGAS REGISTRADAS */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-800 pb-2.5 gap-2">
             <h3 className="text-xs sm:text-sm font-black text-white uppercase flex items-center gap-2">
-              <History className="w-4 h-4 text-emerald-400" /> Historial de Viajes de Hoy ({historialHoy.length})
+              <History className="w-4 h-4 text-emerald-400" /> Historial de Viajes ({historialHoy.length})
             </h3>
-            <span className="text-[10px] text-slate-400">{fecha}</span>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={fecha}
+                onChange={(e) => setFecha(e.target.value)}
+                className="bg-slate-950 border border-slate-700 text-slate-200 text-[11px] rounded-lg px-2.5 py-1 outline-none focus:border-emerald-500 font-semibold"
+                title="Cambiar fecha a consultar"
+              />
+              <button
+                type="button"
+                onClick={() => loadHistorial(fecha, unidad)}
+                className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white rounded transition-colors"
+                title="Refrescar historial"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
           {historialHoy.length === 0 ? (
