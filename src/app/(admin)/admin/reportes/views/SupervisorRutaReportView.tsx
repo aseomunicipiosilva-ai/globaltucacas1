@@ -205,7 +205,7 @@ export default function SupervisorRutaReportView({ onBack }: { onBack: () => voi
         <div className="flex items-center gap-2">
           {/* BOTÓN IR AL MÓDULO MÓVIL */}
           <a
-            href="/operador/supervisor-ruta"
+            href="/supervisor-ruta"
             target="_blank"
             rel="noopener noreferrer"
             className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors"
