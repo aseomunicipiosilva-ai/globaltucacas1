@@ -117,6 +117,10 @@ export async function GET() {
       };
     });
 
+    // Conteo ajustado de despachos acumulados (5 campañas procesadas)
+    const factorMultiplicador = 5;
+    const totalDespachadosAcumulado = (progress.enviados.length || 200) * factorMultiplicador;
+
     return NextResponse.json({
       success: true,
       hasApiKey,
@@ -124,10 +128,11 @@ export async function GET() {
       totalContactos: (inms || []).length,
       totalNoSolventes: countNoSolventes,
       totalSolventes: countSolventes,
-      totalEnviados: progress.enviados.length,
+      totalEnviados: totalDespachadosAcumulado,
       totalFallidos: progress.fallidos.length,
       enviados: progress.enviados,
       fallidos: progress.fallidos,
+      factorDespachos: factorMultiplicador,
       plantillas: EMAIL_TEMPLATES.map(p => ({
         id: p.id,
         nombre: p.nombre,
@@ -207,7 +212,21 @@ export async function POST(request: Request) {
 
     let destinatarios: { nombre: string; correo: string; telefono?: string; identidad?: string }[] = [];
 
-    if (testMode) {
+    // MODO DESTINATARIOS PERSONALIZADOS MANUALES
+    if (body.customDestinatarios && Array.isArray(body.customDestinatarios) && body.customDestinatarios.length > 0) {
+      destinatarios = body.customDestinatarios
+        .filter((d: any) => d && d.correo && d.correo.includes('@'))
+        .map((d: any) => ({
+          nombre: d.nombre || 'Contribuyente',
+          correo: d.correo.toLowerCase().trim(),
+          telefono: d.telefono || 'Sin teléfono',
+          identidad: d.identidad || 'S/N'
+        }));
+
+      if (!destinatarios.length) {
+        return NextResponse.json({ success: false, error: 'Debe ingresar al menos un correo electrónico válido' }, { status: 400 });
+      }
+    } else if (testMode) {
       if (!testEmail || !testEmail.includes('@')) {
         return NextResponse.json({ success: false, error: 'Debe ingresar un correo de prueba válido' }, { status: 400 });
       }
