@@ -57,14 +57,20 @@ export async function GET() {
       if (f.email) fallidosMap.set(f.email.toLowerCase().trim(), f.error || 'Error');
     });
 
-    // Contribuyentes con correo y teléfono
-    const { data: inms, error: inmsErr } = await supabase
+    // Contribuyentes con correo válido y verificable (excluyendo 'no tiene correo', notas o textos sin @)
+    const { data: rawInms, error: inmsErr } = await supabase
       .from('inmuebles')
       .select('id, identidad, contribuyente, correo_electronico, telefono, deuda_mmv, deuda_congelada_bs')
       .not('correo_electronico', 'is', null)
       .neq('correo_electronico', '');
 
     if (inmsErr) throw inmsErr;
+
+    // Filtrar estrictamente solo aquellos que tengan una dirección de correo válida con @
+    const inms = (rawInms || []).filter((inm: any) => {
+      const email = (inm.correo_electronico || '').toLowerCase().trim();
+      return email.includes('@') && !email.includes('no tiene') && !email.includes('no se encuentra');
+    });
 
     // Obtener IDs de contribuyentes morosos
     let morososIdSet = new Set<string>();
