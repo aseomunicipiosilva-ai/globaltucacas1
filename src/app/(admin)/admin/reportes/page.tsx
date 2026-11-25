@@ -41,6 +41,7 @@ const CARDS = [
   { id: 'solventes' as ActiveView,       label: 'Solventes',               emoji: '🎖️',  desc: 'Padrón de contribuyentes solventes por sector', adminOnly: false },
   { id: 'usuarios-cancelaron' as ActiveView, label: 'Usuarios que Cancelaron', emoji: '✅', desc: 'Contribuyentes que pagaron por mes o período', adminOnly: false },
   { id: 'servicios-especiales' as ActiveView, label: 'Servicios Especiales', emoji: '🚚', desc: 'Reporte extraordinarios y especiales en Excel/PDF', adminOnly: false },
+  { id: 'supervisor-ruta' as ActiveView, label: 'Supervisor de Rutas', emoji: '🚛', desc: 'Control de camiones, viajes a vertedero y pesaje', adminOnly: false },
   { id: 'censo' as ActiveView,           label: 'Censo Departamental',     emoji: '??',  desc: 'Reporte estad�stico mensual Catastro y Hacienda', adminOnly: false },
   { id: 'bitacora' as ActiveView,        label: 'Bitácora Auditoría',      emoji: '🛡️',  desc: 'Historial y trazabilidad de eventos del sistema', adminOnly: true  },
 ];

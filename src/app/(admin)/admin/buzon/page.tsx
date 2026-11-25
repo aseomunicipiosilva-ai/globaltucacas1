@@ -26,9 +26,11 @@ export default function BuzonSolicitudesPage() {
         .order('created_at', { ascending: false });
 
       // 2. Cargar servicios especiales (extraordinario, visto_bueno, inspeccion, etc.)
+      // Excluyendo viajes operativos de camiones / vertedero de supervisor_ruta
       const { data: dbServicios } = await supabase
         .from('servicios_especiales')
         .select('*')
+        .neq('origen', 'supervisor_ruta')
         .order('created_at', { ascending: false });
 
       const listaCombinada: any[] = [];
@@ -55,6 +57,16 @@ export default function BuzonSolicitudesPage() {
 
       // Mapear Servicios Especiales
       (dbServicios || []).forEach((s: any) => {
+        // Doble filtro de seguridad: descartar si es viaje_vertedero
+        let subtipo = '';
+        try {
+          const parsed = typeof s.notas === 'string' ? JSON.parse(s.notas) : (s.notas || {});
+          subtipo = parsed.subtipo || '';
+        } catch {}
+        if (s.origen === 'supervisor_ruta' || subtipo === 'viaje_vertedero') {
+          return;
+        }
+
         let tipoCategoria = 'Servicios Extraordinarios';
         let iconComp = Wrench;
         let colorClass = 'text-blue-500';

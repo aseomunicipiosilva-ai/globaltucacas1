@@ -18,10 +18,36 @@ export default function CensoMobilePage() {
   const todasLasActividades = [...(ordenanzaData?.actividadesComerciales || []), ...(ordenanzaData?.actividadesIndustriales || [])];
 
   const [operador, setOperador] = useState<string>('Operador');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const todayStr = new Date().toISOString().split('T')[0];
   
   useEffect(() => {
     const op = localStorage.getItem('operador_censo_auth');
     if(op) setOperador(op);
+
+    // Verificar si es administrador o master
+    try {
+      const rawUser = localStorage.getItem('adminUser') || '';
+      const rawAdminData = JSON.parse(localStorage.getItem('admin_user_data') || '{}');
+      const rawOpData = JSON.parse(localStorage.getItem('operador_user_data') || '{}');
+      
+      const user = (op || rawUser || '').toLowerCase().trim();
+      const rol = (rawAdminData.rol || rawOpData.rol || '').toLowerCase().trim();
+
+      if (
+        user === 'dzara' ||
+        user === 'administrador' ||
+        user === 'rvillegas' ||
+        user === 'roselyn villegas' ||
+        rol === 'master' ||
+        rol === 'administrador' ||
+        rol === 'superadmin'
+      ) {
+        setIsAdmin(true);
+      }
+    } catch (e) {
+      console.warn('Error verificando admin status:', e);
+    }
   }, []);
 
   const [isSaving, setIsSaving] = useState(false);
@@ -842,18 +868,45 @@ export default function CensoMobilePage() {
             <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide mb-4">Datos del Censo</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-[10px] font-semibold text-orange-600 mb-1 flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  Fecha Inicio de Actividad Económica <span className="text-red-500">*</span>
+                <label className="block text-[10px] font-semibold text-orange-600 mb-1 flex items-center justify-between">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    Fecha Inicio de Actividad Económica <span className="text-red-500">*</span>
+                  </span>
+                  {!isAdmin && (
+                    <span className="text-[9px] bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded font-bold">
+                      Jornada de Hoy (Fija para Operador)
+                    </span>
+                  )}
+                  {isAdmin && (
+                    <span className="text-[9px] bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded font-bold">
+                      Permiso Administrador (Cualquier Fecha)
+                    </span>
+                  )}
                 </label>
                 <input 
                   type="date" 
-                  value={formData.FechaInicioActividad} 
-                  onChange={e => setFormData({...formData, FechaInicioActividad: e.target.value})} 
-                  className="w-full border border-orange-300 bg-orange-50 rounded px-3 py-2 text-sm text-orange-800 outline-none focus:border-orange-500" 
+                  value={isAdmin ? formData.FechaInicioActividad : todayStr} 
+                  onChange={e => {
+                    if (isAdmin) {
+                      setFormData({...formData, FechaInicioActividad: e.target.value});
+                    }
+                  }} 
+                  disabled={!isAdmin}
+                  min={!isAdmin ? todayStr : undefined}
+                  max={!isAdmin ? todayStr : undefined}
+                  className={`w-full border rounded px-3 py-2 text-sm outline-none transition-colors ${
+                    !isAdmin 
+                      ? 'border-slate-300 bg-slate-100 text-slate-600 cursor-not-allowed font-bold' 
+                      : 'border-orange-300 bg-orange-50 text-orange-800 focus:border-orange-500 font-semibold'
+                  }`}
                   required 
                 />
-                <p className="text-[10px] text-slate-500 mt-1">Se usará para calcular la deuda retroactiva al aprobar este registro.</p>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  {!isAdmin 
+                    ? 'Los operadores en calle solo pueden registrar censos con la fecha del día actual.' 
+                    : 'Como administrador tiene habilitado asignar cualquier fecha retroactiva o específica.'}
+                </p>
               </div>
             </div>
           </div>
