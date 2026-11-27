@@ -101,7 +101,7 @@ export default function SupervisorRutaPage() {
 
   // Form states
   const [rutasDisponibles, setRutasDisponibles] = useState<any[]>([]);
-  const [tipoVehiculo, setTipoVehiculo] = useState<'Compactadora' | 'Trimoto' | 'Volteo'>('Compactadora');
+  const [tipoVehiculo, setTipoVehiculo] = useState<'Compactadora' | 'Trimoto' | 'Volteo' | 'Barrido' | 'Desmalezamiento' | 'Limpieza'>('Compactadora');
   const [unidad, setUnidad] = useState('');
   const [chofer, setChofer] = useState('');
   const [ruta, setRuta] = useState('');
@@ -488,12 +488,18 @@ export default function SupervisorRutaPage() {
   // Guardar viaje y descarga
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!unidad.trim()) return alert('Debe indicar la unidad o camión');
-    if (!ruta.trim()) return alert('Debe indicar la ruta asignada');
-    if (!toneladas || parseFloat(toneladas) <= 0) return alert('Debe ingresar las toneladas descargadas');
+    // REQ-OP-01: Obligatoriedad estricta de GPS impidiendo guardar sin coordenadas válidas
+    if (!coords || !coords.lat || !coords.lng) {
+      alert('⛔ ERROR GPS OBLIGATORIO: Se requiere geolocalización satelital activa y válida para registrar cualquier reporte o actividad operativa. Por favor presione "Actualizar" en la barra de GPS o active los permisos de ubicación en su dispositivo.');
+      return;
+    }
+
+    if (!unidad.trim()) return alert('Debe indicar la unidad, cuadrilla o equipo');
+    if (!ruta.trim()) return alert('Debe indicar la ruta o sector asignado');
+    if (!toneladas || parseFloat(toneladas) < 0) return alert('Debe ingresar las toneladas o volumen recolectado');
 
     const tonNum = parseFloat(toneladas);
-    if (isNaN(tonNum) || tonNum <= 0) return alert('Monto de toneladas inválido');
+    if (isNaN(tonNum) || tonNum < 0) return alert('Monto de toneladas inválido');
 
     setIsSubmitting(true);
     setSuccessMsg('');
@@ -799,24 +805,32 @@ export default function SupervisorRutaPage() {
               </p>
             </div>
 
-            {/* TIPO DE VEHÍCULO */}
+            {/* TIPO DE VEHÍCULO / SERVICIO OPERATIVO (REQ-OP-04) */}
             <div>
               <label className="block text-[11px] font-bold text-slate-300 uppercase mb-1.5">
-                Tipo de Vehículo <span className="text-red-400">*</span>
+                Tipo de Servicio / Vehículo Operativo <span className="text-red-400">*</span>
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                 {[
                   { id: 'Compactadora', label: 'Compactadora', icon: '🚛' },
                   { id: 'Trimoto', label: 'Trimoto', icon: '🛺' },
-                  { id: 'Volteo', label: 'Volteo', icon: '🚚' }
+                  { id: 'Volteo', label: 'Volteo', icon: '🚚' },
+                  { id: 'Barrido', label: 'Barrido', icon: '🧹' },
+                  { id: 'Desmalezamiento', label: 'Desmalez.', icon: '🌿' },
+                  { id: 'Limpieza', label: 'Limpieza', icon: '✨' }
                 ].map((item) => (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => {
                       setTipoVehiculo(item.id as any);
-                      if (unidad && (unidad.includes('Compactadora') || unidad.includes('Trimoto') || unidad.includes('Volteo'))) {
-                        setUnidad(`${item.label} #01`);
+                      if (unidad && (unidad.includes('Compactadora') || unidad.includes('Trimoto') || unidad.includes('Volteo') || unidad.includes('Cuadrilla') || unidad.includes('Equipo'))) {
+                        setUnidad(
+                          item.id === 'Barrido' ? 'Cuadrilla Barrido #01' :
+                          item.id === 'Desmalezamiento' ? 'Equipo Desmalezamiento #01' :
+                          item.id === 'Limpieza' ? 'Cuadrilla Limpieza #01' :
+                          `${item.label} #01`
+                        );
                       }
                     }}
                     className={`py-2 px-1.5 rounded-xl text-xs font-bold border transition-all flex flex-col items-center gap-1 ${
@@ -826,7 +840,7 @@ export default function SupervisorRutaPage() {
                     }`}
                   >
                     <span className="text-base">{item.icon}</span>
-                    <span className="text-[10px] sm:text-xs">{item.label}</span>
+                    <span className="text-[9px] sm:text-[11px] font-bold truncate max-w-full">{item.label}</span>
                   </button>
                 ))}
               </div>
@@ -874,33 +888,55 @@ export default function SupervisorRutaPage() {
               </div>
             </div>
 
-            {/* RUTA */}
+            {/* RUTA Y SECTORES OPERATIVOS (REQ-OP-02) */}
             <div>
-              <label className="block text-[11px] font-bold text-slate-300 uppercase mb-1.5">
-                Ruta Recolectada <span className="text-red-400">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-[11px] font-bold text-slate-300 uppercase">
+                  Ruta y Sectores Detallados <span className="text-red-400">*</span>
+                </label>
+                <span className="text-[9px] text-emerald-400 font-mono">Cronograma Silva</span>
+              </div>
               <input
                 type="text"
-                placeholder="Ej. Casco Central y Av. Silva"
+                placeholder="Ej. Ruta 1 - Casco Central, Calle Ayacucho, Av. Silva"
                 value={ruta}
                 onChange={(e) => { setRuta(e.target.value); localStorage.setItem('supervisor_last_ruta', e.target.value); }}
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500"
                 required
               />
-              {rutasDisponibles.length > 0 && (
-                <div className="flex flex-wrap gap-1 mt-1.5">
-                  {rutasDisponibles.slice(0, 4).map((r: any, idx: number) => (
+              
+              {/* Desglose detallado de lugares y sectores de ruta según cronograma (REQ-OP-02) */}
+              <div className="mt-2 space-y-1.5">
+                <span className="text-[10px] text-slate-400 font-semibold block">Puntos y Sectores de Ruta Frecuentes:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    'Ruta 1: Casco Central, C. Ayacucho, Av. Silva',
+                    'Ruta 2: Morrocoy, Caño Salado, Las Delicias',
+                    'Ruta 3: Carretera Nacional, El Calvario',
+                    'Ruta 4: La Soledad, Sanare, José Félix Ribas',
+                    'Ruta 5: Zona Hotelera, Marina, C.C. Trébol',
+                    'Ruta 6: Boca de Aroa, Playa Norte, Áreas Verdes',
+                    'Barrido Central: Av. Silva, Plaza Bolívar, Calle Bermúdez',
+                    'Desmalezamiento: Entrada Nacional y Enlaces Viales'
+                  ].map((rText, idx) => (
                     <button
                       key={idx}
                       type="button"
-                      onClick={() => setRuta(r.nombre || r.ruta)}
-                      className="text-[9px] bg-slate-950 text-slate-400 hover:text-white px-2 py-0.5 rounded border border-slate-800"
+                      onClick={() => {
+                        setRuta(rText);
+                        localStorage.setItem('supervisor_last_ruta', rText);
+                      }}
+                      className={`text-[9px] px-2 py-1 rounded-lg border text-left transition-colors ${
+                        ruta === rText
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500'
+                          : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white hover:border-slate-700'
+                      }`}
                     >
-                      {r.nombre || r.ruta}
+                      {rText}
                     </button>
                   ))}
                 </div>
-              )}
+              </div>
             </div>
 
             {/* CHOFER & TONELADAS */}

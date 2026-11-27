@@ -1,7 +1,7 @@
 'use client';
 import { Suspense, useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Search, Camera, CreditCard, Landmark, CheckCircle2, XCircle, AlertCircle, ChevronLeft, Send, Upload, ArrowRight, FileDown } from 'lucide-react';
+import { Search, Camera, CreditCard, Landmark, CheckCircle2, XCircle, AlertCircle, ChevronLeft, Send, Upload, ArrowRight, FileDown, MapPin, ClipboardList, UserCheck, Phone, FileText } from 'lucide-react';
 import { useAppContext } from '@/store/AppContext';
 import { supabase } from '@/lib/supabase';
 import jsPDF from 'jspdf';
@@ -9,7 +9,7 @@ import { logAudit } from '@/lib/audit';
 import autoTable from 'jspdf-autotable';
 import { logos } from '@/lib/logosBase64';
 
-type Step = 'search' | 'account' | 'pay' | 'success';
+type Step = 'menu' | 'search' | 'account' | 'pay' | 'success' | 'visita' | 'visita_success';
 type PayMethod = 'Debito' | 'Transferencia';
 
 interface Recibo { referencia: string; emision: string; estado: string; monto: string; identidad?: string; contribuyente?: string; }
@@ -33,7 +33,7 @@ function CobroMovilContent() {
   const searchParams = useSearchParams();
   const initialIdentidad = searchParams.get('identidad') || searchParams.get('rif') || searchParams.get('doc') || '';
   const { contribuyentes, tcmmv } = useAppContext();
-  const [step, setStep] = useState<Step>('search');
+  const [step, setStep] = useState<Step>('menu');
   const [docType, setDocType] = useState('V');
   const [docNumber, setDocNumber] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -47,6 +47,25 @@ function CobroMovilContent() {
   const [banco, setBanco] = useState('Banco de Venezuela');
   const [referencia, setReferencia] = useState('');
   const [montoIngresado, setMontoIngresado] = useState('');
+
+  // ── ESTADOS PARA FORMULARIO DE VISITA / INSPECCIÓN EN SITIO (REQ-GM-02) ──
+  const [visitaRazonSocial, setVisitaRazonSocial] = useState('');
+  const [visitaRif, setVisitaRif] = useState('');
+  const [visitaDireccion, setVisitaDireccion] = useState('');
+  const [visitaContactoNombre, setVisitaContactoNombre] = useState('');
+  const [visitaContactoCedula, setVisitaContactoCedula] = useState('');
+  const [visitaContactoCargo, setVisitaContactoCargo] = useState('');
+  const [visitaContactoTelf, setVisitaContactoTelf] = useState('');
+  const [visitaMotivo, setVisitaMotivo] = useState('Fiscalización y Verificación');
+  const [visitaResultado, setVisitaResultado] = useState('Acuerdo de Pago / Citación');
+  const [visitaObservaciones, setVisitaObservaciones] = useState('');
+  const [visitaFoto, setVisitaFoto] = useState<File | null>(null);
+  const [visitaFotoPreview, setVisitaFotoPreview] = useState('');
+  const [visitaGps, setVisitaGps] = useState<{ lat: number; lng: number } | null>(null);
+  const [visitaGpsLoading, setVisitaGpsLoading] = useState(false);
+  const [visitaGpsError, setVisitaGpsError] = useState('');
+  const [visitaSuccessData, setVisitaSuccessData] = useState<any>(null);
+  const visitaFotoRef = useRef<HTMLInputElement>(null);
   
   const handleMontoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let raw = e.target.value.replace(/\D/g, '');
@@ -463,10 +482,123 @@ function CobroMovilContent() {
     setIsProcessing(false);
   };
 
+  const handleCapturarGpsVisita = () => {
+    if (!navigator.geolocation) {
+      setVisitaGpsError('La geolocalización no está soportada por su navegador');
+      return;
+    }
+    setVisitaGpsLoading(true);
+    setVisitaGpsError('');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setVisitaGps({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setVisitaGpsLoading(false);
+      },
+      (err) => {
+        setVisitaGpsError('Error obteniendo GPS: ' + (err.message || 'Permiso denegado'));
+        setVisitaGpsLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  };
+
+  const handleVisitaFotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setVisitaFoto(file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setVisitaFotoPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleGuardarVisita = async () => {
+    if (isProcessing) return;
+    // Validaciones estrictas según REQ-GM-02: GPS obligatorio, foto obligatoria, datos de persona contactada
+    if (!visitaGps) {
+      alert('⚠️ GPS OBLIGATORIO: Debe capturar la ubicación geográfica en sitio antes de registrar la visita.');
+      return;
+    }
+    if (!visitaFoto && !visitaFotoPreview) {
+      alert('⚠️ FOTO OBLIGATORIA: Debe tomar o cargar la evidencia fotográfica de la visita.');
+      return;
+    }
+    if (!visitaContactoNombre.trim() || !visitaContactoCedula.trim()) {
+      alert('⚠️ PERSONA CONTACTADA: Ingrese al menos el Nombre y Cédula de la persona que atendió la visita.');
+      return;
+    }
+    if (!visitaRazonSocial.trim()) {
+      alert('⚠️ CONTRIBUYENTE: Ingrese el nombre o razón social del establecimiento visitado.');
+      return;
+    }
+
+    setIsProcessing(true);
+    const cajero = localStorage.getItem('adminUser') || 'Fiscalizador';
+    try {
+      const refVisita = `VIS-MOV-${Date.now()}`;
+      const payloadNotas = {
+        subtipo: 'visita_campo',
+        contacto_nombre: visitaContactoNombre.trim(),
+        contacto_cedula: visitaContactoCedula.trim(),
+        contacto_cargo: visitaContactoCargo.trim(),
+        contacto_telefono: visitaContactoTelf.trim(),
+        motivo: visitaMotivo,
+        resultado: visitaResultado,
+        observaciones: visitaObservaciones.trim(),
+        lat: visitaGps.lat,
+        lng: visitaGps.lng,
+        foto_base64: visitaFotoPreview ? visitaFotoPreview.slice(0, 300) + '... (evidencia)' : '',
+        fiscalizador: cajero
+      };
+
+      const { error: insErr } = await supabase.from('servicios_especiales').insert({
+        tipo: 'visita_campo',
+        identidad: visitaRif.trim() || 'S/R',
+        contribuyente: visitaRazonSocial.trim(),
+        descripcion: `Inspección/Visita en Sitio: ${visitaRazonSocial.trim()} — Contacto: ${visitaContactoNombre.trim()} (${visitaContactoCargo.trim() || 'Encargado'})`,
+        monto: 0,
+        fecha: new Date().toISOString().split('T')[0],
+        notas: JSON.stringify(payloadNotas),
+        estado: 'Realizada',
+        referencia: refVisita,
+        creado_por: cajero,
+        origen: 'gestion_movil_visita'
+      });
+
+      if (insErr) throw insErr;
+
+      logAudit('Registro de Visita en Sitio', {
+        contribuyente: visitaRazonSocial,
+        contacto: visitaContactoNombre,
+        cedula_contacto: visitaContactoCedula,
+        gps: visitaGps,
+        referencia: refVisita
+      }, 'FISCALIZACION');
+
+      setVisitaSuccessData({
+        referencia: refVisita,
+        contribuyente: visitaRazonSocial,
+        contacto: visitaContactoNombre,
+        resultado: visitaResultado,
+        fecha: new Date().toLocaleDateString('es-VE')
+      });
+      setStep('visita_success');
+    } catch (err: any) {
+      alert('Error registrando visita: ' + (err.message || 'Error desconocido'));
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const reset = () => {
-    setStep('search'); setDocNumber(''); setRecibos([]); setFoundUser(null);
+    setStep('menu'); setDocNumber(''); setRecibos([]); setFoundUser(null);
     setSelectedRefs([]); setReferencia(''); setMontoIngresado('');
     setComprobante(null); setComprobantePreview('');
+    setVisitaRazonSocial(''); setVisitaRif(''); setVisitaDireccion('');
+    setVisitaContactoNombre(''); setVisitaContactoCedula(''); setVisitaContactoCargo('');
+    setVisitaContactoTelf(''); setVisitaObservaciones(''); setVisitaFoto(null);
+    setVisitaFotoPreview(''); setVisitaGps(null); setVisitaGpsError('');
   };
 
   const inp = 'w-full bg-slate-800 text-white rounded-2xl px-5 py-4 text-base border border-slate-700 focus:outline-none focus:border-emerald-500 placeholder-slate-500';
@@ -474,9 +606,82 @@ function CobroMovilContent() {
   return (
     <div style={{ WebkitTapHighlightColor: 'transparent' } as React.CSSProperties} className="flex flex-col flex-1">
 
+      {/* ── MENÚ PRINCIPAL GESTIÓN MÓVIL (REQ-GM-01 y REQ-GM-02) ── */}
+      {step === 'menu' && (
+        <div className="flex flex-col flex-1 px-5 pt-8 pb-6 gap-6 justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-3xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto mb-3 shadow-lg">
+              <ClipboardList className="w-8 h-8 text-emerald-400" />
+            </div>
+            <h1 className="text-white text-2xl font-black">Gestión Móvil</h1>
+            <p className="text-emerald-400 text-xs font-bold uppercase tracking-wider mt-0.5">Tucacas · Municipio Silva (ISMA)</p>
+            <p className="text-slate-400 text-xs mt-1 max-w-xs mx-auto">
+              Seleccione la operación a realizar en campo por la cuadrilla de recaudación:
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            {/* Opción 1: Cobro Móvil */}
+            <button
+              onClick={() => { setStep('search'); setDocNumber(''); }}
+              className="bg-gradient-to-r from-slate-800 to-slate-850 hover:to-slate-800 border border-emerald-500/30 hover:border-emerald-500 rounded-3xl p-5 text-left transition-all active:scale-[0.98] shadow-xl group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 flex items-center justify-center shrink-0 group-hover:bg-emerald-500 transition-colors">
+                  <CreditCard className="w-7 h-7 text-emerald-400 group-hover:text-slate-900 transition-colors" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-400">Opción 1</span>
+                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-mono px-2 py-0.5 rounded-full font-bold">Cobranza</span>
+                  </div>
+                  <h3 className="text-white text-lg font-black mt-0.5">Cobro Móvil</h3>
+                  <p className="text-slate-400 text-xs mt-1">
+                    Búsqueda de contribuyente por Cédula/RIF, verificación de estado de cuenta y recaudación en sitio (Débito / Transferencia).
+                  </p>
+                </div>
+              </div>
+            </button>
+
+            {/* Opción 2: Visita / Inspección en Sitio */}
+            <button
+              onClick={() => {
+                setStep('visita');
+                handleCapturarGpsVisita();
+              }}
+              className="bg-gradient-to-r from-slate-800 to-slate-850 hover:to-slate-800 border border-sky-500/30 hover:border-sky-500 rounded-3xl p-5 text-left transition-all active:scale-[0.98] shadow-xl group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-sky-500/20 flex items-center justify-center shrink-0 group-hover:bg-sky-500 transition-colors">
+                  <MapPin className="w-7 h-7 text-sky-400 group-hover:text-slate-900 transition-colors" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs uppercase font-extrabold tracking-wider text-sky-400">Opción 2</span>
+                    <span className="text-[10px] bg-sky-500/20 text-sky-300 font-mono px-2 py-0.5 rounded-full font-bold">Fiscalización</span>
+                  </div>
+                  <h3 className="text-white text-lg font-black mt-0.5">Visita en Sitio</h3>
+                  <p className="text-slate-400 text-xs mt-1">
+                    Inspección y registro georreferenciado con GPS obligatorio, evidencia fotográfica y datos del contacto en el comercio.
+                  </p>
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* SEARCH */}
       {step === 'search' && (
-        <div className="flex flex-col flex-1 px-5 pt-8 pb-6 gap-5">
+        <div className="flex flex-col flex-1 px-5 pt-6 pb-6 gap-5">
+          <div className="flex items-center justify-between">
+            <button onClick={() => setStep('menu')} className="text-slate-400 hover:text-white flex items-center gap-1 text-sm font-semibold">
+              <ChevronLeft className="w-5 h-5" /> Volver al Menú
+            </button>
+            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 font-bold">
+              MODO RECAUDACIÓN
+            </span>
+          </div>
           <div className="text-center">
             <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-3">
               <Search className="w-8 h-8 text-emerald-400" />
@@ -722,6 +927,301 @@ function CobroMovilContent() {
           <button onClick={reset}
             className="w-full bg-emerald-500 text-white font-bold py-5 rounded-2xl text-lg active:scale-95 mt-6">
             Nuevo Cobro
+          </button>
+        </div>
+      )}
+
+      {/* ── FORMULARIO DE VISITA EN SITIO (REQ-GM-02) ── */}
+      {step === 'visita' && (
+        <div className="flex flex-col flex-1 px-5 pt-6 pb-12 gap-5 overflow-y-auto">
+          {/* Header Visita */}
+          <div className="flex items-center justify-between">
+            <button onClick={() => setStep('menu')} className="text-slate-400 hover:text-white flex items-center gap-1 text-sm font-semibold">
+              <ChevronLeft className="w-5 h-5" /> Volver al Menú
+            </button>
+            <span className="text-[10px] font-mono text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20 font-bold">
+              MODO FISCALIZACIÓN
+            </span>
+          </div>
+
+          <div className="text-center">
+            <div className="w-14 h-14 rounded-2xl bg-sky-500/20 border border-sky-500/30 flex items-center justify-center mx-auto mb-2">
+              <MapPin className="w-7 h-7 text-sky-400" />
+            </div>
+            <h2 className="text-white text-xl font-black">Registro de Visita en Sitio</h2>
+            <p className="text-slate-400 text-xs mt-0.5">Inspección de campo en establecimientos comerciales</p>
+          </div>
+
+          {/* TARJETA 1: GEOLOCALIZACIÓN GPS ESTRICTA (OBLIGATORIA) */}
+          <div className={`p-4 rounded-2xl border transition-all ${
+            visitaGps 
+              ? 'bg-emerald-950/30 border-emerald-500/50' 
+              : 'bg-rose-950/20 border-rose-500/50'
+          }`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                <MapPin className={`w-4 h-4 ${visitaGps ? 'text-emerald-400' : 'text-rose-400'}`} />
+                Ubicación GPS (Estrictamente Obligatoria) *
+              </span>
+              <button
+                type="button"
+                onClick={handleCapturarGpsVisita}
+                disabled={visitaGpsLoading}
+                className="text-xs bg-slate-800 hover:bg-slate-750 text-sky-300 font-bold px-3 py-1.5 rounded-xl border border-sky-500/30 active:scale-95 transition-all flex items-center gap-1"
+              >
+                {visitaGpsLoading ? 'Obteniendo...' : 'Actualizar GPS'}
+              </button>
+            </div>
+
+            {visitaGps ? (
+              <div className="bg-slate-900/80 rounded-xl p-3 border border-emerald-500/30">
+                <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>Coordenadas fijadas con éxito</span>
+                </div>
+                <p className="text-[11px] text-slate-300 font-mono mt-1">
+                  Lat: <strong>{visitaGps.lat.toFixed(6)}</strong> | Lng: <strong>{visitaGps.lng.toFixed(6)}</strong>
+                </p>
+              </div>
+            ) : (
+              <div className="bg-slate-900/80 rounded-xl p-3 border border-rose-500/30">
+                <p className="text-rose-300 text-xs font-semibold">
+                  ⚠️ No se han detectado coordenadas GPS aún.
+                </p>
+                {visitaGpsError && <p className="text-rose-400 text-[11px] mt-1">{visitaGpsError}</p>}
+                <p className="text-slate-400 text-[10px] mt-1">
+                  Presione 'Actualizar GPS' y permita el acceso a la ubicación en su dispositivo móvil.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* TARJETA 2: EVIDENCIA FOTOGRÁFICA (OBLIGATORIA) */}
+          <div className="bg-slate-850 p-4 rounded-2xl border border-slate-700 space-y-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              <Camera className="w-4 h-4 text-emerald-400" />
+              Evidencia Fotográfica de la Visita *
+            </span>
+
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              ref={visitaFotoRef}
+              onChange={handleVisitaFotoChange}
+              className="hidden"
+            />
+
+            {visitaFotoPreview ? (
+              <div className="relative rounded-2xl overflow-hidden border border-emerald-500/40 bg-slate-900">
+                <img src={visitaFotoPreview} alt="Evidencia" className="w-full max-h-48 object-cover" />
+                <button
+                  type="button"
+                  onClick={() => visitaFotoRef.current?.click()}
+                  className="absolute bottom-2 right-2 bg-slate-900/90 text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-700 shadow flex items-center gap-1"
+                >
+                  <Camera className="w-3.5 h-3.5" /> Cambiar Foto
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => visitaFotoRef.current?.click()}
+                className="w-full border-2 border-dashed border-slate-600 hover:border-emerald-500 rounded-2xl p-6 text-center text-slate-400 hover:text-white transition-all flex flex-col items-center gap-2 bg-slate-800/50"
+              >
+                <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center">
+                  <Camera className="w-6 h-6 text-emerald-400" />
+                </div>
+                <span className="text-sm font-bold">Tomar Foto con Cámara / Cargar Evidencia</span>
+                <span className="text-[10px] text-slate-500">Fotografía obligatoria del frente o interior del local</span>
+              </button>
+            )}
+          </div>
+
+          {/* TARJETA 3: DATOS DEL ESTABLECIMIENTO Y CONTACTO */}
+          <div className="bg-slate-850 p-4 rounded-2xl border border-slate-700 space-y-4">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              <UserCheck className="w-4 h-4 text-sky-400" />
+              Datos del Establecimiento y Contacto *
+            </span>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Nombre o Razón Social *</label>
+              <input
+                type="text"
+                value={visitaRazonSocial}
+                onChange={e => setVisitaRazonSocial(e.target.value)}
+                placeholder="Ej. Comercial Los Roques, C.A."
+                className={inp}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">RIF / Cédula Local</label>
+                <input
+                  type="text"
+                  value={visitaRif}
+                  onChange={e => setVisitaRif(e.target.value)}
+                  placeholder="J-12345678-0"
+                  className={inp}
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Sector / Ubicación</label>
+                <input
+                  type="text"
+                  value={visitaDireccion}
+                  onChange={e => setVisitaDireccion(e.target.value)}
+                  placeholder="Casco Central, Morrocoy..."
+                  className={inp}
+                />
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-700 space-y-3">
+              <span className="text-[11px] font-extrabold text-amber-400 uppercase block">Persona Contactada en Sitio *</span>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Nombre Completo *</label>
+                  <input
+                    type="text"
+                    value={visitaContactoNombre}
+                    onChange={e => setVisitaContactoNombre(e.target.value)}
+                    placeholder="Persona que atendió"
+                    className={inp}
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Cédula de Identidad *</label>
+                  <input
+                    type="text"
+                    value={visitaContactoCedula}
+                    onChange={e => setVisitaContactoCedula(e.target.value)}
+                    placeholder="V-00.000.000"
+                    className={inp}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Cargo / Vínculo</label>
+                  <input
+                    type="text"
+                    value={visitaContactoCargo}
+                    onChange={e => setVisitaContactoCargo(e.target.value)}
+                    placeholder="Encargado, Dueño, Administrador"
+                    className={inp}
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Teléfono</label>
+                  <input
+                    type="text"
+                    value={visitaContactoTelf}
+                    onChange={e => setVisitaContactoTelf(e.target.value)}
+                    placeholder="0414-0000000"
+                    className={inp}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-700 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Motivo de la Visita</label>
+                  <select
+                    value={visitaMotivo}
+                    onChange={e => setVisitaMotivo(e.target.value)}
+                    className="w-full bg-slate-800 text-white rounded-2xl px-4 py-3 text-sm border border-slate-700 font-semibold"
+                  >
+                    <option value="Fiscalización y Verificación">Fiscalización y Verificación</option>
+                    <option value="Cobranza Extrajudicial">Cobranza Extrajudicial</option>
+                    <option value="Actualización de Datos">Actualización de Datos</option>
+                    <option value="Inspección de Residuos">Inspección de Residuos</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Resultado de la Visita</label>
+                  <select
+                    value={visitaResultado}
+                    onChange={e => setVisitaResultado(e.target.value)}
+                    className="w-full bg-slate-800 text-white rounded-2xl px-4 py-3 text-sm border border-slate-700 font-semibold"
+                  >
+                    <option value="Acuerdo de Pago / Citación">Acuerdo de Pago / Citación</option>
+                    <option value="Pago Inmediato en Taquilla">Pago Inmediato en Taquilla</option>
+                    <option value="Local Cerrado Temporalmente">Local Cerrado Temporalmente</option>
+                    <option value="Negativa a Cancelar">Negativa a Cancelar</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Observaciones / Acuerdos</label>
+                <textarea
+                  value={visitaObservaciones}
+                  onChange={e => setVisitaObservaciones(e.target.value)}
+                  placeholder="Detalles de la conversación, compromisos de pago o acuerdos..."
+                  rows={3}
+                  className="w-full bg-slate-800 text-white rounded-2xl p-4 text-sm border border-slate-700 focus:outline-none focus:border-sky-500 placeholder-slate-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* BOTÓN ENVIAR VISITA */}
+          <button
+            type="button"
+            onClick={handleGuardarVisita}
+            disabled={isProcessing}
+            className="w-full bg-sky-500 hover:bg-sky-400 disabled:bg-slate-700 text-slate-950 font-black py-5 rounded-2xl text-lg active:scale-95 shadow-xl flex items-center justify-center gap-2"
+          >
+            {isProcessing ? (
+              <div className="w-6 h-6 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <>
+                <Send className="w-5 h-5" />
+                Registrar Visita en Sistema
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* SUCCESS VISITA */}
+      {step === 'visita_success' && visitaSuccessData && (
+        <div className="flex flex-col flex-1 items-center justify-between px-5 py-8">
+          <div className="flex flex-col items-center gap-4 flex-1 justify-center w-full">
+            <div className="w-24 h-24 rounded-full bg-sky-500/20 flex items-center justify-center">
+              <CheckCircle2 className="w-12 h-12 text-sky-400" />
+            </div>
+            <h2 className="text-white text-2xl font-black text-center">¡Visita Registrada!</h2>
+            <p className="text-slate-400 text-sm text-center max-w-xs">
+              La inspección georreferenciada ha sido guardada exitosamente en el sistema municipal.
+            </p>
+            <div className="w-full bg-slate-800 rounded-2xl p-5 border border-slate-700 flex flex-col gap-4">
+              {[
+                ['Referencia', visitaSuccessData.referencia, 'text-sky-400 font-mono font-bold'],
+                ['Establecimiento', visitaSuccessData.contribuyente, 'text-white font-semibold'],
+                ['Persona Contactada', visitaSuccessData.contacto, 'text-slate-300'],
+                ['Resultado', visitaSuccessData.resultado, 'text-emerald-400 font-bold'],
+                ['Fecha', visitaSuccessData.fecha, 'text-white font-mono'],
+              ].map(([label, value, cls]) => (
+                <div key={label} className="flex justify-between items-center gap-3">
+                  <span className="text-slate-400 text-sm shrink-0">{label}</span>
+                  <span className={'text-sm text-right truncate ' + cls}>{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <button
+            onClick={reset}
+            className="w-full bg-sky-500 text-slate-950 font-black py-5 rounded-2xl text-lg active:scale-95 mt-6"
+          >
+            Volver al Menú Principal
           </button>
         </div>
       )}

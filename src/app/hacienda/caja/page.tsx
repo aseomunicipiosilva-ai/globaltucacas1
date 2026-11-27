@@ -67,8 +67,9 @@ export default function HaciendaCajaPage() {
   const [referenciaTransferencia, setReferenciaTransferencia] = useState('');
   const [fechaTransaccion, setFechaTransaccion] = useState(new Date().toISOString().split('T')[0]);
 
-  // Override de supervisor
+  // Override de supervisor y bloqueo selectivo por meses (REQ-HA-01)
   const [checkSupervisor, setCheckSupervisor] = useState(false);
+  const [mesesBloqueados, setMesesBloqueados] = useState<string[]>([]);
   const [procesandoPago, setProcesandoPago] = useState(false);
   const [reciboEmitido, setReciboEmitido] = useState<any>(null);
 
@@ -646,23 +647,63 @@ export default function HaciendaCajaPage() {
                           </div>
                         </div>
 
-                        {/* Switch de Desbloqueo por Supervisor */}
-                        <div className="pt-2 border-t border-rose-900/50 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            {checkSupervisor ? <Unlock className="w-4 h-4 text-amber-400" /> : <Lock className="w-4 h-4 text-slate-500" />}
-                            <span className="text-[11px] font-bold text-slate-300">Autorización Especial de Supervisor:</span>
+                        {/* Switch de Desbloqueo por Supervisor y Bloqueo Selectivo por Meses (REQ-HA-01) */}
+                        <div className="pt-2 border-t border-rose-900/50 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {checkSupervisor ? <Unlock className="w-4 h-4 text-amber-400" /> : <Lock className="w-4 h-4 text-slate-500" />}
+                              <span className="text-[11px] font-bold text-slate-300">Desbloqueo Total de Supervisor:</span>
+                            </div>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={checkSupervisor}
+                                onChange={(e) => setCheckSupervisor(e.target.checked)}
+                                className="w-4 h-4 accent-amber-500 rounded"
+                              />
+                              <span className="text-[10px] text-amber-400 font-bold uppercase">
+                                {checkSupervisor ? 'Autorizado Total' : 'Bloqueo General'}
+                              </span>
+                            </label>
                           </div>
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={checkSupervisor}
-                              onChange={(e) => setCheckSupervisor(e.target.checked)}
-                              className="w-4 h-4 accent-amber-500 rounded"
-                            />
-                            <span className="text-[10px] text-amber-400 font-bold uppercase">
-                              {checkSupervisor ? 'Autorizado' : 'Bloqueado'}
-                            </span>
-                          </label>
+
+                          {/* Selección de meses bloqueados específicamente */}
+                          <div className="bg-slate-900/90 rounded-xl p-2.5 border border-rose-900/40">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-[10px] font-bold uppercase text-slate-400">
+                                Bloqueo / Desbloqueo por Meses Específicos:
+                              </span>
+                              <span className="text-[9px] text-amber-400 font-mono">
+                                {mesesBloqueados.length > 0 ? `${mesesBloqueados.length} meses bloqueados` : 'Todos permitidos'}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-4 sm:grid-cols-6 gap-1">
+                              {['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'].map((m, idx) => {
+                                const mesKey = `${new Date().getFullYear()}-${String(idx + 1).padStart(2, '0')}`;
+                                const isBloqueado = mesesBloqueados.includes(mesKey);
+                                return (
+                                  <button
+                                    key={mesKey}
+                                    type="button"
+                                    onClick={() => {
+                                      if (isBloqueado) {
+                                        setMesesBloqueados(mesesBloqueados.filter(k => k !== mesKey));
+                                      } else {
+                                        setMesesBloqueados([...mesesBloqueados, mesKey]);
+                                      }
+                                    }}
+                                    className={`py-1 px-1 rounded text-[10px] font-bold border transition-colors ${
+                                      isBloqueado
+                                        ? 'bg-rose-950 text-rose-300 border-rose-800'
+                                        : 'bg-slate-950 text-emerald-400 border-slate-800 hover:border-slate-700'
+                                    }`}
+                                  >
+                                    {m} {isBloqueado ? '🔒' : '✓'}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}

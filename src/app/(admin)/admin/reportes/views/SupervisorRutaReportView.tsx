@@ -126,58 +126,82 @@ export default function SupervisorRutaReportView({ onBack }: { onBack: () => voi
 
   // EXPORTAR PDF
   const exportarPDF = (porSupervisor?: string) => {
-    const dataAExportar = porSupervisor 
-      ? viajesFiltrados.filter(v => v.supervisor?.toLowerCase() === porSupervisor.toLowerCase())
-      : viajesFiltrados;
+    try {
+      const dataAExportar = porSupervisor 
+        ? viajesFiltrados.filter(v => v.supervisor?.toLowerCase() === porSupervisor.toLowerCase())
+        : viajesFiltrados;
 
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
+      if (!dataAExportar || dataAExportar.length === 0) {
+        alert('No hay registros operativos de viajes para exportar en el período seleccionado.');
+        return;
+      }
 
-    // Encabezado
-    doc.setFillColor(15, 23, 42); // slate-900
-    doc.rect(0, 0, 280, 22, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.text('ALCALDÍA BOLIVARIANA DEL MUNICIPIO SILVA - GLOBAL TUCACAS', 14, 10);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(
-      porSupervisor 
-        ? `INFORME DE CONTROL DE RUTAS Y DESCARGA EN VERTEDERO - SUPERVISOR: ${porSupervisor.toUpperCase()}`
-        : 'INFORME GENERAL DE CONTROL DE VIAJES Y DESCARGAS EN VERTEDERO MUNICIPAL', 
-      14, 16
-    );
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' });
 
-    // Metadata
-    doc.setTextColor(51, 65, 85);
-    doc.setFontSize(9);
-    doc.text(`Fecha de emisión: ${new Date().toLocaleDateString('es-VE')} | Viajes Registrados: ${dataAExportar.length} | Toneladas Totales: ${dataAExportar.reduce((a, b) => a + (parseFloat(b.toneladas) || 0), 0).toFixed(2)} Ton`, 14, 28);
+      // Encabezado
+      doc.setFillColor(15, 23, 42); // slate-900
+      doc.rect(0, 0, 280, 22, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text('ALCALDÍA BOLIVARIANA DEL MUNICIPIO SILVA - ISMA / GLOBAL-REC', 14, 10);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text(
+        porSupervisor 
+          ? `INFORME DE CONTROL DE RUTAS Y DESCARGA EN VERTEDERO - SUPERVISOR: ${porSupervisor.toUpperCase()}`
+          : 'INFORME GENERAL DE CONTROL DE RUTAS, VIAJES Y DESCARGAS EN VERTEDERO MUNICIPAL', 
+        14, 16
+      );
 
-    const tableBody = dataAExportar.map((v, i) => [
-      i + 1,
-      v.fecha,
-      v.viaje_dia || 1,
-      v.unidad,
-      v.chofer || 'S/A',
-      v.ruta,
-      v.supervisor || 'S/A',
-      parseFloat(v.toneladas || 0).toFixed(2),
-      v.lat && v.lng ? `${v.lat.toFixed(4)}, ${v.lng.toFixed(4)}` : 'S/R',
-      v.observaciones || '—'
-    ]);
+      // Metadata
+      doc.setTextColor(51, 65, 85);
+      doc.setFontSize(8.5);
+      const sumTon = dataAExportar.reduce((a, b) => a + (parseFloat(b.toneladas) || 0), 0);
+      doc.text(`Fecha de emisión: ${new Date().toLocaleDateString('es-VE')} | Viajes Registrados: ${dataAExportar.length} | Toneladas Totales: ${sumTon.toFixed(2)} Ton`, 14, 27);
 
-    autoTable(doc, {
-      startY: 32,
-      head: [['#', 'FECHA', 'VIAJE', 'UNIDAD', 'CHOFER', 'RUTA ASIGNADA', 'SUPERVISOR', 'TONELADAS', 'GPS', 'OBSERVACIONES']],
-      body: tableBody,
-      headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
-      bodyStyles: { fontSize: 8, textColor: [15, 23, 42] },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-      margin: { left: 14, right: 14 }
-    });
+      const tableBody = dataAExportar.map((v, i) => [
+        String(i + 1),
+        v.fecha || '—',
+        String(v.viaje_dia || 1),
+        v.unidad || 'S/A',
+        v.chofer || 'S/A',
+        v.ruta || 'S/R',
+        v.supervisor || 'S/A',
+        parseFloat(v.toneladas || 0).toFixed(2),
+        v.lat && v.lng ? `${Number(v.lat).toFixed(4)}, ${Number(v.lng).toFixed(4)}` : 'S/R',
+        v.observaciones || '—'
+      ]);
 
-    const sufijo = porSupervisor ? `_Supervisor_${porSupervisor.replace(/\s+/g, '_')}` : '_General';
-    doc.save(`Informe_Vertedero${sufijo}_${new Date().toISOString().slice(0, 10)}.pdf`);
+      (autoTable as any)(doc, {
+        startY: 30,
+        head: [['#', 'FECHA', 'VIAJE', 'UNIDAD / SERVICIO', 'CHOFER', 'RUTA ASIGNADA', 'SUPERVISOR', 'TONELADAS', 'GPS', 'OBSERVACIONES']],
+        body: tableBody,
+        headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, halign: 'center' },
+        bodyStyles: { fontSize: 7.5, textColor: [15, 23, 42] },
+        columnStyles: {
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 20, halign: 'center' },
+          2: { cellWidth: 14, halign: 'center' },
+          3: { cellWidth: 32 },
+          4: { cellWidth: 30 },
+          5: { cellWidth: 48 },
+          6: { cellWidth: 28 },
+          7: { cellWidth: 22, halign: 'right' },
+          8: { cellWidth: 26, halign: 'center' },
+          9: { cellWidth: 'auto' }
+        },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { left: 12, right: 12 },
+        styles: { overflow: 'linebreak' }
+      });
+
+      const sufijo = porSupervisor ? `_Supervisor_${porSupervisor.replace(/\s+/g, '_')}` : '_General';
+      doc.save(`Informe_Operativo_Vertedero${sufijo}_${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (err: any) {
+      alert('Error generando PDF operativo: ' + (err.message || 'Error desconocido'));
+      console.error(err);
+    }
   };
 
   return (

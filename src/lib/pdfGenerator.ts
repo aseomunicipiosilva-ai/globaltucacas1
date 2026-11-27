@@ -108,11 +108,26 @@ export const dibujarYDescargarPDF = async (data: any, isPreview = false) => {
     const splitDecl = doc.splitTextToSize(declText, 175);
     doc.text(splitDecl, 15, 150);
     
-    // QR Code
+    // QR Code Institucional con Logo de la Alcaldía en el Centro (REQ-QR-01)
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://aseosilva.globalrecca.com';
     const qrData = `${baseUrl}/validar?codigo=${data.codigo}`;
-    const qrDataUrl = await QRCode.toDataURL(qrData, { margin: 1, width: 100 });
+    const qrDataUrl = await QRCode.toDataURL(qrData, { 
+      margin: 1, 
+      width: 140,
+      errorCorrectionLevel: 'H' // Nivel de corrección alto para soportar logo central sin perder lectura
+    });
+    // Dibujar el QR
     doc.addImage(qrDataUrl, 'PNG', 85, 180, 40, 40);
+    // Superponer el logo oficial de la Alcaldía en el centro del QR con fondo blanco protector
+    try {
+      if (logos.alcaldia) {
+        doc.setFillColor(255, 255, 255);
+        doc.roundedRect(99, 194, 12, 12, 2, 2, 'F');
+        doc.addImage(logos.alcaldia, 'PNG', 100, 195, 10, 10);
+      }
+    } catch (e) {
+      console.warn('No se pudo incrustar logo central en QR:', e);
+    }
     
     doc.setFontSize(7);
     doc.setTextColor(100, 100, 100);

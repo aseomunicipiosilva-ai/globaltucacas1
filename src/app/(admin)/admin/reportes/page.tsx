@@ -21,12 +21,13 @@ import UsuariosCancelaronView from './views/UsuariosCancelaronView';
 import BitacoraView from './views/BitacoraView';
 import ServiciosEspecialesReportView from './views/ServiciosEspecialesReportView';
 import SupervisorRutaReportView from './views/SupervisorRutaReportView';
+import CallCenterReportView from './views/CallCenterReportView';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-type ActiveView = null | 'ingresos' | 'corte' | 'libro-ventas' | 'fiscalizacion' | 'empleados' | 'saldos' | 'ingreso-bancario' | 'morosos' | 'transferencias' | 'inscritos' | 'convenios' | 'solventes' | 'usuarios-cancelaron' | 'bitacora' | 'censo' | 'servicios-especiales' | 'supervisor-ruta';
+type ActiveView = null | 'ingresos' | 'corte' | 'libro-ventas' | 'fiscalizacion' | 'empleados' | 'saldos' | 'ingreso-bancario' | 'morosos' | 'transferencias' | 'inscritos' | 'convenios' | 'solventes' | 'usuarios-cancelaron' | 'bitacora' | 'censo' | 'servicios-especiales' | 'supervisor-ruta' | 'call-center';
 
 const CARDS = [
   { id: 'ingresos' as ActiveView,       label: 'Caja - Ingresos',         emoji: '🖨️',  desc: 'General de Ingresos, Corte, Libro de Ventas', adminOnly: false },
@@ -42,6 +43,7 @@ const CARDS = [
   { id: 'usuarios-cancelaron' as ActiveView, label: 'Usuarios que Cancelaron', emoji: '✅', desc: 'Contribuyentes que pagaron por mes o período', adminOnly: false },
   { id: 'servicios-especiales' as ActiveView, label: 'Servicios Especiales', emoji: '🚚', desc: 'Reporte extraordinarios y especiales en Excel/PDF', adminOnly: false },
   { id: 'supervisor-ruta' as ActiveView, label: 'Supervisor de Rutas', emoji: '🚛', desc: 'Control de camiones, viajes a vertedero y pesaje', adminOnly: false },
+  { id: 'call-center' as ActiveView,     label: 'Call Center & Cobranza', emoji: '📞', desc: 'Bitácora de llamadas, semáforo de cobro y metas', adminOnly: false },
   { id: 'censo' as ActiveView,           label: 'Censo Departamental',     emoji: '??',  desc: 'Reporte estad�stico mensual Catastro y Hacienda', adminOnly: false },
   { id: 'bitacora' as ActiveView,        label: 'Bitácora Auditoría',      emoji: '🛡️',  desc: 'Historial y trazabilidad de eventos del sistema', adminOnly: true  },
 ];
@@ -528,6 +530,7 @@ export default function ReportesPage() {
   if (activeView === 'bitacora')  return <BitacoraView onBack={() => setActiveView(null)} />;
   if (activeView === 'servicios-especiales') return <ServiciosEspecialesReportView onBack={() => setActiveView(null)} />;
   if (activeView === 'supervisor-ruta') return <SupervisorRutaReportView onBack={() => setActiveView(null)} />;
+  if (activeView === 'call-center') return <CallCenterReportView onBack={() => setActiveView(null)} />;
 
   // --- Main landing: Cards ---
   const visibleCards = CARDS.filter(c => isAdmin || !c.adminOnly);

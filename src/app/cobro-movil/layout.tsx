@@ -137,8 +137,9 @@ export default function CobroMovilLayout({ children }: { children: React.ReactNo
             <div className="w-20 h-20 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center mx-auto mb-4">
               <Smartphone className="w-10 h-10 text-emerald-400" />
             </div>
-            <h1 className="text-white text-2xl font-bold">Cobro Móvil</h1>
-            <p className="text-slate-400 text-sm mt-1">Global Rec · Aseo Urbano</p>
+            <h1 className="text-white text-2xl font-bold">Gestión Móvil</h1>
+            <p className="text-emerald-400 text-xs font-semibold mt-0.5 uppercase tracking-wider">Municipio Silva · Tucacas</p>
+            <p className="text-slate-400 text-xs mt-1">Cobro y Fiscalización en Sitio (ISMA)</p>
           </div>
 
           {/* Form */}
@@ -216,7 +217,8 @@ export default function CobroMovilLayout({ children }: { children: React.ReactNo
         <div className="flex items-center justify-between px-4 py-3 bg-slate-800 border-b border-slate-700">
           <div className="flex items-center gap-2">
             <Smartphone className="w-5 h-5 text-emerald-400" />
-            <span className="text-white font-bold text-sm">Cobro Móvil</span>
+            <span className="text-white font-bold text-sm">Gestión Móvil</span>
+            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-mono font-bold">Tucacas</span>
             {nombreCobrador && <span className="text-slate-400 text-xs">· {nombreCobrador}</span>}
           </div>
           <button

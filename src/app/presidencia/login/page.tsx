@@ -31,11 +31,24 @@ export default function PresidenciaLogin() {
 
       if (!data) { setError('Usuario o contrasena incorrectos.'); setLoading(false); return; }
       if (data.estado !== 'Activo') { setError('Usuario inactivo.'); setLoading(false); return; }
-      if (data.rol !== 'Presidencia' && data.rol !== 'Administrador') {
-        setError('No tienes acceso a este modulo.'); setLoading(false); return;
+      // REQ-PR-01: Habilitar acceso ejecutivo para Director de Catastro y Director de Hacienda
+      const rolNorm = (data.rol || '').trim().toLowerCase();
+      const userNorm = usuario.trim().toLowerCase();
+      const esDirectorAutorizado = 
+        rolNorm === 'presidencia' || 
+        rolNorm === 'administrador' || 
+        rolNorm === 'director_catastro' || 
+        rolNorm === 'director_hacienda' || 
+        rolNorm === 'catastro' ||
+        rolNorm === 'hacienda' ||
+        userNorm.includes('catastro') ||
+        userNorm.includes('hacienda');
+
+      if (!esDirectorAutorizado) {
+        setError('No tienes acceso a este módulo ejecutivo.'); setLoading(false); return;
       }
 
-      sessionStorage.setItem('presidencia_auth', JSON.stringify({ nombre: data.nombre, ts: Date.now() }));
+      sessionStorage.setItem('presidencia_auth', JSON.stringify({ nombre: data.nombre, rol: data.rol, ts: Date.now() }));
       router.push('/presidencia');
     } catch {
       setError('Error de conexion. Intenta de nuevo.');

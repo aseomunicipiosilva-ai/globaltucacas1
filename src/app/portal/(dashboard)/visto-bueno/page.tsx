@@ -25,6 +25,9 @@ export default function VistoBuenoPage() {
   const [registros, setRegistros] = useState<VistoBueno[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const [inspeccionValidada, setInspeccionValidada] = useState(false);
+  const [pasoActual, setPasoActual] = useState<'inspeccion' | 'solicitud'>('inspeccion');
+
   const tarifaTCMV = ((parseFloat(area) || 0) * 0.5) + (incluyeHabilitado ? 100 : 0);
   const costoTotalBs = tarifaTCMV * tasaBcv;
 
@@ -39,9 +42,18 @@ export default function VistoBuenoPage() {
         const docLimpio = doc.replace(/-/g,'').toUpperCase();
         const filtrados = data.filter((s: any) => {
           const id = (s.identidad || '').replace(/-/g,'').toUpperCase();
-          return (id === docLimpio || id === doc.toUpperCase()) && s.tipo === 'visto_bueno';
+          return (id === docLimpio || id === doc.toUpperCase()) && (s.tipo === 'visto_bueno' || s.tipo === 'inspeccion');
         });
         setRegistros(filtrados);
+
+        // REQ-VB-02: Verificar si tiene alguna inspección aprobada/validada en campo
+        const tieneInspeccionValida = filtrados.some((s: any) => 
+          (s.tipo === 'inspeccion' || s.tipo === 'visto_bueno') && 
+          (s.estado === 'Aprobado' || s.estado === 'Realizada' || s.estado === 'Completada')
+        );
+        if (tieneInspeccionValida) {
+          setInspeccionValidada(true);
+        }
       }
     } catch {}
     setIsLoading(false);
@@ -98,6 +110,52 @@ export default function VistoBuenoPage() {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-12">
+
+      {/* AVISO INSTITUCIONAL OBLIGATORIO (REQ-VB-01) */}
+      <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 flex items-start gap-3 shadow-sm">
+        <div className="w-9 h-9 rounded-xl bg-amber-200/80 flex items-center justify-center shrink-0 mt-0.5">
+          <ShieldCheck className="w-5 h-5 text-amber-800" />
+        </div>
+        <div>
+          <h3 className="font-extrabold text-amber-900 text-sm uppercase tracking-wide">
+            Aviso Importante a los Contribuyentes y Solicitantes
+          </h3>
+          <p className="text-amber-800 text-xs font-semibold mt-1">
+            ⚠️ <strong>Los documentos originales deben ser presentados ante ISMA</strong> (Instituto Autónomo de Servicios Municipales Ambientales del Municipio José Laurencio Silva).
+          </p>
+          <p className="text-amber-700/90 text-[11px] mt-0.5">
+            El trámite inicial obligatorio requiere la <strong>Solicitud de Inspección</strong>. La verificación de metraje físico será constatada en sitio por los fiscales asignados.
+          </p>
+        </div>
+      </div>
+
+      {/* REORDENAMIENTO DE FLUJO: SELECTOR DE PASOS (REQ-VB-01) */}
+      <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 gap-2">
+        <button
+          type="button"
+          onClick={() => setPasoActual('inspeccion')}
+          className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            pasoActual === 'inspeccion'
+              ? 'bg-emerald-600 text-white shadow-md'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+          }`}
+        >
+          <span className="w-5 h-5 rounded-full bg-white/20 text-white flex items-center justify-center text-[10px]">1</span>
+          Paso 1: Solicitud de Inspección Técnica
+        </button>
+        <button
+          type="button"
+          onClick={() => setPasoActual('solicitud')}
+          className={`flex-1 py-3 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            pasoActual === 'solicitud'
+              ? 'bg-emerald-600 text-white shadow-md'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+          }`}
+        >
+          <span className="w-5 h-5 rounded-full bg-white/20 text-white flex items-center justify-center text-[10px]">2</span>
+          Paso 2: Liquidación de Visto Bueno Ambiental
+        </button>
+      </div>
 
       {/* Mis Solicitudes */}
       <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
@@ -188,9 +246,33 @@ export default function VistoBuenoPage() {
                     className="w-full text-sm border border-slate-300 rounded px-3 py-2.5 focus:ring-2 focus:ring-green-500" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Área del Local / Terreno (m²) *</label>
-                  <input type="number" min="1" value={area} onChange={e => setArea(e.target.value)}
-                    className="w-full text-sm border border-slate-300 rounded px-3 py-2.5 focus:ring-2 focus:ring-green-500" required />
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium text-slate-700">Área del Local / Terreno (m²) *</label>
+                    {!inspeccionValidada && (
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
+                        🔒 Requiere Inspección Previa Validada (ISMA)
+                      </span>
+                    )}
+                  </div>
+                  <input 
+                    type="number" 
+                    min="1" 
+                    value={area} 
+                    onChange={e => setArea(e.target.value)}
+                    disabled={!inspeccionValidada}
+                    placeholder={!inspeccionValidada ? "Bloqueado hasta validar inspección en campo" : "Ej. 85"}
+                    className={`w-full text-sm border rounded px-3 py-2.5 transition-colors ${
+                      !inspeccionValidada 
+                        ? 'bg-slate-100 border-slate-300 text-slate-500 cursor-not-allowed font-mono' 
+                        : 'border-slate-300 focus:ring-2 focus:ring-green-500 bg-white text-slate-900 font-semibold'
+                    }`}
+                    required 
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    {!inspeccionValidada 
+                      ? 'Por disposición técnica de ISMA (REQ-VB-02), el metraje solo puede ser fijado tras el levantamiento de la inspección física en campo.'
+                      : '✓ Metraje verificado y habilitado para cálculo de aranceles.'}
+                  </p>
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Descripción Breve de la Actividad *</label>

@@ -339,6 +339,38 @@ export default function PreRegistrosPage() {
 
   const columns = [
     { key: 'id', header: 'Ítem' },
+    {
+      key: 'origen_alerta',
+      header: 'Origen / Competencia',
+      render: (row: any) => {
+        const origenStr = (row.origen || '').toLowerCase();
+        const notaStr = (row.nota || '').toLowerCase();
+        const clasifStr = (row.tipo || '').toLowerCase();
+        
+        const isCatastro = origenStr.includes('catastro') || notaStr.includes('catastro') || row.ficha_catastral || row.catastro;
+        const isHacienda = origenStr.includes('hacienda') || notaStr.includes('patente') || clasifStr.includes('comercial') || clasifStr.includes('industrial');
+
+        if (isCatastro && !isHacienda) {
+          return (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-xs">
+              🗺️ CATASTRO
+            </span>
+          );
+        } else if (isHacienda) {
+          return (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black bg-sky-100 text-sky-800 border border-sky-300 shadow-xs">
+              🏛️ HACIENDA
+            </span>
+          );
+        } else {
+          return (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200">
+              🌐 WEB / MIXTO
+            </span>
+          );
+        }
+      }
+    },
     { key: 'identidad', header: 'Identidad' },
     { key: 'contribuyente', header: 'Contribuyente' },
     { key: 'tipo', header: 'Clasificación' },
@@ -414,6 +446,22 @@ export default function PreRegistrosPage() {
           <span className="block sm:inline">{showSuccess}</span>
         </div>
       )}
+
+      {/* Banner Informativo de Competencias / Origen (REQ-HA-02) */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-slate-700">Identificador Automático de Competencia:</span>
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold bg-sky-100 text-sky-800 border border-sky-300">
+            🏛️ HACIENDA (Comercial / Industrial / Patente)
+          </span>
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+            🗺️ CATASTRO (Residencial / Inmuebles / Ficha)
+          </span>
+        </div>
+        <span className="text-[11px] text-slate-500 italic">
+          * Notificación automática activa para nuevas solicitudes y censos ingresados.
+        </span>
+      </div>
 
       <div className="flex justify-between items-center mb-4">
         <div className="flex bg-slate-100 p-2 rounded text-sm text-slate-700 font-medium">

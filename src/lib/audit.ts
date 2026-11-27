@@ -8,6 +8,8 @@ export type AuditCategoria =
   | 'REPORTE'
   | 'CONFIGURACION'
   | 'CONVENIO'
+  | 'FISCALIZACION'
+  | 'CALL_CENTER'
   | 'SISTEMA';
 
 export const logAudit = async (
