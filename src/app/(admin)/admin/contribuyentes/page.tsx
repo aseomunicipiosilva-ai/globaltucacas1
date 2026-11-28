@@ -3129,6 +3129,10 @@ function ContribuyentesPageContent() {
                         }
                       }
 
+                      // Si la factura está en estatus 'Por Verificar', está amparada por un pago reportado
+                      if (f.estado === 'Por Verificar') return 0;
+
+                      let tienePagoPorVerificar = false;
                       let montoPendiente = 0;
                       let tasaPago = null;
                       viewPagos.filter((p: any) => p.estado === 'Por Verificar').forEach((p: any) => {
@@ -3136,11 +3140,14 @@ function ContribuyentesPageContent() {
                         try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) { }
                         const refs: string[] = det.recibos || [];
                         if (refs.includes(f.referencia)) {
+                          tienePagoPorVerificar = true;
                           const montoPago = parseFloat(String(p.monto || '0').replace(/[^\d.]/g, '')) || 0;
                           if (refs.length > 0) montoPendiente += (montoPago / refs.length);
                           if (det.tasa_bcv) tasaPago = parseFloat(det.tasa_bcv);
                         }
                       });
+
+                      if (tienePagoPorVerificar) return 0;
 
                       if (tasaPago && tasaPago > 0 && f.referencia?.startsWith('CM-')) {
                         const refClean = cleanCode(f.referencia);
