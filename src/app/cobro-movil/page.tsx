@@ -57,7 +57,6 @@ function CobroMovilContent() {
   const [visitaContactoCargo, setVisitaContactoCargo] = useState('');
   const [visitaContactoTelf, setVisitaContactoTelf] = useState('');
   const [visitaMotivo, setVisitaMotivo] = useState('Fiscalización y Verificación');
-  const [visitaResultado, setVisitaResultado] = useState('Acuerdo de Pago / Citación');
   const [visitaObservaciones, setVisitaObservaciones] = useState('');
   const [visitaFoto, setVisitaFoto] = useState<File | null>(null);
   const [visitaFotoPreview, setVisitaFotoPreview] = useState('');
@@ -289,7 +288,7 @@ function CobroMovilContent() {
       doc.setFont('helvetica', 'bolditalic'); doc.setTextColor(220, 38, 38);
       doc.text('IMPORTANTE: Los montos indicados en este estado de cuenta son validos UNICAMENTE para la fecha de emision del presente documento.', 105, y, { align: 'center' });
       y += 5;
-      doc.text('La tasa de cambio BCV varia diariamente. Para cancelar en una fecha posterior, solicite un nuevo estado de cuenta actualizado.', 105, y, { align: 'center' });
+      doc.text('La tasa de cambio BCV varia diariamente. Para pagar en una fecha posterior, solicite un nuevo estado de cuenta actualizado.', 105, y, { align: 'center' });
       doc.setFont('helvetica', 'normal'); doc.setTextColor(0, 0, 0);
 
     }
@@ -533,6 +532,11 @@ function CobroMovilContent() {
       return;
     }
 
+    if (!visitaObservaciones.trim()) {
+      alert('⚠️ OBSERVACIONES OBLIGATORIAS: Debe escribir las observaciones detalladas o acuerdos de la visita.');
+      return;
+    }
+
     setIsProcessing(true);
     const cajero = localStorage.getItem('adminUser') || 'Fiscalizador';
     try {
@@ -544,11 +548,10 @@ function CobroMovilContent() {
         contacto_cargo: visitaContactoCargo.trim(),
         contacto_telefono: visitaContactoTelf.trim(),
         motivo: visitaMotivo,
-        resultado: visitaResultado,
         observaciones: visitaObservaciones.trim(),
         lat: visitaGps.lat,
         lng: visitaGps.lng,
-        foto_base64: visitaFotoPreview ? visitaFotoPreview.slice(0, 300) + '... (evidencia)' : '',
+        foto_base64: visitaFotoPreview || '',
         fiscalizador: cajero
       };
 
@@ -568,19 +571,55 @@ function CobroMovilContent() {
 
       if (insErr) throw insErr;
 
-      logAudit('Registro de Visita en Sitio', {
-        contribuyente: visitaRazonSocial,
-        contacto: visitaContactoNombre,
-        cedula_contacto: visitaContactoCedula,
-        gps: visitaGps,
-        referencia: refVisita
+      // Sincronizar de inmediato con audit_logs (QR_ESCANEADO) para que aparezca en la Bitácora y Mapa de la Sala Situacional
+      const letraOperador = (localStorage.getItem('operador_letra') || cajero.replace(/^X-/i, '')[0] || 'O').toUpperCase();
+      try {
+        await supabase.from('audit_logs').insert([{
+          user_id: cajero,
+          action: 'QR_ESCANEADO',
+          details: JSON.stringify({
+            identidad: visitaRif.trim() || 'S/R',
+            codigo: refVisita,
+            contribuyente: visitaRazonSocial.trim(),
+            operador: cajero,
+            inicial: letraOperador,
+            timestamp: new Date().toISOString(),
+            tipo_registro: 'visita_campo',
+            contacto_nombre: visitaContactoNombre.trim(),
+            contacto_cedula: visitaContactoCedula.trim(),
+            contacto_cargo: visitaContactoCargo.trim(),
+            contacto_telefono: visitaContactoTelf.trim(),
+            motivo: visitaMotivo,
+            observaciones: visitaObservaciones.trim(),
+            lat: visitaGps.lat,
+            lng: visitaGps.lng,
+            foto_base64: visitaFotoPreview || ''
+          })
+        }]);
+      } catch (logErr) {
+        console.warn('Error sincronizando bitácora audit_logs:', logErr);
+      }
+
+      logAudit('VISITA_INSPECCION_REGISTRADA', {
+        contribuyente: visitaRazonSocial.trim(),
+        identidad: visitaRif.trim() || 'S/R',
+        contacto: visitaContactoNombre.trim(),
+        cedula_contacto: visitaContactoCedula.trim(),
+        cargo: visitaContactoCargo.trim(),
+        telefono: visitaContactoTelf.trim(),
+        motivo: visitaMotivo,
+        observaciones: visitaObservaciones.trim(),
+        lat: visitaGps.lat,
+        lng: visitaGps.lng,
+        foto_base64: visitaFotoPreview || '',
+        referencia: refVisita,
+        operador: cajero
       }, 'FISCALIZACION');
 
       setVisitaSuccessData({
         referencia: refVisita,
         contribuyente: visitaRazonSocial,
         contacto: visitaContactoNombre,
-        resultado: visitaResultado,
         fecha: new Date().toLocaleDateString('es-VE')
       });
       setStep('visita_success');
@@ -1062,7 +1101,12 @@ function CobroMovilContent() {
                 <input
                   type="text"
                   value={visitaRif}
-                  onChange={e => setVisitaRif(e.target.value)}
+                  onChange={e => {
+                    const raw = e.target.value.toUpperCase();
+                    // Permitir prefijo J, V, G, E, P opcional y números (máx 10 caracteres)
+                    const clean = raw.replace(/[^JVGEP0-9-]/g, '').slice(0, 12);
+                    setVisitaRif(clean);
+                  }}
                   placeholder="J-12345678-0"
                   className={inp}
                 />
@@ -1098,8 +1142,12 @@ function CobroMovilContent() {
                   <input
                     type="text"
                     value={visitaContactoCedula}
-                    onChange={e => setVisitaContactoCedula(e.target.value)}
-                    placeholder="V-00.000.000"
+                    onChange={e => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
+                      setVisitaContactoCedula(digits ? `V-${digits}` : '');
+                    }}
+                    placeholder="V-00000000"
+                    maxLength={11}
                     className={inp}
                   />
                 </div>
@@ -1119,10 +1167,14 @@ function CobroMovilContent() {
                 <div>
                   <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Teléfono</label>
                   <input
-                    type="text"
+                    type="tel"
                     value={visitaContactoTelf}
-                    onChange={e => setVisitaContactoTelf(e.target.value)}
-                    placeholder="0414-0000000"
+                    onChange={e => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+                      setVisitaContactoTelf(digits);
+                    }}
+                    placeholder="04140000000"
+                    maxLength={11}
                     className={inp}
                   />
                 </div>
@@ -1130,42 +1182,30 @@ function CobroMovilContent() {
             </div>
 
             <div className="pt-2 border-t border-slate-700 space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Motivo de la Visita</label>
-                  <select
-                    value={visitaMotivo}
-                    onChange={e => setVisitaMotivo(e.target.value)}
-                    className="w-full bg-slate-800 text-white rounded-2xl px-4 py-3 text-sm border border-slate-700 font-semibold"
-                  >
-                    <option value="Fiscalización y Verificación">Fiscalización y Verificación</option>
-                    <option value="Cobranza Extrajudicial">Cobranza Extrajudicial</option>
-                    <option value="Actualización de Datos">Actualización de Datos</option>
-                    <option value="Inspección de Residuos">Inspección de Residuos</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Resultado de la Visita</label>
-                  <select
-                    value={visitaResultado}
-                    onChange={e => setVisitaResultado(e.target.value)}
-                    className="w-full bg-slate-800 text-white rounded-2xl px-4 py-3 text-sm border border-slate-700 font-semibold"
-                  >
-                    <option value="Acuerdo de Pago / Citación">Acuerdo de Pago / Citación</option>
-                    <option value="Pago Inmediato en Taquilla">Pago Inmediato en Taquilla</option>
-                    <option value="Local Cerrado Temporalmente">Local Cerrado Temporalmente</option>
-                    <option value="Negativa a Cancelar">Negativa a Cancelar</option>
-                  </select>
-                </div>
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Motivo de la Visita</label>
+                <select
+                  value={visitaMotivo}
+                  onChange={e => setVisitaMotivo(e.target.value)}
+                  className="w-full bg-slate-800 text-white rounded-2xl px-4 py-3 text-sm border border-slate-700 font-semibold"
+                >
+                  <option value="Fiscalización y Verificación">Fiscalización y Verificación</option>
+                  <option value="Cobranza Extrajudicial">Cobranza Extrajudicial</option>
+                  <option value="Actualización de Datos">Actualización de Datos</option>
+                  <option value="Inspección de Residuos">Inspección de Residuos</option>
+                </select>
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">Observaciones / Acuerdos</label>
+                <label className="text-[11px] font-bold text-slate-400 uppercase block mb-1">
+                  Observaciones / Acuerdos <span className="text-red-400 font-bold">*</span>
+                </label>
                 <textarea
                   value={visitaObservaciones}
                   onChange={e => setVisitaObservaciones(e.target.value)}
-                  placeholder="Detalles de la conversación, compromisos de pago o acuerdos..."
-                  rows={3}
+                  placeholder="Detalles obligatorios de la conversación, compromisos de pago o acuerdos..."
+                  rows={4}
+                  required
                   className="w-full bg-slate-800 text-white rounded-2xl p-4 text-sm border border-slate-700 focus:outline-none focus:border-sky-500 placeholder-slate-500"
                 />
               </div>
@@ -1207,7 +1247,6 @@ function CobroMovilContent() {
                 ['Referencia', visitaSuccessData.referencia, 'text-sky-400 font-mono font-bold'],
                 ['Establecimiento', visitaSuccessData.contribuyente, 'text-white font-semibold'],
                 ['Persona Contactada', visitaSuccessData.contacto, 'text-slate-300'],
-                ['Resultado', visitaSuccessData.resultado, 'text-emerald-400 font-bold'],
                 ['Fecha', visitaSuccessData.fecha, 'text-white font-mono'],
               ].map(([label, value, cls]) => (
                 <div key={label} className="flex justify-between items-center gap-3">

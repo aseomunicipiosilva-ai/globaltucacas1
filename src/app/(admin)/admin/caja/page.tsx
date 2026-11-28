@@ -190,9 +190,17 @@ export default function CajaPage() {
   const isItemPending = (ref: string) => {
     const f = recibos.find((r: any) => r.referencia === ref);
     if (!f) return false;
+    if (f.estado === 'Por Verificar' || f.estado === 'Pagado') return true;
     const montoPendiente = parseFloat(getReciboMonto(f) || '0');
-    // Bloquear si el recibo está completamente cubierto por pagos 'Por Verificar' o si ya está Pagado
     if (montoPendiente <= 0.01) return true;
+    // Si tiene algún pago Por Verificar asociado, considerarlo pendiente/bloqueado
+    const hasPagoPendiente = pagosPendientes.some((p: any) => {
+      let det: any = {};
+      try { det = typeof p.detalles === 'string' ? JSON.parse(p.detalles) : (p.detalles || {}); } catch (e) {}
+      const refs: string[] = det.recibos || [];
+      return refs.includes(ref);
+    });
+    if (hasPagoPendiente) return true;
     return false;
   };
 

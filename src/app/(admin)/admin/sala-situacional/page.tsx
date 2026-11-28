@@ -125,6 +125,7 @@ export default function SalaSituacionalPage() {
   const [loadingBitacora, setLoadingBitacora] = useState(false);
   const [selectedBitacoraOperador, setSelectedBitacoraOperador] = useState<string>('TODOS');
   const [bitacoraSearch, setBitacoraSearch] = useState('');
+  const [visitaModalDetalle, setVisitaModalDetalle] = useState<any | null>(null);
 
   useEffect(() => {
     const ses = sessionStorage.getItem('sala_situacional_unlocked');
@@ -308,7 +309,17 @@ export default function SalaSituacionalPage() {
               operador: opName,
               inicial: inicial,
               timestamp: ts,
-              rawLog: log
+              rawLog: log,
+              lat: parsed.lat,
+              lng: parsed.lng,
+              tipo_registro: parsed.tipo_registro,
+              contacto_nombre: parsed.contacto_nombre,
+              contacto_cedula: parsed.contacto_cedula,
+              contacto_cargo: parsed.contacto_cargo,
+              contacto_telefono: parsed.contacto_telefono,
+              motivo: parsed.motivo,
+              observaciones: parsed.observaciones,
+              foto_base64: parsed.foto_base64
             });
 
             // En el Mapa de Puntos Morados interactivos solo se marcan los escaneados a partir de la medianoche de hoy
@@ -610,9 +621,84 @@ export default function SalaSituacionalPage() {
     return Array.from(setOps.entries()).map(([letra, nombre]) => ({ letra, nombre }));
   }, [puntosAseo]);
 
+  // Función para seleccionar un operador en bitácora y ubicar de inmediato su posición más reciente en el mapa
+  const handleSeleccionarOperadorBitacora = (letra: string) => {
+    setSelectedBitacoraOperador(letra);
+
+    if (letra === 'TODOS') {
+      setFiltroSolvencia('TODOS');
+      setFiltroOperador('TODOS');
+      setVistaModo('contribuyentes');
+      return;
+    }
+
+    // 1. Filtrar los escaneos de este operador ordenados por el más reciente
+    const escaneosOperador = bitacoraLogs
+      .filter(b => (b.inicial || b.operador?.[0] || '').toUpperCase() === letra.toUpperCase())
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    let puntoMasReciente: PuntoAseo | null = null;
+
+    if (escaneosOperador.length > 0) {
+      for (const scan of escaneosOperador) {
+        const cleanId = String(scan.identidad).replace(/[-.\s]/g, '').toUpperCase();
+        const found = contribuyentesMap.get(cleanId);
+        if (found && found.lat && found.lng) {
+          puntoMasReciente = {
+            ...found,
+            escaneado: true,
+            operador: scan.operador,
+            inicial_operador: scan.inicial || letra,
+            escaneado_at: scan.timestamp
+          };
+          break;
+        }
+        if (scan.lat && scan.lng) {
+          puntoMasReciente = {
+            id: `scan-${scan.id}`,
+            codigo: scan.codigo || cleanId,
+            identidad: scan.identidad,
+            contribuyente: scan.contribuyente || `Visita de Campo - Operador ${letra}`,
+            tipo: 'Comercial',
+            clasificacion: 'Inspección en Sitio',
+            actividad: scan.motivo || 'Fiscalización Móvil',
+            direccion: 'Ubicación GPS en Sitio, Tucacas',
+            sector: 'Tucacas',
+            deuda_total: 0,
+            facturas_pendientes: 0,
+            solvente: true,
+            lat: Number(scan.lat),
+            lng: Number(scan.lng),
+            escaneado: true,
+            operador: scan.operador,
+            inicial_operador: scan.inicial || letra,
+            escaneado_at: scan.timestamp
+          };
+          break;
+        }
+      }
+    }
+
+    // 2. Si no lo encontró en bitacoraLogs, buscar en puntosAseo
+    if (!puntoMasReciente) {
+      puntoMasReciente = puntosAseo.find(p => 
+        (p.inicial_operador || p.operador?.[0] || '').toUpperCase() === letra.toUpperCase() &&
+        p.lat && p.lng
+      ) || null;
+    }
+
+    // 3. Configurar vista de mapa enfocando el punto más reciente del operador
+    setFiltroOperador(letra);
+    setFiltroSolvencia('TODOS');
+    if (puntoMasReciente) {
+      setSelectedPunto(puntoMasReciente);
+    }
+    setVistaModo('contribuyentes');
+  };
+
   // Filtro de Puntos de Aseo
   const filteredPuntosAseo = useMemo(() => {
-    return puntosAseo.filter(p => {
+    const res = puntosAseo.filter(p => {
       if (filtroSolvencia === 'SOLVENTES' && !p.solvente) return false;
       if (filtroSolvencia === 'CON_DEUDA' && p.solvente) return false;
       if (filtroSolvencia === 'ESCANEADOS' && !p.escaneado) return false;
@@ -660,7 +746,13 @@ export default function SalaSituacionalPage() {
       }
       return true;
     });
-  }, [puntosAseo, filtroSolvencia, filtroTipo, filtroOperador, searchTerm]);
+
+    // Si se seleccionó un punto específico que no está en la lista filtrada, incluirlo al frente para enfocarlo siempre
+    if (selectedPunto && !res.some(p => p.id === selectedPunto.id)) {
+      return [selectedPunto, ...res];
+    }
+    return res;
+  }, [puntosAseo, filtroSolvencia, filtroTipo, filtroOperador, searchTerm, selectedPunto]);
 
   if (!isAuthenticated) {
     return (
@@ -1389,7 +1481,8 @@ export default function SalaSituacionalPage() {
                 return (
                   <button
                     key={op.letra}
-                    onClick={() => setSelectedBitacoraOperador(op.letra)}
+                    onClick={() => handleSeleccionarOperadorBitacora(op.letra)}
+                    title={`Ver ubicación actual en el mapa del Operador ${op.letra}`}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-2 ${
                       isSelected
                         ? 'bg-purple-700 text-white shadow-md ring-2 ring-purple-400'
@@ -1547,20 +1640,60 @@ export default function SalaSituacionalPage() {
                           </td>
 
                           <td className="py-3 px-4 text-center whitespace-nowrap">
-                            <button
-                              onClick={() => {
-                                if (contribData) {
-                                  setSelectedPunto(contribData);
-                                }
-                                setFiltroSolvencia('ESCANEADOS');
-                                setVistaModo('contribuyentes');
-                              }}
-                              className="text-xs bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold px-2.5 py-1 rounded-lg border border-purple-200 transition-all inline-flex items-center gap-1"
-                              title="Localizar en el mapa satelital"
-                            >
-                              <Compass className="w-3.5 h-3.5" />
-                              Ubicar
-                            </button>
+                            <div className="flex items-center justify-center gap-1.5">
+                              {Boolean(item.foto_base64 || item.observaciones || item.contacto_nombre) && (
+                                <button
+                                  onClick={() => setVisitaModalDetalle(item)}
+                                  className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-lg border border-amber-300 transition-all inline-flex items-center gap-1 shadow-xs cursor-pointer"
+                                  title="Ver evidencia fotográfica y reporte de la visita"
+                                >
+                                  <Camera className="w-3.5 h-3.5 text-amber-600" />
+                                  Visita
+                                </button>
+                              )}
+                              <button
+                                onClick={() => {
+                                  if (contribData) {
+                                    setSelectedPunto({
+                                      ...contribData,
+                                      escaneado: true,
+                                      operador: item.operador,
+                                      inicial_operador: item.inicial,
+                                      escaneado_at: item.timestamp
+                                    });
+                                  } else if (item.lat && item.lng) {
+                                    setSelectedPunto({
+                                      id: `scan-${item.id}`,
+                                      codigo: item.codigo,
+                                      identidad: item.identidad,
+                                      contribuyente: item.contribuyente || `Visita de Campo - ${item.operador}`,
+                                      tipo: 'Comercial',
+                                      clasificacion: 'Inspección en Sitio',
+                                      actividad: item.motivo || 'Fiscalización Móvil',
+                                      direccion: 'Ubicación Satelital en Sitio, Tucacas',
+                                      sector: 'Tucacas',
+                                      deuda_total: 0,
+                                      facturas_pendientes: 0,
+                                      solvente: true,
+                                      lat: Number(item.lat),
+                                      lng: Number(item.lng),
+                                      escaneado: true,
+                                      operador: item.operador,
+                                      inicial_operador: item.inicial,
+                                      escaneado_at: item.timestamp
+                                    });
+                                  }
+                                  setFiltroOperador(item.inicial || 'TODOS');
+                                  setFiltroSolvencia('TODOS');
+                                  setVistaModo('contribuyentes');
+                                }}
+                                className="text-xs bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold px-2.5 py-1 rounded-lg border border-purple-200 transition-all inline-flex items-center gap-1 cursor-pointer"
+                                title="Localizar en el mapa satelital"
+                              >
+                                <Compass className="w-3.5 h-3.5" />
+                                Ubicar
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1655,6 +1788,142 @@ export default function SalaSituacionalPage() {
               focusedUnit={focusedUnit}
               onSelectUnit={(unit) => setFocusedUnit(unit)}
             />
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL DE DETALLE DE VISITA / INSPECCIÓN EN SITIO ── */}
+      {visitaModalDetalle && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200 animate-in fade-in zoom-in duration-150">
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-4 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Camera className="w-5 h-5" />
+                <span className="font-black text-sm uppercase tracking-wide">Reporte de Visita en Sitio</span>
+              </div>
+              <button
+                onClick={() => setVisitaModalDetalle(null)}
+                className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors text-white font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+              {visitaModalDetalle.foto_base64 && (
+                <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 shadow-inner">
+                  <img
+                    src={visitaModalDetalle.foto_base64}
+                    alt="Evidencia Visita"
+                    className="w-full max-h-64 object-cover"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
+                <div>
+                  <span className="text-slate-400 font-bold uppercase block text-[10px]">Fiscal / Operador</span>
+                  <span className="font-extrabold text-slate-800">{visitaModalDetalle.operador}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold uppercase block text-[10px]">Fecha y Hora</span>
+                  <span className="font-extrabold text-slate-800">
+                    {new Date(visitaModalDetalle.timestamp).toLocaleString('es-VE')}
+                  </span>
+                </div>
+                <div className="col-span-2 pt-2 border-t border-slate-200">
+                  <span className="text-slate-400 font-bold uppercase block text-[10px]">Establecimiento / Contribuyente</span>
+                  <span className="font-extrabold text-slate-900 text-sm">{visitaModalDetalle.contribuyente}</span>
+                  <span className="font-mono text-emerald-700 block font-bold">{visitaModalDetalle.identidad}</span>
+                </div>
+              </div>
+
+              {(visitaModalDetalle.contacto_nombre || visitaModalDetalle.contacto_cedula || visitaModalDetalle.contacto_telefono) && (
+                <div className="bg-sky-50/60 p-3.5 rounded-2xl border border-sky-200 text-xs space-y-2">
+                  <span className="font-black text-sky-900 uppercase block tracking-wider text-[11px]">Persona Contactada en Sitio</span>
+                  <div className="grid grid-cols-2 gap-2 text-slate-800">
+                    <div>
+                      <span className="text-slate-400 text-[10px] block font-bold">Nombre</span>
+                      <span className="font-bold">{visitaModalDetalle.contacto_nombre || 'No indicado'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-[10px] block font-bold">Cédula</span>
+                      <span className="font-mono font-bold">{visitaModalDetalle.contacto_cedula || 'No indicada'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-[10px] block font-bold">Cargo / Vínculo</span>
+                      <span className="font-bold">{visitaModalDetalle.contacto_cargo || 'No indicado'}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-[10px] block font-bold">Teléfono</span>
+                      <span className="font-mono font-bold text-sky-800">{visitaModalDetalle.contacto_telefono || 'No indicado'}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {visitaModalDetalle.observaciones && (
+                <div className="bg-amber-50/50 p-3.5 rounded-2xl border border-amber-200 text-xs space-y-1">
+                  <span className="font-black text-amber-900 uppercase block tracking-wider text-[11px]">Observaciones y Acuerdos</span>
+                  <p className="text-slate-800 leading-relaxed whitespace-pre-wrap font-medium">{visitaModalDetalle.observaciones}</p>
+                </div>
+              )}
+
+              {visitaModalDetalle.lat && visitaModalDetalle.lng && (
+                <div className="flex items-center justify-between bg-slate-100 p-3 rounded-2xl text-xs">
+                  <span className="text-slate-600 font-mono font-bold">
+                    GPS: {Number(visitaModalDetalle.lat).toFixed(6)}, {Number(visitaModalDetalle.lng).toFixed(6)}
+                  </span>
+                  <button
+                    onClick={() => {
+                      const cleanId = String(visitaModalDetalle.identidad).replace(/[-.\s]/g, '').toUpperCase();
+                      const found = contribuyentesMap.get(cleanId);
+                      if (found) {
+                        setSelectedPunto(found);
+                      } else {
+                        setSelectedPunto({
+                          id: `scan-${visitaModalDetalle.id}`,
+                          codigo: visitaModalDetalle.codigo,
+                          identidad: visitaModalDetalle.identidad,
+                          contribuyente: visitaModalDetalle.contribuyente,
+                          tipo: 'Comercial',
+                          clasificacion: 'Inspección en Sitio',
+                          actividad: visitaModalDetalle.motivo || 'Fiscalización Móvil',
+                          direccion: 'Ubicación Satelital en Sitio, Tucacas',
+                          sector: 'Tucacas',
+                          deuda_total: 0,
+                          facturas_pendientes: 0,
+                          solvente: true,
+                          lat: Number(visitaModalDetalle.lat),
+                          lng: Number(visitaModalDetalle.lng),
+                          escaneado: true,
+                          operador: visitaModalDetalle.operador,
+                          inicial_operador: visitaModalDetalle.inicial,
+                          escaneado_at: visitaModalDetalle.timestamp
+                        });
+                      }
+                      setFiltroOperador(visitaModalDetalle.inicial || 'TODOS');
+                      setFiltroSolvencia('TODOS');
+                      setVistaModo('contribuyentes');
+                      setVisitaModalDetalle(null);
+                    }}
+                    className="bg-purple-700 hover:bg-purple-800 text-white font-bold px-3 py-1.5 rounded-xl flex items-center gap-1 shadow-xs transition-colors"
+                  >
+                    <Compass className="w-3.5 h-3.5" />
+                    Ubicar en Mapa
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={() => setVisitaModalDetalle(null)}
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl font-bold text-xs transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}

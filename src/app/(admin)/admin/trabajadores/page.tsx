@@ -83,6 +83,7 @@ export default function TrabajadoresPage() {
       rol: 'Taquilla / Operador',
       estado: 'Activo',
       letra: '',
+      meta_mensual: 0,
       permisos: { ...defaultPermissions }
     });
     setIsEditing(true);
@@ -121,6 +122,7 @@ export default function TrabajadoresPage() {
         rol: formData.rol,
         estado: formData.estado,
         letra: formData.letra ? formData.letra.toUpperCase() : '',
+        meta_mensual: Number(formData.meta_mensual || 0),
         permisos: formData.permisos
       };
       // Solo sobreescribir clave si fue escrita/ingresada, o si es nuevo registro
@@ -280,6 +282,13 @@ export default function TrabajadoresPage() {
     { key: 'letra', header: 'Letra', render: (row: any) => (
       <span className="font-bold text-slate-700">{row.letra || '-'}</span>
     )},
+    { key: 'meta_mensual', header: 'Meta Mensual', render: (row: any) => (
+      <span className="font-mono font-bold text-emerald-700">
+        {row.meta_mensual > 0 
+          ? `Bs. ${Number(row.meta_mensual).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+          : 'Sin meta'}
+      </span>
+    )},
     { key: 'rol', header: 'Rol', render: (row: any) => (
       <span className={`px-2 py-1 rounded text-xs font-semibold ${row.rol === 'Administrador' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
         {row.rol}
@@ -434,6 +443,19 @@ export default function TrabajadoresPage() {
                 <label className="block text-[10px] font-medium text-slate-500 mb-1">Letra Identificadora (Caja / Auditoría)</label>
                 <input type="text" maxLength={1} placeholder="Ej: A, B, F..." value={formData.letra || ''} onChange={e => setFormData({...formData, letra: e.target.value.toUpperCase()})} className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 font-bold text-center uppercase" />
                 <span className="text-[10px] text-slate-400 mt-1 block">Aparecerá en los recibos impresos (ej. Caja: F-OMAR)</span>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100">
+                <label className="block text-[10px] font-medium text-slate-500 mb-1">Meta Mensual de Recaudación / Cobranza (Bs.)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.meta_mensual ?? ''}
+                  onChange={e => setFormData({ ...formData, meta_mensual: parseFloat(e.target.value) || 0 })}
+                  className="w-full border border-slate-300 rounded px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 font-mono font-bold"
+                />
+                <span className="text-[10px] text-slate-400 mt-1 block">Meta individual asignada para seguimiento de gestión del analista</span>
               </div>
             </div>
           </div>

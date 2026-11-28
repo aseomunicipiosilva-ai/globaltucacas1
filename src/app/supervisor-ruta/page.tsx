@@ -910,6 +910,7 @@ export default function SupervisorRutaPage() {
                 <span className="text-[10px] text-slate-400 font-semibold block">Puntos y Sectores de Ruta Frecuentes:</span>
                 <div className="flex flex-wrap gap-1.5">
                   {[
+                    'Ruta Especial: Cobertura de Días Anteriores / Contingencia',
                     'Ruta 1: Casco Central, C. Ayacucho, Av. Silva',
                     'Ruta 2: Morrocoy, Caño Salado, Las Delicias',
                     'Ruta 3: Carretera Nacional, El Calvario',
@@ -928,8 +929,8 @@ export default function SupervisorRutaPage() {
                       }}
                       className={`text-[9px] px-2 py-1 rounded-lg border text-left transition-colors ${
                         ruta === rText
-                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500'
-                          : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white hover:border-slate-700'
+                          ? (rText.includes('Especial') ? 'bg-amber-500/20 text-amber-300 border-amber-500 font-bold' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500')
+                          : (rText.includes('Especial') ? 'bg-amber-950/40 text-amber-400 border-amber-800/80 hover:border-amber-600 font-bold' : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white hover:border-slate-700')
                       }`}
                     >
                       {rText}
