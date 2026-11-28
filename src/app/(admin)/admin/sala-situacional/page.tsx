@@ -38,7 +38,8 @@ import {
   Filter,
   QrCode,
   Download,
-  Check
+  Check,
+  Camera
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { PuntoAseo } from '@/components/AseoMapaContribuyentes';
